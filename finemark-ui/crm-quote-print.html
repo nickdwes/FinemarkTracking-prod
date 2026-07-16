@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quotation | Finemark</title>
+  <style>
+    /* ── Base ─────────────────────────────────────────────────────────── */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; background: #f0f0f0; color: #1a1a1a; }
+
+    /* ── Controls bar (hidden when printing) ──────────────────────────── */
+    .controls-bar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: #2f3c93; color: white;
+      display: flex; align-items: center; gap: 10px; padding: 10px 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+    .controls-bar h2 { font-size: 15px; font-weight: 700; flex: 1; letter-spacing: -0.2px; }
+    .btn-print {
+      background: white; color: #2f3c93; border: none; border-radius: 6px;
+      padding: 8px 18px; font-weight: 700; font-size: 13px; cursor: pointer; white-space: nowrap;
+    }
+    .btn-print:hover { background: #e0e7ff; }
+    .btn-close {
+      background: transparent; color: rgba(255,255,255,0.8);
+      border: 1px solid rgba(255,255,255,0.4); border-radius: 6px;
+      padding: 7px 14px; font-size: 13px; cursor: pointer;
+    }
+    .btn-close:hover { background: rgba(255,255,255,0.12); }
+
+    /* ── Page wrapper ─────────────────────────────────────────────────── */
+    .page-wrapper { padding: 70px 20px 30px; min-height: 100vh; }
+    .document {
+      background: white; width: 210mm; margin: 0 auto;
+      padding: 15mm 14mm 12mm;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+    }
+
+    /* ── Brand gradient bar ───────────────────────────────────────────── */
+    .brand-bar {
+      height: 5px; border-radius: 2px; margin-bottom: 18px;
+      background: linear-gradient(90deg, #2f3c93 0%, #2fa9df 100%);
+    }
+
+    /* ── Header ───────────────────────────────────────────────────────── */
+    .header { display: flex; flex-direction: column; margin-bottom: 10px; gap: 6px; }
+    .header-top { display: flex; justify-content: space-between; align-items: flex-start; }
+    .header-bottom { text-align: center; padding: 4px 0 2px; }
+    .company-block { display: flex; gap: 10px; align-items: center; }
+    .company-name { font-size: 17px; font-weight: 800; color: #2f3c93; letter-spacing: -0.3px; line-height: 1.1; white-space: nowrap; }
+    .company-sub { font-size: 9px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+    .company-contact { font-size: 9.5px; color: #555; line-height: 1.7; }
+    .doc-title { font-size: 14px; font-weight: 900; color: #2f3c93; letter-spacing: 1.5px; text-transform: uppercase; line-height: 1.5; }
+    .contact-block { text-align: right; font-size: 8.5px; color: #555; line-height: 1.9; min-width: 145px; }
+    .contact-pin { color: #2f3c93; font-weight: 800; font-size: 9px; display: block; margin-top: 3px; }
+
+    /* ── Divider ──────────────────────────────────────────────────────── */
+    hr.divider { border: none; border-top: 1.5px solid #2f3c93; margin: 14px 0 12px; }
+
+    /* ── Info row: Bill To + Quote meta ──────────────────────────────── */
+    .info-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: stretch; }
+
+    .billto-box { flex: 0 0 55%; border: 1px solid #bbb; border-radius: 3px; overflow: hidden; }
+    .billto-label {
+      background: #eef2fb; border-bottom: 1px solid #bbb;
+      padding: 3px 8px; font-size: 8px; font-weight: 800;
+      text-transform: uppercase; letter-spacing: 0.5px; color: #2f3c93;
+    }
+    .billto-body { padding: 8px 10px; }
+    .customer-name { font-size: 13px; font-weight: 800; color: #1a1a1a; line-height: 1.2; }
+
+    .quote-meta-box { flex: 1; border: 1px solid #bbb; border-radius: 3px; overflow: hidden; }
+    .qmeta-tbl { width: 100%; border-collapse: collapse; }
+    .qmeta-tbl tr:nth-child(odd) td { background: #f1f4fb; }
+    .qmeta-tbl tr:nth-child(even) td { background: white; }
+    .qmeta-tbl td { padding: 4px 8px; font-size: 9.5px; border-bottom: 1px solid #e8ecf0; }
+    .qmeta-tbl td:first-child { font-weight: 700; color: #374151; width: 42%; border-right: 1px solid #e8ecf0; white-space: nowrap; }
+    .qmeta-tbl tr:last-child td { border-bottom: none; }
+
+    .status-badge {
+      display: inline-block; padding: 3px 10px; border-radius: 20px;
+      font-size: 10px; font-weight: 700; border: 1px solid;
+    }
+    .badge-draft      { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+    .badge-sent       { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+    .badge-accepted   { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+    .badge-rejected   { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+    .badge-expired    { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+    .badge-superseded { background: #faf5ff; color: #6b21a8; border-color: #e9d5ff; }
+
+    /* ── Vehicle table ────────────────────────────────────────────────── */
+    .vehicle-wrap { border: 1px solid #c8d0e0; border-radius: 3px; overflow: hidden; margin-bottom: 12px; }
+    .vehicle-tbl { width: 100%; border-collapse: collapse; }
+    .vehicle-tbl thead tr { background: #2f3c93; color: white; }
+    .vehicle-tbl th {
+      padding: 6px 8px; font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.4px; text-align: left; color: white;
+      border-right: 1px solid rgba(255,255,255,0.2);
+    }
+    .vehicle-tbl th:last-child { border-right: none; }
+    .vehicle-tbl td { padding: 6px 8px; font-size: 10px; font-weight: 700; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; }
+    .vehicle-tbl td:last-child { border-right: none; }
+    .vehicle-tbl tbody tr:last-child td { border-bottom: none; }
+
+    /* ── Line items table ─────────────────────────────────────────────── */
+    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
+    .items-table thead tr { background: #2f3c93; color: white; }
+    .items-table th {
+      padding: 7px 8px; font-size: 9.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.4px;
+    }
+    .items-table td { padding: 6px 8px; font-size: 10.5px; border-bottom: 1px solid #e8ecf0; vertical-align: top; }
+    .items-table tbody tr:nth-child(even) td { background: #f1f4fb; }
+    .items-table tbody tr:last-child td { border-bottom: 2px solid #2f3c93; }
+    .num { text-align: right; white-space: nowrap; }
+    .center { text-align: center; }
+    .col-model { min-width: 90px; }
+    .col-type  { min-width: 70px; font-size: 10px; }
+    .col-desc  { font-size: 10px; }
+    td.col-type, td.col-desc { color: #1a1a1a; }
+    .col-qty   { width: 40px; }
+    .col-disc  { width: 60px; text-align: center; font-size: 10px; }
+    .col-price { width: 80px; }
+    .col-total { width: 80px; }
+
+    /* ── Totals ───────────────────────────────────────────────────────── */
+    .totals-section { display: flex; justify-content: flex-end; margin: 4px 0 14px; }
+    .totals-table { border-collapse: collapse; min-width: 270px; }
+    .totals-table td { padding: 4px 8px; font-size: 11px; }
+    .totals-table td:first-child { color: #475569; font-weight: 600; text-align: right; }
+    .totals-table td:last-child  { font-weight: 700; text-align: right; color: #1a1a1a; min-width: 115px; }
+    .totals-table tr.subtotal-row td { border-top: 1px solid #e2e8f0; padding-top: 7px; }
+    .totals-table tr.grand-total td  { font-size: 13px; color: #2f3c93; border-top: 2px solid #2f3c93; padding-top: 7px; }
+    .totals-table tr.discount-row td { color: #dc2626; }
+
+    /* ── Notes ────────────────────────────────────────────────────────── */
+    .notes-section { margin-bottom: 12px; }
+    .notes-text { font-size: 10px; color: #475569; line-height: 1.6; white-space: pre-line; }
+
+    /* ── Payment table ────────────────────────────────────────────────── */
+    .payment-section { margin-bottom: 14px; display: flex; justify-content: flex-end; }
+    .payment-tbl { width: 55%; border-collapse: collapse; border: 1px solid #c8d0e0; }
+    .payment-tbl caption {
+      background: #2f3c93; color: white;
+      font-size: 9.5px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase;
+      padding: 6px 10px; text-align: left; caption-side: top;
+    }
+    .payment-tbl th {
+      background: #f1f4fb; color: #2f3c93;
+      font-size: 9.5px; font-weight: 800; text-align: left;
+      padding: 6px 10px; border: 1px solid #c8d0e0;
+      width: 30%; vertical-align: top; white-space: nowrap;
+    }
+    .payment-tbl td {
+      font-size: 9.5px; color: #1a1a1a;
+      padding: 6px 10px; border: 1px solid #c8d0e0;
+      line-height: 1.6; vertical-align: top;
+    }
+    .payment-tbl tbody tr:nth-child(even) th,
+    .payment-tbl tbody tr:nth-child(even) td { background: #f1f4fb; }
+
+    /* ── Footer ───────────────────────────────────────────────────────── */
+    .footer {
+      margin-top: 14px; border-top: 1px solid #e2e8f0; padding-top: 8px;
+      text-align: center; font-size: 9px; color: #94a3b8;
+      letter-spacing: 0.4px; text-transform: uppercase;
+    }
+
+    /* ── States ───────────────────────────────────────────────────────── */
+    .state-msg { padding: 40px; text-align: center; color: #64748b; font-size: 14px; }
+
+    /* ── Print ────────────────────────────────────────────────────────── */
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @media print {
+      body { background: white; }
+      .controls-bar { display: none !important; }
+      .page-wrapper { padding: 0; }
+      .document { width: 100%; margin: 0; padding: 10mm 10mm 8mm; box-shadow: none; }
+    }
+    @page { size: A4 portrait; margin: 8mm 10mm; }
+  </style>
+</head>
+<body>
+
+<!-- Controls bar -->
+<div class="controls-bar">
+  <h2 id="ctrl-title">Quotation</h2>
+  <button class="btn-print" onclick="window.print()">&#128438; Print / Save as PDF</button>
+  <button class="btn-close" onclick="window.close ? window.close() : history.back()">&#x2715; Close</button>
+</div>
+
+<div class="page-wrapper">
+  <div class="document" id="doc-root">
+    <div class="state-msg" id="state-msg">Loading quotation&hellip;</div>
+  </div>
+</div>
+
+<script>
+(async () => {
+  const params  = new URLSearchParams(location.search);
+  const id      = params.get("id");
+  const msgEl   = document.getElementById("state-msg");
+  const root    = document.getElementById("doc-root");
+
+  if (!id) { msgEl.textContent = "No quote ID provided."; return; }
+
+  const session = JSON.parse(localStorage.getItem("finemark_session") || "{}");
+  const token   = session?.accessToken;
+  if (!token) {
+    msgEl.innerHTML = 'Not authenticated. Please <a href="login.html">log in</a>.';
+    return;
+  }
+
+  let quote;
+  try {
+    const r = await fetch(`/api/crm/quotes/${encodeURIComponent(id)}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!r.ok) throw new Error(`Server returned ${r.status}`);
+    const payload = await r.json();
+    quote = payload.data || payload;
+  } catch (e) {
+    msgEl.textContent = "Failed to load quotation: " + e.message;
+    return;
+  }
+
+  const items  = quote.items || [];
+  const quoteNo = quote.quoteNo || quote.quote_no || "Quotation";
+  document.title = `Quotation ${quoteNo} | Finemark`;
+  document.getElementById("ctrl-title").textContent = `Quotation ${quoteNo}`;
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  const esc = (s) => String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const fmt = (d) => d ? new Date(d).toLocaleDateString("en-KE", { year:"numeric", month:"short", day:"numeric" }) : "—";
+  const kes = (v) => "Ksh " + Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits:2, maximumFractionDigits:2 });
+
+  // ── Status badge class ────────────────────────────────────────────────────
+  const status = quote.status || "Draft";
+  const badgeClass = {
+    Draft: "badge-draft", Sent: "badge-sent", Accepted: "badge-accepted",
+    Rejected: "badge-rejected", Expired: "badge-expired", Superseded: "badge-superseded"
+  }[status] || "badge-draft";
+
+  // ── Compute subtotal from items (or use installationCost + subscriptionFee) ─
+  const hasItems = items.length > 0;
+  const subtotalFromItems = hasItems
+    ? items.reduce((sum, i) => sum + Number(i.totalPrice || i.total_price || 0), 0)
+    : Number(quote.installationCost || 0) + Number(quote.subscriptionFee || 0);
+  const discount    = Number(quote.discountAmount || 0);
+  const taxRate     = Number(quote.taxRate || 0);
+  const afterDisc   = subtotalFromItems - discount;
+  const taxAmount   = afterDisc * (taxRate / 100);
+  const grandTotal  = Number(quote.totalAmount || 0) || afterDisc + taxAmount;
+
+  // ── Partner-bank matching for payment section ────────────────────────────
+  const partnerKey   = (quote.partnerName || "").toLowerCase();
+  const isEquity     = partnerKey.includes("equity");
+  const isCoop       = partnerKey.includes("coop") || partnerKey.includes("co-op") || partnerKey.includes("cooperative");
+  const isSidian     = partnerKey.includes("sidian");
+  const isSmep       = partnerKey.includes("smep");
+  const isUniversal  = partnerKey.includes("universal") || partnerKey.includes("sacco");
+  const hasPartnerBank = isEquity || isCoop || isSidian || isSmep || isUniversal;
+  const vehicleReg   = esc(quote.vehicleRegistration || quote.vehicle_registration || "(Vehicle Reg.)");
+  const hasVehicle   = !!(quote.vehicleRegistration || quote.vehicleMake || quote.vehicleModel);
+
+  // ── Build items rows ──────────────────────────────────────────────────────
+  let itemsHtml;
+  if (hasItems) {
+    itemsHtml = items.map(it => {
+      const discPct = Number(it.discountPct || it.discount_pct || 0);
+      return `
+      <tr>
+        <td class="col-model">${esc(it.deviceModel || it.device_model || "\u2014")}</td>
+        <td class="col-type">${esc(it.deviceType || it.device_type || "")}</td>
+        <td class="col-desc">${esc(it.description || "")}</td>
+        <td class="col-qty center">${Number(it.quantity || 0).toLocaleString("en-KE")}</td>
+        <td class="col-disc center">${discPct > 0 ? discPct.toFixed(2) + "%" : "\u2014"}</td>
+        <td class="col-price num">${kes(it.unitPrice || it.unit_price)}</td>
+        <td class="col-total num">${kes(it.totalPrice || it.total_price)}</td>
+      </tr>`;
+    }).join("");
+  } else {
+    // No item rows — show the cost breakdown as pseudo-rows
+    itemsHtml = "";
+    if (Number(quote.installationCost) > 0) {
+      itemsHtml += `<tr>
+        <td class="col-model">Installation</td><td class="col-type"></td>
+        <td class="col-desc">${esc(quote.serviceType || "GPS Tracker Installation")}</td>
+        <td class="col-qty center">1</td>
+        <td class="col-disc center">\u2014</td>
+        <td class="col-price num">${kes(quote.installationCost)}</td>
+        <td class="col-total num">${kes(quote.installationCost)}</td>
+      </tr>`;
+    }
+    if (Number(quote.subscriptionFee) > 0) {
+      itemsHtml += `<tr>
+        <td class="col-model">Subscription</td><td class="col-type"></td>
+        <td class="col-desc">Monthly tracking fee</td>
+        <td class="col-qty center">1</td>
+        <td class="col-disc center">\u2014</td>
+        <td class="col-price num">${kes(quote.subscriptionFee)}/mo</td>
+        <td class="col-total num">${kes(quote.subscriptionFee)}</td>
+      </tr>`;
+    }
+    if (!itemsHtml) {
+      itemsHtml = `<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:12px;">No line items</td></tr>`;
+    }
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  root.innerHTML = `
+    <div class="brand-bar"></div>
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-top">
+        <div class="company-block">
+          <div>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="52" height="52">
+              <path d="M44 60c40-36 128-36 168 0" fill="none" stroke="#2f3c93" stroke-width="12" stroke-linecap="round"/>
+              <path d="M56 84c32-28 112-28 144 0" fill="none" stroke="#2fa9df" stroke-width="16" stroke-linecap="round"/>
+              <text x="28" y="190" font-family="Arial,sans-serif" font-size="120" font-weight="700" fill="#2f3c93">F</text>
+              <text x="118" y="190" font-family="Arial,sans-serif" font-size="120" font-weight="700" fill="#2fa9df">M</text>
+              <path fill="#2f3c93" d="M168 104c0-22.1-17.9-40-40-40s-40 17.9-40 40c0 30 40 78 40 78s40-48 40-78z"/>
+              <circle fill="#2fa9df" cx="128" cy="104" r="18"/>
+            </svg>
+          </div>
+          <div style="margin-left:10px">
+            <div class="company-name">Fine Mark Tracking Limited</div>
+            <div class="company-sub">Security in Every Mile</div>
+          </div>
+        </div>
+        <div class="contact-block">
+          P.O. Box 12345-00100, Nairobi<br>
+          M: +254 700 000 000<br>
+          E: info@finemark.co.ke<br>
+          W: www.finemark.co.ke<br>
+          <span class="contact-pin">PIN: P051961922E</span>
+        </div>
+      </div>
+      <div class="header-bottom">
+        <span class="doc-title">QUOTATION</span>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- Bill To + Quote Meta -->
+    <div class="info-row">
+      <div class="billto-box">
+        <div class="billto-label">Bill To${quote.billToBank && quote.partnerName ? " (Bank Partner)" : ""}</div>
+        <div class="billto-body">
+          ${quote.billToBank && quote.partnerName ? `
+          <div class="customer-name">${esc(quote.partnerName)}</div>
+          ${quote.bankAddress ? `<div style="font-size:9.5px;color:#374151;margin-top:3px">${esc(quote.bankAddress)}</div>` : ""}
+          ` : `
+          <div class="customer-name">${esc(quote.customerName || quote.customer_name || "\u2014")}</div>
+          ${quote.customerAddress ? `<div style="font-size:9.5px;color:#374151;margin-top:3px">${esc(quote.customerAddress)}</div>` : ""}
+          ${quote.customerPhone ? `<div style="font-size:9.5px;color:#374151;margin-top:2px"><strong>Tel:</strong> ${esc(quote.customerPhone)}</div>` : ""}
+          ${quote.customerEmail ? `<div style="font-size:9.5px;color:#374151;margin-top:2px"><strong>Email:</strong> ${esc(quote.customerEmail)}</div>` : ""}
+          ${quote.customerKraPin ? `<div style="font-size:9.5px;color:#374151;margin-top:2px"><strong>PIN:</strong> ${esc(quote.customerKraPin)}</div>` : ""}
+          `}
+          <div style="margin-top:8px"><span class="status-badge ${badgeClass}">${esc(status)}</span></div>
+        </div>
+      </div>
+      <div class="quote-meta-box">
+        <table class="qmeta-tbl">
+          <tr><td>Quotation No:</td><td><strong>${esc(quoteNo)}</strong></td></tr>
+          <tr><td>Date:</td><td>${fmt(quote.createdAt || quote.created_at)}</td></tr>
+          <tr><td>Expiry Date:</td><td>${fmt(quote.expiryDate || quote.expiry_date)}</td></tr>
+          <tr><td>Prepared By:</td><td>${esc(quote.salesRepName || quote.sales_rep_name || quote.salesRepEmail || quote.sales_rep_email || "\u2014")}</td></tr>
+          ${quote.serviceType ? `<tr><td>Service:</td><td>${esc(quote.serviceType)}</td></tr>` : ""}
+          ${quote.partnerName ? `<tr><td>Partner:</td><td>${esc(quote.partnerName)}</td></tr>` : ""}
+          ${quote.loanTermMonths ? `<tr><td>Loan Term:</td><td>${esc(quote.loanTermMonths)} months</td></tr>` : ""}
+          ${quote.revisionNo > 1 ? `<tr><td>Revision:</td><td>Rev. ${esc(quote.revisionNo)}</td></tr>` : ""}
+        </table>
+      </div>
+    </div>
+
+    <!-- Vehicle table (shown only when vehicle is linked) -->
+    ${hasVehicle ? `
+    <div class="vehicle-wrap">
+      <table class="vehicle-tbl">
+        <thead>
+          <tr>
+            <th style="width:30%">Vehicle Reg.</th>
+            <th style="width:30%">Make</th>
+            <th style="width:40%">Make &amp; Model</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>${esc(quote.vehicleRegistration || "\u2014")}</td>
+            <td>${esc(quote.vehicleMake || "\u2014")}</td>
+            <td>${esc([quote.vehicleMake, quote.vehicleModel].filter(Boolean).join(" ") || "\u2014")}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>` : ""}
+
+    <!-- Line items -->
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th class="col-model">Item</th>
+          <th class="col-type">Type</th>
+          <th class="col-desc">Description</th>
+          <th class="col-qty center">Qty</th>
+          <th class="col-disc center">Discount</th>
+          <th class="col-price num">Unit Price</th>
+          <th class="col-total num">Total</th>
+        </tr>
+      </thead>
+      <tbody>${itemsHtml}</tbody>
+    </table>
+
+    <!-- Totals -->
+    <div class="totals-section">
+      <table class="totals-table">
+        <tr class="subtotal-row">
+          <td>SUB TOTAL :</td>
+          <td>${kes(subtotalFromItems)}</td>
+        </tr>
+        ${discount > 0 ? `<tr class="discount-row"><td>DISCOUNT :</td><td>- ${kes(discount)}</td></tr>` : ""}
+        ${taxRate > 0 ? `<tr><td>TAX (${taxRate}%) :</td><td>${kes(taxAmount)}</td></tr>` : ""}
+        <tr class="grand-total">
+          <td>GRAND TOTAL :</td>
+          <td>${kes(grandTotal)}</td>
+        </tr>
+      </table>
+    </div>
+
+    ${quote.notes ? `
+    <!-- Notes -->
+    <div class="notes-section">
+      <div class="section-label">Notes / Remarks</div>
+      <div class="notes-text">${esc(quote.notes)}</div>
+    </div>` : ""}
+
+    <!-- Payment details -->
+    <hr class="divider" style="margin-top:10px" />
+    <div class="payment-section">
+      <table class="payment-tbl">
+        <caption>Mode of Payments &mdash; Fine Mark Tracking Limited</caption>
+        <tbody>
+          <tr>
+            <th>MPESA PAYBILL</th>
+            <td>Paybill Number &mdash; Fine Mark Tracking Limited<br><strong>4048569</strong><br>Account: <strong>${vehicleReg}</strong></td>
+          </tr>
+          <tr>
+            <th>MPESA TILL NUMBER</th>
+            <td>Till Number &mdash; Fine Mark Tracking Limited<br><strong>5620852</strong></td>
+          </tr>
+          ${isEquity ? `<tr>
+            <th>EQUITY BANK</th>
+            <td>EquityBank: A/C <strong>1750281157351</strong><br>Fine Mark Tracking Limited &mdash; Garden City Branch</td>
+          </tr>` : ""}
+          ${isCoop ? `<tr>
+            <th>COOPERATIVE BANK</th>
+            <td>COOP ACCOUNT &mdash; Fine Mark Tracking Limited<br>Account No. <strong>01101172442001</strong></td>
+          </tr>` : ""}
+          ${isSidian ? `<tr>
+            <th>SIDIAN BANK</th>
+            <td>Sidian Bank &mdash; Paybill: <strong>111999</strong><br>Ac No: <strong>404856</strong></td>
+          </tr>` : ""}
+          ${isSmep ? `<tr>
+            <th>SMEP BANK</th>
+            <td>Smep Bank &mdash; Fine Mark Tracking Limited<br>Acc: <strong>509407711</strong></td>
+          </tr>` : ""}
+          ${isUniversal ? `<tr>
+            <th>UNIVERSAL SACCO ACCOUNT</th>
+            <td>Till Number: <strong>695311</strong> &mdash; Unique Tracking Co. Ltd<br>UNIVERSAL SACCO ACCOUNT NO. <strong>083359</strong> &mdash; Mlolongo Branch</td>
+          </tr>` : ""}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      GPS Tracking &bull; Fleet Management &bull; Vehicle Monitoring &bull; Fuel Management &bull; Driver Behaviour
+    </div>
+  `;
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Unauthorized</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-2xl mx-auto mt-16 bg-white border border-slate-200 rounded-2xl p-8 shadow-sm text-center">
+          <h1 class="text-2xl font-semibold text-slate-900">You don’t have access to this page.</h1>
+          <p class="mt-2 text-sm text-slate-600">Please switch accounts or go back to your dashboard.</p>
+          <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <button id="go-dashboard" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+              Go to my dashboard
+            </button>
+            <a href="login.html" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+              Back to login
+            </a>
+          </div>
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+
+    <script src="assets/contracts.js"></script>
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const session = window.FINEMARK_APP?.getSession?.();
+        const role = session?.user?.role;
+        const routes = {
+          Sales: "sales.html",
+          Technical: "technical.html",
+          Technician: "technician-jobs.html",
+          Admin: "admin.html",
+          Finance: "pages/finance/finance-dashboard.html",
+        };
+        const button = document.getElementById("go-dashboard");
+        button.addEventListener("click", () => {
+          const target = routes[role] || "login.html";
+          window.location.href = target;
+        });
+      });
+    </script>
+  </body>
+</html>

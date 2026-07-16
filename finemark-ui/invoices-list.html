@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Invoices | Finemark</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+    <div class="max-w-6xl mx-auto space-y-6">
+      <!-- Header -->
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Invoices</h1>
+          <p class="text-sm text-slate-600 mt-1">Manage customer invoices and payments</p>
+        </div>
+        <button id="btn-create-invoice" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition">
+          <span>+</span> New Invoice
+        </button>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="grid gap-4 md:grid-cols-4">
+        <div class="bg-white rounded-lg border border-slate-200 p-4">
+          <p class="text-xs font-semibold text-slate-600 uppercase">Total Outstanding</p>
+          <p class="text-2xl font-bold text-slate-900 mt-2" id="total-outstanding">KES 0</p>
+        </div>
+        <div class="bg-white rounded-lg border border-slate-200 p-4">
+          <p class="text-xs font-semibold text-slate-600 uppercase">Overdue</p>
+          <p class="text-2xl font-bold text-red-600 mt-2" id="total-overdue">KES 0</p>
+        </div>
+        <div class="bg-white rounded-lg border border-slate-200 p-4">
+          <p class="text-xs font-semibold text-slate-600 uppercase">Paid This Month</p>
+          <p class="text-2xl font-bold text-green-600 mt-2" id="total-paid">KES 0</p>
+        </div>
+        <div class="bg-white rounded-lg border border-slate-200 p-4">
+          <p class="text-xs font-semibold text-slate-600 uppercase">Total Invoiced</p>
+          <p class="text-2xl font-bold text-slate-900 mt-2" id="total-invoiced">KES 0</p>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="bg-white rounded-lg border border-slate-200 p-4 space-y-4">
+        <div class="grid gap-4 md:grid-cols-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1.5">Search</label>
+            <input id="search-invoice" type="text" placeholder="Invoice #, customer..." class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1.5">Status</label>
+            <select id="filter-status" class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40">
+              <option value="">All</option>
+              <option value="Draft">Draft</option>
+              <option value="Sent">Sent</option>
+              <option value="Partially Paid">Partially Paid</option>
+              <option value="Paid">Paid</option>
+              <option value="Overdue">Overdue</option>
+            </select>
+          </div>
+          <div class="flex items-end">
+            <button id="btn-filter-clear" class="w-full rounded-md bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 transition">
+              Clear
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Invoices Table -->
+      <div id="invoice-list-container" class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th class="px-6 py-3 text-left font-semibold text-slate-700">Invoice #</th>
+                <th class="px-6 py-3 text-left font-semibold text-slate-700">Customer</th>
+                <th class="px-6 py-3 text-right font-semibold text-slate-700">Amount</th>
+                <th class="px-6 py-3 text-right font-semibold text-slate-700">Paid</th>
+                <th class="px-6 py-3 text-left font-semibold text-slate-700">Status</th>
+                <th class="px-6 py-3 text-left font-semibold text-slate-700">Due Date</th>
+                <th class="px-6 py-3 text-center font-semibold text-slate-700">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="invoice-tbody" class="divide-y divide-slate-200">
+              <tr><td colspan="7" class="px-6 py-8 text-center text-slate-500">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="flex items-center justify-between">
+        <div class="text-sm text-slate-600" id="pagination-info"></div>
+        <div class="flex gap-2">
+          <button id="btn-prev-page" class="rounded-md border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50">← Prev</button>
+          <button id="btn-next-page" class="rounded-md border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50">Next →</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Create Invoice Modal -->
+<div id="modal-create-invoice" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4 sticky top-0 bg-white">
+      <h2 class="text-lg font-semibold">Create Invoice</h2>
+      <button id="btn-close-modal" class="text-slate-500 hover:text-slate-700 text-2xl">×</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div class="grid gap-4 md:grid-cols-2">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">Customer ID</label>
+          <input id="customer-id" type="text" class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">Due Date</label>
+          <input id="due-date" type="date" class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">Bill To (Email)</label>
+        <input id="bill-to-email" type="email" class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+      </div>
+      
+      <!-- Items Section -->
+      <div id="items-container" class="space-y-2">
+        <h3 class="font-semibold text-slate-900">Line Items</h3>
+        <div class="bg-slate-50 p-3 rounded-md space-y-3">
+          <div class="grid gap-2" style="grid-template-columns: 1fr 0.8fr 0.8fr;">
+            <input class="invoice-item-desc rounded-md border border-slate-200 px-2 py-1.5 text-sm" placeholder="Description" />
+            <input type="number" class="invoice-item-qty rounded-md border border-slate-200 px-2 py-1.5 text-sm" placeholder="Qty" />
+            <input type="number" class="invoice-item-price rounded-md border border-slate-200 px-2 py-1.5 text-sm" placeholder="Unit Price" />
+          </div>
+        </div>
+        <button id="btn-add-item" class="text-sm text-blue-600 hover:text-blue-700 font-medium">+ Add Line Item</button>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">Notes</label>
+        <textarea id="invoice-notes" placeholder="Payment instructions, thanks, etc..." class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm h-16"></textarea>
+      </div>
+    </div>
+    <div class="border-t border-slate-200 px-6 py-4 flex gap-2 justify-end bg-slate-50">
+      <button id="btn-cancel-modal" class="rounded-md border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50">Cancel</button>
+      <button id="btn-save-invoice" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Create</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/app.js?v=202607011016"></script>
+<script>
+  let currentPage = 1;
+  const API_BASE = `http://localhost:3000/api`;
+
+  async function loadInvoices() {
+    try {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        pageSize: '50',
+        status: document.getElementById('filter-status').value || ''
+      });
+
+      const response = await fetch(`${API_BASE}/invoices-advanced?${params}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (!response.ok) throw new Error(await response.text());
+      const { data, meta } = await response.json();
+
+      const tbody = document.getElementById('invoice-tbody');
+      tbody.innerHTML = data.length ? data.map(inv => `
+        <tr class="hover:bg-slate-50">
+          <td class="px-6 py-4 font-medium text-blue-600 cursor-pointer" onclick="viewInvoice('${inv.id}')">${inv.invoiceNumber}</td>
+          <td class="px-6 py-4">${inv.customerName || inv.customerId}</td>
+          <td class="px-6 py-4 text-right">KES ${(inv.totalAmount || 0).toLocaleString()}</td>
+          <td class="px-6 py-4 text-right">KES ${(inv.amountPaid || 0).toLocaleString()}</td>
+          <td class="px-6 py-4"><span class="inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(inv.status)}">${inv.status}</span></td>
+          <td class="px-6 py-4 text-sm">${new Date(inv.dueDate).toLocaleDateString()}</td>
+          <td class="px-6 py-4 text-center">
+            <button onclick="viewInvoice('${inv.id}')" class="text-blue-600 hover:underline text-xs">View</button>
+          </td>
+        </tr>
+      `).join('') : '<tr><td colspan="7" class="px-6 py-8 text-center text-slate-500">No invoices found</td></tr>';
+
+      document.getElementById('pagination-info').textContent = `Page ${currentPage}`;
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  function getStatusColor(status) {
+    const colors = {
+      'Draft': 'bg-slate-100 text-slate-700',
+      'Sent': 'bg-blue-100 text-blue-700',
+      'Paid': 'bg-green-100 text-green-700',
+      'Partially Paid': 'bg-amber-100 text-amber-700',
+      'Overdue': 'bg-red-100 text-red-700'
+    };
+    return colors[status] || 'bg-slate-100 text-slate-700';
+  }
+
+  function viewInvoice(id) { console.log('View:', id); }
+
+  // Modal controls
+  document.getElementById('btn-create-invoice').onclick = () => document.getElementById('modal-create-invoice').classList.remove('hidden');
+  document.getElementById('btn-close-modal').onclick = () => document.getElementById('modal-create-invoice').classList.add('hidden');
+  document.getElementById('btn-cancel-modal').onclick = () => document.getElementById('modal-create-invoice').classList.add('hidden');
+
+  document.getElementById('filter-status').onchange = () => {
+    currentPage = 1;
+    loadInvoices();
+  };
+
+  document.getElementById('btn-filter-clear').onclick = () => {
+    document.getElementById('filter-status').value = '';
+    currentPage = 1;
+    loadInvoices();
+  };
+
+  document.getElementById('btn-prev-page').onclick = () => {
+    if (currentPage > 1) {
+      currentPage--;
+      loadInvoices();
+    }
+  };
+
+  document.getElementById('btn-next-page').onclick = () => {
+    currentPage++;
+    loadInvoices();
+  };
+
+  document.getElementById('btn-add-item').onclick = () => {
+    const container = document.querySelector('#items-container .bg-slate-50');
+    const newItem = document.createElement('div');
+    newItem.className = 'grid gap-2';
+    newItem.style.gridTemplateColumns = '1fr 0.8fr 0.8fr';
+    newItem.innerHTML = `
+      <input class="invoice-item-desc rounded-md border border-slate-200 px-2 py-1.5 text-sm" placeholder="Description" />
+      <input type="number" class="invoice-item-qty rounded-md border border-slate-200 px-2 py-1.5 text-sm" placeholder="Qty" />
+      <input type="number" class="invoice-item-price rounded-md border border-slate-200 px-2 py-1.5 text-sm" placeholder="Unit Price" />
+    `;
+    container.appendChild(newItem);
+  };
+
+  document.getElementById('btn-save-invoice').onclick = async () => {
+    const customerId = document.getElementById('customer-id').value;
+    const dueDate = document.getElementById('due-date').value;
+    const billToEmail = document.getElementById('bill-to-email').value;
+
+    if (!customerId || !dueDate) {
+      alert('Fill required fields');
+      return;
+    }
+
+    const items = [];
+    const descs = document.querySelectorAll('.invoice-item-desc');
+    const qtys = document.querySelectorAll('.invoice-item-qty');
+    const prices = document.querySelectorAll('.invoice-item-price');
+
+    for (let i = 0; i < descs.length; i++) {
+      if (descs[i].value && qtys[i].value && prices[i].value) {
+        items.push({
+          description: descs[i].value,
+          quantity: parseFloat(qtys[i].value),
+          unitPrice: parseFloat(prices[i].value)
+        });
+      }
+    }
+
+    if (!items.length) {
+      alert('Add at least one line item');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/invoices-advanced`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          customerId,
+          dueDate,
+          billToEmail,
+          items,
+          notes: document.getElementById('invoice-notes').value
+        })
+      });
+
+      if (!response.ok) throw new Error(await response.text());
+
+      document.getElementById('modal-create-invoice').classList.add('hidden');
+      currentPage = 1;
+      loadInvoices();
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  };
+
+  loadInvoices();
+</script>
+</body>
+</html>

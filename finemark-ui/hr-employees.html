@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | HR Employees</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-7xl mx-auto space-y-6">
+
+          <!-- Header -->
+          <div class="flex flex-wrap items-center gap-3 justify-between">
+            <div>
+              <nav class="text-xs text-slate-400 mb-1"><a href="hr-dashboard.html" class="hover:text-teal-600">HR</a> / Employees</nav>
+              <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Employees</h1>
+            </div>
+            <a href="hr-onboarding.html" class="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+              Onboard Employee
+            </a>
+          </div>
+
+          <!-- Filters -->
+          <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm flex flex-wrap gap-3 items-end">
+            <div class="flex-1 min-w-48">
+              <label class="block text-xs font-medium text-slate-500 mb-1">Search</label>
+              <input id="f-search" type="text" placeholder="Name, email, phone, employee no…" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-500 mb-1">Status</label>
+              <select id="f-status" class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                <option value="">All statuses</option>
+                <option>Active</option><option>Inactive</option><option>Terminated</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-500 mb-1">Employment Type</label>
+              <select id="f-type" class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                <option value="">All types</option>
+                <option>Permanent</option><option>Contractor</option><option>Casual</option><option>Intern</option>
+              </select>
+            </div>
+            <button onclick="loadEmployees()" class="px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700">Search</button>
+            <button onclick="clearFilters()" class="px-4 py-2 border border-slate-200 text-slate-600 text-sm rounded-lg hover:bg-slate-50">Clear</button>
+          </div>
+
+          <!-- Table -->
+          <div class="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm">
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-slate-50 border-b border-slate-100">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">Employee</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">Department</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">Role</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">Type</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">Start Date</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">Status</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wide">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="emp-body" class="divide-y divide-slate-100">
+                  <tr><td colspan="7" class="px-4 py-8 text-center text-slate-400">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <!-- Pagination -->
+            <div class="flex items-center justify-between px-4 py-3 border-t border-slate-100">
+              <p id="pagination-info" class="text-xs text-slate-500">—</p>
+              <div class="flex gap-2">
+                <button id="btn-prev" onclick="changePage(-1)" class="px-3 py-1.5 text-xs border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40" disabled>← Prev</button>
+                <button id="btn-next" onclick="changePage(1)" class="px-3 py-1.5 text-xs border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40" disabled>Next →</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+
+    <!-- Status Badge -->
+    <style>
+      .badge-active { @apply bg-emerald-50 text-emerald-700 border border-emerald-100; }
+      .badge-inactive { @apply bg-amber-50 text-amber-700 border border-amber-100; }
+      .badge-terminated { @apply bg-rose-50 text-rose-700 border border-rose-100; }
+    </style>
+
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      let currentPage = 1;
+      let totalRecords = 0;
+      let isAdmin = false;
+
+      const statusColor = s => ({ Active: "bg-emerald-50 text-emerald-700 border-emerald-100", Inactive: "bg-amber-50 text-amber-700 border-amber-100", Terminated: "bg-rose-50 text-rose-700 border-rose-100" }[s] || "bg-slate-100 text-slate-600");
+      const typeColor = t => ({ Permanent: "bg-teal-50 text-teal-700 border-teal-100", Contractor: "bg-blue-50 text-blue-700 border-blue-100", Casual: "bg-amber-50 text-amber-700 border-amber-100", Intern: "bg-violet-50 text-violet-700 border-violet-100" }[t] || "bg-slate-100 text-slate-600");
+
+      const loadEmployees = async () => {
+        const search = document.getElementById("f-search").value.trim();
+        const status = document.getElementById("f-status").value;
+        const employmentType = document.getElementById("f-type").value;
+        const params = new URLSearchParams({ page: currentPage, pageSize: 20 });
+        if (search) params.append("search", search);
+        if (status) params.append("status", status);
+        if (employmentType) params.append("employmentType", employmentType);
+
+        const tbody = document.getElementById("emp-body");
+        tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-slate-400">Loading…</td></tr>`;
+        try {
+          const resp = await window.FINEMARK_APP.apiFetch(`/hr/employees?${params}`);
+          const rows = resp.data || [];
+          totalRecords = resp.meta?.total || 0;
+          if (!rows.length) {
+            tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-slate-400">No employees found.</td></tr>`;
+          } else {
+            tbody.innerHTML = rows.map(e => `
+              <tr class="hover:bg-slate-50 transition">
+                <td class="px-4 py-3">
+                  <p class="font-medium text-slate-800">${e.fullName}</p>
+                  <p class="text-xs text-slate-400">${e.employeeNo} · ${e.email}</p>
+                </td>
+                <td class="px-4 py-3 text-slate-500">${e.orgUnitName || "—"}</td>
+                <td class="px-4 py-3 text-slate-500">${e.jobRoleTitle || "—"}</td>
+                <td class="px-4 py-3"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${typeColor(e.employmentType)}">${e.employmentType}</span></td>
+                <td class="px-4 py-3 text-slate-500">${e.startDate || "—"}</td>
+                <td class="px-4 py-3"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${statusColor(e.status)}">${e.status}</span></td>
+                <td class="px-4 py-3 text-right">
+                  <a href="hr-employee-profile.html?id=${e.id}" class="text-xs text-teal-600 hover:underline mr-3">View</a>
+                  <a href="hr-onboarding.html?id=${e.id}" class="text-xs text-blue-600 hover:underline">Edit</a>
+                </td>
+              </tr>`).join("");
+          }
+          const pageSize = 20;
+          const totalPages = Math.ceil(totalRecords / pageSize);
+          document.getElementById("pagination-info").textContent = `Showing ${(currentPage - 1) * pageSize + 1}–${Math.min(currentPage * pageSize, totalRecords)} of ${totalRecords}`;
+          document.getElementById("btn-prev").disabled = currentPage <= 1;
+          document.getElementById("btn-next").disabled = currentPage >= totalPages;
+        } catch (err) {
+          tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-rose-500">${err?.message || "Failed to load employees."}</td></tr>`;
+        }
+      };
+
+      const changePage = delta => { currentPage += delta; loadEmployees(); };
+      const clearFilters = () => {
+        document.getElementById("f-search").value = "";
+        document.getElementById("f-status").value = "";
+        document.getElementById("f-type").value = "";
+        currentPage = 1; loadEmployees();
+      };
+
+      document.getElementById("f-search").addEventListener("keydown", e => { if (e.key === "Enter") { currentPage = 1; loadEmployees(); } });
+
+      (async () => {
+        await window.FINEMARK_APP.requirePageAccess();
+        const user = window.FINEMARK_APP.getSession()?.user;
+        isAdmin = user?.role === "Admin";
+        loadEmployees();
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | New Support Ticket</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    .card{background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;padding:1.25rem;}
+    .info-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:.65rem;padding:.85rem;}
+    .badge{display:inline-flex;align-items:center;border-radius:9999px;padding:.15rem .6rem;font-size:.7rem;font-weight:600;border-width:1px;background:#f1f5f9;color:#334155;border-color:#e2e8f0;}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-3 sm:p-6 min-w-0 max-w-4xl mx-auto space-y-5">
+
+    <div>
+      <a href="crm-tickets.html" class="text-xs text-slate-500 hover:text-slate-700">← Back to Tickets</a>
+      <h1 class="text-2xl font-bold tracking-tight text-slate-900 mt-1">New Support Ticket</h1>
+      <p class="text-sm text-slate-500 mt-0.5">Search the customer to auto-load their vehicles, installed equipment, and history.</p>
+    </div>
+
+    <div id="form-error" class="hidden rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700"></div>
+
+    <!-- Category -->
+    <div class="card space-y-3">
+      <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Category <span class="text-red-500">*</span></label>
+      <select id="f-category" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40">
+        <option value="">Loading categories…</option>
+      </select>
+    </div>
+
+    <!-- Customer + vehicle section (hidden for internal categories) -->
+    <div id="customer-section" class="card space-y-4">
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Customer <span class="text-red-500">*</span></label>
+        <input id="cust-search" type="text" placeholder="Type to search account or name…" autocomplete="off"
+          class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40" />
+        <div id="cust-dropdown" class="hidden mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto text-sm"></div>
+        <input type="hidden" id="cust-id" />
+        <p id="cust-label" class="mt-1.5 text-xs text-blue-600 font-medium"></p>
+
+        <div class="flex items-center gap-2 my-2">
+          <div class="flex-1 h-px bg-slate-100"></div>
+          <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">or find by registration</span>
+          <div class="flex-1 h-px bg-slate-100"></div>
+        </div>
+        <div class="flex gap-2">
+          <input id="reg-search" type="text" placeholder="e.g. KDG 123A" autocomplete="off"
+            class="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-blue-400/40" />
+          <button id="btn-reg-search" type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Find</button>
+        </div>
+        <p id="reg-search-error" class="hidden mt-1.5 text-xs text-red-600"></p>
+      </div>
+
+      <div id="vehicle-section" class="hidden space-y-3">
+        <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Vehicle(s) <span class="text-slate-400 font-normal normal-case">select one or more</span></label>
+        <div id="vehicle-list" class="space-y-1.5"></div>
+      </div>
+
+      <div id="vehicle-info" class="space-y-3"></div>
+
+      <div id="invoice-card" class="hidden info-card">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Last Invoice</p>
+        <div id="invoice-body" class="text-sm"></div>
+      </div>
+    </div>
+
+    <!-- Problem details -->
+    <div class="card space-y-4">
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Subject <span class="text-red-500">*</span></label>
+        <input id="f-subject" type="text" placeholder="Brief description of the issue" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Priority</label>
+        <select id="f-priority" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40">
+          <option>Normal</option><option>High</option><option>Critical</option><option>Low</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Description</label>
+        <textarea id="f-description" rows="4" placeholder="Detailed description of the problem…" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400/40"></textarea>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Photos / Supporting Documents</label>
+        <input id="f-files" type="file" multiple accept="image/*,application/pdf" class="w-full text-sm" />
+        <div id="staged-files" class="mt-2 space-y-1 text-xs text-slate-500"></div>
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-3">
+      <a href="crm-tickets.html" class="rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</a>
+      <button id="btn-submit" class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">Create Ticket</button>
+    </div>
+
+  </main>
+</div>
+
+<div id="fm-footer"></div>
+
+<script src="assets/app.js?v=202607141000"></script>
+<script src="assets/layout.js?v=202607141000"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  window.FINEMARK_APP?.requirePageAccess?.();
+  init();
+});
+
+const APP = window.FINEMARK_APP;
+const $ = (id) => document.getElementById(id);
+const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+let _categories = [];
+let _vehicles = [];
+let _selectedVehicleIds = new Set();
+let _vehicleLookups = {}; // vehicleId -> lookup data
+let _stagedFiles = [];
+let _preselectVehicleId = null;
+let _queueId = null;
+
+function authHeaders() {
+  const token = APP?.getSession?.()?.accessToken;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// ── Category ─────────────────────────────────────────────────────────────
+async function loadCategories() {
+  const res = await APP.apiFetch("/admin/ticket-categories");
+  _categories = res?.data || [];
+  $("f-category").innerHTML = `<option value="">— Select category —</option>` +
+    _categories.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+}
+
+$("f-category").addEventListener("change", () => {
+  const cat = _categories.find((c) => c.id === $("f-category").value);
+  const requiresCustomer = cat ? cat.requiresCustomer : true;
+  $("customer-section").classList.toggle("hidden", !requiresCustomer);
+  if (!requiresCustomer) {
+    $("cust-id").value = ""; $("cust-search").value = ""; $("cust-label").textContent = "";
+    $("vehicle-section").classList.add("hidden");
+    $("vehicle-info").innerHTML = "";
+    $("invoice-card").classList.add("hidden");
+    _selectedVehicleIds.clear();
+  }
+});
+
+// ── Customer search ───────────────────────────────────────────────────────
+let custSearchTimer;
+$("cust-search").addEventListener("input", (e) => {
+  clearTimeout(custSearchTimer);
+  const q = e.target.value.trim();
+  if (q.length < 2) { $("cust-dropdown").classList.add("hidden"); return; }
+  custSearchTimer = setTimeout(async () => {
+    try {
+      const res = await APP.apiFetch(`/crm/customers?search=${encodeURIComponent(q)}&pageSize=10`);
+      const dd = $("cust-dropdown");
+      if (!res.data?.length) { dd.classList.add("hidden"); return; }
+      dd.innerHTML = res.data.map((c) => `
+        <div class="px-3 py-2 hover:bg-blue-50 cursor-pointer flex items-center justify-between" data-id="${c.id}" data-name="${escapeHtml(c.displayName || c.accountNo)}">
+          <span class="font-medium text-slate-800">${escapeHtml(c.displayName || "(no name)")}</span>
+          <span class="text-xs text-slate-400 ml-2">${escapeHtml(c.accountNo)}</span>
+        </div>`).join("");
+      dd.classList.remove("hidden");
+      dd.querySelectorAll("[data-id]").forEach((el) => {
+        el.addEventListener("click", () => selectCustomer(el.dataset.id, el.dataset.name));
+      });
+    } catch {}
+  }, 300);
+});
+
+async function selectCustomer(id, name) {
+  $("cust-id").value = id;
+  $("cust-search").value = name;
+  $("cust-label").textContent = "✓ " + name;
+  $("cust-dropdown").classList.add("hidden");
+  _selectedVehicleIds.clear();
+  _vehicleLookups = {};
+  $("vehicle-info").innerHTML = "";
+  await Promise.all([loadVehicles(id), loadLastInvoice(id)]);
+}
+
+// ── Find customer by vehicle registration ───────────────────────────────────
+async function searchByRegistration() {
+  const reg = $("reg-search").value.trim();
+  $("reg-search-error").classList.add("hidden");
+  if (!reg) return;
+
+  const btn = $("btn-reg-search");
+  btn.disabled = true; btn.textContent = "Searching…";
+  try {
+    const res = await APP.apiFetch(`/crm/customers/vehicles/lookup?registration=${encodeURIComponent(reg)}`);
+    if (!res.found) {
+      $("reg-search-error").textContent = `No vehicle found with registration "${reg}".`;
+      $("reg-search-error").classList.remove("hidden");
+      return;
+    }
+    _preselectVehicleId = res.vehicle.id;
+    await selectCustomer(res.customer.id, res.customer.name || res.customer.accountNo);
+  } catch (e) {
+    $("reg-search-error").textContent = e?.message || "Search failed.";
+    $("reg-search-error").classList.remove("hidden");
+  } finally {
+    btn.disabled = false; btn.textContent = "Find";
+  }
+}
+$("btn-reg-search").addEventListener("click", searchByRegistration);
+$("reg-search").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); searchByRegistration(); } });
+
+// ── Vehicles ──────────────────────────────────────────────────────────────
+async function loadVehicles(customerId) {
+  try {
+    const rows = await APP.apiFetch(`/crm/customers/${customerId}/vehicles`); // raw array response
+    _vehicles = Array.isArray(rows) ? rows : (rows?.data || []);
+    if (!_vehicles.length) {
+      $("vehicle-section").classList.add("hidden");
+      return;
+    }
+    $("vehicle-section").classList.remove("hidden");
+    $("vehicle-list").innerHTML = _vehicles.map((v) => `
+      <label class="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer">
+        <input type="checkbox" class="veh-checkbox rounded border-slate-300" data-id="${v.id}" />
+        <span class="font-medium text-slate-800">${escapeHtml(v.registration || "(unregistered)")}</span>
+        <span class="text-xs text-slate-400">${escapeHtml(v.make || "")} ${escapeHtml(v.model || "")}</span>
+      </label>`).join("");
+    $("vehicle-list").querySelectorAll(".veh-checkbox").forEach((cb) => {
+      cb.addEventListener("change", () => toggleVehicle(cb.dataset.id, cb.checked));
+    });
+    // Auto-select: either the vehicle requested via ?vehicleId=, or the one
+    // vehicle available (for convenience) if there's only a single option.
+    const target = _preselectVehicleId
+      ? $("vehicle-list").querySelector(`.veh-checkbox[data-id="${_preselectVehicleId}"]`)
+      : (_vehicles.length === 1 ? $("vehicle-list").querySelector(".veh-checkbox") : null);
+    if (target) {
+      target.checked = true;
+      toggleVehicle(target.dataset.id, true);
+    }
+  } catch {
+    $("vehicle-section").classList.add("hidden");
+  }
+}
+
+async function toggleVehicle(vehicleId, checked) {
+  if (checked) {
+    _selectedVehicleIds.add(vehicleId);
+    if (!_vehicleLookups[vehicleId]) {
+      try {
+        const res = await APP.apiFetch(`/crm/tickets/lookup/vehicle/${vehicleId}`);
+        _vehicleLookups[vehicleId] = res.data;
+      } catch { _vehicleLookups[vehicleId] = null; }
+    }
+  } else {
+    _selectedVehicleIds.delete(vehicleId);
+  }
+  renderVehicleInfo();
+}
+
+function renderVehicleInfo() {
+  const cards = [..._selectedVehicleIds].map((vehId) => {
+    const l = _vehicleLookups[vehId];
+    const veh = _vehicles.find((v) => v.id === vehId);
+    if (!l) return `<div class="info-card"><p class="text-sm font-semibold text-slate-800">${escapeHtml(veh?.registration || "Vehicle")}</p><p class="text-xs text-slate-400 mt-1">No installation history found.</p></div>`;
+    const devices = (l.devices || []).map((d) => `<span class="badge">${escapeHtml(d.deviceModel || d.productName || "Device")} · ${escapeHtml(d.imei || d.serialNumber || "—")}</span>`).join(" ");
+    const sims = (l.sims || []).map((s) => `<span class="badge">SIM ${escapeHtml(s.iccid)}${s.msisdn ? " · " + escapeHtml(s.msisdn) : ""}</span>`).join(" ");
+    return `<div class="info-card space-y-2">
+      <p class="text-sm font-semibold text-slate-800">${escapeHtml(l.vehicle?.registration || veh?.registration || "Vehicle")} <span class="text-xs font-normal text-slate-400">${escapeHtml(l.vehicle?.make || "")} ${escapeHtml(l.vehicle?.model || "")}</span></p>
+      ${l.installation ? `<p class="text-xs text-slate-500">Installation Ticket: <span class="font-medium text-slate-700">${escapeHtml(l.installation.ticketNo)}</span> · ${escapeHtml(l.installation.status)}</p>` : `<p class="text-xs text-slate-400 italic">No completed installation on record.</p>`}
+      ${devices ? `<div class="flex flex-wrap gap-1.5">${devices}</div>` : ""}
+      ${sims ? `<div class="flex flex-wrap gap-1.5">${sims}</div>` : ""}
+      ${l.lastTechnician ? `<p class="text-xs text-slate-500">Last worked on by: <span class="font-medium text-slate-700">${escapeHtml(l.lastTechnician.email || "—")}</span></p>` : ""}
+    </div>`;
+  });
+  $("vehicle-info").innerHTML = cards.join("");
+}
+
+// ── Last invoice ──────────────────────────────────────────────────────────
+async function loadLastInvoice(customerId) {
+  try {
+    const res = await APP.apiFetch(`/crm/tickets/lookup/customer/${customerId}/last-invoice`);
+    if (!res.data) { $("invoice-card").classList.add("hidden"); return; }
+    const inv = res.data;
+    $("invoice-body").innerHTML = `
+      <p class="font-semibold text-slate-800">${escapeHtml(inv.invoiceNumber)} <span class="text-xs font-normal text-slate-400">${escapeHtml(inv.status)}</span></p>
+      <p class="text-xs text-slate-500 mt-0.5">KES ${Number(inv.amount || 0).toLocaleString("en-KE")} · Issued ${escapeHtml((inv.issuedOn || "").slice(0, 10))}</p>`;
+    $("invoice-card").classList.remove("hidden");
+  } catch { $("invoice-card").classList.add("hidden"); }
+}
+
+// ── Attachments (staged locally, uploaded after ticket create) ────────────
+$("f-files").addEventListener("change", (e) => {
+  _stagedFiles = [...e.target.files];
+  $("staged-files").innerHTML = _stagedFiles.map((f) => `<p>📎 ${escapeHtml(f.name)} (${Math.round(f.size / 1024)} KB)</p>`).join("");
+});
+
+// ── Submit ────────────────────────────────────────────────────────────────
+function showError(msg) { const el = $("form-error"); el.textContent = msg; el.classList.remove("hidden"); el.scrollIntoView({ behavior: "smooth", block: "center" }); }
+function hideError() { $("form-error").classList.add("hidden"); }
+
+$("btn-submit").addEventListener("click", async () => {
+  hideError();
+  const categoryId = $("f-category").value;
+  const subject = $("f-subject").value.trim();
+  if (!categoryId) { showError("Please select a category."); return; }
+  if (!subject) { showError("Subject is required."); return; }
+
+  const cat = _categories.find((c) => c.id === categoryId);
+  const customerId = $("cust-id").value || null;
+  if (cat?.requiresCustomer && !customerId) { showError("Please select a customer for this category."); return; }
+
+  const vehicleIds = [..._selectedVehicleIds];
+  const primaryLookup = vehicleIds[0] ? _vehicleLookups[vehicleIds[0]] : null;
+
+  const btn = $("btn-submit");
+  btn.disabled = true; btn.textContent = "Creating…";
+
+  try {
+    const res = await APP.apiFetch("/crm/tickets", {
+      method: "POST",
+      body: {
+        customerId, subject, categoryId,
+        priority: $("f-priority").value,
+        description: $("f-description").value.trim() || null,
+        vehicleIds,
+        linkedInstallationId: primaryLookup?.installation?.id || null,
+        linkedDeviceItemIds: (primaryLookup?.devices || []).map((d) => d.id),
+        linkedSimIds: (primaryLookup?.sims || []).map((s) => s.id),
+        linkedInvoiceId: null,
+      },
+    });
+    const ticket = res.data;
+
+    // Upload any staged files against the new ticket id.
+    for (const file of _stagedFiles) {
+      const fd = new FormData();
+      fd.append("file", file);
+      await fetch(`${APP.API_BASE}/crm/tickets/${ticket.id}/upload`, { method: "POST", headers: authHeaders(), body: fd }).catch(() => {});
+    }
+
+    // If raised from the GPS uninstallation queue, link this new ticket back
+    // to its queue entry — non-fatal on failure, the ticket itself is already created.
+    if (_queueId) {
+      try {
+        await APP.apiFetch(`/gps-uninstall-queue/${_queueId}/link-ticket`, { method: "PATCH", body: { ticketId: ticket.id } });
+      } catch (e) {
+        console.error("Failed to link ticket to uninstallation queue entry:", e);
+      }
+    }
+
+    location.href = `crm-ticket-detail.html?id=${ticket.id}`;
+  } catch (e) {
+    showError(e?.message || "Failed to create ticket.");
+    btn.disabled = false; btn.textContent = "Create Ticket";
+  }
+});
+
+// Pre-fill customer/category/vehicle from URL — customerId= matches the old
+// modal's convention; categoryName=/vehicleId=/queueId= are used when
+// raising an Uninstallation ticket from the GPS uninstall queue.
+async function init() {
+  await loadCategories();
+  const params = new URLSearchParams(location.search);
+  const urlCustomerId = params.get("customerId");
+  const urlCustomerName = params.get("customerName");
+  const categoryName = params.get("categoryName");
+  _preselectVehicleId = params.get("vehicleId");
+  _queueId = params.get("queueId");
+
+  if (categoryName) {
+    const cat = _categories.find((c) => c.name === categoryName);
+    if (cat) { $("f-category").value = cat.id; $("f-category").dispatchEvent(new Event("change")); }
+  }
+  if (urlCustomerId) await selectCustomer(urlCustomerId, urlCustomerName || urlCustomerId);
+}
+</script>
+</body>
+</html>

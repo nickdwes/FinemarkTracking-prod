@@ -1,0 +1,1593 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Device Ledger</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-3 sm:p-6 min-w-0">
+    <div class="w-full space-y-6">
+
+      <!-- Page header -->
+      <div class="flex flex-wrap items-center gap-3 justify-between">
+        <div>
+          <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Device Ledger</h1>
+          <p class="text-sm text-slate-500">Track every physical device from warehouse to installation by IMEI / serial.</p>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <a href="inventory-dashboard.html" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-slate-50">Dashboard</a>
+          <!-- Issue button — always visible; opens the scan-to-add modal -->
+          <button id="btn-issue-selected" class="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-teal-700">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"/></svg>
+            Issue to Technician<span id="issue-count-wrap" class="hidden"> (<span id="issue-count">0</span>)</span>
+          </button>
+          <button id="btn-receive-device" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700">+ Receive Device</button>
+          <button id="btn-receive-csv" class="inline-flex items-center gap-2 rounded-lg border border-blue-300 bg-white px-4 py-2 text-sm font-semibold text-blue-700 shadow hover:bg-blue-50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M8 12l4 4m0 0l4-4m-4 4V4"/></svg>
+            Bulk CSV
+          </button>
+          <!-- Admin-only delete selected button — hidden until rows selected -->
+          <button id="btn-delete-selected" class="hidden inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-600 shadow hover:bg-red-50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            Delete (<span id="delete-count">0</span>)
+          </button>
+        </div>
+      </div>
+
+      <!-- Status tabs -->
+      <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm">
+        <div class="flex items-center gap-1 px-4 pt-4 border-b border-slate-100 overflow-x-auto">
+          <button class="status-tab whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-blue-600 text-blue-700 bg-blue-50" data-status="">All</button>
+          <button class="status-tab whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-slate-600" data-status="In Stock">In Stock</button>
+          <button class="status-tab whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-slate-600" data-status="AssignedToJob">Assign to Job</button>
+          <button class="status-tab whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-slate-600" data-status="Issued for Installation">Transferred / Issued</button>
+          <button class="status-tab whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-slate-600" data-status="Installed">Installed</button>
+          <button class="status-tab whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-slate-600" data-status="Returned">Returned</button>
+          <button class="status-tab whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-slate-600" data-status="Defective">Defective</button>
+        </div>
+
+        <!-- Filters -->
+        <div class="p-4 space-y-3 border-b border-slate-100">
+          <div class="grid gap-3 md:grid-cols-5">
+            <div class="md:col-span-2">
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Search IMEI / Serial / Model</label>
+              <input id="search-input" type="text" placeholder="Search…" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Category</label>
+              <select id="filter-cat" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                <option value="">All</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Product</label>
+              <select id="filter-product" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                <option value="">All</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Issued To</label>
+              <select id="filter-issued-to" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                <option value="">All</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-end gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Received From</label>
+              <input id="filter-date-from" type="date" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Received To</label>
+              <input id="filter-date-to" type="date" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            </div>
+            <button id="btn-apply" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Apply</button>
+            <button id="btn-reset" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Reset</button>
+            <span id="result-count" class="text-xs text-slate-500"></span>
+          </div>
+          <p id="select-hint" class="hidden text-xs text-slate-400 italic">Check In Stock rows to select for issuance</p>
+        </div>
+
+        <!-- Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[1050px] text-sm">
+            <thead class="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th class="px-4 py-3 w-8"><input type="checkbox" id="chk-all" class="rounded border-slate-300 accent-teal-600" title="Select all In Stock items" /></th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">Product</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">Category</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">IMEI</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">Serial</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">Status</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">Issued To</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">Date Issued</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">Date Received</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">Received By</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">Batch No.</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">Warranty</th>
+                <th class="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody id="items-body" class="divide-y divide-slate-100">
+              <tr><td colspan="13" class="text-center py-8 text-slate-400">Loading…</td></tr>
+
+            </tbody>
+          </table>
+        </div>
+        <div class="flex items-center justify-between px-4 py-3 border-t border-slate-100">
+          <span id="pagination-info" class="text-xs text-slate-400"></span>
+          <div class="flex gap-2">
+            <button id="btn-prev" class="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium hover:bg-slate-50 disabled:opacity-40">Prev</button>
+            <button id="btn-next" class="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium hover:bg-slate-50 disabled:opacity-40">Next</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- Issue to Technician Modal -->
+<div id="modal-issue" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[92vh]">
+    <div class="flex items-center justify-between px-6 py-4 border-b shrink-0">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-900">Issue Devices to Technician</h2>
+        <p class="text-xs text-slate-500 mt-0.5">Scan device IMEIs/serials to add them to the issuance list. Devices will be marked <em>Transferred</em> until the technician acknowledges receipt.</p>
+      </div>
+      <button id="btn-close-issue" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">×</button>
+    </div>
+
+    <div class="p-6 space-y-4 overflow-y-auto">
+      <!-- Technician picker -->
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Technician *</label>
+        <select id="issue-tech-select" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+          <option value="">Loading technicians…</option>
+        </select>
+        <p class="text-[11px] text-slate-400 mt-1">Only active field technicians on the roster are listed.</p>
+      </div>
+
+      <!-- Scan input -->
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">
+          Scan IMEI / Serial
+          <span class="text-slate-400 font-normal">(barcode scanner or type, then press Enter)</span>
+        </label>
+        <input id="issue-scan-input" type="text"
+               inputmode="numeric"
+               autocomplete="off"
+               placeholder="Scan or type IMEI / Serial…"
+               class="w-full rounded-lg border-2 border-teal-300 focus:border-teal-500 px-4 py-3 text-base font-mono tracking-wide focus:outline-none bg-teal-50/30" />
+        <p id="issue-scan-feedback" class="text-xs mt-1 min-h-[1rem]"></p>
+      </div>
+
+      <!-- Scanned list -->
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <label class="block text-xs font-medium text-slate-600">Devices to Issue (<span id="issue-modal-count">0</span>)</label>
+          <button type="button" id="btn-clear-scanned" class="hidden text-xs text-slate-500 hover:text-red-600">Clear all</button>
+        </div>
+        <div id="issue-device-list" class="max-h-64 overflow-y-auto space-y-1.5 rounded-lg border border-slate-200 p-2 bg-slate-50 min-h-[80px]">
+          <p id="issue-empty-state" class="text-xs text-slate-400 text-center py-6 italic">No devices scanned yet. Use the field above to add devices.</p>
+        </div>
+      </div>
+
+      <div id="issue-error" class="hidden rounded bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-600"></div>
+    </div>
+
+    <div class="flex justify-end gap-3 px-6 py-4 border-t shrink-0">
+      <button type="button" id="btn-cancel-issue" class="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50">Cancel</button>
+      <button type="button" id="btn-confirm-issue" class="rounded-lg bg-teal-600 px-5 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50">Issue Devices</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     RECEIVE DEVICES MODAL  (2-step wizard)
+     Step 1 — Entry: product, batch ref, IMEI textarea + barcode scan
+     Step 2 — Review: per-row validation table, fix & confirm
+════════════════════════════════════════════════════════════════════════ -->
+<div id="modal-receive" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[92vh]">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b shrink-0">
+      <div>
+        <h2 class="text-lg font-semibold" id="receive-modal-title">Receive Devices</h2>
+        <!-- Step indicator -->
+        <div class="flex items-center gap-2 mt-1">
+          <span id="recv-step-dot-1" class="h-2 w-2 rounded-full bg-blue-600"></span>
+          <span id="recv-step-lbl-1" class="text-xs font-medium text-blue-700">1. Entry</span>
+          <span class="text-slate-300 text-xs">›</span>
+          <span id="recv-step-dot-2" class="h-2 w-2 rounded-full bg-slate-300"></span>
+          <span id="recv-step-lbl-2" class="text-xs font-medium text-slate-400">2. Review</span>
+        </div>
+      </div>
+      <button id="btn-close-receive" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">×</button>
+    </div>
+
+    <!-- ── STEP 1: Entry ──────────────────────────────────────────────── -->
+    <div id="recv-step1" class="p-6 space-y-4 overflow-y-auto flex-1">
+
+      <!-- Product -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Product <span class="text-red-500">*</span></label>
+        <select id="r-product" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" required>
+          <option value="">Select product…</option>
+        </select>
+      </div>
+
+      <!-- Batch ref (auto) + purchase date -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Batch Reference</label>
+          <div class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+            Auto-generated on save
+            <span class="block text-xs text-slate-400 mt-0.5">Format: GRB-YYYYMMDD-NNN — the date is always readable directly off the batch number.</span>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Purchase Date</label>
+          <input id="r-purchase-date" type="date"
+            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+      </div>
+
+      <!-- IMEI bulk entry -->
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <label class="text-xs font-semibold text-slate-600" id="r-imei-label">
+            IMEI / Serial Numbers
+            <span class="ml-1 font-normal text-slate-400">(one per line, or comma / space separated)</span>
+          </label>
+          <button id="btn-scan-imei" type="button"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M3 17v2a2 2 0 002 2h2m10 0h2a2 2 0 002-2v-2
+                   M7 8h1M12 8h1M17 8h1M7 12h1M12 12h1M17 12h1M7 16h1M12 16h1M17 16h1"/>
+            </svg>
+            Scan Barcode
+          </button>
+        </div>
+        <div class="relative">
+          <textarea id="r-imei-bulk" rows="6" spellcheck="false"
+            placeholder="359172080000001&#10;860123456789012&#10;or paste: 359172080000001, 860123456789012"
+            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono focus:outline-none focus:border-blue-500 resize-y"></textarea>
+          <!-- live counter -->
+          <span id="r-imei-count" class="absolute bottom-2 right-3 text-xs text-slate-400 pointer-events-none">0 entries</span>
+        </div>
+        <!-- hidden input for barcode scanner stream -->
+        <input id="r-scan-input" type="text" autocomplete="off"
+          class="hidden w-full mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-mono focus:outline-none focus:border-amber-500"
+          placeholder="Scan barcode — press Enter after each scan" />
+        <p id="r-scan-hint" class="hidden mt-1 text-xs text-amber-700">
+          Scanner active — scan devices one by one. Each scan appends to the IMEI list above. Click <strong>Stop Scanning</strong> when done.
+        </p>
+      </div>
+
+      <div id="recv-step1-error" class="hidden rounded-lg bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-700"></div>
+    </div>
+
+    <!-- ── STEP 2: Review ─────────────────────────────────────────────── -->
+    <div id="recv-step2" class="hidden p-6 overflow-y-auto flex-1">
+      <div class="mb-3 flex items-center justify-between">
+        <p class="text-sm text-slate-600">
+          Review entries before saving.
+          <span id="recv-review-summary" class="font-semibold text-slate-800"></span>
+        </p>
+        <span id="recv-review-badge" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700"></span>
+      </div>
+      <div class="overflow-x-auto rounded-xl border border-slate-200">
+        <table class="w-full text-xs">
+          <thead class="bg-slate-50 text-slate-500 uppercase text-[10px]">
+            <tr>
+              <th class="px-3 py-2 text-left w-8">#</th>
+              <th class="px-3 py-2 text-left">IMEI / Serial</th>
+              <th class="px-3 py-2 text-left w-28">Status</th>
+              <th class="px-3 py-2 text-left w-8"></th>
+            </tr>
+          </thead>
+          <tbody id="recv-review-tbody"></tbody>
+        </table>
+      </div>
+      <div id="recv-step2-error" class="hidden mt-3 rounded-lg bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-700"></div>
+    </div>
+
+    <!-- Footer buttons -->
+    <div class="flex items-center justify-between px-6 py-4 border-t shrink-0 bg-slate-50 rounded-b-2xl">
+      <button id="btn-cancel-receive" type="button"
+        class="rounded-lg border border-slate-200 px-4 py-2 text-sm hover:bg-slate-100 transition">Cancel</button>
+      <div class="flex gap-3">
+        <button id="btn-recv-back" type="button"
+          class="hidden rounded-lg border border-slate-200 px-4 py-2 text-sm hover:bg-slate-100 transition">← Back</button>
+        <button id="btn-recv-next" type="button"
+          class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition">
+          Review →
+        </button>
+        <button id="btn-recv-save" type="button"
+          class="hidden rounded-lg bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition">
+          Save All
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Bulk CSV Upload Modal -->
+<!-- ── Delete Confirm Modal ──────────────────────────────────────────────── -->
+<div id="modal-delete-confirm" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md">
+    <div class="flex items-center gap-3 px-6 py-4 border-b">
+      <div class="flex-shrink-0 w-9 h-9 rounded-full bg-red-100 flex items-center justify-center">
+        <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+        </svg>
+      </div>
+      <div>
+        <h2 class="text-base font-semibold text-slate-900">Delete Device(s)</h2>
+        <p id="delete-modal-subtitle" class="text-xs text-slate-500 mt-0.5">This action is permanent and cannot be undone.</p>
+      </div>
+    </div>
+    <div class="px-6 py-5 space-y-4">
+      <div id="delete-modal-device-list" class="max-h-32 overflow-y-auto space-y-1 rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs font-mono text-slate-700"></div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Reason for deletion <span class="font-normal text-slate-400">(optional)</span></label>
+        <textarea id="delete-modal-reason" rows="2"
+          placeholder="e.g. Damaged on arrival, Duplicate entry, Test device…"
+          class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-red-400 resize-none"></textarea>
+      </div>
+      <div id="delete-modal-error" class="hidden rounded bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-600"></div>
+    </div>
+    <div class="flex justify-end gap-3 px-6 pb-5">
+      <button id="btn-delete-cancel" type="button"
+        class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50">Cancel</button>
+      <button id="btn-delete-confirm" type="button"
+        class="rounded-lg bg-red-600 px-5 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-csv" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl flex flex-col max-h-[90vh]">
+    <div class="flex items-center justify-between px-6 py-4 border-b shrink-0">
+      <h2 class="text-lg font-semibold">Bulk Receive Devices — CSV Upload</h2>
+      <button id="btn-close-csv" class="text-slate-400 hover:text-slate-600 text-xl font-bold">×</button>
+    </div>
+    <div class="p-6 space-y-4 overflow-y-auto flex-1">
+      <div class="rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 flex items-start gap-3">
+        <svg class="w-5 h-5 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z"/></svg>
+        <div class="text-sm text-blue-800 flex-1">
+          <p class="font-semibold mb-1">CSV Format</p>
+          <p>Required: <code class="bg-blue-100 px-1 rounded">product_code</code>. Optional: <code class="bg-blue-100 px-1 rounded">imei</code>, <code class="bg-blue-100 px-1 rounded">serial_number</code>, <code class="bg-blue-100 px-1 rounded">warehouse_location</code>, <code class="bg-blue-100 px-1 rounded">purchase_price</code>, <code class="bg-blue-100 px-1 rounded">purchase_date</code>, <code class="bg-blue-100 px-1 rounded">sim_phone</code>, <code class="bg-blue-100 px-1 rounded">notes</code>.</p>
+          <p class="mt-1 text-xs text-blue-600">Use the product_code from the catalog (e.g. VT001). Each row = one device.</p>
+        </div>
+        <button id="btn-download-sample" class="ml-2 shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M8 12l4 4m0 0l4-4m-4 4V4"/></svg>
+          Download Sample
+        </button>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Choose CSV File</label>
+        <input id="csv-file-input" type="file" accept=".csv,text/csv" class="block w-full text-sm text-slate-700 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer" />
+      </div>
+      <div id="csv-parse-error" class="hidden rounded bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-600"></div>
+      <div id="csv-preview-wrap" class="hidden">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-sm font-medium text-slate-700">Preview — <span id="csv-row-count">0</span> row(s) parsed</p>
+          <p id="csv-warn-count" class="hidden text-xs text-amber-600 font-medium"></p>
+        </div>
+        <div class="overflow-x-auto rounded-xl border border-slate-200">
+          <table class="w-full text-xs">
+            <thead class="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wide">
+              <tr>
+                <th class="px-3 py-2 text-left">#</th>
+                <th class="px-3 py-2 text-left">Product Code</th>
+                <th class="px-3 py-2 text-left">IMEI</th>
+                <th class="px-3 py-2 text-left">Serial No</th>
+                <th class="px-3 py-2 text-left">Location</th>
+                <th class="px-3 py-2 text-left">Price</th>
+                <th class="px-3 py-2 text-left">Purchase Date</th>
+                <th class="px-3 py-2 text-left">SIM Phone</th>
+                <th class="px-3 py-2 text-left">Notes</th>
+                <th class="px-3 py-2 text-left">Status</th>
+              </tr>
+            </thead>
+            <tbody id="csv-preview-body" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="csv-submit-error" class="hidden rounded bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-600"></div>
+      <div id="csv-result" class="hidden rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800"></div>
+    </div>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t shrink-0">
+      <button type="button" id="btn-cancel-csv" class="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50">Cancel</button>
+      <button type="button" id="btn-submit-csv" disabled class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed">Upload & Receive</button>
+    </div>
+  </div>
+</div>
+
+<!-- Device Detail Drawer -->
+<div id="drawer-device" class="hidden fixed inset-y-0 right-0 z-50 w-[440px] bg-white shadow-2xl flex flex-col border-l border-slate-200">
+  <div class="flex items-center justify-between px-6 py-4 border-b">
+    <h2 class="text-lg font-semibold" id="drawer-title">Device Details</h2>
+    <button id="btn-close-drawer" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+  </div>
+  <div class="flex-1 overflow-y-auto p-6 space-y-4" id="drawer-content">
+    <div class="text-sm text-slate-400">Loading…</div>
+  </div>
+  <div class="px-6 py-4 border-t flex gap-2 flex-wrap" id="drawer-actions"></div>
+</div>
+
+<div id="fm-footer"></div>
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+(() => {
+  const APP = window.FINEMARK_APP;
+  const apiFetch = (...a) => APP.apiFetch(...a);
+
+  // Read initial status filter from URL (e.g. dashboard card click → ?status=In+Stock)
+  const _initialStatus = (() => {
+    try { return new URLSearchParams(location.search).get("status") || ""; }
+    catch { return ""; }
+  })();
+  let page = 1, total = 0, activeStatus = _initialStatus, catalogs = [], technicians = [];
+  let selectedIds = new Set();
+  let currentItems = [];
+  const PAGE_SIZE = 50;
+
+  const STATUS_COLORS = {
+    "In Stock": "bg-green-100 text-green-700",
+    "Reserved": "bg-amber-100 text-amber-700",
+    "Issued for Installation": "bg-blue-100 text-blue-700",
+    "Installed": "bg-slate-100 text-slate-700",
+    "Returned": "bg-yellow-100 text-yellow-700",
+    "Defective": "bg-red-100 text-red-700",
+    "Sent to Supplier": "bg-purple-100 text-purple-700",
+    "Replaced": "bg-gray-100 text-gray-700",
+  };
+
+  // Returns {label, css} for an item — splits "Issued for Installation" into
+  // "Transferred" (awaiting tech ack), "Issued" (acknowledged), or "Assigned to Job"
+  // (linked to an active, non-completed installation job).
+  function displayStatus(item) {
+    if (item.status === "Issued for Installation") {
+      if (item.installation_id && item.job_status && !["Completed","Closed"].includes(item.job_status)) {
+        return { label: "Assigned to Job", css: "bg-amber-100 text-amber-700" };
+      }
+      if (item.acknowledged_at) return { label: "Issued", css: "bg-indigo-100 text-indigo-700" };
+      return { label: "Transferred", css: "bg-blue-100 text-blue-700" };
+    }
+    return { label: item.status, css: STATUS_COLORS[item.status] || "bg-slate-100 text-slate-600" };
+  }
+
+  function fmtDate(d) {
+    if (!d) return "—";
+    return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  }
+
+  // ── Selection helpers ─────────────────────────────────────────────────────
+  function updateSelectionUI() {
+    const n = selectedIds.size;
+    document.getElementById("issue-count").textContent = n;
+    // The "Issue to Technician" button is always visible; show count badge only when rows are selected
+    const countWrap = document.getElementById("issue-count-wrap");
+    if (countWrap) countWrap.classList.toggle("hidden", n === 0);
+    // Delete selected — admin only
+    const session = JSON.parse(localStorage.getItem("finemark_session") || "{}");
+    const isAdmin = session?.user?.role === "Admin";
+    const delBtn = document.getElementById("btn-delete-selected");
+    if (delBtn) {
+      document.getElementById("delete-count").textContent = n;
+      (n > 0 && isAdmin) ? delBtn.classList.remove("hidden") : delBtn.classList.add("hidden");
+    }
+
+    const issuable = currentItems.filter(i => ["In Stock","Reserved"].includes(i.status));
+    const chkAll = document.getElementById("chk-all");
+    if (issuable.length === 0) { chkAll.checked = false; chkAll.indeterminate = false; return; }
+    const allChecked = issuable.every(i => selectedIds.has(i.id));
+    const someChecked = issuable.some(i => selectedIds.has(i.id));
+    chkAll.checked = allChecked;
+    chkAll.indeterminate = !allChecked && someChecked;
+  }
+
+  // ── Data loading ──────────────────────────────────────────────────────────
+  async function loadCatalog() {
+    const r = await apiFetch("/inventory/catalog?pageSize=200");
+    catalogs = r.data ?? [];
+    document.getElementById("r-product").innerHTML = `<option value="">Select product</option>` +
+      catalogs.map(p => `<option value="${p.id}">${p.product_code} — ${p.product_name}</option>`).join("");
+    document.getElementById("filter-product").innerHTML = `<option value="">All</option>` +
+      catalogs.map(p => `<option value="${p.id}">${p.product_name}</option>`).join("");
+  }
+
+  async function loadTechnicians() {
+    // Only field Technicians (member_type = 'Technician') can receive devices — not ISOs
+    const r = await apiFetch("/technical-team/members?role=Technician").catch(() => null);
+    technicians = r?.data ?? [];
+    const sel = document.getElementById("issue-tech-select");
+    if (!technicians.length) {
+      sel.innerHTML = `<option value="">No technicians found</option>`;
+      return;
+    }
+    sel.innerHTML = `<option value="">— Select technician —</option>` +
+      technicians.map(t => {
+        const name = t.fullName || t.email || "Technician";
+        const badge = t.employeeNo ? ` (${t.employeeNo})` : "";
+        return `<option value="${t.id}" data-name="${name}">${name}${badge}</option>`;
+      }).join("");
+    document.getElementById("filter-issued-to").innerHTML = `<option value="">All</option>` +
+      technicians.map(t => {
+        const name = t.fullName || t.email || "Technician";
+        return `<option value="${t.id}">${name}</option>`;
+      }).join("");
+  }
+
+  async function loadCategories() {
+    const r = await apiFetch("/inventory/catalog/categories");
+    const cats = r.data ?? r ?? [];
+    const sel = document.getElementById("filter-cat");
+    sel.innerHTML = `<option value="">All</option>` +
+      cats.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+  }
+
+  async function loadItems() {
+    const q          = document.getElementById("search-input").value.trim();
+    const catId      = document.getElementById("filter-cat").value;
+    const productId  = document.getElementById("filter-product").value;
+    const issuedToId = document.getElementById("filter-issued-to").value;
+    const dateFrom   = document.getElementById("filter-date-from")?.value || "";
+    const dateTo     = document.getElementById("filter-date-to")?.value   || "";
+    const url = `/inventory/items?page=${page}&pageSize=${PAGE_SIZE}` +
+                (activeStatus  ? `&status=${encodeURIComponent(activeStatus)}`   : "") +
+                (catId         ? `&categoryId=${encodeURIComponent(catId)}`      : "") +
+                (productId     ? `&productId=${encodeURIComponent(productId)}`   : "") +
+                (issuedToId    ? `&issuedToId=${encodeURIComponent(issuedToId)}` : "") +
+                (dateFrom      ? `&dateFrom=${encodeURIComponent(dateFrom)}`     : "") +
+                (dateTo        ? `&dateTo=${encodeURIComponent(dateTo)}`         : "") +
+                (q             ? `&q=${encodeURIComponent(q)}`                   : "");
+    const r   = await apiFetch(url);
+    currentItems = r.data ?? [];
+    total = r.meta?.total ?? currentItems.length;
+    const countEl = document.getElementById("result-count");
+    if (countEl) countEl.textContent = total ? `${total.toLocaleString()} result${total !== 1 ? 's' : ''}` : '';
+    renderTable(currentItems);
+    updateSelectionUI();
+  }
+
+  function renderTable(items) {
+    const tbody = document.getElementById("items-body");
+    if (!items.length) {
+      tbody.innerHTML = `<tr><td colspan="13" class="text-center py-8 text-slate-400">No devices found.</td></tr>`;
+    } else {
+      tbody.innerHTML = items.map(i => {
+        const ds       = displayStatus(i);
+        const wExp     = i.warranty_expires_at ? new Date(i.warranty_expires_at) : null;
+        const wStatus  = !wExp ? "—"
+          : wExp > new Date() ? `<span class="text-green-600 text-xs">Valid</span>`
+                              : `<span class="text-red-500 text-xs">Expired</span>`;
+        const issuable = ["In Stock","Reserved"].includes(i.status);
+        const checked  = selectedIds.has(i.id) ? "checked" : "";
+        const rowBg    = selectedIds.has(i.id) ? " bg-teal-50" : "";
+        return `<tr class="hover:bg-slate-50 cursor-pointer item-row${rowBg}" data-id="${i.id}">
+          <td class="px-4 py-3 w-8" onclick="event.stopPropagation()">
+            <input type="checkbox" class="row-chk rounded border-slate-300 accent-teal-600" data-id="${i.id}" ${checked}
+              ${issuable ? "" : "disabled title='Only In Stock / Reserved devices can be issued'"} />
+          </td>
+          <td class="px-4 py-3">
+            <p class="font-medium text-slate-800">${i.product_name ?? ""}</p>
+            <p class="text-xs text-slate-400">${i.product_code ?? ""} · ${i.device_model ?? ""}</p>
+          </td>
+          <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">${i.category_name ?? "—"}</td>
+          <td class="px-4 py-3 font-mono text-xs whitespace-nowrap">${i.imei ?? "—"}</td>
+          <td class="px-4 py-3 font-mono text-xs whitespace-nowrap">${i.serial_number ?? "—"}</td>
+          <td class="px-4 py-3 whitespace-nowrap"><span class="text-xs px-2 py-0.5 rounded-full font-semibold ${ds.css}">${ds.label}</span></td>
+          <td class="px-4 py-3 text-xs font-medium text-slate-700 whitespace-nowrap">${i.issued_to_name ?? "—"}</td>
+          <td class="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">${fmtDate(i.issued_at)}</td>
+          <td class="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">${fmtDate(i.created_at)}</td>
+          <td class="px-4 py-3 text-xs text-slate-500 max-w-[140px]"><span class="block truncate" title="${i.received_by_email ?? ""}">${i.received_by_email ?? "—"}</span></td>
+          <td class="px-4 py-3 text-xs font-mono text-slate-600 whitespace-nowrap">${i.batch_number ?? "—"}</td>
+          <td class="px-4 py-3 text-xs">${wStatus}</td>
+          <td class="px-4 py-3 text-right">
+            <button class="btn-view text-xs px-2 py-1 rounded border border-slate-200 hover:bg-slate-50" data-id="${i.id}">View</button>
+          </td>
+        </tr>`;
+      }).join("");
+
+      tbody.querySelectorAll(".btn-view").forEach(btn =>
+        btn.addEventListener("click", e => { e.stopPropagation(); openDrawer(btn.dataset.id); }));
+      tbody.querySelectorAll(".item-row").forEach(row =>
+        row.addEventListener("click", () => openDrawer(row.dataset.id)));
+      tbody.querySelectorAll(".row-chk").forEach(chk =>
+        chk.addEventListener("click", e => {
+          e.stopPropagation();
+          chk.checked ? selectedIds.add(chk.dataset.id) : selectedIds.delete(chk.dataset.id);
+          chk.closest("tr").classList.toggle("bg-teal-50", chk.checked);
+          updateSelectionUI();
+        }));
+    }
+
+    document.getElementById("pagination-info").textContent =
+      `${Math.min((page-1)*PAGE_SIZE+1, total)}–${Math.min(page*PAGE_SIZE, total)} of ${total}`;
+    document.getElementById("btn-prev").disabled = page <= 1;
+    document.getElementById("btn-next").disabled = page * PAGE_SIZE >= total;
+
+    // Show hint when there are issuable items
+    const hint = document.getElementById("select-hint");
+    const hasIssuable = items.some(i => ["In Stock","Reserved"].includes(i.status));
+    hasIssuable ? hint.classList.remove("hidden") : hint.classList.add("hidden");
+  }
+
+  // ── Drawer ────────────────────────────────────────────────────────────────
+  async function openDrawer(id) {
+    document.getElementById("drawer-device").classList.remove("hidden");
+    const dc = document.getElementById("drawer-content");
+    dc.innerHTML = `<div class="text-sm text-slate-400">Loading…</div>`;
+    const r = await apiFetch(`/inventory/items/${id}`);
+    const d = r.data;
+    if (!d) return;
+    document.getElementById("drawer-title").textContent =
+      `${d.device_model ?? "Device"} · ${d.imei ?? d.serial_number ?? d.id.slice(0,8)}`;
+    const badge = STATUS_COLORS[d.status] ?? "bg-slate-100 text-slate-600";
+    const installedSection = (d.status === "Installed" || d.status === "Issued for Installation") && (d.ticket_no || d.job_customer_name) ? `
+      <div class="rounded-lg bg-blue-50 border border-blue-100 p-3 space-y-2">
+        <p class="text-xs font-semibold text-blue-700 uppercase tracking-wide">Installation Details</p>
+        ${d.job_customer_name ? `
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-slate-400">Customer</span>
+          ${d.job_customer_id
+            ? `<a href="crm-customer-360.html?id=${d.job_customer_id}" class="font-semibold text-blue-700 hover:underline">${d.job_customer_name}</a>`
+            : `<span class="font-semibold text-slate-700">${d.job_customer_name}</span>`}
+        </div>` : ""}
+        ${d.job_vehicle_reg ? `
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-slate-400">Vehicle</span>
+          <span class="font-mono font-semibold text-slate-700">${d.job_vehicle_reg}</span>
+        </div>` : ""}
+        ${d.ticket_no ? `
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-slate-400">Ticket</span>
+          <a href="job-card.html?ticket=${d.ticket_no}" class="font-mono font-semibold text-blue-600 hover:underline">${d.ticket_no}</a>
+        </div>` : ""}
+        ${d.job_invoice_number ? `
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-slate-400">Invoice</span>
+          <a href="create-invoice.html?id=${d.job_invoice_id}" class="font-mono font-semibold text-emerald-700 hover:underline">${d.job_invoice_number}</a>
+        </div>` : ""}
+        ${d.deployed_at ? `
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-slate-400">Deployed</span>
+          <span class="text-slate-600">${fmtDate(d.deployed_at)}</span>
+        </div>` : ""}
+        ${d.activated_at ? `
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-slate-400">Activated</span>
+          <span class="text-slate-600">${fmtDate(d.activated_at)}</span>
+        </div>` : ""}
+      </div>` : "";
+    dc.innerHTML = `
+      <div class="grid grid-cols-2 gap-3 text-sm">
+        <div><p class="text-xs text-slate-400">Product Code</p><p class="font-mono font-semibold text-blue-700">${d.product_code ?? "—"}</p></div>
+        <div><p class="text-xs text-slate-400">Status</p><span class="text-xs px-2 py-0.5 rounded-full font-semibold ${badge}">${d.status}</span></div>
+        <div><p class="text-xs text-slate-400">IMEI</p><p class="font-mono">${d.imei ?? "—"}</p></div>
+        <div><p class="text-xs text-slate-400">Serial</p><p class="font-mono">${d.serial_number ?? "—"}</p></div>
+        <div><p class="text-xs text-slate-400">Location</p><p>${d.warehouse_location ?? "—"}</p></div>
+        <div><p class="text-xs text-slate-400">SIM</p><p>${d.sim_phone ?? "—"}</p></div>
+        <div><p class="text-xs text-slate-400">Batch / GRN Ref</p><p class="font-mono">${d.batch_number ?? "—"}</p></div>
+        <div><p class="text-xs text-slate-400">Purchase Date</p><p>${d.purchase_date ?? "—"}</p></div>
+        <div><p class="text-xs text-slate-400">Warranty Expires</p><p>${d.warranty_expires_at ? d.warranty_expires_at.slice(0,10) : "—"}</p></div>
+        ${d.issued_to_name ? `
+        <div><p class="text-xs text-slate-400">Issued To</p><p class="font-medium text-teal-700">${d.issued_to_name}</p></div>
+        <div><p class="text-xs text-slate-400">Date Issued</p><p>${fmtDate(d.issued_at)}</p></div>` : ""}
+      </div>
+      ${installedSection}
+      <hr class="border-slate-100"/>
+      <h3 class="text-sm font-semibold text-slate-700">Movement History</h3>
+      <div class="space-y-2">
+        ${(d.movements ?? []).map(m => `
+          <div class="flex gap-3 text-xs">
+            <div class="w-2 h-2 rounded-full bg-blue-400 mt-1.5 flex-shrink-0"></div>
+            <div>
+              <p class="font-semibold text-slate-700">${m.action} → ${m.to_status ?? ""}</p>
+              <p class="text-slate-400">${m.notes ?? ""} · ${m.created_at?.slice(0,16).replace("T"," ") ?? ""}</p>
+            </div>
+          </div>`).join("") || `<p class="text-xs text-slate-400">No movements recorded.</p>`}
+      </div>
+    `;
+    buildDrawerActions(d);
+  }
+
+  function buildDrawerActions(d) {
+    const el = document.getElementById("drawer-actions");
+    el.innerHTML = "";
+    const session = JSON.parse(localStorage.getItem("finemark_session") || "{}");
+    const role = session?.user?.role ?? "";
+    const canOperate = ["Admin","InventoryManager","WarehouseOfficer"].includes(role);
+    if (!canOperate) return;
+    if (["In Stock","Reserved"].includes(d.status)) {
+      el.innerHTML += actionBtn("issue-single", d.id, "Issue to Technician", "bg-teal-600 text-white");
+      el.innerHTML += actionBtn("checkout", d.id, "Checkout for Install", "bg-blue-600 text-white");
+    }
+    if (d.status === "Issued for Installation") {
+      el.innerHTML += actionBtn("install", d.id, "Mark as Installed", "bg-emerald-600 text-white");
+      el.innerHTML += actionBtn("checkin", d.id, "Check In / Return", "bg-amber-600 text-white");
+    }
+    if (["Returned","In Stock"].includes(d.status)) el.innerHTML += actionBtn("mark-defective", d.id, "Mark Defective", "border border-red-300 text-red-600");
+    if (d.status === "Defective") el.innerHTML += actionBtn("send-to-supplier", d.id, "Send to Supplier", "border border-purple-300 text-purple-600");
+    if (role === "Admin") {
+      el.innerHTML += `<button data-action="delete-item" data-id="${d.id}"
+        class="rounded-lg px-3 py-2 text-xs font-semibold border border-red-400 text-red-600 hover:bg-red-50 ml-auto">Delete Device</button>`;
+    }
+
+    el.querySelectorAll("[data-action]").forEach(btn => btn.addEventListener("click", async () => {
+      const action = btn.dataset.action, id = btn.dataset.id;
+      if (action === "issue-single") {
+        selectedIds.clear();
+        selectedIds.add(id);
+        updateSelectionUI();
+        openIssueModal();
+        return;
+      }
+      if (action === "delete-item") {
+        const item = currentItems.find(i => i.id === id) || { id };
+        openDeleteModal([id], [item]);
+        return;
+      }
+      let body = {};
+      if (action === "checkout")      { body = { installationId: prompt("Installation ticket ID (optional):") || null }; }
+      if (action === "checkin")        { body = { returnReason: prompt("Return reason (Returned / Defective):") || "Returned" }; }
+      if (action === "mark-defective") { body = { reason: prompt("Defect reason:") || "" }; }
+      if (action === "send-to-supplier") { body = { notes: prompt("Supplier notes:") || "" }; }
+      try {
+        await apiFetch(`/inventory/items/${id}/${action}`, { method: "POST", body });
+        openDrawer(id);
+        loadItems();
+      } catch(e) {
+        APP.showToast?.(e?.message || "Action failed", "error");
+      }
+    }));
+  }
+
+  function actionBtn(action, id, label, cls) {
+    return `<button data-action="${action}" data-id="${id}"
+      class="rounded-lg px-3 py-2 text-xs font-semibold ${cls} hover:opacity-80">${label}</button>`;
+  }
+
+  document.getElementById("btn-close-drawer").addEventListener("click", () =>
+    document.getElementById("drawer-device").classList.add("hidden"));
+
+  // ── Issue Modal (scan-to-add) ────────────────────────────────────────────
+  let _scannedItems = [];          // [{id, imei, serial_number, product_name, status}]
+  let _scanLookupBusy = false;
+
+  function _renderScannedList() {
+    const listEl = document.getElementById("issue-device-list");
+    const empty  = document.getElementById("issue-empty-state");
+    const clear  = document.getElementById("btn-clear-scanned");
+    const countEl = document.getElementById("issue-modal-count");
+    countEl.textContent = _scannedItems.length;
+    clear.classList.toggle("hidden", _scannedItems.length === 0);
+    if (!_scannedItems.length) {
+      listEl.innerHTML = `<p id="issue-empty-state" class="text-xs text-slate-400 text-center py-6 italic">No devices scanned yet. Use the field above to add devices.</p>`;
+      return;
+    }
+    listEl.innerHTML = _scannedItems.map((it, idx) => `
+      <div class="flex items-center gap-2 text-xs px-2 py-1.5 bg-white rounded border border-slate-200">
+        <svg class="w-3.5 h-3.5 text-teal-500 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span class="font-mono font-semibold text-slate-700">${it.imei || it.serial_number || it.id.slice(0,10)}</span>
+        <span class="text-slate-300">·</span>
+        <span class="text-slate-500 truncate flex-1">${it.product_name ?? ""}</span>
+        <button type="button" data-idx="${idx}" class="btn-remove-scanned text-slate-300 hover:text-red-500 text-base leading-none">×</button>
+      </div>
+    `).join("");
+    listEl.querySelectorAll(".btn-remove-scanned").forEach(b => {
+      b.addEventListener("click", e => {
+        const i = parseInt(b.dataset.idx, 10);
+        _scannedItems.splice(i, 1);
+        _renderScannedList();
+      });
+    });
+  }
+
+  function _setScanFeedback(msg, kind) {
+    const el = document.getElementById("issue-scan-feedback");
+    el.textContent = msg || "";
+    el.className = "text-xs mt-1 min-h-[1rem] " + (
+      kind === "ok"   ? "text-teal-600" :
+      kind === "err"  ? "text-red-600"  : "text-slate-400"
+    );
+  }
+
+  async function _onScanEnter(rawCode) {
+    const code = (rawCode || "").trim();
+    if (!code) return;
+    if (_scanLookupBusy) return;
+    // Already in the list?
+    const dup = _scannedItems.find(i =>
+      (i.imei && i.imei === code) || (i.serial_number && i.serial_number === code));
+    if (dup) {
+      _setScanFeedback(`Already added: ${code}`, "err");
+      return;
+    }
+    _scanLookupBusy = true;
+    _setScanFeedback("Looking up…", "info");
+    try {
+      const r = await apiFetch(`/inventory/items?q=${encodeURIComponent(code)}&pageSize=10`);
+      const rows = r?.data ?? [];
+      // Exact match on imei or serial_number
+      const match = rows.find(it => it.imei === code || it.serial_number === code);
+      if (!match) {
+        _setScanFeedback(`Not found in ledger: ${code}`, "err");
+        return;
+      }
+      if (!["In Stock","Reserved"].includes(match.status)) {
+        _setScanFeedback(`Cannot issue ${code} — status is "${match.status}".`, "err");
+        return;
+      }
+      _scannedItems.push({
+        id: match.id,
+        imei: match.imei,
+        serial_number: match.serial_number,
+        product_name: match.product_name,
+        status: match.status,
+      });
+      _renderScannedList();
+      _setScanFeedback(`Added: ${match.product_name || ""} (${code})`, "ok");
+    } catch (e) {
+      _setScanFeedback(e?.message || "Lookup failed.", "err");
+    } finally {
+      _scanLookupBusy = false;
+    }
+  }
+
+  function openIssueModal() {
+    // Pre-load any rows the user has checkbox-selected from the ledger
+    _scannedItems = [];
+    if (selectedIds.size) {
+      [...selectedIds].forEach(id => {
+        const it = currentItems.find(i => i.id === id);
+        if (it && ["In Stock","Reserved"].includes(it.status)) {
+          _scannedItems.push({
+            id: it.id, imei: it.imei,
+            serial_number: it.serial_number,
+            product_name: it.product_name, status: it.status,
+          });
+        }
+      });
+    }
+    _renderScannedList();
+    _setScanFeedback("", "info");
+    document.getElementById("issue-error").classList.add("hidden");
+    const tech = document.getElementById("issue-tech-select");
+    if (tech) tech.value = "";
+    document.getElementById("modal-issue").classList.remove("hidden");
+    // Focus the scan input on next tick
+    setTimeout(() => {
+      const inp = document.getElementById("issue-scan-input");
+      if (inp) { inp.value = ""; inp.focus(); }
+    }, 50);
+  }
+
+  // Wire scan input
+  document.addEventListener("DOMContentLoaded", () => {
+    const inp = document.getElementById("issue-scan-input");
+    if (inp) {
+      inp.addEventListener("keydown", e => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          const v = inp.value;
+          inp.value = "";
+          _onScanEnter(v).then(() => inp.focus());
+        }
+      });
+    }
+    const clear = document.getElementById("btn-clear-scanned");
+    if (clear) clear.addEventListener("click", () => { _scannedItems = []; _renderScannedList(); });
+  });
+
+  async function doIssue() {
+    const selEl = document.getElementById("issue-tech-select");
+    const technicianId   = selEl.value;
+    const opt            = selEl.options[selEl.selectedIndex];
+    const technicianName = opt?.dataset?.name || opt?.text?.trim() || "";
+    const errEl = document.getElementById("issue-error");
+    errEl.classList.add("hidden");
+
+    if (!technicianId) {
+      errEl.textContent = "Please select a technician.";
+      errEl.classList.remove("hidden");
+      return;
+    }
+    const itemIds = _scannedItems.map(i => i.id);
+    if (!itemIds.length) {
+      errEl.textContent = "No devices scanned. Scan or type at least one IMEI/Serial.";
+      errEl.classList.remove("hidden");
+      return;
+    }
+    const btn = document.getElementById("btn-confirm-issue");
+    btn.disabled = true; btn.textContent = "Issuing…";
+    try {
+      const r = await apiFetch("/inventory/items/issue-batch", {
+        method: "POST",
+        body: { technicianId, technicianName, itemIds }
+      });
+      const issued = r.data?.issued?.length ?? 0;
+      const errors = r.data?.errors ?? [];
+      if (errors.length) {
+        errEl.textContent = `${issued} issued. Errors: ${errors.join("; ")}`;
+        errEl.classList.remove("hidden");
+      } else {
+        APP.showToast?.(`${issued} device(s) transferred to ${technicianName}. Awaiting acknowledgement.`, "success");
+        document.getElementById("modal-issue").classList.add("hidden");
+        _scannedItems = [];
+        selectedIds.clear();
+        updateSelectionUI();
+        loadItems();
+      }
+    } catch(e) {
+      errEl.textContent = e?.message || "Failed to issue devices.";
+      errEl.classList.remove("hidden");
+    } finally {
+      btn.disabled = false; btn.textContent = "Issue Devices";
+    }
+  }
+
+  document.getElementById("btn-issue-selected").addEventListener("click", openIssueModal);
+
+  // ── Delete Confirm Modal ──────────────────────────────────────────────────
+  let _deleteTargetIds = [];
+  let _deleteFromDrawer = false;
+
+  function openDeleteModal(ids, items) {
+    _deleteTargetIds = ids;
+    _deleteFromDrawer = ids.length === 1 && !selectedIds.has(ids[0]) || (ids.length === 1 && document.getElementById("drawer-device") && !document.getElementById("drawer-device").classList.contains("hidden"));
+    const subtitle = document.getElementById("delete-modal-subtitle");
+    subtitle.textContent = ids.length === 1
+      ? "This will permanently remove the device from inventory."
+      : `This will permanently remove ${ids.length} device(s) from inventory.`;
+    const list = document.getElementById("delete-modal-device-list");
+    list.innerHTML = items.map(i => {
+      const label = i.imei || i.serial_number || (i.id ? i.id.slice(0,10) + "…" : "Unknown");
+      const product = i.product_name ? ` · ${i.product_name}` : "";
+      return `<div class="py-0.5">${label}<span class="text-slate-400">${product}</span></div>`;
+    }).join("");
+    document.getElementById("delete-modal-reason").value = "";
+    document.getElementById("delete-modal-error").classList.add("hidden");
+    document.getElementById("btn-delete-confirm").disabled = false;
+    document.getElementById("btn-delete-confirm").textContent = "Delete";
+    document.getElementById("modal-delete-confirm").classList.remove("hidden");
+  }
+
+  document.getElementById("btn-delete-cancel").addEventListener("click", () =>
+    document.getElementById("modal-delete-confirm").classList.add("hidden"));
+
+  document.getElementById("btn-delete-confirm").addEventListener("click", async () => {
+    const reason = document.getElementById("delete-modal-reason").value.trim();
+    const errEl  = document.getElementById("delete-modal-error");
+    const confirmBtn = document.getElementById("btn-delete-confirm");
+    errEl.classList.add("hidden");
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = "Deleting…";
+    let deleted = 0, failed = 0;
+    for (const id of _deleteTargetIds) {
+      try {
+        await apiFetch(`/inventory/items/${id}`, {
+          method: "DELETE",
+          body: reason ? { reason } : undefined
+        });
+        deleted++;
+      } catch(e) {
+        failed++;
+        errEl.textContent = e?.message || "Delete failed.";
+        errEl.classList.remove("hidden");
+      }
+    }
+    if (failed && deleted === 0) {
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = "Delete";
+      return;
+    }
+    document.getElementById("modal-delete-confirm").classList.add("hidden");
+    if (_deleteFromDrawer || _deleteTargetIds.length === 1) {
+      document.getElementById("drawer-device").classList.add("hidden");
+    }
+    selectedIds.clear();
+    updateSelectionUI();
+    loadItems();
+    APP.showToast?.(
+      `${deleted} device(s) deleted from inventory.` + (failed ? ` ${failed} failed.` : ""),
+      failed ? "warning" : "success"
+    );
+  });
+
+  // ── Delete Selected (Admin only) ──────────────────────────────────────────
+  const delSelBtn = document.getElementById("btn-delete-selected");
+  if (delSelBtn) {
+    delSelBtn.addEventListener("click", () => {
+      const ids = [...selectedIds];
+      if (!ids.length) return;
+      const items = ids.map(id => currentItems.find(i => i.id === id) || { id });
+      openDeleteModal(ids, items);
+    });
+  }
+  document.getElementById("btn-close-issue").addEventListener("click",  () => document.getElementById("modal-issue").classList.add("hidden"));
+  document.getElementById("btn-cancel-issue").addEventListener("click", () => document.getElementById("modal-issue").classList.add("hidden"));
+  document.getElementById("btn-confirm-issue").addEventListener("click", doIssue);
+
+  // ── Select All checkbox ───────────────────────────────────────────────────
+  document.getElementById("chk-all").addEventListener("change", e => {
+    const issuable = currentItems.filter(i => ["In Stock","Reserved"].includes(i.status));
+    issuable.forEach(i => e.target.checked ? selectedIds.add(i.id) : selectedIds.delete(i.id));
+    renderTable(currentItems);
+    updateSelectionUI();
+  });
+
+  // ── Status Tabs ───────────────────────────────────────────────────────────
+  document.querySelectorAll(".status-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".status-tab").forEach(b => {
+        b.classList.remove("border-blue-600","text-blue-700","bg-blue-50");
+        b.classList.add("border-transparent","text-slate-600");
+      });
+      btn.classList.add("border-blue-600","text-blue-700","bg-blue-50");
+      btn.classList.remove("border-transparent","text-slate-600");
+      activeStatus = btn.dataset.status;
+      selectedIds.clear();
+      page = 1;
+      loadItems();
+    });
+  });
+
+  let searchTimer;
+  document.getElementById("search-input").addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { selectedIds.clear(); page = 1; loadItems(); }, 300);
+  });
+  document.getElementById("filter-cat").addEventListener("change", () => { selectedIds.clear(); page = 1; loadItems(); });
+  document.getElementById("filter-product").addEventListener("change", () => { selectedIds.clear(); page = 1; loadItems(); });
+  document.getElementById("filter-issued-to").addEventListener("change", () => { selectedIds.clear(); page = 1; loadItems(); });
+  document.getElementById("filter-date-from")?.addEventListener("change", () => { selectedIds.clear(); page = 1; loadItems(); });
+  document.getElementById("filter-date-to")?.addEventListener("change", () => { selectedIds.clear(); page = 1; loadItems(); });
+  document.getElementById("btn-apply")?.addEventListener("click", () => { selectedIds.clear(); page = 1; loadItems(); });
+  document.getElementById("btn-reset")?.addEventListener("click", () => {
+    document.getElementById("search-input").value = "";
+    document.getElementById("filter-cat").value = "";
+    document.getElementById("filter-product").value = "";
+    document.getElementById("filter-issued-to").value = "";
+    document.getElementById("filter-date-from").value = "";
+    document.getElementById("filter-date-to").value = "";
+    const countEl = document.getElementById("result-count");
+    if (countEl) countEl.textContent = "";
+    document.querySelectorAll(".status-tab").forEach(t => t.classList.remove("border-blue-600","text-blue-700","bg-blue-50"));
+    document.querySelector(".status-tab[data-status='']")?.classList.add("border-blue-600","text-blue-700","bg-blue-50");
+    activeStatus = "";
+    selectedIds.clear(); page = 1; loadItems();
+  });
+  document.getElementById("btn-prev").addEventListener("click", () => { if (page > 1) { page--; loadItems(); } });
+  document.getElementById("btn-next").addEventListener("click", () => { if (page * PAGE_SIZE < total) { page++; loadItems(); } });
+
+  // ── Update IMEI field label/placeholder based on selected product ────────
+  document.getElementById("r-product").addEventListener("change", () => {
+    const productId = document.getElementById("r-product").value;
+    const product   = catalogs.find(p => p.id === productId);
+    const idType    = product?.identifier_type || "both";
+    const label     = document.getElementById("r-imei-label");
+    const ta        = document.getElementById("r-imei-bulk");
+    if (idType === "imei") {
+      label.innerHTML = `IMEI Numbers <span class="ml-1 font-normal text-slate-400">(15-digit, one per line or comma separated)</span> <span class="ml-1 px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-semibold">IMEI required</span>`;
+      ta.placeholder = "359172080000001\n860123456789012\nor paste: 359172080000001, 860123456789012";
+    } else if (idType === "serial") {
+      label.innerHTML = `Serial Numbers <span class="ml-1 font-normal text-slate-400">(one per line or comma separated)</span> <span class="ml-1 px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 text-[10px] font-semibold">Serial required</span>`;
+      ta.placeholder = "TLT-FMB920-25-00001\nQLC-GV300W-25-00001\nor paste multiple";
+    } else {
+      label.innerHTML = `IMEI / Serial Numbers <span class="ml-1 font-normal text-slate-400">(one per line, or comma / space separated)</span>`;
+      ta.placeholder = "Enter IMEIs separated by comma, space, or new line…";
+    }
+  });
+
+  // ── Receive Modal (2-step wizard) ─────────────────────────────────────────
+  const IMEI_RE  = /^\d{14,16}$/;          // 14-16 digits
+  const SERIAL_RE = /^[A-Za-z0-9\-_.]{4,30}$/;  // alphanumeric serial fallback
+
+  let _recvEntries = [];  // [{raw, imei, valid, dupInBatch, dupInDb, removed}]
+  let _recvStep = 1;
+  let _scanActive = false;
+  let _scanBuffer = "";
+  let _scanTimer  = null;
+
+  // ── helpers ──────────────────────────────────────────────────────────────
+  function recvShowStep(n) {
+    _recvStep = n;
+    document.getElementById("recv-step1").classList.toggle("hidden", n !== 1);
+    document.getElementById("recv-step2").classList.toggle("hidden", n !== 2);
+    document.getElementById("btn-recv-next").classList.toggle("hidden", n !== 1);
+    document.getElementById("btn-recv-back").classList.toggle("hidden", n !== 2);
+    document.getElementById("btn-recv-save").classList.toggle("hidden", n !== 2);
+    // step dots
+    ["1","2"].forEach(s => {
+      document.getElementById(`recv-step-dot-${s}`).className =
+        `h-2 w-2 rounded-full ${s == n ? "bg-blue-600" : "bg-slate-300"}`;
+      document.getElementById(`recv-step-lbl-${s}`).className =
+        `text-xs font-medium ${s == n ? "text-blue-700" : "text-slate-400"}`;
+    });
+  }
+
+  function openReceiveModal() {
+    _recvEntries = [];
+    _recvStep = 1;
+    _scanActive = false;
+    document.getElementById("r-product").value = "";
+    document.getElementById("r-purchase-date").value = "";
+
+    document.getElementById("r-imei-bulk").value = "";
+    document.getElementById("r-imei-count").textContent = "0 entries";
+    document.getElementById("recv-step1-error").classList.add("hidden");
+    document.getElementById("recv-step2-error").classList.add("hidden");
+    document.getElementById("r-scan-input").classList.add("hidden");
+    document.getElementById("r-scan-hint").classList.add("hidden");
+    document.getElementById("btn-scan-imei").textContent = "Scan Barcode";
+    recvShowStep(1);
+    document.getElementById("modal-receive").classList.remove("hidden");
+  }
+
+  function closeReceiveModal() {
+    stopBarcodeScanner();
+    document.getElementById("modal-receive").classList.add("hidden");
+  }
+
+  // parse the textarea into deduplicated raw tokens
+  function parseImeiField() {
+    const raw = document.getElementById("r-imei-bulk").value;
+    // split on newline, comma, space, semicolon
+    return raw
+      .split(/[\n,; \t]+/)
+      .map(s => s.trim())
+      .filter(Boolean);
+  }
+
+  // update live entry counter
+  document.getElementById("r-imei-bulk").addEventListener("input", () => {
+    const tokens = parseImeiField();
+    document.getElementById("r-imei-count").textContent =
+      tokens.length === 1 ? "1 entry" : `${tokens.length} entries`;
+  });
+
+  // ── Barcode scanner ───────────────────────────────────────────────────────
+  function appendImeiToField(imei) {
+    const ta = document.getElementById("r-imei-bulk");
+    const existing = ta.value.trim();
+    ta.value = existing ? existing + "\n" + imei : imei;
+    ta.value = ta.value; // trigger input
+    const tokens = parseImeiField();
+    document.getElementById("r-imei-count").textContent =
+      tokens.length === 1 ? "1 entry" : `${tokens.length} entries`;
+  }
+
+  // Global keydown listener — capture scanner stream while active
+  function onKeyForScanner(e) {
+    if (!_scanActive) return;
+    if (e.key === "Enter") {
+      if (_scanBuffer.trim()) {
+        appendImeiToField(_scanBuffer.trim());
+        _scanBuffer = "";
+        document.getElementById("r-scan-input").value = "";
+      }
+      return;
+    }
+    if (e.key.length === 1) _scanBuffer += e.key;
+    // auto-commit if buffer looks like a complete IMEI (>=14 digits)
+    clearTimeout(_scanTimer);
+    _scanTimer = setTimeout(() => {
+      if (_scanBuffer.length >= 14) {
+        appendImeiToField(_scanBuffer.trim());
+        _scanBuffer = "";
+        document.getElementById("r-scan-input").value = "";
+      }
+    }, 80);
+  }
+
+  function startBarcodeScanner() {
+    _scanActive  = true;
+    _scanBuffer  = "";
+    const si = document.getElementById("r-scan-input");
+    const sh = document.getElementById("r-scan-hint");
+    const btn = document.getElementById("btn-scan-imei");
+    si.classList.remove("hidden");
+    sh.classList.remove("hidden");
+    btn.innerHTML = `<svg class="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg> Stop Scanning`;
+    si.focus();
+    document.addEventListener("keydown", onKeyForScanner, true);
+  }
+
+  function stopBarcodeScanner() {
+    _scanActive = false;
+    _scanBuffer = "";
+    clearTimeout(_scanTimer);
+    document.removeEventListener("keydown", onKeyForScanner, true);
+    document.getElementById("r-scan-input").classList.add("hidden");
+    document.getElementById("r-scan-hint").classList.add("hidden");
+    document.getElementById("btn-scan-imei").innerHTML =
+      `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M3 17v2a2 2 0 002 2h2m10 0h2a2 2 0 002-2v-2M7 8h1M12 8h1M17 8h1M7 12h1M12 12h1M17 12h1M7 16h1M12 16h1M17 16h1"/></svg> Scan Barcode`;
+  }
+
+  document.getElementById("btn-scan-imei").addEventListener("click", () => {
+    _scanActive ? stopBarcodeScanner() : startBarcodeScanner();
+  });
+
+  // Also handle manual typing in the hidden scan input
+  document.getElementById("r-scan-input").addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const v = e.target.value.trim();
+      if (v) { appendImeiToField(v); e.target.value = ""; _scanBuffer = ""; }
+    }
+  });
+
+  // ── Step 1 → Step 2: validate ─────────────────────────────────────────────
+  async function goToReview() {
+    const errEl = document.getElementById("recv-step1-error");
+    errEl.classList.add("hidden");
+
+    const productId = document.getElementById("r-product").value;
+    if (!productId) {
+      errEl.textContent = "Please select a product.";
+      errEl.classList.remove("hidden");
+      return;
+    }
+
+    const tokens = parseImeiField();
+    if (!tokens.length) {
+      errEl.textContent = "Enter at least one IMEI or serial number.";
+      errEl.classList.remove("hidden");
+      return;
+    }
+
+    // Determine product's identifier type from catalog
+    const product = catalogs.find(p => p.id === productId);
+    const idType = product?.identifier_type || "both"; // "imei" | "serial" | "both"
+
+    // Build entries with validation
+    const seenInBatch = new Set();
+    _recvEntries = tokens.map(raw => {
+      const isImeiFormat   = IMEI_RE.test(raw);
+      const isSerialFormat = SERIAL_RE.test(raw);
+      let valid = true;
+      let validationNote = "";
+      if (idType === "imei") {
+        valid = isImeiFormat;
+        if (!valid) validationNote = "Must be a 14-16 digit IMEI";
+      } else if (idType === "serial") {
+        valid = isSerialFormat && !isImeiFormat; // serials shouldn't look like IMEIs
+        if (!valid) validationNote = isImeiFormat ? "This product uses serial numbers, not IMEI" : "Invalid serial format";
+      } else { // "both"
+        valid = isImeiFormat || isSerialFormat;
+        if (!valid) validationNote = "Invalid format";
+      }
+      const dupInBatch = seenInBatch.has(raw.toUpperCase());
+      seenInBatch.add(raw.toUpperCase());
+      return { raw, valid, validationNote, dupInBatch, dupInDb: false, removed: false };
+    });
+
+    // DB duplicate check — one batch call
+    const toCheck = _recvEntries.filter(e => e.valid && !e.dupInBatch).map(e => e.raw);
+    if (toCheck.length) {
+      try {
+        const checkRes = await apiFetch("/inventory/items/check-duplicates", {
+          method: "POST",
+          body: { imeis: toCheck },
+        });
+        const dupsSet = new Set((checkRes?.duplicates || []).map(d => d.toUpperCase()));
+        _recvEntries.forEach(e => {
+          if (dupsSet.has(e.raw.toUpperCase())) e.dupInDb = true;
+        });
+      } catch (_) { /* non-fatal — show warning in review */ }
+    }
+
+    stopBarcodeScanner();
+    renderReviewTable();
+    recvShowStep(2);
+  }
+
+  function rowStatusBadge(entry) {
+    if (entry.removed)    return `<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 text-[10px] font-medium">Removed</span>`;
+    if (entry.dupInDb)    return `<span class="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-semibold">Already in DB</span>`;
+    if (entry.dupInBatch) return `<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-semibold">Duplicate</span>`;
+    if (!entry.valid)     return `<span class="px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-semibold" title="${escHtml(entry.validationNote||'Invalid format')}">${escHtml(entry.validationNote||'Invalid format')}</span>`;
+    return `<span class="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-semibold">✓ Valid</span>`;
+  }
+
+  function renderReviewTable() {
+    const tbody = document.getElementById("recv-review-tbody");
+    const total   = _recvEntries.length;
+    const invalid = _recvEntries.filter(e => !e.removed && (!e.valid || e.dupInBatch || e.dupInDb)).length;
+    const good    = _recvEntries.filter(e => !e.removed && e.valid && !e.dupInBatch && !e.dupInDb).length;
+
+    document.getElementById("recv-review-summary").textContent =
+      `${good} will be saved${invalid ? `, ${invalid} issue(s) found` : ""} of ${total} total.`;
+
+    const badge = document.getElementById("recv-review-badge");
+    if (invalid) {
+      badge.textContent = `${invalid} issue(s)`;
+      badge.classList.remove("hidden");
+    } else {
+      badge.classList.add("hidden");
+    }
+
+    const saveBtn = document.getElementById("btn-recv-save");
+    saveBtn.disabled = good === 0;
+
+    tbody.innerHTML = _recvEntries.map((e, i) => {
+      const rowClass = e.removed ? "opacity-40" :
+                       (!e.valid || e.dupInBatch || e.dupInDb) ? "bg-red-50" : "";
+      return `<tr class="${rowClass} border-t border-slate-100">
+        <td class="px-3 py-2 text-slate-400">${i + 1}</td>
+        <td class="px-3 py-2 font-mono text-slate-800">${escHtml(e.raw)}</td>
+        <td class="px-3 py-2">${rowStatusBadge(e)}</td>
+        <td class="px-3 py-2">
+          <button onclick="recvToggleRow(${i})"
+            class="text-xs ${e.removed ? "text-blue-600 hover:underline" : "text-red-500 hover:underline"}">
+            ${e.removed ? "Restore" : "Remove"}
+          </button>
+        </td>
+      </tr>`;
+    }).join("");
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  window.recvToggleRow = function(i) {
+    _recvEntries[i].removed = !_recvEntries[i].removed;
+    renderReviewTable();
+  };
+
+  // ── Save ──────────────────────────────────────────────────────────────────
+  async function saveReceive() {
+    const saveBtn  = document.getElementById("btn-recv-save");
+    const errEl    = document.getElementById("recv-step2-error");
+    errEl.classList.add("hidden");
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Saving…";
+
+    const productId       = document.getElementById("r-product").value;
+    const purchaseDate    = document.getElementById("r-purchase-date").value || null;
+    const warehouseLocation = null;
+    const purchasePrice   = null;
+
+    const toSave = _recvEntries.filter(e => !e.removed && e.valid && !e.dupInBatch && !e.dupInDb);
+    if (!toSave.length) {
+      errEl.textContent = "No valid entries to save after removing issues.";
+      errEl.classList.remove("hidden");
+      saveBtn.disabled = false;
+      saveBtn.textContent = "Save All";
+      return;
+    }
+
+    const items = toSave.map(e => ({
+      productId,
+      imei:              IMEI_RE.test(e.raw) ? e.raw : null,
+      serialNumber:      !IMEI_RE.test(e.raw) ? e.raw : null,
+      purchaseDate,
+      purchasePrice,
+      warehouseLocation,
+    }));
+
+    try {
+      const res = await apiFetch("/inventory/items/bulk", { method: "POST", body: { items } });
+      const received = res?.data?.received?.length ?? 0;
+      const errors   = res?.data?.errors ?? [];
+      const batchRef = res?.data?.batchRef;
+      closeReceiveModal();
+      APP.showToast?.(
+        `${received} device(s) received into inventory` + (batchRef ? ` — batch ${batchRef}.` : ".") +
+        (errors.length ? ` ${errors.length} failed.` : ""),
+        errors.length ? "warning" : "success"
+      );
+      page = 1; loadItems();
+    } catch (err) {
+      errEl.textContent = err?.message || "Save failed. Please try again.";
+      errEl.classList.remove("hidden");
+      saveBtn.disabled = false;
+      saveBtn.textContent = "Save All";
+    }
+  }
+
+  document.getElementById("btn-recv-next").addEventListener("click", goToReview);
+  document.getElementById("btn-recv-back").addEventListener("click", () => recvShowStep(1));
+  document.getElementById("btn-recv-save").addEventListener("click", saveReceive);
+  document.getElementById("btn-receive-device").addEventListener("click", openReceiveModal);
+  document.getElementById("btn-close-receive").addEventListener("click",  closeReceiveModal);
+  document.getElementById("btn-cancel-receive").addEventListener("click", closeReceiveModal);
+
+  // ── Bulk CSV Modal ─────────────────────────────────────────────────────────
+  const CSV_COLS = ["product_code","imei","serial_number","warehouse_location","purchase_price","purchase_date","sim_phone","notes"];
+  let _csvParsed = []; // [{product_code, imei, serial_number, ...}, ...]
+
+  function closeCsvModal() {
+    document.getElementById("modal-csv").classList.add("hidden");
+    document.getElementById("csv-file-input").value = "";
+    document.getElementById("csv-preview-wrap").classList.add("hidden");
+    document.getElementById("csv-parse-error").classList.add("hidden");
+    document.getElementById("csv-submit-error").classList.add("hidden");
+    document.getElementById("csv-result").classList.add("hidden");
+    document.getElementById("btn-submit-csv").disabled = true;
+    _csvParsed = [];
+  }
+
+  document.getElementById("btn-receive-csv").addEventListener("click", () => {
+    closeCsvModal();
+    document.getElementById("modal-csv").classList.remove("hidden");
+  });
+  document.getElementById("btn-close-csv").addEventListener("click", closeCsvModal);
+  document.getElementById("btn-cancel-csv").addEventListener("click", closeCsvModal);
+
+  // Sample CSV download — includes product codes from catalog
+  document.getElementById("btn-download-sample").addEventListener("click", () => {
+    const header = CSV_COLS.join(",");
+    const sample = [
+      ["VT001","359172080000001","TLT-FMB920-25-00001","Shelf A-1","12500","2025-01-15","0712345678","First batch"],
+      ["VT002","860123456789012","QLC-GV300W-25-00001","Shelf B-2","11000","2025-01-15","",""],
+      ["CT001","","TLT-TAT100-25-00001","Shelf C-1","8500","2025-01-15","","Asset tracker"],
+    ].map(r => r.join(","));
+    // Append available product codes as a comment reference
+    const productRef = catalogs.length
+      ? "\n\n# Available product codes:\n" + catalogs.map(p => `# ${p.product_code} — ${p.product_name} (${p.device_model || ""})`).join("\n")
+      : "";
+    const blob = new Blob([header + "\n" + sample.join("\n") + productRef], { type: "text/csv" });
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "device-receive-template.csv" });
+    a.click(); URL.revokeObjectURL(a.href);
+  });
+
+  // Parse CSV on file select
+  document.getElementById("csv-file-input").addEventListener("change", e => {
+    const file = e.target.files?.[0];
+    const parseErr = document.getElementById("csv-parse-error");
+    const previewWrap = document.getElementById("csv-preview-wrap");
+    const submitBtn = document.getElementById("btn-submit-csv");
+    parseErr.classList.add("hidden");
+    previewWrap.classList.add("hidden");
+    document.getElementById("csv-result").classList.add("hidden");
+    document.getElementById("csv-submit-error").classList.add("hidden");
+    submitBtn.disabled = true;
+    _csvParsed = [];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const text = ev.target.result;
+      const lines = text.split(/\r?\n/).filter(l => l.trim() && !l.startsWith("#"));
+      if (lines.length < 2) { parseErr.textContent = "CSV must have a header row and at least one data row."; parseErr.classList.remove("hidden"); return; }
+
+      const headers = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/\s+/g, "_"));
+      const pcIdx = headers.indexOf("product_code");
+      if (pcIdx === -1) { parseErr.textContent = 'Missing required column "product_code".'; parseErr.classList.remove("hidden"); return; }
+
+      const rows = [];
+      let warnings = 0;
+      for (let i = 1; i < lines.length; i++) {
+        // Handle quoted fields simply
+        const cells = lines[i].split(",").map(c => c.trim().replace(/^"|"$/g, ""));
+        const row = {};
+        headers.forEach((h, idx) => { row[h] = cells[idx] ?? ""; });
+        if (!row.product_code) { warnings++; continue; } // skip blank product_code rows
+        rows.push(row);
+      }
+
+      if (!rows.length) { parseErr.textContent = "No valid data rows found (all rows missing product_code)."; parseErr.classList.remove("hidden"); return; }
+
+      _csvParsed = rows;
+      const warnEl = document.getElementById("csv-warn-count");
+      if (warnings) { warnEl.textContent = `${warnings} row(s) skipped (missing product_code)`; warnEl.classList.remove("hidden"); }
+      else { warnEl.classList.add("hidden"); }
+
+      document.getElementById("csv-row-count").textContent = rows.length;
+      const tbody = document.getElementById("csv-preview-body");
+      const STATUS_CELL = ok => ok
+        ? '<span class="px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-semibold">✓ Valid</span>'
+        : '<span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-semibold">⚠ No match</span>';
+      tbody.innerHTML = rows.map((r, idx) => {
+        const product = catalogs.find(p => p.product_code?.toLowerCase() === r.product_code?.toLowerCase());
+        return `<tr class="hover:bg-slate-50">
+          <td class="px-3 py-2 text-slate-400">${idx + 1}</td>
+          <td class="px-3 py-2 font-mono font-semibold ${product ? "text-slate-800" : "text-amber-600"}">${r.product_code || "—"}</td>
+          <td class="px-3 py-2 font-mono">${r.imei || "—"}</td>
+          <td class="px-3 py-2 font-mono">${r.serial_number || "—"}</td>
+          <td class="px-3 py-2">${r.warehouse_location || "—"}</td>
+          <td class="px-3 py-2">${r.purchase_price || "—"}</td>
+          <td class="px-3 py-2">${r.purchase_date || "—"}</td>
+          <td class="px-3 py-2">${r.sim_phone || "—"}</td>
+          <td class="px-3 py-2 max-w-[120px] truncate" title="${(r.notes||"").replace(/"/g,"&quot;")}">${r.notes || "—"}</td>
+          <td class="px-3 py-2">${STATUS_CELL(!!product)}</td>
+        </tr>`;
+      }).join("");
+
+      previewWrap.classList.remove("hidden");
+      // Enable submit only if all rows have a matching product
+      const allValid = rows.every(r => catalogs.some(p => p.product_code?.toLowerCase() === r.product_code?.toLowerCase()));
+      submitBtn.disabled = !allValid;
+      if (!allValid) {
+        parseErr.textContent = "Some rows have unrecognised product_code values (shown in amber). Fix the CSV and re-upload.";
+        parseErr.classList.remove("hidden");
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  // Submit bulk
+  document.getElementById("btn-submit-csv").addEventListener("click", async () => {
+    const submitErr = document.getElementById("csv-submit-error");
+    const resultEl  = document.getElementById("csv-result");
+    const btn       = document.getElementById("btn-submit-csv");
+    submitErr.classList.add("hidden");
+    resultEl.classList.add("hidden");
+    btn.disabled = true;
+    btn.textContent = "Uploading…";
+
+    try {
+      const items = _csvParsed.map(r => {
+        const product = catalogs.find(p => p.product_code?.toLowerCase() === r.product_code?.toLowerCase());
+        return {
+          productId:         product.id,
+          imei:              r.imei || null,
+          serialNumber:      r.serial_number || null,
+          warehouseLocation: r.warehouse_location || null,
+          purchasePrice:     r.purchase_price ? Number(r.purchase_price) : null,
+          purchaseDate:      r.purchase_date || null,
+          simPhone:          r.sim_phone || null,
+          notes:             r.notes || null,
+        };
+      });
+      const res = await apiFetch("/inventory/items/bulk", { method: "POST", body: { items } });
+      const received = res?.data?.received?.length ?? 0;
+      const errors   = res?.data?.errors ?? [];
+      let msg = `✓ ${received} device(s) received into inventory.`;
+      if (errors.length) msg += ` ${errors.length} row(s) failed: ` + errors.map(e => e.error).join("; ");
+      resultEl.textContent = msg;
+      resultEl.classList.remove("hidden");
+      if (errors.length) resultEl.className = "rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800";
+      else resultEl.className = "rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800";
+      btn.textContent = "Upload & Receive";
+      if (received) { page = 1; loadItems(); }
+    } catch(err) {
+      submitErr.textContent = err?.message || "Upload failed";
+      submitErr.classList.remove("hidden");
+      btn.disabled = false;
+      btn.textContent = "Upload & Receive";
+    }
+  });
+
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  // If a status was supplied via URL, activate the matching tab
+  if (activeStatus) {
+    document.querySelectorAll(".status-tab").forEach(b => {
+      const isMatch = b.dataset.status === activeStatus;
+      b.classList.toggle("border-blue-600", isMatch);
+      b.classList.toggle("text-blue-700",  isMatch);
+      b.classList.toggle("bg-blue-50",     isMatch);
+      b.classList.toggle("border-transparent", !isMatch);
+      b.classList.toggle("text-slate-600",     !isMatch);
+    });
+  }
+
+  loadCatalog();
+  loadCategories();
+  loadTechnicians();
+  loadItems();
+})();
+</script>
+
+  </body>
+</html>

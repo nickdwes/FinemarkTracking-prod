@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | My Device Custody</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+    .fade-in{animation:fadeIn .2s ease;}
+    .tab-btn{padding:.35rem 1rem;border-radius:.5rem;font-size:.8rem;font-weight:500;color:#475569;transition:all .15s;white-space:nowrap;}
+    .tab-btn:hover{background:#fff;color:#0f172a;}
+    .tab-btn.active{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);color:#0f172a;font-weight:700;}
+    .badge{display:inline-flex;align-items:center;border-radius:9999px;padding:.15rem .6rem;font-size:.68rem;font-weight:600;border-width:1px;}
+    .modal-wrap{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.5);z-index:60;padding:1rem;}
+    .modal-wrap.open{display:flex;}
+    .modal-box{background:#fff;border-radius:.75rem;padding:1.5rem;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25);}
+    .stat-card{background:#fff;border-radius:.75rem;padding:1.25rem;border:1px solid #e2e8f0;}
+    .device-card{background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;padding:1.1rem;transition:box-shadow .15s;}
+    .device-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.08);}
+    table{border-collapse:collapse;width:100%;}
+    th{text-align:left;font-size:.72rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.04em;padding:.5rem .75rem;border-bottom:1px solid #e2e8f0;white-space:nowrap;}
+    td{font-size:.82rem;padding:.55rem .75rem;border-bottom:1px solid #f1f5f9;color:#334155;vertical-align:middle;}
+    tr:hover td{background:#f8fafc;}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-4 md:p-6 max-w-[1200px] mx-auto space-y-5">
+
+    <!-- Page Header -->
+    <div class="flex flex-wrap items-center gap-3 justify-between">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">My Device Custody</h1>
+        <p class="text-sm text-slate-500 mt-0.5">Devices issued to you · Acknowledgements · Transfers</p>
+      </div>
+      <button onclick="openTransferModal()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+        Transfer Device
+      </button>
+      <button onclick="openReportDefectiveModal()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+        Report Defective
+      </button>
+    </div>
+
+    <!-- Stat Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div class="stat-card">
+        <p class="text-xs text-slate-500 font-medium">In Custody</p>
+        <p id="stat-in-custody" class="text-2xl font-bold text-blue-600 mt-1">—</p>
+      </div>
+      <div class="stat-card">
+        <p class="text-xs text-slate-500 font-medium">Assigned to Jobs</p>
+        <p id="stat-assigned" class="text-2xl font-bold text-purple-600 mt-1">—</p>
+      </div>
+      <div class="stat-card">
+        <p class="text-xs text-slate-500 font-medium">Pending Acknowledgement</p>
+        <p id="stat-pending-ack" class="text-2xl font-bold text-yellow-600 mt-1">—</p>
+      </div>
+      <div class="stat-card">
+        <p class="text-xs text-slate-500 font-medium">Pending Transfer</p>
+        <p id="stat-pending-xfer" class="text-2xl font-bold text-indigo-600 mt-1">—</p>
+      </div>
+      <div class="stat-card cursor-pointer hover:border-red-300 transition" onclick="switchTab('defects', document.querySelector('[data-tab=defects]'))">
+        <p class="text-xs text-slate-500 font-medium">Defective</p>
+        <p id="stat-defective" class="text-2xl font-bold text-red-600 mt-1">—</p>
+      </div>
+      <div class="stat-card">
+        <p class="text-xs text-slate-500 font-medium">Returned</p>
+        <p id="stat-returned" class="text-2xl font-bold text-orange-500 mt-1">—</p>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="bg-slate-100 rounded-xl p-1 flex flex-wrap gap-1">
+      <button class="tab-btn active" data-tab="custody" onclick="switchTab('custody',this)">In Custody</button>
+      <button class="tab-btn" data-tab="pending-ack" onclick="switchTab('pending-ack',this)">Pending Acknowledgement</button>
+      <button class="tab-btn" data-tab="transfers" onclick="switchTab('transfers',this)">Transfers</button>
+      <button class="tab-btn" data-tab="sims" onclick="switchTab('sims',this)">My SIMs</button>
+      <button class="tab-btn" data-tab="defects" onclick="switchTab('defects',this)">My Defect Reports</button>
+      <button class="tab-btn" data-tab="history" onclick="switchTab('history',this)">History</button>
+    </div>
+
+    <!-- ── TAB: In Custody ─────────────────────────────────────────────── -->
+    <div id="tab-custody" class="tab-pane fade-in">
+      <div class="bg-white border border-slate-200 rounded-xl p-3 mb-4 flex flex-wrap items-end gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">Product</label>
+          <select id="custody-filter-product" onchange="renderCustodyList()"
+            class="rounded-lg border border-slate-200 px-3 py-2 text-sm min-w-[170px] focus:outline-none focus:ring-2 focus:ring-blue-500/40">
+            <option value="">All products</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">Issued From</label>
+          <input type="date" id="custody-filter-date-from" onchange="renderCustodyList()"
+            class="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">Issued To</label>
+          <input type="date" id="custody-filter-date-to" onchange="renderCustodyList()"
+            class="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+        </div>
+        <button onclick="clearCustodyFilters()"
+          class="px-3 py-2 text-xs font-medium text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition">
+          Clear
+        </button>
+        <div id="custody-filter-count" class="ml-auto text-xs text-slate-400 pb-2"></div>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 overflow-x-auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Serial / IMEI</th>
+              <th>Product</th>
+              <th>Category</th>
+              <th>SIM</th>
+              <th>Status</th>
+              <th>Accepted</th>
+              <th>Issued</th>
+              <th>Job</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="custody-tbody">
+            <tr><td colspan="9" class="text-center py-8 text-slate-400">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── TAB: Pending Acknowledgement ───────────────────────────────── -->
+    <div id="tab-pending-ack" class="tab-pane fade-in hidden">
+      <!-- Only rendered for non-Technician roles (ISO/Admin/etc.) — a plain
+           Technician only ever sees their own pending batches, so a filter
+           over "everyone" wouldn't mean anything for them. -->
+      <div id="ack-technician-filter" class="hidden mb-4 flex items-center gap-2">
+        <label for="ack-technician-select" class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Technician</label>
+        <select id="ack-technician-select" onchange="renderPendingAck()" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+          <option value="">All technicians</option>
+        </select>
+      </div>
+      <div id="ack-list" class="space-y-4">
+        <p class="text-center text-slate-400 py-8">Loading…</p>
+      </div>
+
+      <!-- Pending SIM acknowledgements — only shown when there are any -->
+      <div id="ack-sims-section" class="hidden mt-6">
+        <h3 class="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6"/></svg>
+          Pending SIM Acknowledgements
+        </h3>
+        <div id="ack-sims-list" class="space-y-3"></div>
+      </div>
+    </div>
+
+    <!-- ── TAB: Transfers ─────────────────────────────────────────────── -->
+    <div id="tab-transfers" class="tab-pane fade-in hidden">
+      <!-- Incoming transfers I need to respond to -->
+      <div class="mb-5">
+        <h3 class="text-sm font-semibold text-slate-700 mb-2">Incoming Transfers — Awaiting Your Response</h3>
+        <div id="incoming-transfers" class="space-y-3">
+          <p class="text-center text-slate-400 py-4">Loading…</p>
+        </div>
+      </div>
+      <div>
+        <h3 class="text-sm font-semibold text-slate-700 mb-2">My Outgoing Transfers</h3>
+        <div class="bg-white rounded-xl border border-slate-200 overflow-x-auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Device Serial</th>
+                <th>To</th>
+                <th>Reason</th>
+                <th>Status</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody id="outgoing-transfers-tbody">
+              <tr><td colspan="5" class="text-center py-6 text-slate-400">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB: Defect Reports ───────────────────────────────────────── -->
+    <div id="tab-defects" class="tab-pane fade-in hidden">
+      <!-- Defective devices currently in this tech's name -->
+      <div id="defective-devices-section" class="mb-5 hidden">
+        <h3 class="text-sm font-semibold text-red-700 mb-2 flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+          Defective Devices in Your Name
+        </h3>
+        <div class="bg-white rounded-xl border border-red-200 overflow-x-auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Serial Number</th>
+                <th>Model</th>
+                <th>IMEI</th>
+                <th>SIM</th>
+                <th>Issued At</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="defective-devices-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Defect report cards -->
+      <div id="defect-reports-list" class="space-y-4">
+        <p class="text-center text-slate-400 py-8">Loading…</p>
+      </div>
+    </div>
+
+    <!-- ── TAB: My SIMs ─────────────────────────────────────────────── -->
+    <div id="tab-sims" class="tab-pane fade-in hidden">
+      <div class="bg-white rounded-xl border border-slate-200 overflow-x-auto">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+          <h3 class="text-sm font-semibold text-slate-700">SIM Cards in Your Custody</h3>
+          <p class="text-xs text-slate-500">Tap <em>Acknowledge</em> after physically receiving a transferred SIM.</p>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>ICCID</th>
+              <th>MSISDN</th>
+              <th>Operator</th>
+              <th>Status</th>
+              <th>Date Issued</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="sims-tbody">
+            <tr><td colspan="6" class="text-center py-8 text-slate-400">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── TAB: History ───────────────────────────────────────────────── -->
+    <div id="tab-history" class="tab-pane fade-in hidden">
+      <div class="bg-white rounded-xl border border-slate-200 overflow-x-auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Date &amp; Time</th>
+              <th>Device Serial</th>
+              <th>Model</th>
+              <th>Event</th>
+              <th>Status Change</th>
+              <th>Performed By</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody">
+            <tr><td colspan="7" class="text-center py-8 text-slate-400">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ═══════════ REPORT DEFECTIVE MODAL ═══════════ -->
+<div id="defective-modal" class="modal-wrap" onclick="if(event.target===this)closeReportDefectiveModal()">
+  <div class="modal-box max-w-lg">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-bold text-lg text-slate-900 flex items-center gap-2">
+        <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+        Report Defective Device
+      </h2>
+      <button onclick="closeReportDefectiveModal()" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+    </div>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Select Device <span class="text-red-500">*</span></label>
+        <select id="defect-device-id"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+          <option value="">Select device from your custody…</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Description of Defect <span class="text-red-500">*</span></label>
+        <textarea id="defect-description" rows="4" placeholder="Describe the fault in detail — e.g. device powers on but GPS does not lock, IMEI not readable, physical damage…"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"></textarea>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Photo Evidence (optional)</label>
+        <div class="flex flex-col gap-2">
+          <input type="file" id="defect-photo-file" accept="image/*" capture="environment"
+            class="block w-full text-sm text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer" />
+          <div id="defect-photo-preview" class="hidden">
+            <img id="defect-photo-img" src="" alt="Preview" class="max-h-40 rounded-lg border border-slate-200 object-contain" />
+            <button type="button" onclick="clearDefectPhoto()" class="text-xs text-red-500 hover:underline mt-1">Remove photo</button>
+          </div>
+        </div>
+      </div>
+      <div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
+        <p class="text-xs text-amber-800">
+          <strong>Note:</strong> Submitting this report will mark the device as <strong>Defective</strong> in the system and notify the Inventory Manager immediately. The Inventory Manager will arrange an internal test to determine the next steps.
+        </p>
+      </div>
+      <div class="flex justify-end gap-3 pt-1">
+        <button onclick="closeReportDefectiveModal()" class="px-4 py-2 rounded-lg text-sm border border-slate-200 hover:bg-slate-50 transition">Cancel</button>
+        <button onclick="submitDefectReport()" id="defect-submit-btn"
+          class="px-5 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+          Submit Report
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ ACK MODAL ═══════════ -->
+<div id="ack-modal" class="modal-wrap" onclick="if(event.target===this)closeAckModal()">
+  <div class="modal-box max-w-md">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-bold text-lg text-slate-900">Acknowledge Issuance</h2>
+      <button onclick="closeAckModal()" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+    </div>
+    <input type="hidden" id="ack-batch-id" />
+    <div id="ack-batch-info" class="bg-slate-50 rounded-lg p-3 text-sm space-y-1 mb-4"></div>
+    <div id="ack-rejection-wrap" class="hidden mb-4">
+      <label class="block text-xs font-semibold text-slate-600 mb-1">Rejection Reason</label>
+      <textarea id="ack-rejection-reason" rows="2" placeholder="Why are you rejecting this issuance?"
+        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"></textarea>
+    </div>
+    <p class="text-sm text-slate-600 mb-4">Review the devices listed above. Accept to take them into your custody, or reject to return them to inventory.</p>
+    <div class="flex justify-end gap-3">
+      <button onclick="closeAckModal()" class="px-4 py-2 rounded-lg text-sm border border-slate-200 hover:bg-slate-50 transition">Cancel</button>
+      <button onclick="submitAck('reject')" id="ack-reject-btn"
+        class="px-4 py-2 rounded-lg bg-red-50 text-red-700 border border-red-200 text-sm font-medium hover:bg-red-100 transition">
+        Reject
+      </button>
+      <button onclick="submitAck('accept')" id="ack-accept-btn"
+        class="px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition">
+        Accept Custody
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ TRANSFER MODAL ═══════════ -->
+<div id="transfer-modal" class="modal-wrap" onclick="if(event.target===this)closeTransferModal()">
+  <div class="modal-box max-w-md">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-bold text-lg text-slate-900">Transfer Device</h2>
+      <button onclick="closeTransferModal()" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Device to Transfer <span class="text-red-500">*</span></label>
+        <select id="xfer-device-id"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Select device…</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Transfer To (Technician) <span class="text-red-500">*</span></label>
+        <select id="xfer-to-tech-id"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Select recipient…</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Transfer Reason</label>
+        <input id="xfer-reason" type="text" placeholder="e.g. Regional reallocation"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div class="flex justify-end gap-3 pt-2">
+        <button onclick="closeTransferModal()" class="px-4 py-2 rounded-lg text-sm border border-slate-200 hover:bg-slate-50 transition">Cancel</button>
+        <button onclick="submitTransfer()" id="xfer-submit-btn"
+          class="px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition">
+          Initiate Transfer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ TRANSFER RESPOND MODAL ═══════════ -->
+<div id="transfer-respond-modal" class="modal-wrap" onclick="if(event.target===this)closeTransferRespondModal()">
+  <div class="modal-box max-w-md">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-bold text-lg text-slate-900">Respond to Transfer</h2>
+      <button onclick="closeTransferRespondModal()" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+    </div>
+    <input type="hidden" id="xfer-respond-id" />
+    <div id="xfer-respond-info" class="bg-slate-50 rounded-lg p-3 text-sm mb-4 space-y-1"></div>
+    <div class="hidden" id="xfer-rejection-wrap">
+      <label class="block text-xs font-semibold text-slate-600 mb-1">Rejection Reason</label>
+      <textarea id="xfer-rejection-reason" rows="2" placeholder="Why are you rejecting?"
+        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 resize-none mb-4"></textarea>
+    </div>
+    <div class="flex justify-end gap-3">
+      <button onclick="closeTransferRespondModal()" class="px-4 py-2 rounded-lg text-sm border border-slate-200 hover:bg-slate-50 transition">Cancel</button>
+      <button onclick="submitTransferResponse('reject')"
+        class="px-4 py-2 rounded-lg bg-red-50 text-red-700 border border-red-200 text-sm font-medium hover:bg-red-100 transition">
+        Reject
+      </button>
+      <button onclick="submitTransferResponse('accept')"
+        class="px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition">
+        Accept Transfer
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="fm-footer"></div>
+<div id="toast" class="fixed bottom-6 right-6 z-50 hidden max-w-sm"></div>
+
+<!-- ═══════════ RETURN DEFECTIVE MODAL ═══════════ -->
+<div id="return-defective-modal" class="modal-wrap" onclick="if(event.target===this)closeReturnDefectiveModal()">
+  <div class="modal-box max-w-md">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-bold text-lg text-slate-900 flex items-center gap-2">
+        <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+        Return Defective Device
+      </h2>
+      <button onclick="closeReturnDefectiveModal()" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+    </div>
+    <input type="hidden" id="return-device-id" />
+    <div id="return-device-info" class="bg-red-50 border border-red-100 rounded-lg p-3 text-sm space-y-1 mb-4"></div>
+    <div class="mb-4">
+      <label class="block text-xs font-semibold text-slate-600 mb-1">Handover Notes (optional)</label>
+      <textarea id="return-device-notes" rows="3"
+        placeholder="Describe the fault, physical condition, or any other relevant information for the Inventory Manager…"
+        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"></textarea>
+    </div>
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+      <p class="text-xs text-amber-800"><strong>Note:</strong> The device will be removed from your custody and handed off to the Inventory Manager for further assessment. Its status will remain <strong>Defective</strong> until processed.</p>
+    </div>
+    <div class="flex justify-end gap-3">
+      <button onclick="closeReturnDefectiveModal()" class="px-4 py-2 rounded-lg text-sm border border-slate-200 hover:bg-slate-50 transition">Cancel</button>
+      <button onclick="submitReturnDefective()" id="return-defective-submit-btn"
+        class="px-5 py-2 rounded-lg bg-orange-600 text-white text-sm font-medium hover:bg-orange-700 transition flex items-center gap-1.5">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+        Return to Inventory
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/contracts.js"></script>
+<script src="assets/app.js"></script>
+<script src="assets/layout.js"></script>
+<script>
+  window.FINEMARK_APP?.requirePageAccess?.();
+  const APP = window.FINEMARK_APP;
+  const _session = APP.getSession?.() || {};
+  const myId    = _session.user?.id    || '';
+  const myEmail = _session.user?.email || '';
+  const myRole  = _session.user?.role  || '';
+
+  function statusBadge(s) {
+    const map = {
+      InInventory:          'border-slate-200 bg-slate-50 text-slate-600',
+      IssuedToTechnician:   'border-yellow-200 bg-yellow-50 text-yellow-700',
+      InCustody:            'border-blue-200 bg-blue-50 text-blue-700',
+      AssignedToJob:        'border-purple-200 bg-purple-50 text-purple-700',
+      Installed:            'border-green-200 bg-green-50 text-green-700',
+      Returned:             'border-orange-200 bg-orange-50 text-orange-700',
+      Faulty:               'border-red-200 bg-red-50 text-red-700',
+      Pending:              'border-yellow-200 bg-yellow-50 text-yellow-700',
+      Acknowledged:         'border-green-200 bg-green-50 text-green-700',
+      Rejected:             'border-red-200 bg-red-50 text-red-700',
+    };
+    const cls = map[s] || 'border-slate-200 bg-slate-50 text-slate-500';
+    return `<span class="badge ${cls}">${s}</span>`;
+  }
+
+  function fmtDate(d) {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('en-KE', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  }
+
+  function toast(msg, type = 'success') {
+    const el = document.getElementById('toast');
+    const cls = type === 'success' ? 'bg-green-600' : type === 'warning' ? 'bg-amber-500' : 'bg-red-600';
+    el.innerHTML = `<div class="${cls} text-white text-sm px-4 py-3 rounded-xl shadow-lg">${msg}</div>`;
+    el.classList.remove('hidden');
+    setTimeout(() => el.classList.add('hidden'), 4000);
+  }
+
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.add('hidden'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`tab-${name}`)?.classList.remove('hidden');
+    btn.classList.add('active');
+    if (name === 'custody') loadCustody();
+    if (name === 'pending-ack') loadPendingAck();
+    if (name === 'transfers') loadTransfers();
+    if (name === 'sims') loadMySims();
+    if (name === 'defects') loadDefectReports();
+    if (name === 'history') loadHistory();
+  }
+
+  // ── SIMs in my custody ─────────────────────────────────────────────────
+  function fmtDateLocal(d) {
+    if (!d) return "—";
+    return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  }
+
+  async function loadMySims() {
+    const tbody = document.getElementById('sims-tbody');
+    try {
+      const r = await APP.apiFetch(`/inventory/sims?status=issued&pageSize=200`);
+      const all = r?.data ?? [];
+      const mine = all.filter(s => s.issued_to_id === myId);
+      if (!mine.length) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">No SIMs in your custody.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = mine.map(s => {
+        const ack = !!s.acknowledged_at;
+        const badge = ack
+          ? `<span class="badge bg-indigo-50 text-indigo-700 border-indigo-200">Issued</span>`
+          : `<span class="badge bg-blue-50 text-blue-700 border-blue-200">Transferred</span>`;
+        const action = ack ? '' : `
+          <button class="px-2 py-1 text-xs rounded bg-teal-600 text-white hover:bg-teal-700" onclick="ackSim('${s.id}','accept')">Acknowledge</button>
+          <button class="px-2 py-1 text-xs rounded border border-red-300 text-red-700 hover:bg-red-50 ml-1" onclick="ackSim('${s.id}','reject')">Reject</button>`;
+        return `<tr>
+          <td class="font-mono text-xs text-blue-700">${s.iccid}</td>
+          <td class="text-xs">${s.msisdn || "—"}</td>
+          <td class="text-xs">${s.operator || "—"}</td>
+          <td>${badge}</td>
+          <td class="text-xs text-slate-500">${fmtDateLocal(s.issued_at)}</td>
+          <td class="text-right">${action}</td>
+        </tr>`;
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-red-400">Failed to load SIMs.</td></tr>`;
+    }
+  }
+
+  // ── Pending SIM acknowledgements (shown inside the Pending Acknowledgement tab) ──
+  let _pendingSimRows = [];
+
+  async function loadPendingSimsAck() {
+    try {
+      const r = await APP.apiFetch(`/inventory/sims?status=issued&pageSize=200`);
+      const all = r?.data ?? [];
+      _pendingSimRows = all.filter(s => s.issued_to_id === myId && !s.acknowledged_at);
+    } catch (e) {
+      _pendingSimRows = [];
+    }
+    renderPendingSimsAck();
+  }
+
+  function renderPendingSimsAck() {
+    const section = document.getElementById('ack-sims-section');
+    const list = document.getElementById('ack-sims-list');
+    if (!_pendingSimRows.length) {
+      section.classList.add('hidden');
+      return;
+    }
+    section.classList.remove('hidden');
+    list.innerHTML = _pendingSimRows.map(s => `
+      <div class="bg-white border border-teal-200 rounded-xl p-4 flex items-center justify-between gap-3">
+        <div>
+          <p class="font-mono font-bold text-sm text-slate-900">${s.iccid}</p>
+          <p class="text-xs text-slate-500">${s.msisdn || '—'}${s.operator ? ' · ' + s.operator : ''}</p>
+          <p class="text-xs text-slate-400 mt-0.5">Issued ${fmtDateLocal(s.issued_at)}</p>
+        </div>
+        <div class="flex gap-2 shrink-0">
+          <button onclick="ackSim('${s.id}','reject')"
+            class="px-3 py-1.5 text-xs rounded-lg border border-red-200 text-red-700 hover:bg-red-50 transition">
+            Reject
+          </button>
+          <button onclick="ackSim('${s.id}','accept')"
+            class="px-3 py-1.5 text-xs rounded-lg bg-teal-600 text-white font-medium hover:bg-teal-700 transition">
+            Acknowledge
+          </button>
+        </div>
+      </div>`).join('');
+  }
+
+  window.ackSim = async function(simId, action) {
+    if (action === 'reject' && !confirm('Reject this SIM? It will return to available stock.')) return;
+    try {
+      await APP.apiFetch('/inventory/sims/acknowledge', {
+        method: 'POST', body: { sim_ids: [simId], action }
+      });
+      toast(action === 'accept' ? 'SIM acknowledged' : 'SIM rejected', 'success');
+      loadMySims();
+      loadPendingSimsAck();
+      loadStats();
+    } catch (e) {
+      toast(e?.message || 'Failed', 'error');
+    }
+  };
+
+  // ── Load stats ─────────────────────────────────────────────────────────────
+  async function loadStats() {
+    const [myDevData, allDevData, batchData, xferData, simData] = await Promise.all([
+      APP.apiFetch(`/inventory/items?issuedToId=${encodeURIComponent(myId)}&status=Issued%20for%20Installation&pageSize=200`).catch(() => ({})),
+      APP.apiFetch(`/inventory/items?issuedToId=${encodeURIComponent(myId)}&pageSize=500`).catch(() => ({})),
+      APP.apiFetch(`/inventory/items/issuance-batches?status=Pending`).catch(() => ({})),
+      APP.apiFetch('/device-custody/transfers?status=Pending').catch(() => ({})),
+      APP.apiFetch(`/inventory/sims?status=issued&pageSize=200`).catch(() => ({})),
+    ]);
+    const myDevs    = myDevData?.data  || [];
+    const allDevsRaw = allDevData?.data || [];
+    // Deduplicate by id in case issuedToId OR-subquery returns the same row twice
+    const allDevsSeen = new Set();
+    const allDevs = allDevsRaw.filter(d => { if (allDevsSeen.has(d.id)) return false; allDevsSeen.add(d.id); return true; });
+    const batches   = batchData?.data  || [];
+    const transfers = xferData?.data   || xferData || [];
+    const pendingSimCount = (simData?.data || []).filter(s => s.issued_to_id === myId && !s.acknowledged_at).length;
+
+    document.getElementById('stat-in-custody').textContent =
+      myDevs.filter(d => (d.acknowledged_at || d.acknowledgedAt) && !(d.installation_id || d.installationId)).length;
+    document.getElementById('stat-assigned').textContent =
+      myDevs.filter(d => d.installation_id || d.installationId).length;
+    document.getElementById('stat-pending-ack').textContent = batches.length + pendingSimCount;
+    document.getElementById('stat-pending-xfer').textContent =
+      transfers.filter(t => t.toTechnicianId === myId).length;
+    document.getElementById('stat-defective').textContent =
+      allDevs.filter(d => (d.status || d.status) === 'Defective').length;
+    document.getElementById('stat-returned').textContent =
+      allDevs.filter(d => (d.status || d.status) === 'Returned').length;
+  }
+
+  // ── Mark device as installed ───────────────────────────────────────────────
+  async function markInstalled(deviceId, serial) {
+    if (!confirm(`Mark "${serial}" as installed? This will remove it from your custody and update the inventory.`)) return;
+    try {
+      await APP.apiFetch('/device-custody/mark-installed', {
+        method: 'POST',
+        body: { deviceId },
+      });
+      toast(`${serial} marked as Installed`, 'success');
+      loadStats();
+      loadCustody();
+    } catch (err) {
+      toast(err?.message || 'Failed to mark as installed', 'error');
+    }
+  }
+
+  // ── In Custody Tab ─────────────────────────────────────────────────────────
+  let _custodyRows = [];
+
+  function custodyModelOf(d) {
+    return d.deviceModel || d.device_model || d.productName || d.product_name || 'Unknown model';
+  }
+
+  async function loadCustody() {
+    const data = await APP.apiFetch(`/inventory/items?issuedToId=${encodeURIComponent(myId)}&status=Issued%20for%20Installation&pageSize=200`);
+    _custodyRows = (data?.data || []).filter(d => d.acknowledged_at || d.acknowledgedAt);
+    populateCustodyProductFilter();
+    renderCustodyList();
+  }
+
+  function populateCustodyProductFilter() {
+    const sel = document.getElementById('custody-filter-product');
+    const current = sel.value;
+    const products = Array.from(new Set(_custodyRows.map(custodyModelOf))).sort();
+    sel.innerHTML = '<option value="">All products</option>' +
+      products.map(p => `<option value="${p}">${p}</option>`).join('');
+    if (products.includes(current)) sel.value = current;
+  }
+
+  function clearCustodyFilters() {
+    document.getElementById('custody-filter-product').value = '';
+    document.getElementById('custody-filter-date-from').value = '';
+    document.getElementById('custody-filter-date-to').value = '';
+    renderCustodyList();
+  }
+
+  function renderCustodyList() {
+    const tbody = document.getElementById('custody-tbody');
+    if (_custodyRows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="9" class="text-center py-12 text-slate-400">
+        <p class="font-medium">No devices in custody</p>
+        <p class="text-xs mt-1">Devices issued to you will appear here once you acknowledge the issuance.</p>
+      </td></tr>`;
+      document.getElementById('custody-filter-count').textContent = '';
+      return;
+    }
+
+    const product = document.getElementById('custody-filter-product').value;
+    const fromVal = document.getElementById('custody-filter-date-from').value;
+    const toVal   = document.getElementById('custody-filter-date-to').value;
+    const fromMs  = fromVal ? new Date(fromVal + 'T00:00:00').getTime() : null;
+    const toMs    = toVal   ? new Date(toVal + 'T23:59:59').getTime()   : null;
+
+    let rows = _custodyRows;
+    if (product) rows = rows.filter(d => custodyModelOf(d) === product);
+    if (fromMs || toMs) {
+      rows = rows.filter(d => {
+        const issuedAt = d.issuedAt || d.issued_at;
+        if (!issuedAt) return false;
+        const t = new Date(issuedAt).getTime();
+        if (fromMs && t < fromMs) return false;
+        if (toMs && t > toMs) return false;
+        return true;
+      });
+    }
+
+    document.getElementById('custody-filter-count').textContent = `${rows.length} of ${_custodyRows.length} device(s)`;
+
+    if (rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400">No devices match the selected filters.</td></tr>`;
+      return;
+    }
+
+    // Assigned-to-job devices surface first, then most recently issued first
+    const sorted = [...rows].sort((a, b) => {
+      const aAssigned = !!(a.installation_id || a.installationId);
+      const bAssigned = !!(b.installation_id || b.installationId);
+      if (aAssigned !== bAssigned) return aAssigned ? -1 : 1;
+      return new Date(b.issuedAt || b.issued_at || 0) - new Date(a.issuedAt || a.issued_at || 0);
+    });
+
+    tbody.innerHTML = sorted.map(d => {
+      const isAssigned = !!(d.installation_id || d.installationId);
+      const serial = d.serialNumber || d.serial_number || '—';
+      const devId  = d.id;
+      const ticketNo   = d.ticket_no || '';
+      const customer   = d.job_customer_name || '';
+      const vehicleReg = d.job_vehicle_reg || '';
+      const jobCell = ticketNo
+        ? `<span class="font-mono">${ticketNo}</span>${customer ? `<br><span class="text-slate-400">${customer}</span>` : ''}${vehicleReg ? `<br><span class="font-mono text-slate-400">${vehicleReg}</span>` : ''}`
+        : '—';
+      return `<tr class="${isAssigned ? 'bg-purple-50/40' : ''}">
+        <td>
+          <p class="font-mono font-bold text-xs text-slate-900">${serial}</p>
+          ${d.imei ? `<p class="text-xs text-slate-400">${d.imei}</p>` : ''}
+        </td>
+        <td class="text-xs">${custodyModelOf(d)}</td>
+        <td class="text-xs text-slate-500">${d.categoryName || d.category_name || '—'}</td>
+        <td class="text-xs text-slate-500">${d.simPhone || d.sim_phone || '—'}</td>
+        <td>${isAssigned ? statusBadge('AssignedToJob') : statusBadge('InCustody')}</td>
+        <td class="text-xs text-slate-500 whitespace-nowrap">${fmtDate(d.acknowledgedAt || d.acknowledged_at)}</td>
+        <td class="text-xs text-slate-500 whitespace-nowrap">${fmtDate(d.issuedAt || d.issued_at)}</td>
+        <td class="text-xs">${jobCell}</td>
+        <td class="text-right">
+          ${isAssigned ? `<button onclick="markInstalled('${devId}','${serial}')"
+              class="px-2.5 py-1 text-xs rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition whitespace-nowrap">
+              Mark Installed
+            </button>` : ''}
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── Pending Acknowledgement Tab ────────────────────────────────────────────
+  // Plain Technicians only ever get their own batches back from the API (see
+  // inventory-items.ts). ISO/Admin/etc. get everyone's, unfiltered, so the page
+  // caches the full list client-side and re-renders on the technician filter
+  // rather than round-tripping to the API per selection.
+  let _pendingAckRows = [];
+
+  async function loadPendingAck() {
+    const data = await APP.apiFetch(`/inventory/items/issuance-batches?status=Pending`);
+    _pendingAckRows = data?.data || [];
+
+    const canActOnBehalf = myRole !== 'Technician';
+    const filterWrap = document.getElementById('ack-technician-filter');
+    if (canActOnBehalf && _pendingAckRows.length > 0) {
+      const select = document.getElementById('ack-technician-select');
+      const known = new Set(Array.from(select.options).slice(1).map(o => o.value));
+      const seen = new Set();
+      _pendingAckRows.forEach(b => {
+        if (b.technicianId && !seen.has(b.technicianId)) {
+          seen.add(b.technicianId);
+          if (!known.has(b.technicianId)) {
+            const opt = document.createElement('option');
+            opt.value = b.technicianId;
+            opt.textContent = b.technicianName || b.technicianId;
+            select.appendChild(opt);
+          }
+        }
+      });
+      filterWrap.classList.remove('hidden');
+    } else {
+      filterWrap.classList.add('hidden');
+    }
+    renderPendingAck();
+    loadPendingSimsAck();
+  }
+
+  function renderPendingAck() {
+    const canActOnBehalf = myRole !== 'Technician';
+    const selectedTechnician = canActOnBehalf ? document.getElementById('ack-technician-select').value : '';
+    const rows = selectedTechnician ? _pendingAckRows.filter(b => b.technicianId === selectedTechnician) : _pendingAckRows;
+    const list = document.getElementById('ack-list');
+    if (!Array.isArray(rows) || rows.length === 0) {
+      list.innerHTML = `<div class="text-center py-10 text-slate-400">
+        <p class="font-medium">No pending issuances</p>
+        <p class="text-xs mt-1">${canActOnBehalf ? 'No technicians have devices awaiting acknowledgement right now.' : 'Devices issued to you will appear here for acknowledgement.'}</p>
+      </div>`;
+      return;
+    }
+    list.innerHTML = rows.map(b => `
+      <div class="bg-white border border-yellow-200 rounded-xl p-4 space-y-3">
+        <div class="flex items-start justify-between">
+          <div>
+            ${canActOnBehalf ? `<p class="text-xs font-semibold text-indigo-700 uppercase tracking-wide mb-0.5">${b.technicianName || b.technicianId}</p>` : ''}
+            <p class="font-bold text-sm text-slate-900">Batch: ${b.batchRef}</p>
+            <p class="text-xs text-slate-500">Issued by ${b.clerkEmail || b.clerkUserId} on ${fmtDate(b.issuedAt)}</p>
+          </div>
+          <span class="badge border-yellow-200 bg-yellow-50 text-yellow-700">${b.deviceCount} device(s)</span>
+        </div>
+        <div class="bg-yellow-50 border border-yellow-100 rounded-lg p-3">
+          <p class="text-xs font-semibold text-yellow-800 mb-2">Devices in this batch:</p>
+          <div class="space-y-1">
+            ${(b.devices || []).map(d => `
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-xs font-semibold text-slate-700">${d.serialNumber}</span>
+                <span class="text-xs text-slate-400">${d.deviceModel || d.productName || ''}</span>
+                ${statusBadge('IssuedToTechnician')}
+              </div>`).join('')}
+          </div>
+        </div>
+        ${b.notes ? `<p class="text-xs text-slate-500">Note: ${b.notes}</p>` : ''}
+        <div class="flex gap-2">
+          <button onclick="openAckModal('${b.id}','${b.batchRef}',${b.deviceCount},'${b.issuedAt}')"
+            class="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition">
+            ${canActOnBehalf ? 'Review &amp; Acknowledge on Behalf' : 'Review &amp; Acknowledge'}
+          </button>
+        </div>
+      </div>`).join('');
+  }
+
+  // ── Transfers Tab ──────────────────────────────────────────────────────────
+  async function loadTransfers() {
+    const data = await APP.apiFetch('/device-custody/transfers');
+    const all = data?.data || data || [];
+    const incoming = all.filter(t => t.toTechnicianId === myId && t.status === 'Pending');
+    const outgoing = all.filter(t => t.fromTechnicianId === myId);
+
+    // Incoming
+    const incomingDiv = document.getElementById('incoming-transfers');
+    if (incoming.length === 0) {
+      incomingDiv.innerHTML = `<p class="text-sm text-slate-400 py-2">No incoming transfer requests</p>`;
+    } else {
+      incomingDiv.innerHTML = incoming.map(t => `
+        <div class="bg-white border border-indigo-200 rounded-xl p-4">
+          <div class="flex items-start justify-between mb-2">
+            <div>
+              <p class="font-semibold text-sm text-slate-900">Device: <span class="font-mono">${t.deviceSerial}</span></p>
+              <p class="text-xs text-slate-500">From: ${t.fromTechnicianEmail || t.fromTechnicianId}</p>
+              <p class="text-xs text-slate-500">Reason: ${t.transferReason || 'Not specified'}</p>
+            </div>
+            <span class="badge border-indigo-200 bg-indigo-50 text-indigo-700">Pending</span>
+          </div>
+          <div class="flex gap-2 mt-3">
+            <button onclick="openTransferRespondModal('${t.id}','${t.deviceSerial}','${t.fromTechnicianEmail || t.fromTechnicianId}','${t.transferReason || ''}')"
+              class="flex-1 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700 transition">
+              Respond
+            </button>
+          </div>
+        </div>`).join('');
+    }
+
+    // Outgoing
+    const tbody = document.getElementById('outgoing-transfers-tbody');
+    if (outgoing.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400">No outgoing transfers</td></tr>`;
+    } else {
+      tbody.innerHTML = outgoing.map(t => `
+        <tr>
+          <td class="font-mono text-xs font-semibold">${t.deviceSerial}</td>
+          <td class="text-xs">${t.toTechnicianEmail || t.toTechnicianId}</td>
+          <td class="text-xs text-slate-500">${t.transferReason || '—'}</td>
+          <td>${statusBadge(t.status)}</td>
+          <td class="text-xs">${fmtDate(t.createdAt)}</td>
+        </tr>`).join('');
+    }
+  }
+
+  // ── History Tab ────────────────────────────────────────────────────────────
+  const ACTION_META = {
+    RECEIVED:              { label: 'Received into Inventory', color: 'bg-slate-100 text-slate-700 border-slate-200' },
+    ISSUED:                { label: 'Issued to Technician',    color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+    ACKNOWLEDGED:          { label: 'Acknowledged',            color: 'bg-green-50 text-green-700 border-green-200' },
+    ISSUANCE_REJECTED:     { label: 'Issuance Rejected',       color: 'bg-red-50 text-red-700 border-red-200' },
+    ASSIGNED_TO_JOB:       { label: 'Assigned to Job',         color: 'bg-purple-50 text-purple-700 border-purple-200' },
+    INSTALLED:             { label: 'Marked as Installed',     color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    RETURNED:              { label: 'Returned to Inventory',   color: 'bg-orange-50 text-orange-700 border-orange-200' },
+    DEFECTIVE_REPORTED:    { label: 'Defective Reported',      color: 'bg-red-50 text-red-700 border-red-200' },
+    TRANSFERRED_OUT:       { label: 'Transferred Out',         color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+    TRANSFERRED_IN:        { label: 'Transferred In',          color: 'bg-blue-50 text-blue-700 border-blue-200' },
+    TRANSFER_REJECTED:     { label: 'Transfer Rejected',       color: 'bg-red-50 text-red-700 border-red-200' },
+    STATUS_UPDATED:        { label: 'Status Updated',          color: 'bg-slate-100 text-slate-600 border-slate-200' },
+    RESERVATION_EXPIRED:   { label: 'Reservation Expired',     color: 'bg-slate-100 text-slate-500 border-slate-200' },
+    RESERVED:              { label: 'Reserved',                color: 'bg-slate-100 text-slate-600 border-slate-200' },
+  };
+  function actionBadge(action) {
+    const m = ACTION_META[action];
+    if (m) return `<span class="badge border ${m.color} whitespace-nowrap">${m.label}</span>`;
+    const label = action.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    return `<span class="badge border border-slate-200 bg-slate-50 text-slate-600 whitespace-nowrap">${label}</span>`;
+  }
+
+  async function loadHistory() {
+    const tbody = document.getElementById('history-tbody');
+    try {
+      const data = await APP.apiFetch('/device-custody/my-history');
+      const rows = data?.data || [];
+      if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-400">
+          <svg class="w-10 h-10 mx-auto mb-2 text-slate-300" fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <p class="font-medium">No device interactions yet</p>
+          <p class="text-xs mt-1">Events will appear here as you interact with devices.</p>
+        </td></tr>`;
+        return;
+      }
+      tbody.innerHTML = rows.map(r => {
+        const statusChange = (r.fromStatus || r.toStatus)
+          ? `<span class="text-xs text-slate-400">${r.fromStatus || '—'}</span>
+             <svg class="inline w-3 h-3 mx-1 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+             <span class="text-xs text-slate-700 font-medium">${r.toStatus || '—'}</span>`
+          : '<span class="text-xs text-slate-400">—</span>';
+        return `<tr>
+          <td class="text-xs whitespace-nowrap">${fmtDate(r.createdAt)}</td>
+          <td class="font-mono text-xs font-semibold">${r.serialNumber || '—'}</td>
+          <td class="text-xs text-slate-500">${r.deviceModel || '—'}</td>
+          <td>${actionBadge(r.action)}</td>
+          <td class="whitespace-nowrap">${statusChange}</td>
+          <td class="text-xs text-slate-500">${r.performedBy || '—'}</td>
+          <td class="text-xs text-slate-400 max-w-[160px] truncate" title="${(r.notes||'').replace(/"/g,'&quot;')}">${r.notes || '—'}</td>
+        </tr>`;
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-red-400">Failed to load history</td></tr>`;
+    }
+  }
+
+  // ── Ack Modal ──────────────────────────────────────────────────────────────
+  function openAckModal(batchId, batchRef, deviceCount, issuedAt) {
+    document.getElementById('ack-batch-id').value = batchId;
+    document.getElementById('ack-batch-info').innerHTML = `
+      <p><span class="font-semibold text-slate-700">Batch:</span> ${batchRef}</p>
+      <p><span class="font-semibold text-slate-700">Devices:</span> ${deviceCount}</p>
+      <p><span class="font-semibold text-slate-700">Issued:</span> ${fmtDate(issuedAt)}</p>`;
+    document.getElementById('ack-rejection-wrap').classList.add('hidden');
+    document.getElementById('ack-modal').classList.add('open');
+  }
+  function closeAckModal() { document.getElementById('ack-modal').classList.remove('open'); }
+
+  async function submitAck(action) {
+    const batchId = document.getElementById('ack-batch-id').value;
+    if (action === 'reject') {
+      const wrap = document.getElementById('ack-rejection-wrap');
+      if (wrap.classList.contains('hidden')) {
+        wrap.classList.remove('hidden');
+        document.getElementById('ack-reject-btn').textContent = 'Confirm Reject';
+        return;
+      }
+    }
+    const rejectionReason = action === 'reject'
+      ? document.getElementById('ack-rejection-reason').value.trim()
+      : undefined;
+
+    const btn = action === 'accept'
+      ? document.getElementById('ack-accept-btn')
+      : document.getElementById('ack-reject-btn');
+    btn.disabled = true;
+    btn.textContent = action === 'accept' ? 'Accepting…' : 'Rejecting…';
+
+    try {
+      const res = await APP.apiFetch(`/inventory/items/issuance-batches/${batchId}/acknowledge`, {
+        method: 'POST',
+        body: { action, rejectionReason },
+      });
+      if (!res) { toast('Action failed', 'error'); return; }
+      toast(action === 'accept' ? 'Devices accepted into your custody' : 'Issuance rejected — devices returned to inventory',
+        action === 'accept' ? 'success' : 'warning');
+      closeAckModal();
+      loadStats(); loadCustody(); loadPendingAck();
+    } catch (e) {
+      toast(e?.message || 'Action failed', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = action === 'accept' ? 'Accept Custody' : 'Reject';
+    }
+  }
+
+  // ── Transfer Modal ─────────────────────────────────────────────────────────
+  let _selectedDeviceId = null;
+  async function openTransferModal() {
+    _selectedDeviceId = null;
+    try {
+      await loadMyDevicesForTransfer();
+      await loadTechForTransfer();
+    } catch (e) {
+      toast(e?.message || 'Failed to load transfer options', 'error');
+      return;
+    }
+    document.getElementById('xfer-reason').value = '';
+    document.getElementById('transfer-modal').classList.add('open');
+  }
+  function openTransferModalForDevice(devId, serial) {
+    openTransferModal().then(() => {
+      document.getElementById('xfer-device-id').value = devId;
+    });
+  }
+  function closeTransferModal() { document.getElementById('transfer-modal').classList.remove('open'); }
+
+  async function loadMyDevicesForTransfer() {
+    const data = await APP.apiFetch(`/inventory/items?issuedToId=${encodeURIComponent(myId)}&status=Issued%20for%20Installation&pageSize=200`);
+    const devs = (data?.data || []).filter(d => d.acknowledgedAt || d.acknowledged_at);
+    const sel = document.getElementById('xfer-device-id');
+    sel.innerHTML = '<option value="">Select device…</option>' +
+      devs.map(d => `<option value="${d.id}">${d.serialNumber || d.serial_number} — ${d.deviceModel || d.productName || d.product_name || 'Unknown'}</option>`).join('');
+  }
+
+  async function loadTechForTransfer() {
+    const data = await APP.apiFetch('/device-custody/technicians');
+    const techs = (data?.data || data || []).filter(t => t.id !== myId);
+    const sel = document.getElementById('xfer-to-tech-id');
+    sel.innerHTML = '<option value="">Select recipient…</option>' +
+      techs.map(t => `<option value="${t.id}" data-email="${t.email}">${t.name || t.email}</option>`).join('');
+  }
+
+  async function submitTransfer() {
+    const deviceId = document.getElementById('xfer-device-id').value;
+    const toSel = document.getElementById('xfer-to-tech-id');
+    const toTechnicianId = toSel.value;
+    const toTechnicianEmail = toSel.options[toSel.selectedIndex]?.dataset.email || '';
+    const transferReason = document.getElementById('xfer-reason').value.trim();
+
+    if (!deviceId) { toast('Select a device', 'error'); return; }
+    if (!toTechnicianId) { toast('Select a recipient', 'error'); return; }
+
+    const btn = document.getElementById('xfer-submit-btn');
+    btn.disabled = true; btn.textContent = 'Initiating…';
+    const res = await APP.apiFetch('/device-custody/transfer', {
+      method: 'POST',
+      body: JSON.stringify({ deviceId, toTechnicianId, toTechnicianEmail, transferReason }),
+    });
+    btn.disabled = false; btn.textContent = 'Initiate Transfer';
+    if (!res) { toast('Transfer failed', 'error'); return; }
+    toast('Transfer request sent — awaiting recipient acknowledgement');
+    closeTransferModal();
+    loadStats(); loadCustody(); loadTransfers();
+  }
+
+  // ── Transfer Respond Modal ─────────────────────────────────────────────────
+  function openTransferRespondModal(transferId, serial, fromEmail, reason) {
+    document.getElementById('xfer-respond-id').value = transferId;
+    document.getElementById('xfer-respond-info').innerHTML = `
+      <p><span class="font-semibold text-slate-700">Device:</span> <span class="font-mono">${serial}</span></p>
+      <p><span class="font-semibold text-slate-700">From:</span> ${fromEmail}</p>
+      <p><span class="font-semibold text-slate-700">Reason:</span> ${reason || 'Not specified'}</p>`;
+    document.getElementById('xfer-rejection-wrap').classList.add('hidden');
+    document.getElementById('xfer-rejection-reason').value = '';
+    document.getElementById('transfer-respond-modal').classList.add('open');
+  }
+  function closeTransferRespondModal() {
+    document.getElementById('transfer-respond-modal').classList.remove('open');
+  }
+
+  async function submitTransferResponse(action) {
+    const transferId = document.getElementById('xfer-respond-id').value;
+    if (action === 'reject') {
+      const wrap = document.getElementById('xfer-rejection-wrap');
+      if (wrap.classList.contains('hidden')) {
+        wrap.classList.remove('hidden');
+        return;
+      }
+    }
+    const rejectionReason = action === 'reject'
+      ? document.getElementById('xfer-rejection-reason').value.trim()
+      : undefined;
+
+    const res = await APP.apiFetch(`/device-custody/transfer/${transferId}/respond`, {
+      method: 'POST',
+      body: JSON.stringify({ action, rejectionReason }),
+    });
+    if (!res) { toast('Action failed', 'error'); return; }
+    toast(action === 'accept' ? 'Transfer accepted — device added to your custody' : 'Transfer rejected',
+      action === 'accept' ? 'success' : 'warning');
+    closeTransferRespondModal();
+    loadStats(); loadCustody(); loadTransfers();
+  }
+
+  // ── Return Defective Modal ─────────────────────────────────────────────────
+  function openReturnDefectiveModal(deviceId, serial, model) {
+    document.getElementById('return-device-id').value = deviceId;
+    document.getElementById('return-device-notes').value = '';
+    document.getElementById('return-device-info').innerHTML = `
+      <p><span class="font-semibold text-slate-700">Serial:</span> <span class="font-mono">${serial}</span></p>
+      <p><span class="font-semibold text-slate-700">Model:</span> ${model}</p>
+      <p class="text-red-700 font-medium mt-1">Status: Defective</p>`;
+    document.getElementById('return-defective-modal').classList.add('open');
+  }
+  function closeReturnDefectiveModal() {
+    document.getElementById('return-defective-modal').classList.remove('open');
+  }
+  async function submitReturnDefective() {
+    const deviceId = document.getElementById('return-device-id').value;
+    const notes    = document.getElementById('return-device-notes').value.trim();
+    const btn      = document.getElementById('return-defective-submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = `<svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Returning…`;
+    try {
+      await APP.apiFetch('/device-custody/return-defective', {
+        method: 'POST',
+        body: { deviceId, notes },
+      });
+      toast('Device returned to inventory successfully', 'success');
+      closeReturnDefectiveModal();
+      loadStats();
+      loadDefectReports();
+    } catch(e) {
+      toast(e?.message || 'Failed to return device', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg> Return to Inventory`;
+    }
+  }
+
+  // ── Report Defective Modal ─────────────────────────────────────────────────
+  let _defectPhotoBase64 = null;
+
+  async function openReportDefectiveModal(preselectedDeviceId) {
+    _defectPhotoBase64 = null;
+    document.getElementById('defect-description').value = '';
+    document.getElementById('defect-photo-file').value = '';
+    document.getElementById('defect-photo-preview').classList.add('hidden');
+    await loadMyDevicesForDefect();
+    if (preselectedDeviceId) {
+      document.getElementById('defect-device-id').value = preselectedDeviceId;
+    }
+    document.getElementById('defective-modal').classList.add('open');
+  }
+  function closeReportDefectiveModal() {
+    document.getElementById('defective-modal').classList.remove('open');
+  }
+
+  async function loadMyDevicesForDefect() {
+    const data = await APP.apiFetch(`/inventory/items?issuedToId=${encodeURIComponent(myId)}&status=Issued%20for%20Installation&pageSize=200`);
+    const devs = (data?.data || []).filter(d => d.acknowledged_at || d.acknowledgedAt);
+    const sel = document.getElementById('defect-device-id');
+    if (devs.length === 0) {
+      sel.innerHTML = '<option value="">No devices in your custody</option>';
+    } else {
+      sel.innerHTML = '<option value="">Select device from your custody…</option>' +
+        devs.map(d => `<option value="${d.id}">${d.serialNumber || d.serial_number} — ${d.deviceModel || d.productName || d.product_name || 'Unknown'}</option>`).join('');
+    }
+  }
+
+  // Photo capture preview
+  document.getElementById('defect-photo-file').addEventListener('change', function() {
+    const file = this.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      _defectPhotoBase64 = e.target.result;
+      document.getElementById('defect-photo-img').src = _defectPhotoBase64;
+      document.getElementById('defect-photo-preview').classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+  });
+
+  function clearDefectPhoto() {
+    _defectPhotoBase64 = null;
+    document.getElementById('defect-photo-file').value = '';
+    document.getElementById('defect-photo-img').src = '';
+    document.getElementById('defect-photo-preview').classList.add('hidden');
+  }
+
+  async function submitDefectReport() {
+    const deviceId = document.getElementById('defect-device-id').value;
+    const description = document.getElementById('defect-description').value.trim();
+
+    if (!deviceId) { toast('Please select a device', 'error'); return; }
+    if (!description) { toast('Please provide a description of the defect', 'error'); return; }
+
+    const btn = document.getElementById('defect-submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = `<svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Submitting…`;
+
+    try {
+      const res = await APP.apiFetch('/device-custody/defect-reports', {
+        method: 'POST',
+        body: { deviceId, description, photoData: _defectPhotoBase64 || undefined },
+      });
+      toast(`Defective report submitted for device. Inventory manager has been notified.`, 'success');
+      closeReportDefectiveModal();
+      loadStats();
+      loadCustody();
+    } catch (e) {
+      toast(e?.message || 'Failed to submit report', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg> Submit Report`;
+    }
+  }
+
+  // ── Defect Reports Tab ─────────────────────────────────────────────────────
+  async function loadDefectReports() {
+    const list = document.getElementById('defect-reports-list');
+    list.innerHTML = '<p class="text-center text-slate-400 py-8">Loading…</p>';
+
+    // Load defective devices in this technician's name
+    try {
+      const devData = await APP.apiFetch(`/inventory/items?issuedToId=${encodeURIComponent(myId)}&pageSize=500`);
+      const seen = new Set();
+      const defDevs = (devData?.data || []).filter(d => {
+        if (d.status !== 'Defective') return false;
+        if (seen.has(d.id)) return false;
+        seen.add(d.id);
+        return true;
+      });
+      const section = document.getElementById('defective-devices-section');
+      const tbody   = document.getElementById('defective-devices-tbody');
+      if (defDevs.length > 0) {
+        section.classList.remove('hidden');
+        tbody.innerHTML = defDevs.map(d => `
+          <tr>
+            <td class="font-mono text-xs font-semibold">${d.serial_number || d.serialNumber || '—'}</td>
+            <td class="text-xs">${d.device_model || d.deviceModel || d.product_name || d.productName || '—'}</td>
+            <td class="text-xs text-slate-400">${d.imei || '—'}</td>
+            <td class="text-xs text-slate-400">${d.sim_phone || d.simPhone || '—'}</td>
+            <td class="text-xs">${fmtDate(d.issued_at || d.issuedAt)}</td>
+            <td>
+              <button onclick="openReturnDefectiveModal(this.dataset.id,this.dataset.serial,this.dataset.model)"
+                data-id="${d.id}"
+                data-serial="${(d.serial_number||d.serialNumber||'').replace(/"/g,'&quot;')}"
+                data-model="${(d.device_model||d.deviceModel||d.product_name||d.productName||'').replace(/"/g,'&quot;')}"
+                class="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-orange-50 text-orange-700 border border-orange-200 text-xs font-medium hover:bg-orange-100 transition whitespace-nowrap">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                Return to Inventory
+              </button>
+            </td>
+          </tr>`).join('');
+      } else {
+        section.classList.add('hidden');
+      }
+    } catch(_) {}
+
+    try {
+      const data = await APP.apiFetch('/device-custody/defect-reports');
+      const reports = data?.data || data || [];
+      if (!reports.length) {
+        list.innerHTML = `<div class="text-center py-10 text-slate-400">
+          <svg class="w-10 h-10 mx-auto mb-2 text-slate-300" fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+          <p class="font-medium">No defect reports</p>
+          <p class="text-xs mt-1">Your reported defective devices will appear here.</p>
+        </div>`;
+        return;
+      }
+      const defectStatusBadge = s => ({
+        Reported:       '<span class="badge border-orange-200 bg-orange-50 text-orange-700">Reported</span>',
+        UnderTest:      '<span class="badge border-blue-200 bg-blue-50 text-blue-700">Under Test</span>',
+        Cleared:        '<span class="badge border-green-200 bg-green-50 text-green-700">Cleared</span>',
+        Confirmed:      '<span class="badge border-red-200 bg-red-50 text-red-700">Confirmed Defective</span>',
+        SupplierReturn: '<span class="badge border-purple-200 bg-purple-50 text-purple-700">Supplier Return</span>',
+      })[s] || `<span class="badge border-slate-200 bg-slate-50 text-slate-600">${s}</span>`;
+
+      list.innerHTML = reports.map(r => `
+        <div class="bg-white border border-slate-200 rounded-xl p-4 space-y-2">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="font-bold text-sm text-slate-900 font-mono">${r.deviceSerial || '—'}</p>
+              <p class="text-xs text-slate-500 mt-0.5">${fmtDate(r.createdAt)}</p>
+            </div>
+            ${defectStatusBadge(r.status)}
+          </div>
+          <p class="text-sm text-slate-700">${r.description}</p>
+          ${r.hasPhoto ? `<p class="text-xs text-blue-600">📷 Photo attached</p>` : ''}
+          ${r.testOutcome ? `<div class="bg-slate-50 rounded-lg p-2 text-xs text-slate-600">
+            <span class="font-semibold">Test outcome:</span> ${r.testOutcome}
+            ${r.testNotes ? ` — ${r.testNotes}` : ''}
+            ${r.testedByEmail ? ` · by ${r.testedByEmail}` : ''}
+          </div>` : ''}
+        </div>`).join('');
+    } catch(e) {
+      list.innerHTML = `<p class="text-center text-rose-500 py-8">Failed to load defect reports</p>`;
+    }
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  (async () => {
+    await loadStats();
+    await loadCustody();
+  })();
+</script>
+</body>
+</html>

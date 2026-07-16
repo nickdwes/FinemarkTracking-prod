@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Installation Dashboard</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+
+      <main class="flex-1 p-6 min-w-0">
+        <div class="max-w-[1400px] mx-auto space-y-6">
+
+          <!-- ── Page Header ─────────────────────────────────────────────── -->
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Installation Dashboard</h1>
+              <p class="text-sm text-slate-500 mt-0.5">All vehicle installations — live status overview</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button id="btn-refresh" type="button"
+                class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                Refresh
+              </button>
+              <a href="vehicle-installation.html"
+                class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                + New Installation
+              </a>
+            </div>
+          </div>
+
+          <!-- ── Stats Cards ─────────────────────────────────────────────── -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3" id="stats-row">
+            <!-- Rendered by JS -->
+          </div>
+
+          <!-- ── Stage Pipeline ──────────────────────────────────────────── -->
+          <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm">
+            <h2 class="text-sm font-semibold text-slate-700 mb-4">Stage Pipeline</h2>
+            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2" id="stage-pipeline">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+
+          <!-- ── Filters ─────────────────────────────────────────────────── -->
+          <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm">
+            <div class="flex flex-wrap gap-3 items-end">
+              <!-- Search -->
+              <div class="flex-1 min-w-52">
+                <label class="text-xs text-slate-500 mb-1 block">Search</label>
+                <input id="filter-search" type="text" placeholder="Registration, customer, technician…"
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+              </div>
+              <!-- Status filter -->
+              <div class="min-w-44">
+                <label class="text-xs text-slate-500 mb-1 block">Status</label>
+                <select id="filter-status"
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40">
+                  <option value="">All Statuses</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Assigned">Assigned</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Awaiting Confirmation">Awaiting Confirmation</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </div>
+              <!-- Stage filter -->
+              <div class="min-w-40">
+                <label class="text-xs text-slate-500 mb-1 block">Stage</label>
+                <select id="filter-stage"
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40">
+                  <option value="">All Stages</option>
+                  <option value="0">Not Started</option>
+                  <option value="1">1 – Vehicle Inspection</option>
+                  <option value="2">2 – Device Assignment</option>
+                  <option value="3">3 – Tracker Installation</option>
+                  <option value="4">4 – Sensor Installation</option>
+                  <option value="5">5 – Device Testing</option>
+                  <option value="6">6 – Customer Verification</option>
+                  <option value="7">7 – Complete</option>
+                </select>
+              </div>
+              <!-- Date from -->
+              <div class="min-w-36">
+                <label class="text-xs text-slate-500 mb-1 block">From</label>
+                <input id="filter-from" type="date"
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+              </div>
+              <!-- Date to -->
+              <div class="min-w-36">
+                <label class="text-xs text-slate-500 mb-1 block">To</label>
+                <input id="filter-to" type="date"
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+              </div>
+              <button id="btn-apply-filter" type="button"
+                class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                Apply
+              </button>
+              <button id="btn-clear-filter" type="button"
+                class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <!-- ── Main Table ──────────────────────────────────────────────── -->
+          <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <span class="text-sm font-medium text-slate-800">All Installations</span>
+              <span id="table-meta" class="text-xs text-slate-500"></span>
+            </div>
+
+            <!-- Skeleton / error -->
+            <div id="table-skeleton" class="px-5 py-10 text-center text-sm text-slate-400">Loading…</div>
+            <div id="table-error" class="hidden px-5 py-6"></div>
+
+            <!-- Table -->
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm min-w-[960px]" id="inst-table">
+                <thead class="bg-slate-50 border-b border-slate-100 text-left text-xs text-slate-500 font-medium">
+                  <tr>
+                    <th class="px-4 py-3">Registration</th>
+                    <th class="px-4 py-3">Customer</th>
+                    <th class="px-4 py-3">Vehicle</th>
+                    <th class="px-4 py-3">Technician</th>
+                    <th class="px-4 py-3">Status</th>
+                    <th class="px-4 py-3">Stage</th>
+                    <th class="px-4 py-3">Created</th>
+                    <th class="px-4 py-3">Completed</th>
+                    <th class="px-4 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="inst-tbody" class="divide-y divide-slate-100">
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Empty state -->
+            <div id="table-empty" class="hidden px-5 py-12 text-center">
+              <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+              </div>
+              <p class="text-sm font-medium text-slate-600">No installations found</p>
+              <p class="text-xs text-slate-400 mt-1">Try adjusting your filters or create a new installation.</p>
+            </div>
+
+            <!-- Pagination -->
+            <div id="pagination" class="hidden flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50 text-sm">
+              <span id="page-info" class="text-slate-500 text-xs"></span>
+              <div class="flex items-center gap-2">
+                <button id="btn-prev" type="button"
+                  class="rounded border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed">
+                  ← Prev
+                </button>
+                <span id="page-nums" class="flex gap-1"></span>
+                <button id="btn-next" type="button"
+                  class="rounded border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed">
+                  Next →
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /max-w -->
+      </main>
+    </div><!-- /flex -->
+    <div id="fm-footer"></div>
+    <div id="toast-container" class="fixed top-4 right-4 z-[9999] space-y-2"></div>
+
+    <script src="assets/contracts.js"></script>
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        window.FINEMARK_APP?.requirePageAccess?.();
+      });
+    </script>
+    <script>
+    (async () => {
+      // ── Helpers ────────────────────────────────────────────────────────────
+      const el = id => document.getElementById(id);
+      async function apiFetch(path, opts = {}) {
+        const { method = "GET", body } = opts;
+        try {
+          const data = await window.APP.apiFetch(path, { method, body });
+          return { ok: true, status: 200, json: async () => data };
+        } catch(err) {
+          return { ok: false, status: err.status || 500, json: async () => ({ error: { message: err.message || "Request failed" } }) };
+        }
+      }
+      function toast(msg, success = true) {
+        const div = document.createElement("div");
+        div.className = `text-sm px-4 py-2.5 rounded-lg shadow-lg text-white ${success ? "bg-teal-700" : "bg-rose-600"}`;
+        div.textContent = msg;
+        el("toast-container").appendChild(div);
+        setTimeout(() => div.remove(), 3000);
+      }
+      function fmt(ts) {
+        if (!ts) return "—";
+        return new Date(ts).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+      }
+      function fmtFull(ts) {
+        if (!ts) return "—";
+        return new Date(ts).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+      }
+
+      // ── Status / Stage config ──────────────────────────────────────────────
+      const STATUS_COLORS = {
+        "Pending":               "bg-slate-100 text-slate-700 border-slate-200",
+        "Assigned":              "bg-blue-50 text-blue-700 border-blue-100",
+        "In Progress":           "bg-amber-50 text-amber-700 border-amber-100",
+        "Awaiting Confirmation": "bg-purple-50 text-purple-700 border-purple-100",
+        "Completed":             "bg-teal-50 text-teal-700 border-teal-200",
+        "Cancelled":             "bg-rose-50 text-rose-700 border-rose-100",
+      };
+      const STATUS_CARD_STYLE = {
+        "Pending":               { bg: "bg-slate-50",   text: "text-slate-800",  num: "text-slate-900",  border: "border-slate-200"  },
+        "Assigned":              { bg: "bg-blue-50",    text: "text-blue-700",   num: "text-blue-900",   border: "border-blue-100"   },
+        "In Progress":           { bg: "bg-amber-50",   text: "text-amber-700",  num: "text-amber-900",  border: "border-amber-100"  },
+        "Awaiting Confirmation": { bg: "bg-purple-50",  text: "text-purple-700", num: "text-purple-900", border: "border-purple-100" },
+        "Completed":             { bg: "bg-teal-50",    text: "text-teal-700",   num: "text-teal-900",   border: "border-teal-100"   },
+        "Cancelled":             { bg: "bg-rose-50",    text: "text-rose-700",   num: "text-rose-900",   border: "border-rose-100"   },
+        "Total":                 { bg: "bg-white",      text: "text-slate-600",  num: "text-slate-900",  border: "border-slate-200"  },
+      };
+      const STAGES = ["Not Started","Vehicle Inspection","Device Assignment","Tracker Installation",
+                      "Sensor Installation","Device Testing","Customer Verification","Installation Complete"];
+
+      function statusBadge(s) {
+        const cls = STATUS_COLORS[s] || "bg-slate-100 text-slate-700 border-slate-200";
+        return `<span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${cls}">${s}</span>`;
+      }
+      function stageBadge(stage) {
+        const pct = Math.round((stage / 7) * 100);
+        const clr = stage === 7 ? "bg-teal-500" : stage >= 4 ? "bg-blue-500" : "bg-amber-400";
+        return `<div class="flex items-center gap-2 min-w-[120px]">
+          <div class="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+            <div class="${clr} h-full rounded-full" style="width:${pct}%"></div>
+          </div>
+          <span class="text-xs text-slate-500 whitespace-nowrap">${stage}/7</span>
+        </div>`;
+      }
+
+      // ── State ──────────────────────────────────────────────────────────────
+      let allData   = [];
+      let totalCount = 0;
+      let currentPage = 1;
+      const PAGE_SIZE = 30;
+      let filters = { search: "", status: "", stage: "", from: "", to: "" };
+
+      // ── Render Stats ───────────────────────────────────────────────────────
+      function renderStats(rows) {
+        const counts = { Total: rows.length };
+        ["Pending","Assigned","In Progress","Awaiting Confirmation","Completed","Cancelled"].forEach(s => {
+          counts[s] = rows.filter(r => r.status === s).length;
+        });
+        const statsRow = el("stats-row");
+        statsRow.innerHTML = ["Total","Pending","Assigned","In Progress","Awaiting Confirmation","Completed","Cancelled"]
+          .map(s => {
+            const st = STATUS_CARD_STYLE[s] || STATUS_CARD_STYLE["Total"];
+            return `<div class="${st.bg} ${st.border} border rounded-xl px-4 py-3 shadow-sm cursor-pointer hover:shadow-md transition"
+                         onclick="setStatusFilter('${s === 'Total' ? '' : s}')">
+              <div class="text-2xl font-bold ${st.num}">${counts[s] || 0}</div>
+              <div class="text-xs font-medium ${st.text} mt-0.5">${s}</div>
+            </div>`;
+          }).join("");
+      }
+
+      // Expose for onclick:
+      window.setStatusFilter = (status) => {
+        el("filter-status").value = status;
+        filters.status = status;
+        currentPage = 1;
+        renderTable();
+      };
+
+      // ── Render Stage Pipeline ──────────────────────────────────────────────
+      function renderPipeline(rows) {
+        const stageCounts = Array(8).fill(0);
+        rows.forEach(r => stageCounts[r.stage] = (stageCounts[r.stage] || 0) + 1);
+        const pipeline = el("stage-pipeline");
+        pipeline.innerHTML = STAGES.map((name, i) => {
+          const cnt = stageCounts[i] || 0;
+          const clr = i === 7 ? "teal" : i >= 4 ? "blue" : i >= 1 ? "amber" : "slate";
+          return `<div class="bg-${clr}-50 border border-${clr}-100 rounded-lg px-3 py-2.5 text-center">
+            <div class="text-xl font-bold text-${clr}-700">${cnt}</div>
+            <div class="text-xs text-${clr}-600 mt-0.5 leading-tight">${name}</div>
+          </div>`;
+        }).join("");
+      }
+
+      // ── Filter + Render Table ──────────────────────────────────────────────
+      function applyFilters(rows) {
+        let d = [...rows];
+        if (filters.status) d = d.filter(r => r.status === filters.status);
+        if (filters.stage !== "") d = d.filter(r => String(r.stage) === String(filters.stage));
+        if (filters.search) {
+          const q = filters.search.toLowerCase();
+          d = d.filter(r =>
+            (r.registration || "").toLowerCase().includes(q) ||
+            (r.customerName || "").toLowerCase().includes(q) ||
+            (r.assignedTechnicianEmail || "").toLowerCase().includes(q) ||
+            (r.technician?.name || "").toLowerCase().includes(q) ||
+            (r.ticketRef || "").toLowerCase().includes(q)
+          );
+        }
+        if (filters.from) d = d.filter(r => r.createdAt >= filters.from);
+        if (filters.to)   d = d.filter(r => r.createdAt <= filters.to + "T23:59:59");
+        return d;
+      }
+
+      function renderTable() {
+        const filtered = applyFilters(allData);
+        const total    = filtered.length;
+        const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+        currentPage = Math.min(currentPage, totalPages);
+        const slice  = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+        el("table-skeleton").classList.add("hidden");
+        el("table-error").classList.add("hidden");
+        el("table-meta").textContent = `${total.toLocaleString()} installation${total !== 1 ? "s" : ""}`;
+
+        const tbody = el("inst-tbody");
+        if (slice.length === 0) {
+          tbody.innerHTML = "";
+          el("table-empty").classList.remove("hidden");
+          el("pagination").classList.add("hidden");
+          return;
+        }
+        el("table-empty").classList.add("hidden");
+
+        tbody.innerHTML = slice.map(r => {
+          const techName = r.technician?.name || r.assignedTechnicianEmail || "—";
+          const canCert  = r.status === "Completed";
+          return `<tr class="hover:bg-slate-50/60 transition">
+            <td class="px-4 py-3 font-mono font-semibold text-slate-800 whitespace-nowrap">
+              <a href="vehicle-installation.html?id=${r.id}" class="hover:text-blue-600 hover:underline">${r.registration || "—"}</a>
+            </td>
+            <td class="px-4 py-3">
+              <div class="font-medium text-slate-800 text-sm">${r.customerName || "—"}</div>
+              <div class="text-xs text-slate-400">${r.accountNo || ""}</div>
+            </td>
+            <td class="px-4 py-3 text-slate-600">
+              ${r.vehicleMake || ""} ${r.vehicleModel || ""}
+              ${r.vehicleColor ? `<span class="text-xs text-slate-400">· ${r.vehicleColor}</span>` : ""}
+            </td>
+            <td class="px-4 py-3 text-slate-600 text-sm">${techName}</td>
+            <td class="px-4 py-3">${statusBadge(r.status)}</td>
+            <td class="px-4 py-3">${stageBadge(r.stage)}</td>
+            <td class="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">${fmt(r.createdAt)}</td>
+            <td class="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">${r.completedAt ? fmt(r.completedAt) : "—"}</td>
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <a href="vehicle-installation.html?id=${r.id}"
+                   class="text-blue-600 hover:underline text-xs font-medium whitespace-nowrap">View</a>
+                ${canCert
+                  ? `<a href="create-certificate.html?installationId=${r.id}&reg=${encodeURIComponent(r.registration||'')}"
+                       class="text-teal-600 hover:underline text-xs font-medium whitespace-nowrap">Certificate</a>`
+                  : ""}
+              </div>
+            </td>
+          </tr>`;
+        }).join("");
+
+        // Pagination
+        el("pagination").classList.remove("hidden");
+        el("page-info").textContent = `Page ${currentPage} of ${totalPages} · ${total.toLocaleString()} records`;
+        el("btn-prev").disabled = currentPage <= 1;
+        el("btn-next").disabled = currentPage >= totalPages;
+        // Page number buttons (show at most 7)
+        const pageNums = el("page-nums");
+        const range = [];
+        const delta = 3;
+        for (let i = Math.max(1, currentPage - delta); i <= Math.min(totalPages, currentPage + delta); i++) {
+          range.push(i);
+        }
+        pageNums.innerHTML = range.map(n =>
+          `<button type="button" onclick="goToPage(${n})"
+             class="rounded border px-2.5 py-1 text-xs ${n === currentPage
+               ? "bg-blue-600 text-white border-blue-600"
+               : "border-slate-200 text-slate-600 hover:bg-slate-50"}">${n}</button>`
+        ).join("");
+        el("pagination").style.display = "flex";
+      }
+
+      window.goToPage = (n) => { currentPage = n; renderTable(); };
+
+      // ── Load All Data ──────────────────────────────────────────────────────
+      async function loadAll() {
+        el("table-skeleton").classList.remove("hidden");
+        el("table-skeleton").textContent = "Loading installations…";
+        el("table-error").classList.add("hidden");
+        el("table-empty").classList.add("hidden");
+        el("inst-tbody").innerHTML = "";
+
+        try {
+          // Fetch up to 1000 to get pipeline stats + local filter
+          const r = await apiFetch("/vehicle-installations?pageSize=1000&page=1");
+          if (!r.ok) {
+            const j = await r.json();
+            throw new Error(j.error?.message || "Failed to load installations.");
+          }
+          const json = await r.json();
+          allData = (json.data?.data || json.data || []);
+
+          renderStats(allData);
+          renderPipeline(allData);
+          renderTable();
+        } catch (err) {
+          el("table-skeleton").classList.add("hidden");
+          el("table-error").classList.remove("hidden");
+          el("table-error").innerHTML = `<div class="rounded-lg bg-rose-50 border border-rose-200 px-4 py-3 text-sm text-rose-700 flex items-center justify-between">
+            <span>${err.message || "Failed to load."}</span>
+            <button onclick="loadAll()" class="text-rose-600 hover:underline font-medium">Retry</button>
+          </div>`;
+        }
+      }
+      window.loadAll = loadAll;
+
+      // ── Event Wiring ───────────────────────────────────────────────────────
+      el("btn-refresh")?.addEventListener("click", loadAll);
+      el("btn-apply-filter")?.addEventListener("click", () => {
+        filters.search = el("filter-search").value.trim();
+        filters.status = el("filter-status").value;
+        filters.stage  = el("filter-stage").value;
+        filters.from   = el("filter-from").value;
+        filters.to     = el("filter-to").value;
+        currentPage = 1;
+        renderTable();
+      });
+      el("btn-clear-filter")?.addEventListener("click", () => {
+        el("filter-search").value = "";
+        el("filter-status").value = "";
+        el("filter-stage").value  = "";
+        el("filter-from").value   = "";
+        el("filter-to").value     = "";
+        filters = { search: "", status: "", stage: "", from: "", to: "" };
+        currentPage = 1;
+        renderTable();
+      });
+      // Live search on Enter
+      el("filter-search")?.addEventListener("keydown", e => {
+        if (e.key === "Enter") el("btn-apply-filter").click();
+      });
+      el("btn-prev")?.addEventListener("click", () => { if (currentPage > 1) { currentPage--; renderTable(); } });
+      el("btn-next")?.addEventListener("click", () => {
+        const filtered = applyFilters(allData);
+        const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+        if (currentPage < totalPages) { currentPage++; renderTable(); }
+      });
+
+      // ── Boot ───────────────────────────────────────────────────────────────
+      await loadAll();
+    })();
+    </script>
+  </body>
+</html>

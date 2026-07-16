@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Raise Installation Ticket</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+    .fade-in{animation:fadeIn .25s ease;}
+    .badge{display:inline-flex;align-items:center;border-radius:9999px;padding:.15rem .6rem;font-size:.7rem;font-weight:600;border-width:1px;}
+    .badge-new{background:#f1f5f9;color:#334155;border-color:#e2e8f0;}
+    .badge-install{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe;}
+    .badge-high{background:#fff7ed;color:#c2410c;border-color:#fed7aa;}
+    .badge-critical{background:#fff1f2;color:#be123c;border-color:#fecdd3;}
+    .badge-normal{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+    .badge-low{background:#f1f5f9;color:#475569;border-color:#e2e8f0;}
+    .cx-low{background:#d1fae5;color:#065f46;border-color:#a7f3d0;}
+    .cx-med{background:#fef9c3;color:#713f12;border-color:#fde68a;}
+    .cx-high{background:#fee2e2;color:#991b1b;border-color:#fca5a5;}
+    .step{display:flex;align-items:flex-start;gap:.85rem;}
+    .step-dot{flex-shrink:0;width:1.75rem;height:1.75rem;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;}
+    .step-done .step-dot{background:#dcfce7;color:#15803d;}
+    .step-active .step-dot{background:#3b82f6;color:#fff;}
+    .step-pending .step-dot{background:#f1f5f9;color:#94a3b8;}
+    .input{width:100%;border-radius:.6rem;border:1px solid #e2e8f0;padding:.5rem .75rem;font-size:.875rem;background:#fff;transition:box-shadow .15s,border-color .15s;}
+    .input:focus{outline:none;border-color:#93c5fd;box-shadow:0 0 0 3px rgba(59,130,246,.12);}
+    .input:disabled{background:#f8fafc;color:#94a3b8;cursor:not-allowed;}
+    .btn-primary{display:inline-flex;align-items:center;gap:.5rem;border-radius:.6rem;background:#2563eb;padding:.55rem 1.25rem;font-size:.875rem;font-weight:600;color:#fff;transition:background .15s;cursor:pointer;}
+    .btn-primary:hover{background:#1d4ed8;}
+    .btn-primary:disabled{background:#93c5fd;cursor:not-allowed;}
+    .btn-secondary{display:inline-flex;align-items:center;gap:.5rem;border-radius:.6rem;border:1px solid #e2e8f0;background:#fff;padding:.5rem 1.1rem;font-size:.875rem;font-weight:600;color:#475569;transition:background .15s;}
+    .btn-secondary:hover{background:#f8fafc;}
+    .card{background:#fff;border:1px solid #e2e8f0;border-radius:1rem;padding:1.5rem;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+    .section-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:.4rem;}
+
+    /* Ticket print view */
+    .ticket-print-card{border:2px solid #3b82f6;border-radius:1.25rem;overflow:hidden;}
+    .ticket-header-bar{background:linear-gradient(90deg,#1e40af,#2563eb);padding:1.25rem 1.5rem;color:#fff;}
+    @media print {
+      .no-print{display:none!important;}
+      body{background:#fff!important;}
+      .ticket-print-card{border:2px solid #000;box-shadow:none;}
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-4 md:p-6 max-w-[1200px] mx-auto space-y-6">
+
+    <!-- Page Header -->
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <nav class="text-xs text-slate-400 mb-1">
+          <a href="technical.html#pipeline" class="hover:text-blue-600">Technical Operations</a>
+          <span class="mx-1">›</span>
+          <span class="text-slate-600">Raise Installation Ticket</span>
+        </nav>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Raise Installation Ticket</h1>
+        <p class="text-sm text-slate-500 mt-0.5">Creates a tracked installation job in the Technical pipeline.</p>
+      </div>
+      <div id="header-badge-row" class="flex items-center gap-2"></div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         INVOICE REFERENCE BANNER (pre-populated from URL)
+    ══════════════════════════════════════════════════════════ -->
+    <div id="invoice-banner" class="hidden card border-indigo-200 bg-indigo-50/60 fade-in">
+      <div class="flex flex-wrap items-center gap-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M7 3h10v12H7z"/><path d="M9 7h6"/><path d="M9 11h6"/><path d="M9 15l3 2 3-2v6l-3-2-3 2z"/></svg>
+          </div>
+          <div>
+            <p class="text-xs text-indigo-500 font-semibold uppercase tracking-wide">Linked Invoice</p>
+            <p id="banner-invoice-no" class="font-bold text-indigo-800 text-base"></p>
+          </div>
+        </div>
+        <div id="banner-invoice-meta" class="text-sm text-indigo-700 flex flex-wrap gap-x-3 gap-y-0.5 flex-1"></div>
+        <div class="flex gap-2">
+          <a id="banner-invoice-link" href="#" target="_blank" class="btn-secondary text-xs text-indigo-700 border-indigo-200 hover:bg-indigo-50">
+            Open Invoice →
+          </a>
+        </div>
+      </div>
+      <div id="banner-invoice-items-wrap" class="hidden mt-3 pt-3 border-t border-indigo-200">
+        <p class="text-xs text-indigo-500 font-semibold uppercase tracking-wide mb-1">Line Items</p>
+        <div id="banner-invoice-items" class="space-y-1"></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         FORM / CONFIRMATION (toggled)
+    ══════════════════════════════════════════════════════════ -->
+    <div id="form-view" class="grid gap-6 lg:grid-cols-3">
+
+      <!-- ── Left column: Customer + Vehicle ─────────────── -->
+      <div class="lg:col-span-1 space-y-4">
+
+        <!-- Customer card -->
+        <div class="card space-y-4">
+          <h2 class="font-semibold text-slate-900 text-sm">Customer Details</h2>
+          <div>
+            <label class="section-label">Name / Company</label>
+            <input id="f-customer-name" class="input" type="text" placeholder="Search customer…" autocomplete="off" />
+            <div id="f-cust-dropdown" class="hidden mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-52 overflow-y-auto text-sm z-50 relative"></div>
+            <input type="hidden" id="f-customer-id" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="section-label">Phone</label>
+              <input id="f-customer-phone" class="input" type="text" placeholder="07xxxxxxxx" />
+            </div>
+            <div>
+              <label class="section-label">Email</label>
+              <input id="f-customer-email" class="input" type="text" placeholder="email@…" />
+            </div>
+          </div>
+          <div>
+            <label class="section-label">Account No.</label>
+            <input id="f-customer-acct" class="input" readonly type="text" placeholder="Auto-filled" />
+          </div>
+          <div>
+            <label class="section-label">Location / Area</label>
+            <input id="f-location" class="input" type="text" placeholder="e.g. Nairobi CBD" />
+          </div>
+        </div>
+
+        <!-- Vehicle lookup -->
+        <div class="card space-y-4">
+          <h2 class="font-semibold text-slate-900 text-sm">Vehicle</h2>
+          <div>
+            <label class="section-label">Registration No. <span class="text-red-400 normal-case font-normal">*</span></label>
+            <!-- Single-car: plain input + lookup button -->
+            <div id="vehicle-input-row" class="flex gap-2">
+              <input id="f-reg" class="input" type="text" placeholder="e.g. KCA 123A" style="text-transform:uppercase" />
+              <button type="button" onclick="lookupVehicle()" class="btn-secondary text-xs shrink-0 px-3">Look up</button>
+            </div>
+            <!-- Multi-car: dropdown (hidden until customer has >1 vehicle) -->
+            <select id="f-reg-select" class="input hidden" onchange="onVehicleSelect(this.value)"></select>
+            <!-- Loading state -->
+            <p id="vehicle-loading" class="hidden text-xs text-slate-400 mt-1">Loading customer vehicles…</p>
+            <input type="hidden" id="f-vehicle-id" />
+          </div>
+          <div id="vehicle-info" class="hidden rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs space-y-1.5 fade-in">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+              <span class="font-semibold text-green-700">Vehicle found</span>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5 text-slate-600">
+              <div><span class="text-slate-400">Make:</span> <span id="vi-make"></span></div>
+              <div><span class="text-slate-400">Model:</span> <span id="vi-model"></span></div>
+              <div><span class="text-slate-400">Color:</span> <span id="vi-color"></span></div>
+              <div><span class="text-slate-400">Year:</span> <span id="vi-year"></span></div>
+            </div>
+            <div id="vi-complexity-wrap" class="mt-1"></div>
+          </div>
+          <div id="vehicle-not-found" class="hidden rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-700 fade-in">
+            <svg class="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+            Vehicle not found. You can still proceed — the record will be created manually.
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Right columns: Job details ──────────────────── -->
+      <div class="lg:col-span-2 space-y-4">
+        <div class="card space-y-4">
+          <h2 class="font-semibold text-slate-900 text-sm">Job Details</h2>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="section-label">Product / Service Category <span class="text-red-400">*</span></label>
+              <select id="f-category" class="input">
+                <option value="">— Select a category —</option>
+                <option>Vehicle Tracking</option>
+                <option>Cargo Tracking</option>
+                <option>Fuel Management</option>
+                <option>Dash Cameras</option>
+                <option>Anti Theft</option>
+              </select>
+            </div>
+            <div>
+              <label class="section-label">Priority</label>
+              <select id="f-priority" class="input">
+                <option value="Normal">Normal</option>
+                <option value="High">High</option>
+                <option value="Critical">Critical</option>
+                <option value="Low">Low</option>
+              </select>
+            </div>
+            <div>
+              <label class="section-label">Scheduled Date</label>
+              <input id="f-sched-date" class="input" type="date" />
+            </div>
+            <div>
+              <label class="section-label">Invoice / Reference No.</label>
+              <input id="f-invoice-ref" class="input" type="text" placeholder="e.g. INV-00123" />
+            </div>
+          </div>
+
+          <div>
+            <label class="section-label">Installation Notes</label>
+            <textarea id="f-notes" class="input resize-none" rows="4" placeholder="Any special instructions, vehicle condition notes, site access info…"></textarea>
+          </div>
+
+          <div>
+            <label class="section-label">CRM Support Ticket Ref <span class="text-slate-400 normal-case font-normal">(auto-generates if empty)</span></label>
+            <input id="f-crm-ticket-ref" class="input" type="text" readonly placeholder="e.g. TKT-00001" />
+          </div>
+        </div>
+
+        <!-- Sales info from retail lead (shown only when populated from a lead) -->
+        <div id="retail-lead-info" class="hidden card border-amber-100 bg-amber-50/40 space-y-4">
+          <h2 class="font-semibold text-slate-900 text-sm flex items-center gap-2">
+            <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z"/></svg>
+            Sales Information from Retail Lead
+          </h2>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="section-label">Installation Location</label>
+              <input id="f-install-location" class="input bg-white" type="text" placeholder="County / area" />
+            </div>
+            <div>
+              <label class="section-label">Installation Financer</label>
+              <input id="f-install-financer" class="input bg-white" type="text" placeholder="e.g. Bank Financed" readonly />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="section-label">Installation Contact Name</label>
+              <input id="f-install-contact-name" class="input bg-white" type="text" placeholder="Contact person" />
+            </div>
+            <div>
+              <label class="section-label">Installation Contact Phone</label>
+              <input id="f-install-contact-phone" class="input bg-white" type="text" placeholder="07xxxxxxxx" />
+            </div>
+          </div>
+
+          <div>
+            <label class="section-label">Sales Notes / Instructions</label>
+            <textarea id="f-sales-notes" class="input bg-white resize-none" rows="3" placeholder="Notes from the sales representative…" readonly></textarea>
+          </div>
+        </div>
+
+        <!-- Summary preview -->
+        <div class="card border-blue-100 bg-blue-50/40 space-y-3">
+          <h2 class="font-semibold text-slate-900 text-sm">Ticket Summary Preview</h2>
+          <div id="summary-preview" class="text-sm text-slate-600 grid grid-cols-2 gap-2">
+            <div class="text-slate-400 italic col-span-2">Fill in the form to see preview.</div>
+          </div>
+        </div>
+
+        <!-- Error / submit -->
+        <div id="form-error" class="hidden rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700"></div>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <a href="technical.html#pipeline" class="btn-secondary">← Cancel</a>
+          <button id="btn-submit" onclick="submitTicket()" class="btn-primary" disabled>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+            Raise Installation Ticket
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         CONFIRMATION VIEW (shown after submit)
+    ══════════════════════════════════════════════════════════ -->
+    <div id="confirm-view" class="hidden space-y-6 fade-in">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+          <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+        </div>
+        <div>
+          <h2 class="font-bold text-slate-900 text-lg">Installation Ticket Raised</h2>
+          <p class="text-sm text-slate-500">The ticket has been queued in the Technical pipeline.</p>
+        </div>
+        <div class="ml-auto flex gap-2 no-print">
+          <button onclick="window.print()" class="btn-secondary text-xs">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print
+          </button>
+          <a href="technical.html#pipeline" class="btn-primary text-xs">View in Pipeline →</a>
+        </div>
+      </div>
+
+      <!-- Ticket card (printable) -->
+      <div class="ticket-print-card">
+        <div class="ticket-header-bar">
+          <div class="flex items-center justify-between flex-wrap gap-3">
+            <div class="flex items-center gap-3">
+              <img src="assets/finemark-logo.svg" class="h-8 brightness-0 invert" alt="Finemark" />
+              <div class="w-px h-8 bg-blue-400/50"></div>
+              <div>
+                <p class="text-xs text-blue-200 uppercase tracking-wider font-semibold">Installation Ticket</p>
+                <p id="ct-ticket-id" class="font-mono font-bold text-xl text-white"></p>
+              </div>
+            </div>
+            <div class="text-right">
+              <span id="ct-status-badge" class="badge bg-blue-400/30 text-white border-blue-300/40">Pending</span>
+              <p class="text-xs text-blue-200 mt-1">Raised: <span id="ct-raised-date"></span></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-5 space-y-6">
+          <!-- Info grid -->
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div>
+              <p class="section-label">Customer</p>
+              <p id="ct-customer" class="font-semibold text-slate-900"></p>
+            </div>
+            <div>
+              <p class="section-label">Phone</p>
+              <p id="ct-phone" class="text-slate-700"></p>
+            </div>
+            <div>
+              <p class="section-label">Location</p>
+              <p id="ct-location" class="text-slate-700"></p>
+            </div>
+            <div>
+              <p class="section-label">Registration</p>
+              <p id="ct-reg" class="font-mono font-bold text-slate-900"></p>
+            </div>
+            <div>
+              <p class="section-label">Vehicle</p>
+              <p id="ct-vehicle" class="text-slate-700"></p>
+            </div>
+            <div>
+              <p class="section-label">Complexity</p>
+              <p id="ct-complexity"></p>
+            </div>
+            <div>
+              <p class="section-label">Category</p>
+              <p id="ct-category" class="font-semibold text-slate-900"></p>
+            </div>
+            <div>
+              <p class="section-label">Priority</p>
+              <p id="ct-priority"></p>
+            </div>
+            <div>
+              <p class="section-label">Scheduled</p>
+              <p id="ct-sched" class="text-slate-700"></p>
+            </div>
+          </div>
+
+          <!-- Invoice reference panel -->
+          <div id="ct-invoice-section" class="hidden rounded-xl bg-indigo-50 border border-indigo-200 p-4">
+            <p class="section-label text-indigo-500 mb-2">Linked Invoice / Reference</p>
+            <div class="flex items-center gap-4 flex-wrap">
+              <div>
+                <p id="ct-invoice-no" class="font-bold text-indigo-800 text-base"></p>
+                <a id="ct-invoice-link" href="#" target="_blank" class="text-xs text-indigo-600 hover:underline no-print">Open invoice →</a>
+              </div>
+              <div id="ct-invoice-meta" class="text-sm text-indigo-700"></div>
+            </div>
+          </div>
+
+          <!-- CRM Ticket ref -->
+          <div id="ct-crm-section" class="hidden rounded-xl bg-violet-50 border border-violet-200 p-4">
+            <p class="section-label text-violet-500 mb-1">CRM Support Ticket</p>
+            <p id="ct-crm-no" class="font-mono font-bold text-violet-800"></p>
+            <a id="ct-crm-link" href="#" class="text-xs text-violet-600 hover:underline no-print">View in CRM →</a>
+          </div>
+
+          <!-- Notes -->
+          <div id="ct-notes-section" class="hidden">
+            <p class="section-label mb-1">Installation Notes</p>
+            <p id="ct-notes" class="text-sm text-slate-700 whitespace-pre-wrap bg-slate-50 rounded-lg p-3 border border-slate-200"></p>
+          </div>
+
+          <!-- Footer strip -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs text-slate-400">
+            <span>Raised by: <span id="ct-raised-by" class="font-medium text-slate-600"></span></span>
+            <span>Finemark · Technical Operations</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div id="fm-footer"></div>
+
+<script src="assets/contracts.js"></script>
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => window.FINEMARK_APP?.requirePageAccess?.());
+
+  const APP   = window.FINEMARK_APP;
+  const api   = (path, opts={}) => APP.apiFetch(path, {method: opts.method||"GET", body: opts.body});
+  const user  = () => APP?.getSession?.()?.user || {};
+  const qs    = new URLSearchParams(location.search);
+  const $     = id => document.getElementById(id);
+
+  // ── Priority badge helper ──────────────────────────────────────────────────
+  function priBadge(p) {
+    const m={Critical:"badge-critical",High:"badge-high",Normal:"badge-normal",Low:"badge-low"};
+    return `<span class="badge ${m[p]||"badge-normal"}">${p||"Normal"}</span>`;
+  }
+
+  // ── Vehicle complexity ─────────────────────────────────────────────────────
+  const VC_MAP = {
+    Low: ["Saloon","Vitz","Corolla","Hatchback","Sedan","Premio"],
+    Medium: ["SUV","Pickup","Van","Hilux","Pajero","Land Cruiser","Fortuner"],
+    High: ["Truck","Actros","Bus","Lorry","Heavy","Fuso","NQR","FRR","Tanker"],
+  };
+  function vehicleComplexity(str) {
+    const s = (str||"").toUpperCase();
+    for(const [level,words] of Object.entries(VC_MAP)){
+      if(words.some(w=>s.includes(w.toUpperCase()))) return level;
+    }
+    return "Medium";
+  }
+  const CX_BADGE = {
+    Low: `<span class="badge cx-low">Low Complexity</span>`,
+    Medium: `<span class="badge cx-med">Medium Complexity</span>`,
+    High: `<span class="badge cx-high">High Complexity</span>`,
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // PRE-POPULATE FROM URL PARAMS
+  // ─────────────────────────────────────────────────────────────────────────────
+  const pCustomer    = qs.get("customer") || "";
+  const pCustomerId  = qs.get("customerId") || "";
+  const pInvoiceNo   = qs.get("invoiceNo") || "";
+  const pInvoiceId   = qs.get("invoiceId") || "";
+  const pPhone       = qs.get("phone") || "";
+  const pEmail       = qs.get("email") || "";
+  const pCrmTicketId = qs.get("crmTicketId") || "";
+  const pSubject     = qs.get("subject") || "";
+  const pTicketId    = qs.get("id") || "";        // existing installation ticket
+  const pRetailLeadId = qs.get("retailLeadId") || ""; // retail lead to pre-populate from
+
+  if (pCustomer)   $("f-customer-name").value = pCustomer;
+  if (pCustomerId) $("f-customer-id").value   = pCustomerId;
+  if (pPhone)      $("f-customer-phone").value = pPhone;
+  if (pEmail)      $("f-customer-email").value = pEmail;
+  if (pInvoiceNo)  $("f-invoice-ref").value    = pInvoiceNo;
+  // If customerId passed directly in URL, fetch details & vehicles
+  if (pCustomerId) initCustomerById(pCustomerId);
+
+  // Load existing installation ticket (e.g. from retail lead detail link)
+  if (pTicketId) loadExistingTicket(pTicketId);
+
+  // Load retail lead data to pre-populate form
+  if (pRetailLeadId && !pTicketId) loadRetailLead(pRetailLeadId);
+  // Header badge
+  $("header-badge-row").innerHTML =
+    `<span class="badge badge-install">Installation</span>` +
+    (user().role ? `<span class="badge badge-normal">${user().role}</span>` : "");
+
+  // Invoice banner
+  if (pInvoiceNo || pInvoiceId) {
+    $("banner-invoice-no").textContent = pInvoiceNo || pInvoiceId;
+    $("banner-invoice-link").href = pInvoiceId
+      ? `invoice-detail.html?id=${encodeURIComponent(pInvoiceId)}`
+      : `create-invoice.html?search=${encodeURIComponent(pInvoiceNo)}`;
+    $("invoice-banner").classList.remove("hidden");
+    if (pInvoiceId) {
+      fetchInvoiceDetails(pInvoiceId);
+    } else if (pInvoiceNo) {
+      // Only have invoice number — search for the ID, then fetch full details
+      api(`/invoices?search=${encodeURIComponent(pInvoiceNo)}&pageSize=1`)
+        .then(r => { const id = r?.data?.[0]?.id || r?.invoices?.[0]?.id; if (id) fetchInvoiceDetails(id); })
+        .catch(() => {});
+    }
+  }
+
+  // If came from CRM ticket, pre-fill subject and ticket ref
+  if (pSubject && !$("f-notes").value) {
+    $("f-notes").placeholder = pSubject;
+  }
+  if (pCrmTicketId) {
+    loadCrmTicket(pCrmTicketId);
+  }
+
+  // ── Fetch invoice details (full: invoice + CRM customer lookup) ─────────────
+  async function fetchInvoiceDetails(invoiceId) {
+    try {
+      const res   = await api(`/invoices/${invoiceId}`);
+      const inv   = res?.data?.invoice;
+      const items = res?.data?.items || [];
+      if (!inv) return;
+
+      // Invoice reference fields
+      $("banner-invoice-no").textContent = inv.invoiceNumber || pInvoiceNo;
+      $("f-invoice-ref").value           = inv.invoiceNumber || pInvoiceNo;
+      $("banner-invoice-link").href      = `invoice-detail.html?id=${encodeURIComponent(invoiceId)}`;
+
+      // Banner meta row
+      $("banner-invoice-meta").innerHTML = [
+        inv.customer    ? `<span><strong>Customer:</strong> ${inv.customer}</span>`                             : "",
+        inv.total       ? `<span><strong>Total:</strong> KES ${Number(inv.total).toLocaleString()}</span>`      : "",
+        inv.issuedOn    ? `<span><strong>Issued:</strong> ${inv.issuedOn.slice(0,10)}</span>`                   : "",
+        inv.dueOn       ? `<span><strong>Due:</strong> ${inv.dueOn.slice(0,10)}</span>`                         : "",
+        inv.status      ? `<span><strong>Status:</strong> ${inv.status}</span>`                                 : "",
+        inv.salesPerson ? `<span><strong>Sales:</strong> ${inv.salesPerson}</span>`                             : "",
+      ].filter(Boolean).join(" &nbsp;·&nbsp; ");
+
+      // Line items in banner
+      if (items.length) {
+        $("banner-invoice-items").innerHTML = items.map(it =>
+          `<div class="flex justify-between text-xs py-0.5">
+            <span class="text-indigo-800">${it.item || ""}${it.description ? " — " + it.description : ""}</span>
+            <span class="text-indigo-600 font-semibold ml-4">KES ${Number(it.amount||0).toLocaleString()}</span>
+          </div>`).join("");
+        $("banner-invoice-items-wrap").classList.remove("hidden");
+      }
+
+      // Auto-detect product category from first item
+      const CATS = ["Vehicle Tracking","Cargo Tracking","Fuel Management","Dash Cameras","Anti Theft"];
+      const firstItemText = (items[0]?.item || items[0]?.description || "").toLowerCase();
+      const detectedCat   = CATS.find(c => firstItemText.includes(c.toLowerCase().split(" ")[0]));
+      if (detectedCat && !$("f-category").value) $("f-category").value = detectedCat;
+
+      // Auto-fill notes from line items
+      if (!$("f-notes").value && items.length) {
+        const noteLines = items.map(it =>
+          `• ${it.item || "Service"}${it.description ? ": " + it.description : ""} (Qty: ${it.qty || 1}, KES ${Number(it.amount||0).toLocaleString()})`);
+        noteLines.push(`\nInvoice: ${inv.invoiceNumber} | Total: KES ${Number(inv.total||0).toLocaleString()}`);
+        if (inv.salesPerson) noteLines.push(`Sales Rep: ${inv.salesPerson}`);
+        $("f-notes").value = noteLines.join("\n");
+      }
+
+      // CRM customer lookup by invoice customer name → get phone/email/accountNo/id
+      const custName = inv.customer || pCustomer;
+      if (custName && !$("f-customer-id").value) {
+        // No customer id yet — search by name and load everything
+        try {
+          const cr   = await api(`/crm/customers?search=${encodeURIComponent(custName)}&pageSize=3`);
+          const cust = cr?.data?.[0];
+          if (cust) {
+            $("f-customer-id").value   = cust.id;
+            $("f-customer-name").value = cust.displayName || custName;
+            $("f-customer-acct").value = cust.accountNo   || "";
+            initCustomerById(cust.id);  // fetch decrypted phone/email + load vehicles
+          } else {
+            if (!$("f-customer-name").value) $("f-customer-name").value = custName;
+          }
+        } catch { if (!$("f-customer-name").value) $("f-customer-name").value = custName; }
+      } else {
+        // Customer id already set from URL — just backfill name from invoice if missing
+        if (custName && !$("f-customer-name").value) $("f-customer-name").value = custName;
+      }
+
+      $("invoice-banner").classList.remove("hidden");
+      updatePreview();
+      validateForm();
+    } catch { /* silently ignore — banner already shows static data */ }
+  }
+
+  // ── Fetch a single customer by id → populate form fields + load vehicles ─────
+  // Uses the /:id/360 endpoint which returns decrypted profile + vehicles in one call
+  async function initCustomerById(customerId) {
+    if (!customerId) return;
+    try {
+      const res = await api(`/crm/customers/${encodeURIComponent(customerId)}/360`);
+      // 360 response: { customer, profile, contacts, vehicles, ... }
+      const cust    = res?.customer  || res?.data?.customer;
+      const profile = res?.profile   || res?.data?.profile;
+      const vehicles = res?.vehicles || res?.data?.vehicles || [];
+
+      if (cust) {
+        const name = cust.displayName || profile?.fullName || profile?.companyName || "";
+        if (!$("f-customer-name").value && name) $("f-customer-name").value = name;
+        if (!$("f-customer-acct").value) $("f-customer-acct").value = cust.accountNo || "";
+      }
+      if (profile) {
+        const phone = profile.phone || "";
+        const email = profile.email || "";
+        if (phone && phone !== "—" && !$("f-customer-phone").value) $("f-customer-phone").value = phone;
+        if (email && email !== "—" && !$("f-customer-email").value) $("f-customer-email").value = email;
+      }
+      // Also try primary contact phone/email as fallback
+      const contacts = res?.contacts || res?.data?.contacts || [];
+      if (contacts.length) {
+        const primary = contacts.find(c => c.isPrimary) || contacts[0];
+        if (primary?.phone && primary.phone !== "—" && !$("f-customer-phone").value)
+          $("f-customer-phone").value = primary.phone;
+        if (primary?.email && primary.email !== "—" && !$("f-customer-email").value)
+          $("f-customer-email").value = primary.email;
+      }
+      updatePreview(); validateForm();
+
+      // Pre-populate vehicles from the 360 response (no extra API call needed)
+      if (vehicles.length === 1) {
+        const v = vehicles[0];
+        const reg = (v.registration || v.registrationNumber || "").toUpperCase();
+        $("f-vehicle-id").value = v.id || "";
+        $("f-reg").value = reg;
+        $("vehicle-input-row").classList.remove("hidden");
+        $("f-reg-select").classList.add("hidden");
+        await lookupVehicle();
+      } else if (vehicles.length > 1) {
+        $("vehicle-input-row").classList.add("hidden");
+        $("f-reg-select").classList.remove("hidden");
+        $("vehicle-info").classList.add("hidden");
+        $("vehicle-not-found").classList.add("hidden");
+        $("f-reg-select").innerHTML =
+          `<option value="">— Select vehicle —</option>` +
+          vehicles.map(v => {
+            const reg   = (v.registration || v.registrationNumber || "").toUpperCase();
+            const label = [reg, v.make, v.model, v.color].filter(Boolean).join(" · ");
+            return `<option value="${reg}" data-id="${v.id}">${label}</option>`;
+          }).join("");
+      }
+    } catch (err) {
+      console.error("[initCustomerById] failed:", err);
+      // Fall back: just load vehicles without details
+      loadCustomerVehicles(customerId);
+    }
+  }
+
+  // ── Load vehicles for a known customer ─────────────────────────────────────
+  async function loadCustomerVehicles(customerId) {
+    if (!customerId) return;
+    $('vehicle-loading').classList.remove('hidden');
+    try {
+      const res = await api(`/crm/customers/${encodeURIComponent(customerId)}/vehicles`);
+      const vehicles = res.data || res.vehicles || res || [];
+      $('vehicle-loading').classList.add('hidden');
+      if (!vehicles.length) return;
+
+      if (vehicles.length === 1) {
+        // Single vehicle — auto-fill and trigger lookup
+        const v = vehicles[0];
+        $('f-reg').value = (v.registration || v.registrationNumber || v.registration_number || '').toUpperCase();
+        $('vehicle-input-row').classList.remove('hidden');
+        $('f-reg-select').classList.add('hidden');
+        await lookupVehicle();
+      } else {
+        // Multiple vehicles — show dropdown
+        $('vehicle-input-row').classList.add('hidden');
+        $('f-reg-select').classList.remove('hidden');
+        $('vehicle-info').classList.add('hidden');
+        $('vehicle-not-found').classList.add('hidden');
+        $('f-reg-select').innerHTML =
+          `<option value="">— Select vehicle —</option>` +
+          vehicles.map(v => {
+            const reg   = (v.registration || v.registrationNumber || v.registration_number || '').toUpperCase();
+            const label = [reg, v.make, v.model, v.color].filter(Boolean).join(' · ');
+            return `<option value="${reg}" data-id="${v.id}">${label}</option>`;
+          }).join('');
+      }
+    } catch (err) {
+      $('vehicle-loading').classList.add('hidden');
+      console.error('[vehicles] load failed:', err);
+    }
+  }
+
+  // Called when the multi-car dropdown changes
+  window.onVehicleSelect = async function(reg) {
+    if (!reg) {
+      $('vehicle-info').classList.add('hidden');
+      $('f-vehicle-id').value = '';
+      _vehicleData = null;
+      updatePreview(); validateForm();
+      return;
+    }
+    // Find matching option to get vehicle id
+    const opt = $('f-reg-select').querySelector(`option[value="${reg}"]`);
+    if (opt?.dataset.id) $('f-vehicle-id').value = opt.dataset.id;
+    $('f-reg').value = reg;
+    await lookupVehicle();
+  };
+
+  // ── Load an existing installation ticket (opened via ?id=) ────────────────
+  async function loadExistingTicket(ticketId) {
+    try {
+      const res = await api(`/installation-tickets/${ticketId}`);
+      const t = res?.data || res;
+      if (!t) return;
+
+      // Customer
+      if (t.customerId)   { $("f-customer-id").value = t.customerId; }
+      if (t.customerName) { $("f-customer-name").value = t.customerName; }
+      if (t.customerId)   { initCustomerById(t.customerId); }
+
+      // Vehicle
+      if (t.vehicleRegistration) {
+        $("f-reg").value = t.vehicleRegistration.toUpperCase();
+        $("vehicle-input-row").classList.remove("hidden");
+        $("f-reg-select").classList.add("hidden");
+        await lookupVehicle();
+      }
+      if (t.vehicleId) $("f-vehicle-id").value = t.vehicleId;
+
+      // Notes / CRM ref
+      if (t.notes) $("f-notes").value = t.notes;
+      if (t.crmTicketId) $("f-crm-ticket-ref").value = t.crmTicketId;
+
+      // Retail lead sales info
+      const hasSalesInfo = t.installationLocation || t.installationContactName ||
+                           t.installationContactPhone || t.salesNotes || t.installationFinancer;
+      if (hasSalesInfo) {
+        $("retail-lead-info").classList.remove("hidden");
+        if (t.installationLocation)    $("f-install-location").value      = t.installationLocation;
+        if (t.installationFinancer)    $("f-install-financer").value      = t.installationFinancer;
+        if (t.installationContactName) $("f-install-contact-name").value  = t.installationContactName;
+        if (t.installationContactPhone)$("f-install-contact-phone").value = t.installationContactPhone;
+        if (t.salesNotes)              $("f-sales-notes").value           = t.salesNotes;
+      }
+
+      // Also load retail lead for any additional phone/location data
+      if (t.retailLeadId) loadRetailLead(t.retailLeadId, /* skipCustomer */ true);
+
+      updatePreview(); validateForm();
+    } catch (err) {
+      console.error("[loadExistingTicket] failed:", err);
+    }
+  }
+
+  // ── Load retail lead to pre-populate form ──────────────────────────────────
+  async function loadRetailLead(leadId, skipCustomer = false) {
+    try {
+      const res  = await api(`/retail/leads/${leadId}`);
+      const lead = res?.lead || res?.data?.lead || res?.data || res;
+      if (!lead) return;
+
+      if (!skipCustomer) {
+        if (lead.customerId && !$("f-customer-id").value)    $("f-customer-id").value = lead.customerId;
+        if (lead.customerName && !$("f-customer-name").value) $("f-customer-name").value = lead.customerName;
+        if (lead.customerPhone && !$("f-customer-phone").value) $("f-customer-phone").value = lead.customerPhone;
+        if (lead.customerId) initCustomerById(lead.customerId);
+      }
+
+      // Location from lead
+      if (lead.customerLocation && !$("f-location").value) {
+        $("f-location").value = lead.customerLocation;
+      }
+
+      // Show the retail lead info section
+      const loc = [lead.installationCounty, lead.locationDescription].filter(Boolean).join(" — ");
+      const hasSalesInfo = loc || lead.installationContactName || lead.installationContactPhone ||
+                           lead.customerNotes || lead.installationFinancer;
+      if (hasSalesInfo) {
+        $("retail-lead-info").classList.remove("hidden");
+        if (loc && !$("f-install-location").value)               $("f-install-location").value      = loc;
+        if (lead.installationFinancer && !$("f-install-financer").value) $("f-install-financer").value = lead.installationFinancer;
+        if (lead.installationContactName  && !$("f-install-contact-name").value)  $("f-install-contact-name").value  = lead.installationContactName;
+        if (lead.installationContactPhone && !$("f-install-contact-phone").value) $("f-install-contact-phone").value = lead.installationContactPhone;
+        if (lead.customerNotes && !$("f-sales-notes").value)     $("f-sales-notes").value           = lead.customerNotes;
+      }
+
+      // Vehicle from lead
+      const v = lead.vehicle;
+      if (v && !$("f-reg").value) {
+        const reg = (v.registration || v.chassisNo || "").toUpperCase();
+        if (reg) {
+          $("f-reg").value = reg;
+          $("vehicle-input-row").classList.remove("hidden");
+          $("f-reg-select").classList.add("hidden");
+          await lookupVehicle();
+        }
+        if (v.vehicleId) $("f-vehicle-id").value = v.vehicleId;
+      }
+
+      updatePreview(); validateForm();
+    } catch (err) {
+      console.error("[loadRetailLead] failed:", err);
+    }
+  }
+
+  // ── Load CRM ticket to prefill fields ─────────────────────────────────────
+  async function loadCrmTicket(ticketId) {
+    try {
+      const res = await api(`/crm/tickets/${ticketId}`);
+      const t = res.ticket || res;
+      if (t.ticketNo) $("f-crm-ticket-ref").value = t.ticketNo;
+      if (t.customerName && !pCustomer) $("f-customer-name").value = t.customerName;
+      if (t.customerId && !pCustomerId) $("f-customer-id").value = t.customerId;
+      const m = (t.description || t.subject || "").match(/INV-\d+/)?.[0];
+      if (m && !pInvoiceNo) { $("f-invoice-ref").value = m; $("banner-invoice-no").textContent = m; $("invoice-banner").classList.remove("hidden"); }
+    } catch { /* silently ignore */ }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // CUSTOMER SEARCH
+  // ─────────────────────────────────────────────────────────────────────────────
+  let _custTimer;
+  $("f-customer-name").addEventListener("input", e => {
+    clearTimeout(_custTimer);
+    const q = e.target.value.trim();
+    if (q.length < 2) { $("f-cust-dropdown").classList.add("hidden"); return; }
+    _custTimer = setTimeout(async () => {
+      try {
+        const r = await api(`/crm/customers?search=${encodeURIComponent(q)}&pageSize=8`);
+        const dd = $("f-cust-dropdown");
+        if (!r.data?.length) { dd.classList.add("hidden"); return; }
+        dd.innerHTML = r.data.map(c=>`
+          <div class="px-3 py-2 hover:bg-blue-50 cursor-pointer flex items-center justify-between"
+               data-id="${c.id}" data-name="${c.displayName||c.accountNo||""}" data-acct="${c.accountNo||""}" data-phone="${c.phone||""}" data-email="${c.email||""}">
+            <span class="font-medium text-slate-800">${c.displayName||"(no name)"}</span>
+            <span class="text-xs text-slate-400">${c.accountNo||""}</span>
+          </div>`).join("");
+        dd.classList.remove("hidden");
+        dd.querySelectorAll("[data-id]").forEach(el => el.addEventListener("click", () => {
+          $("f-customer-id").value   = el.dataset.id;
+          $("f-customer-name").value = el.dataset.name;
+          $("f-customer-acct").value = el.dataset.acct;
+          if (el.dataset.phone) $("f-customer-phone").value = el.dataset.phone;
+          if (el.dataset.email) $("f-customer-email").value = el.dataset.email;
+          dd.classList.add("hidden");          loadCustomerVehicles(el.dataset.id);          updatePreview(); validateForm();
+        }));
+      } catch {}
+    }, 300);
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // VEHICLE LOOKUP
+  // ─────────────────────────────────────────────────────────────────────────────
+  let _vehicleData = null;
+  async function lookupVehicle() {
+    const reg = $("f-reg").value.trim().toUpperCase().replace(/\s+/g," ");
+    if (!reg) return;
+    $("vehicle-info").classList.add("hidden");
+    $("vehicle-not-found").classList.add("hidden");
+    try {
+      const r = await api(`/crm/customers/vehicles/lookup?registration=${encodeURIComponent(reg)}`);
+      if (r?.found && r.vehicle) {
+        _vehicleData = r.vehicle;
+        $("f-vehicle-id").value = r.vehicle.id;
+        $("vi-make").textContent  = r.vehicle.make  || "—";
+        $("vi-model").textContent = r.vehicle.model || "—";
+        $("vi-color").textContent = r.vehicle.color || "—";
+        $("vi-year").textContent  = r.vehicle.yearOfManufacture || "—";
+        const cx = vehicleComplexity(`${r.vehicle.make} ${r.vehicle.model}`);
+        $("vi-complexity-wrap").innerHTML = CX_BADGE[cx] || "";
+        $("vehicle-info").classList.remove("hidden");
+        // Auto-fill customer if vehicle lookup gave us customer info
+        if (r.customerId && !$("f-customer-id").value) {
+          $("f-customer-id").value = r.customerId;
+          $("f-customer-name").value = r.customerName || r.fullName || $("f-customer-name").value;
+          $("f-customer-acct").value = r.accountNo || "";
+        }
+      } else {
+        _vehicleData = null;
+        $("vehicle-not-found").classList.remove("hidden");
+      }
+    } catch {
+      _vehicleData = null;
+      $("vehicle-not-found").classList.remove("hidden");
+    }
+    updatePreview(); validateForm();
+  }
+
+  $("f-reg").addEventListener("keydown", e => { if (e.key === "Enter") lookupVehicle(); });
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // LIVE PREVIEW & VALIDATION
+  // ─────────────────────────────────────────────────────────────────────────────
+  ["f-category","f-priority","f-sched-date","f-notes","f-invoice-ref","f-location","f-customer-phone","f-customer-email"].forEach(id => {
+    $(id).addEventListener("change", () => { updatePreview(); validateForm(); });
+    $(id).addEventListener("input",  () => { updatePreview(); validateForm(); });
+  });
+
+  function updatePreview() {
+    const customer = $("f-customer-name").value || "—";
+    const phone    = $("f-customer-phone").value || "—";
+    const email    = $("f-customer-email").value || "—";
+    const reg      = $("f-reg").value.toUpperCase() || "—";
+    const catEl    = $("f-category");
+    const cat      = catEl.options[catEl.selectedIndex]?.text || catEl.value || "—";
+    const pri      = $("f-priority").value || "Normal";
+    const sched    = $("f-sched-date").value || "Not set";
+    const invRef   = $("f-invoice-ref").value || "—";
+    const cx       = _vehicleData ? vehicleComplexity(`${_vehicleData.make} ${_vehicleData.model}`) : "—";
+    $("summary-preview").innerHTML = `
+      <div><p class="text-xs text-slate-400">Customer</p><p class="font-semibold text-slate-800">${customer}</p></div>
+      <div><p class="text-xs text-slate-400">Registration</p><p class="font-mono font-bold text-slate-900">${reg}</p></div>
+      <div><p class="text-xs text-slate-400">Phone</p><p class="text-slate-700">${phone}</p></div>
+      <div><p class="text-xs text-slate-400">Email</p><p class="text-slate-700 break-all">${email}</p></div>
+      <div><p class="text-xs text-slate-400">Category</p><p class="font-semibold text-slate-800">${cat}</p></div>
+      <div><p class="text-xs text-slate-400">Priority</p><p>${priBadge(pri)}</p></div>
+      <div><p class="text-xs text-slate-400">Scheduled</p><p class="text-slate-700">${sched}</p></div>
+      <div><p class="text-xs text-slate-400">Invoice Ref</p><p class="text-slate-700">${invRef}</p></div>
+      ${cx !== "—" ? `<div><p class="text-xs text-slate-400">Complexity</p><p>${CX_BADGE[cx]||cx}</p></div>` : ""}
+    `;
+  }
+
+  function validateForm() {
+    const ok = ($('f-customer-id').value || $('f-customer-name').value.trim()) && $('f-reg').value.trim() && $('f-category').value;
+    $("btn-submit").disabled = !ok;
+  }
+
+  // Run once on load
+  updatePreview();
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // SUBMIT
+  // ─────────────────────────────────────────────────────────────────────────────
+  async function submitTicket() {
+    const customerId = $("f-customer-id").value;
+    const vehicleId  = $("f-vehicle-id").value;
+    const reg        = $("f-reg").value.trim().toUpperCase();
+    const category   = $("f-category").value;
+    const priority   = $("f-priority").value;
+    const notes      = $("f-notes").value.trim();
+    const invoiceRef = $("f-invoice-ref").value.trim();
+    const schedDate  = $("f-sched-date").value;
+
+    if (!customerId) { showErr("Please select a customer from the dropdown."); return; }
+    if (!reg)        { showErr("Vehicle registration is required."); return; }
+    if (!category)   { showErr("Please select a product/service category."); return; }
+    hideErr();
+
+    const btn = $("btn-submit");
+    btn.disabled = true; btn.textContent = "Raising ticket…";
+
+    let installId  = null;
+    let crmTicketNo = null;
+
+    // Build ticket reference string
+    const ticketRef = invoiceRef || pCrmTicketId || `JOB-${Date.now().toString(36).toUpperCase()}`;
+
+    try {
+      // 1. Create vehicle-installation record
+      if (vehicleId && customerId) {
+        try {
+          const r = await api("/vehicle-installations", {
+            method: "POST",
+            body: { vehicleId, customerId, ticketRef }
+          });
+          installId = r?.id || r?.data?.id || r?.installationId;
+        } catch (e) {
+          // If conflict (already exists) or vehicle not in DB yet, continue
+          console.warn("Installation create:", e?.message || e);
+        }
+      }
+
+      // 2. Create CRM ticket of category "Installation"
+      let crmTicketId = pCrmTicketId || null;
+      if (!crmTicketId) {
+        try {
+          const subject = [
+            category, "Installation",
+            reg ? `— ${reg}` : "",
+            invoiceRef ? `(${invoiceRef})`: "",
+          ].filter(Boolean).join(" ");
+          const description = [
+            notes,
+            invoiceRef ? `Invoice Ref: ${invoiceRef}` : "",
+            schedDate   ? `Scheduled: ${schedDate}` : "",
+          ].filter(Boolean).join("\n");
+          const tr = await api("/crm/tickets", {
+            method: "POST",
+            body: { customerId, subject, description: description || null, category: "Installation", priority }
+          });
+          crmTicketId  = tr?.id || tr?.data?.id;
+          crmTicketNo  = tr?.ticketNo || tr?.data?.ticketNo;
+        } catch {}
+      }
+
+      // 3. Create installation_ticket record (links invoice → job)
+      let installTicketId  = null;
+      let installTicketNo  = null;
+      {
+        const devices = [];
+        try {
+          // Collect items from invoice banner if available
+          document.querySelectorAll("#banner-invoice-items div").forEach(row => {
+            const text = row.querySelector("span:first-child")?.textContent || "";
+            if (text) devices.push({ item: text });
+          });
+        } catch {}
+        try {
+          const itRes = await api("/installation-tickets", {
+            method: "POST",
+            body: {
+              invoiceId:           pInvoiceId || null,
+              customerId:          customerId || null,
+              customerName:        $("f-customer-name").value || null,
+              vehicleId:           vehicleId || null,
+              vehicleRegistration: reg || null,
+              notes:               notes || null,
+              devices,
+              crmTicketId:         crmTicketId || null,
+            }
+          });
+          installTicketId = itRes?.data?.id;
+          installTicketNo = itRes?.data?.ticketNo;
+        } catch (e) {
+          console.warn("installation-tickets create:", e?.message);
+        }
+      }
+
+      // ── Build confirmation card ──────────────────────────────────────────
+      const now = new Date();
+      const displayId = installId
+        ? installId.slice(0,8).toUpperCase()
+        : `INST-${now.getTime().toString(36).toUpperCase()}`;
+
+      $("ct-ticket-id").textContent  = displayId;
+      $("ct-raised-date").textContent = now.toISOString().slice(0,10);
+      $("ct-customer").textContent   = $("f-customer-name").value || "—";
+      $("ct-phone").textContent      = $("f-customer-phone").value || "—";
+      $("ct-location").textContent   = $("f-location").value || "—";
+      $("ct-reg").textContent        = reg;
+      $("ct-vehicle").textContent    = _vehicleData
+        ? `${_vehicleData.make||""} ${_vehicleData.model||""} ${_vehicleData.color||""}`.trim()
+        : "—";
+      const cx = _vehicleData ? vehicleComplexity(`${_vehicleData.make} ${_vehicleData.model}`) : null;
+      $("ct-complexity").innerHTML   = cx ? (CX_BADGE[cx]||cx) : "—";
+      $("ct-category").textContent   = category;
+      $("ct-priority").innerHTML     = priBadge(priority);
+      $("ct-sched").textContent      = schedDate || "Not scheduled";
+      $("ct-raised-by").textContent  = user().email || "You";
+
+      // Invoice section
+      if (invoiceRef) {
+        $("ct-invoice-no").textContent = invoiceRef;
+        $("ct-invoice-link").href = pInvoiceId
+          ? `invoice-detail.html?id=${encodeURIComponent(pInvoiceId)}`
+          : `create-invoice.html?search=${encodeURIComponent(invoiceRef)}`;
+        $("ct-invoice-meta").textContent = [
+          $("f-customer-name").value ? `Customer: ${$("f-customer-name").value}` : "",
+        ].filter(Boolean).join("  ·  ");
+        $("ct-invoice-section").classList.remove("hidden");
+      }
+
+      // CRM ticket section
+      if (crmTicketNo) {
+        $("ct-crm-no").textContent = crmTicketNo;
+        $("ct-crm-link").href = `crm-tickets.html`;
+        $("ct-crm-section").classList.remove("hidden");
+      }
+
+      // Notes
+      if (notes) {
+        $("ct-notes").textContent = notes;
+        $("ct-notes-section").classList.remove("hidden");
+      }
+
+      // Show confirmation, hide form
+      $("form-view").classList.add("hidden");
+      $("confirm-view").classList.remove("hidden");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+
+    } catch (err) {
+      showErr(err?.message || "Failed to raise ticket. Please try again.");
+      btn.disabled = false;
+      btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg> Raise Installation Ticket`;
+    }
+  }
+
+  function showErr(msg) { const el=$("form-error"); el.textContent=msg; el.classList.remove("hidden"); }
+  function hideErr()    { $("form-error").classList.add("hidden"); }
+</script>
+</body>
+</html>

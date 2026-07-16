@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Warranty &amp; Defects</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+    <div class="max-w-7xl mx-auto space-y-6">
+
+      <!-- Page header -->
+      <div class="flex flex-wrap items-center gap-3 justify-between">
+        <div>
+          <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Warranty &amp; Defects</h1>
+          <p class="text-sm text-slate-500">Track inbound customer defect claims and outbound supplier warranty claims.</p>
+        </div>
+        <button id="btn-new-ticket" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700">+ Open Ticket</button>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
+          <p class="text-xs text-slate-500">Open (Inbound)</p><p id="stat-open-in" class="text-2xl font-bold text-amber-500">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
+          <p class="text-xs text-slate-500">Open (Outbound)</p><p id="stat-open-out" class="text-2xl font-bold text-purple-600">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
+          <p class="text-xs text-slate-500">Resolved</p><p id="stat-resolved" class="text-2xl font-bold text-green-600">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
+          <p class="text-xs text-slate-500">Supplier Claims</p><p id="stat-claims" class="text-2xl font-bold text-slate-700">—</p>
+        </div>
+      </div>
+
+      <!-- ── Technician Defect Reports (Device Custody) ──────────────────── -->
+      <div class="bg-white rounded-xl border border-red-200 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-red-100">
+          <h2 class="font-semibold text-slate-800 flex items-center gap-2">
+            <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+            Technician Defect Reports
+          </h2>
+          <div class="flex gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 text-xs">
+            <button class="dr-filter px-3 py-1 rounded-md bg-white shadow-sm font-semibold" data-status="">All</button>
+            <button class="dr-filter px-3 py-1 rounded-md font-medium text-slate-600" data-status="Reported">Reported</button>
+            <button class="dr-filter px-3 py-1 rounded-md font-medium text-slate-600" data-status="UnderTest">Under Test</button>
+            <button class="dr-filter px-3 py-1 rounded-md font-medium text-slate-600" data-status="Cleared">Cleared</button>
+            <button class="dr-filter px-3 py-1 rounded-md font-medium text-slate-600" data-status="Confirmed">Confirmed</button>
+            <button class="dr-filter px-3 py-1 rounded-md font-medium text-slate-600" data-status="SupplierReturn">Supplier Return</button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Device Serial</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Reported By</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Description</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Photo</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Status</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Reported At</th>
+                <th class="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody id="defect-reports-body"><tr><td colspan="7" class="text-center py-8 text-slate-400">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Supplier Return Tickets ─────────────────────────────────────── -->
+      <div class="bg-white rounded-xl border border-purple-200 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-purple-100">
+          <h2 class="font-semibold text-slate-800 flex items-center gap-2">
+            <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V11"/></svg>
+            Supplier Return Tickets
+          </h2>
+          <div class="flex gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 text-xs">
+            <button class="srt-filter px-3 py-1 rounded-md bg-white shadow-sm font-semibold" data-status="">All</button>
+            <button class="srt-filter px-3 py-1 rounded-md font-medium text-slate-600" data-status="Open">Open</button>
+            <button class="srt-filter px-3 py-1 rounded-md font-medium text-slate-600" data-status="Sent">Sent</button>
+            <button class="srt-filter px-3 py-1 rounded-md font-medium text-slate-600" data-status="Acknowledged">Acknowledged</button>
+            <button class="srt-filter px-3 py-1 rounded-md font-medium text-slate-600" data-status="Closed">Closed</button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Ticket Ref</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Device Serial</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Supplier</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Status</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Opened</th>
+                <th class="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody id="supplier-returns-body"><tr><td colspan="6" class="text-center py-8 text-slate-400">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Direction + status filters -->
+      <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm">
+        <div class="px-6 py-4 border-b border-slate-100 flex flex-wrap gap-4 items-center">
+          <div class="flex gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 text-xs">
+            <button class="dir-btn px-3 py-1.5 rounded-md bg-white shadow-sm font-semibold" data-dir="">All</button>
+            <button class="dir-btn px-3 py-1.5 rounded-md font-medium text-slate-600" data-dir="Inbound">Inbound (Customer)</button>
+            <button class="dir-btn px-3 py-1.5 rounded-md font-medium text-slate-600" data-dir="Outbound">Outbound (Supplier)</button>
+          </div>
+          <div class="flex gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 text-xs">
+            <button class="st-btn px-3 py-1.5 rounded-md bg-white shadow-sm font-semibold" data-st="">All Status</button>
+            <button class="st-btn px-3 py-1.5 rounded-md font-medium text-slate-600" data-st="Open">Open</button>
+            <button class="st-btn px-3 py-1.5 rounded-md font-medium text-slate-600" data-st="Defect Confirmed">Defect Confirmed</button>
+            <button class="st-btn px-3 py-1.5 rounded-md font-medium text-slate-600" data-st="Supplier Claim Raised">Supplier Claim</button>
+            <button class="st-btn px-3 py-1.5 rounded-md font-medium text-slate-600" data-st="Resolved">Resolved</button>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Ticket No</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Device</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Direction</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Issue</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Status</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Opened</th>
+                <th class="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody id="warranty-body"><tr><td colspan="7" class="text-center py-8 text-slate-400">Loading…</td></tr></tbody>
+          </table>
+        </div>
+        <div class="flex items-center justify-between px-4 py-3 border-t border-slate-100">
+          <span id="pagination-info" class="text-xs text-slate-400"></span>
+          <div class="flex gap-2">
+            <button id="btn-prev" class="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium hover:bg-slate-50">Prev</button>
+            <button id="btn-next" class="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium hover:bg-slate-50">Next</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- Defect Report Action Modal -->
+<div id="modal-defect-action" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md">
+    <div class="flex items-center justify-between px-6 py-4 border-b">
+      <h2 class="text-lg font-semibold" id="defect-action-title">Defect Report Action</h2>
+      <button onclick="document.getElementById('modal-defect-action').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <input type="hidden" id="defect-action-report-id" />
+      <div id="defect-action-info" class="bg-slate-50 rounded-lg p-3 text-sm space-y-1"></div>
+
+      <!-- Internal test outcome section (shown when initiating test result) -->
+      <div id="defect-test-section" class="hidden space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Test Outcome <span class="text-red-500">*</span></label>
+          <div class="flex gap-3">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="test-outcome" value="Cleared" class="accent-green-600" />
+              <span class="text-sm text-green-700 font-medium">Cleared — Device is OK, return to inventory</span>
+            </label>
+          </div>
+          <div class="flex gap-3 mt-2">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="test-outcome" value="Confirmed" class="accent-red-600" />
+              <span class="text-sm text-red-700 font-medium">Confirmed Defective — Proceed to supplier return</span>
+            </label>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Test Notes</label>
+          <textarea id="defect-test-notes" rows="3" placeholder="Technical notes from the internal test…"
+            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+        </div>
+      </div>
+
+      <!-- Supplier return section (shown when opening supplier return) -->
+      <div id="defect-return-section" class="hidden space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Supplier Name</label>
+          <input id="defect-return-supplier" type="text" placeholder="e.g. Teltonika Networks"
+            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Notes</label>
+          <textarea id="defect-return-notes" rows="2" placeholder="Return instructions, RMA number, etc."
+            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"></textarea>
+        </div>
+      </div>
+
+      <div id="defect-action-error" class="hidden rounded bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-600"></div>
+      <div class="flex justify-end gap-3">
+        <button onclick="document.getElementById('modal-defect-action').classList.add('hidden')" class="px-4 py-2 rounded-lg text-sm border border-slate-200 hover:bg-slate-50">Cancel</button>
+        <button id="defect-action-submit-btn" onclick="submitDefectAction()" class="px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">Submit</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Photo Viewer Modal -->
+<div id="modal-photo" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4" onclick="this.classList.add('hidden')">
+  <img id="photo-view-img" src="" alt="Evidence photo" class="max-w-full max-h-[80vh] rounded-xl shadow-2xl" />
+</div>
+
+<!-- New Ticket Modal -->
+<div id="modal-ticket" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md">
+    <div class="flex items-center justify-between px-6 py-4 border-b">
+      <h2 class="text-lg font-semibold">Open Warranty Ticket</h2>
+      <button id="btn-close-ticket" class="text-slate-400 hover:text-slate-600 text-xl font-bold">×</button>
+    </div>
+    <form id="ticket-form" class="p-6 space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">IMEI / Device Search</label>
+        <div class="flex gap-2">
+          <input id="t-imei" type="text" placeholder="Enter IMEI to find device" class="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+          <button type="button" id="btn-lookup-imei" class="rounded-lg bg-slate-700 text-white px-3 py-2 text-xs font-medium">Lookup</button>
+        </div>
+        <p id="t-device-found" class="mt-1 text-xs text-green-600 hidden"></p>
+        <input type="hidden" id="t-item-id" />
+        <input type="hidden" id="t-supplier-id" />
+      </div>
+      <div id="t-supplier-row" class="hidden">
+        <label class="block text-xs font-medium text-slate-600 mb-1">Supplier</label>
+        <div class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 5h2a2 2 0 002-2v-1a2 2 0 00-2-2h-2a2 2 0 00-2 2v1a2 2 0 002 2z"/></svg>
+          <span id="t-supplier-name" class="text-sm text-slate-700 font-medium"></span>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Direction</label>
+        <select id="t-direction" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+          <option value="Inbound">Inbound (Customer defect claim)</option>
+          <option value="Outbound">Outbound (Supplier warranty claim)</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Issue Description *</label>
+        <textarea id="t-issue" rows="3" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm resize-none"></textarea>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Reported By</label>
+        <input id="t-reported" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Customer name / phone" />
+      </div>
+      <div id="ticket-error" class="hidden rounded bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-600"></div>
+      <div class="flex justify-end gap-3">
+        <button type="button" id="btn-cancel-ticket" class="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50">Cancel</button>
+        <button type="submit" class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700">Open Ticket</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Ticket Detail Drawer -->
+<div id="drawer-ticket" class="hidden fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-white shadow-2xl flex flex-col">
+  <div class="flex items-center justify-between px-6 py-4 border-b">
+    <h2 class="text-lg font-semibold" id="drawer-ticket-title">Warranty Ticket</h2>
+    <button id="btn-close-tdrawer" class="text-slate-400 hover:text-slate-600 text-xl font-bold">×</button>
+  </div>
+  <div class="flex-1 overflow-y-auto p-6 space-y-4" id="drawer-ticket-content"></div>
+  <div class="px-6 py-4 border-t flex gap-2 flex-wrap" id="drawer-ticket-actions"></div>
+</div>
+
+<div id="fm-footer"></div>
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+(() => {
+  const token = () => {
+    try {
+      const s = JSON.parse(localStorage.getItem("finemark_session") || "{}");
+      return s.accessToken ? `Bearer ${s.accessToken}` : "";
+    } catch { return ""; }
+  };
+  const getRole = () => {
+    try {
+      const s = JSON.parse(localStorage.getItem("finemark_session") || "{}");
+      return s.user?.role || "";
+    } catch { return ""; }
+  };
+  const base = window.FINEMARK_APP?.CONFIG?.API_BASE_URL ?? "/api";
+  const req = (path, opts = {}) => fetch(base + path, { headers: { Authorization: token(), "Content-Type": "application/json" }, ...opts }).then(r => r.json());
+
+  let page = 1, total = 0, dir = "", statusFilter = "";
+  const PAGE_SIZE = 50;
+  const STATUS_COLORS = { "Open":"bg-amber-100 text-amber-700","Defect Confirmed":"bg-red-100 text-red-700","Supplier Claim Raised":"bg-purple-100 text-purple-700","Replacement Received":"bg-blue-100 text-blue-700","Resolved":"bg-green-100 text-green-700" };
+  const DIR_COLORS   = { "Inbound":"bg-amber-50 text-amber-600 border border-amber-200","Outbound":"bg-purple-50 text-purple-600 border border-purple-200" };
+
+  async function loadStats() {
+    const r = await req("/inventory/warranty/stats/summary");
+    const s = r.summary;
+    if (s) {
+      document.getElementById("stat-open-in").textContent  = s.openInbound;
+      document.getElementById("stat-open-out").textContent = s.openOutbound;
+      document.getElementById("stat-resolved").textContent = s.resolved;
+      document.getElementById("stat-claims").textContent   = s.supplierClaims;
+    } else {
+      // fallback for legacy shape
+      const rows = r.data ?? [];
+      const g = (d, s) => rows.find(x => x.direction === d && x.status === s)?.count ?? 0;
+      document.getElementById("stat-open-in").textContent  = g("Inbound","Open");
+      document.getElementById("stat-open-out").textContent = g("Outbound","Open");
+      document.getElementById("stat-resolved").textContent = rows.filter(x => x.status === "Resolved").reduce((a, b) => a + Number(b.count), 0);
+      document.getElementById("stat-claims").textContent   = rows.filter(x => x.status === "Supplier Claim Raised").reduce((a, b) => a + Number(b.count), 0);
+    }
+  }
+
+  async function loadTickets() {
+    const url = `/inventory/warranty?page=${page}&pageSize=${PAGE_SIZE}${dir ? `&direction=${dir}` : ""}${statusFilter ? `&status=${encodeURIComponent(statusFilter)}` : ""}`;
+    const r = await req(url);
+    const rows = r.data ?? [];
+    total = r.meta?.total ?? rows.length;
+    const tbody = document.getElementById("warranty-body");
+    tbody.innerHTML = rows.length ? rows.map(t => {
+      const badge = STATUS_COLORS[t.status] ?? "bg-slate-100 text-slate-600";
+      const dbadge = DIR_COLORS[t.direction] ?? "";
+      return `<tr class="hover:bg-slate-50">
+        <td class="px-4 py-3 font-mono text-xs font-semibold text-blue-700">${t.ticket_no}</td>
+        <td class="px-4 py-3 text-xs"><p class="font-medium">${t.product_code ?? ""} ${t.device_model ?? ""}</p><p class="text-slate-400 font-mono">${t.imei ?? t.serial_number ?? "—"}</p></td>
+        <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full font-semibold ${dbadge}">${t.direction}</span></td>
+        <td class="px-4 py-3 text-xs max-w-xs truncate">${t.issue_description ?? "—"}</td>
+        <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full font-semibold ${badge}">${t.status}</span></td>
+        <td class="px-4 py-3 text-xs text-slate-400">${t.created_at?.slice(0,10) ?? ""}</td>
+        <td class="px-4 py-3 text-right"><button class="btn-view-ticket text-xs px-2 py-1 rounded border border-slate-200 hover:bg-slate-50" data-id="${t.id}">View</button></td>
+      </tr>`;
+    }).join("") : `<tr><td colspan="7" class="text-center py-8 text-slate-400">No warranty tickets found.</td></tr>`;
+    tbody.querySelectorAll(".btn-view-ticket").forEach(btn => btn.addEventListener("click", () => openTicketDrawer(btn.dataset.id)));
+    document.getElementById("pagination-info").textContent = `${Math.min((page-1)*PAGE_SIZE+1,total)}–${Math.min(page*PAGE_SIZE,total)} of ${total}`;
+    document.getElementById("btn-prev").disabled = page <= 1;
+    document.getElementById("btn-next").disabled = page * PAGE_SIZE >= total;
+  }
+
+  async function openTicketDrawer(id) {
+    document.getElementById("drawer-ticket").classList.remove("hidden");
+    const dc = document.getElementById("drawer-ticket-content");
+    dc.innerHTML = `<div class="text-xs text-slate-400">Loading…</div>`;
+    const { data: t } = await req(`/inventory/warranty/${id}`);
+    if (!t) return;
+    document.getElementById("drawer-ticket-title").textContent = `${t.ticket_no} — ${t.direction}`;
+    const badge = STATUS_COLORS[t.status] ?? "bg-slate-100 text-slate-600";
+    dc.innerHTML = `
+      <div class="grid grid-cols-2 gap-3 text-sm">
+        <div><p class="text-xs text-slate-400">Product</p><p class="font-semibold">${t.product_code ?? ""} ${t.product_name ?? ""}</p></div>
+        <div><p class="text-xs text-slate-400">Status</p><span class="text-xs px-2 py-0.5 rounded-full font-semibold ${badge}">${t.status}</span></div>
+        <div><p class="text-xs text-slate-400">IMEI</p><p class="font-mono text-xs">${t.imei ?? "—"}</p></div>
+        <div><p class="text-xs text-slate-400">Serial</p><p class="font-mono text-xs">${t.serial_number ?? "—"}</p></div>
+        <div><p class="text-xs text-slate-400">Device Status</p><p>${t.device_status ?? "—"}</p></div>
+        <div><p class="text-xs text-slate-400">Warranty Exp</p><p>${t.warranty_expires_at?.slice(0,10) ?? "—"}</p></div>
+        <div class="col-span-2"><p class="text-xs text-slate-400">Issue</p><p>${t.issue_description ?? "—"}</p></div>
+        ${t.supplier_claim_ref ? `<div class="col-span-2"><p class="text-xs text-slate-400">Supplier Claim Ref</p><p class="font-mono text-xs">${t.supplier_claim_ref}</p></div>` : ""}
+      </div>
+      ${t.defects?.length ? `<div><h4 class="text-sm font-semibold mb-2">Defect Records</h4>${t.defects.map(d => `<div class="text-xs border rounded p-2 space-y-0.5"><p class="font-semibold">${d.defect_type} · ${d.severity}</p><p class="text-slate-500">${d.description}</p><p class="text-slate-400">${d.inspection_notes ?? ""}</p></div>`).join("")}</div>` : ""}
+    `;
+    buildTicketActions(t);
+  }
+
+  function buildTicketActions(t) {
+    const el = document.getElementById("drawer-ticket-actions");
+    el.innerHTML = "";
+    const role = getRole();
+    const canManage = ["Admin","InventoryManager","WarehouseOfficer","Technical"].includes(role);
+    if (!canManage) return;
+    if (t.status === "Open") {
+      el.innerHTML += `<button data-action="confirm-defect" data-id="${t.id}" class="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700">Confirm Defect</button>`;
+      el.innerHTML += `<button data-action="resolve" data-id="${t.id}" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold hover:bg-slate-50">Resolve (No Defect)</button>`;
+    }
+    if (t.status === "Defect Confirmed" && ["Admin","InventoryManager"].includes(role)) {
+      el.innerHTML += `<button data-action="create-supplier-claim" data-id="${t.id}" class="rounded-lg bg-purple-600 px-3 py-2 text-xs font-semibold text-white hover:bg-purple-700">Raise Supplier Claim</button>`;
+    }
+    if (t.status === "Supplier Claim Raised") {
+      el.innerHTML += `<button data-action="receive-replacement" data-id="${t.id}" class="rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700">Receive Replacement</button>`;
+    }
+    if (t.status !== "Resolved") {
+      el.innerHTML += `<button data-action="resolve" data-id="${t.id}" class="rounded-lg border border-green-300 text-green-700 px-3 py-2 text-xs font-semibold hover:bg-green-50">Mark Resolved</button>`;
+    }
+    el.querySelectorAll("[data-action]").forEach(btn => btn.addEventListener("click", async () => {
+      const action = btn.dataset.action, id = btn.dataset.id;
+      let body = {};
+      if (action === "confirm-defect") { body = { defectType: prompt("Defect type:") || "Hardware", severity: prompt("Severity (Low/Medium/High):") || "Medium", inspectionNotes: prompt("Inspection notes:") || "" }; }
+      if (action === "create-supplier-claim") { const ref = prompt("Supplier claim reference:"); if (!ref) return; body = { supplierClaimRef: ref }; }
+      if (action === "receive-replacement") { body = { imei: prompt("Replacement IMEI:"), serialNumber: prompt("Serial (optional):") || null, warehouseLocation: prompt("Location:") || "Warehouse" }; }
+      const r = await req(`/inventory/warranty/${id}/${action}`, { method: "POST", body: JSON.stringify(body) });
+      if (r.ok === false) { alert(r.message || "Error"); return; }
+      openTicketDrawer(id); loadTickets(); loadStats();
+    }));
+  }
+
+  document.getElementById("btn-close-tdrawer").addEventListener("click", () => document.getElementById("drawer-ticket").classList.add("hidden"));
+
+  // Direction filter
+  document.querySelectorAll(".dir-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".dir-btn").forEach(b => b.classList.remove("bg-white","shadow-sm","font-semibold"));
+      btn.classList.add("bg-white","shadow-sm","font-semibold");
+      dir = btn.dataset.dir; page = 1; loadTickets();
+    });
+  });
+
+  // Status filter
+  document.querySelectorAll(".st-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".st-btn").forEach(b => b.classList.remove("bg-white","shadow-sm","font-semibold"));
+      btn.classList.add("bg-white","shadow-sm","font-semibold");
+      statusFilter = btn.dataset.st; page = 1; loadTickets();
+    });
+  });
+
+  document.getElementById("btn-prev").addEventListener("click", () => { if (page > 1) { page--; loadTickets(); } });
+  document.getElementById("btn-next").addEventListener("click", () => { if (page * PAGE_SIZE < total) { page++; loadTickets(); } });
+
+  // New ticket modal
+  document.getElementById("btn-new-ticket").addEventListener("click", () => document.getElementById("modal-ticket").classList.remove("hidden"));
+  document.getElementById("btn-close-ticket").addEventListener("click", () => {
+    document.getElementById("modal-ticket").classList.add("hidden");
+    document.getElementById("t-supplier-row").classList.add("hidden");
+    document.getElementById("t-supplier-id").value = "";
+    document.getElementById("t-device-found").classList.add("hidden");
+  });
+  document.getElementById("btn-cancel-ticket").addEventListener("click", () => {
+    document.getElementById("modal-ticket").classList.add("hidden");
+    document.getElementById("t-supplier-row").classList.add("hidden");
+    document.getElementById("t-supplier-id").value = "";
+    document.getElementById("t-device-found").classList.add("hidden");
+  });
+
+  document.getElementById("btn-lookup-imei").addEventListener("click", async () => {
+    const imei = document.getElementById("t-imei").value.trim();
+    if (!imei) return;
+    const r = await req(`/inventory/items/by-imei/${imei}`);
+    const supplierRow  = document.getElementById("t-supplier-row");
+    const supplierName = document.getElementById("t-supplier-name");
+    const supplierId   = document.getElementById("t-supplier-id");
+    if (r.data) {
+      document.getElementById("t-item-id").value = r.data.id;
+      document.getElementById("t-device-found").textContent = `✓ Found: ${r.data.product_code ?? ""} ${r.data.device_model ?? ""} (${r.data.status})`;
+      document.getElementById("t-device-found").className = "mt-1 text-xs text-green-600";
+      document.getElementById("t-device-found").classList.remove("hidden");
+      if (r.data.supplier_name) {
+        supplierId.value        = r.data.supplier_id ?? "";
+        supplierName.textContent = r.data.supplier_name;
+        supplierRow.classList.remove("hidden");
+      } else {
+        supplierId.value = "";
+        supplierRow.classList.add("hidden");
+      }
+    } else {
+      document.getElementById("t-device-found").textContent = "Device not found.";
+      document.getElementById("t-device-found").className = "mt-1 text-xs text-red-500";
+      document.getElementById("t-device-found").classList.remove("hidden");
+      supplierId.value = "";
+      supplierRow.classList.add("hidden");
+    }
+  });
+
+  document.getElementById("ticket-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const err = document.getElementById("ticket-error");
+    err.classList.add("hidden");
+    const body = {
+      itemId:           document.getElementById("t-item-id").value,
+      direction:        document.getElementById("t-direction").value,
+      issueDescription: document.getElementById("t-issue").value,
+      reportedBy:       document.getElementById("t-reported").value || null,
+      supplierId:       document.getElementById("t-supplier-id").value || null,
+    };
+    if (!body.itemId) { err.textContent = "Please lookup and select a device first."; err.classList.remove("hidden"); return; }
+    const r = await req("/inventory/warranty", { method: "POST", body: JSON.stringify(body) });
+    if (r.ok === false) { err.textContent = r.message || "Error"; err.classList.remove("hidden"); return; }
+    document.getElementById("modal-ticket").classList.add("hidden");
+    document.getElementById("ticket-form").reset();
+    document.getElementById("t-device-found").classList.add("hidden");
+    document.getElementById("t-supplier-row").classList.add("hidden");
+    document.getElementById("t-supplier-id").value = "";
+    loadTickets(); loadStats();
+  });
+
+  loadStats();
+  loadTickets();
+
+  // ── Defect Reports (Device Custody) ─────────────────────────────────────
+  let _drFilter = "";
+  const DR_STATUS_BADGE = s => ({
+    Reported:       'text-xs px-2 py-0.5 rounded-full font-semibold bg-orange-100 text-orange-700',
+    UnderTest:      'text-xs px-2 py-0.5 rounded-full font-semibold bg-blue-100 text-blue-700',
+    Cleared:        'text-xs px-2 py-0.5 rounded-full font-semibold bg-green-100 text-green-700',
+    Confirmed:      'text-xs px-2 py-0.5 rounded-full font-semibold bg-red-100 text-red-700',
+    SupplierReturn: 'text-xs px-2 py-0.5 rounded-full font-semibold bg-purple-100 text-purple-700',
+  })[s] || 'text-xs px-2 py-0.5 rounded-full font-semibold bg-slate-100 text-slate-600';
+
+  async function loadDefectReports() {
+    const url = `/device-custody/defect-reports${_drFilter ? "?status=" + _drFilter : ""}`;
+    const r = await req(url);
+    const rows = r?.data || r || [];
+    const tbody = document.getElementById("defect-reports-body");
+    const role = getRole();
+    const canManage = ["Admin","InventoryManager","WarehouseOfficer"].includes(role);
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-400">No defect reports found.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rows.map(r => `
+      <tr class="hover:bg-slate-50">
+        <td class="px-4 py-3 font-mono text-xs font-semibold text-slate-800">${r.deviceSerial || "—"}</td>
+        <td class="px-4 py-3 text-xs">${r.reportedByEmail || "—"}</td>
+        <td class="px-4 py-3 text-xs max-w-xs truncate" title="${(r.description || "").replace(/"/g,'&quot;')}">${r.description || "—"}</td>
+        <td class="px-4 py-3 text-center">${r.hasPhoto ? `<button onclick="viewDefectPhoto('${r.id}')" class="text-blue-600 hover:underline text-xs">📷 View</button>` : '<span class="text-slate-300 text-xs">—</span>'}</td>
+        <td class="px-4 py-3"><span class="${DR_STATUS_BADGE(r.status)}">${r.status}</span></td>
+        <td class="px-4 py-3 text-xs text-slate-400">${r.createdAt?.slice(0,10) || "—"}</td>
+        <td class="px-4 py-3 text-right space-x-1">
+          ${canManage && r.status === "Reported" ? `<button onclick="openDefectTestModal('${r.id}','${r.deviceSerial}','${(r.description||'').replace(/'/g,'&apos;')}')" class="text-xs px-2 py-1 rounded border border-blue-200 text-blue-700 hover:bg-blue-50">Record Test</button>` : ''}
+          ${canManage && r.status === "Confirmed" ? `<button onclick="openSupplierReturnModal('${r.id}','${r.deviceSerial}')" class="text-xs px-2 py-1 rounded border border-purple-200 text-purple-700 hover:bg-purple-50">Open Return</button>` : ''}
+        </td>
+      </tr>`).join("");
+  }
+
+  async function viewDefectPhoto(reportId) {
+    const r = await req(`/device-custody/defect-reports/${reportId}`);
+    const photoData = r?.data?.photoData || r?.photoData;
+    if (!photoData) { alert("No photo available"); return; }
+    document.getElementById("photo-view-img").src = photoData;
+    document.getElementById("modal-photo").classList.remove("hidden");
+  }
+
+  let _defectActionMode = "test"; // "test" | "return"
+
+  function openDefectTestModal(reportId, serial, description) {
+    _defectActionMode = "test";
+    document.getElementById("defect-action-report-id").value = reportId;
+    document.getElementById("defect-action-title").textContent = `Internal Test — ${serial}`;
+    document.getElementById("defect-action-info").innerHTML = `
+      <p><span class="font-semibold">Device:</span> <span class="font-mono">${serial}</span></p>
+      <p class="text-slate-500">${description}</p>`;
+    document.getElementById("defect-test-section").classList.remove("hidden");
+    document.getElementById("defect-return-section").classList.add("hidden");
+    document.getElementById("defect-action-submit-btn").textContent = "Record Outcome";
+    document.getElementById("defect-action-submit-btn").className = "px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700";
+    document.querySelectorAll("input[name='test-outcome']").forEach(r => r.checked = false);
+    document.getElementById("defect-test-notes").value = "";
+    document.getElementById("defect-action-error").classList.add("hidden");
+    document.getElementById("modal-defect-action").classList.remove("hidden");
+  }
+
+  function openSupplierReturnModal(reportId, serial) {
+    _defectActionMode = "return";
+    document.getElementById("defect-action-report-id").value = reportId;
+    document.getElementById("defect-action-title").textContent = `Open Supplier Return — ${serial}`;
+    document.getElementById("defect-action-info").innerHTML = `
+      <p><span class="font-semibold">Device:</span> <span class="font-mono">${serial}</span></p>
+      <p class="text-slate-500">This will open a supplier return ticket and mark the device as "Sent to Supplier".</p>`;
+    document.getElementById("defect-test-section").classList.add("hidden");
+    document.getElementById("defect-return-section").classList.remove("hidden");
+    document.getElementById("defect-action-submit-btn").textContent = "Open Return Ticket";
+    document.getElementById("defect-action-submit-btn").className = "px-5 py-2 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700";
+    document.getElementById("defect-return-supplier").value = "";
+    document.getElementById("defect-return-notes").value = "";
+    document.getElementById("defect-action-error").classList.add("hidden");
+    document.getElementById("modal-defect-action").classList.remove("hidden");
+  }
+
+  window.openDefectTestModal = openDefectTestModal;
+  window.openSupplierReturnModal = openSupplierReturnModal;
+  window.viewDefectPhoto = viewDefectPhoto;
+
+  window.submitDefectAction = async function() {
+    const reportId = document.getElementById("defect-action-report-id").value;
+    const errEl = document.getElementById("defect-action-error");
+    errEl.classList.add("hidden");
+    const btn = document.getElementById("defect-action-submit-btn");
+    btn.disabled = true;
+
+    try {
+      if (_defectActionMode === "test") {
+        const outcome = document.querySelector("input[name='test-outcome']:checked")?.value;
+        if (!outcome) { errEl.textContent = "Please select a test outcome"; errEl.classList.remove("hidden"); return; }
+        const testNotes = document.getElementById("defect-test-notes").value.trim();
+        const r = await req(`/device-custody/defect-reports/${reportId}/test`, {
+          method: "POST", body: JSON.stringify({ outcome, testNotes }),
+        });
+        if (r.ok === false || r.error) { errEl.textContent = r.error?.message || r.message || "Error recording test"; errEl.classList.remove("hidden"); loadDefectReports(); return; }
+      } else {
+        const supplierName = document.getElementById("defect-return-supplier").value.trim();
+        const notes = document.getElementById("defect-return-notes").value.trim();
+        const r = await req(`/device-custody/defect-reports/${reportId}/supplier-return`, {
+          method: "POST", body: JSON.stringify({ supplierName: supplierName || undefined, notes: notes || undefined }),
+        });
+        if (r.ok === false || r.error) { errEl.textContent = r.error?.message || r.message || "Error opening return ticket"; errEl.classList.remove("hidden"); loadDefectReports(); loadSupplierReturns(); return; }
+      }
+      document.getElementById("modal-defect-action").classList.add("hidden");
+      loadDefectReports();
+      loadSupplierReturns();
+    } catch(e) {
+      errEl.textContent = e?.message || "Unexpected error";
+      errEl.classList.remove("hidden");
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  // Filter buttons for defect reports
+  document.querySelectorAll(".dr-filter").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".dr-filter").forEach(b => b.classList.remove("bg-white","shadow-sm","font-semibold"));
+      btn.classList.add("bg-white","shadow-sm","font-semibold");
+      _drFilter = btn.dataset.status;
+      loadDefectReports();
+    });
+  });
+
+  // ── Supplier Return Tickets ────────────────────────────────────────────────
+  let _srtFilter = "";
+  const SRT_STATUS_BADGE = s => ({
+    Open:         'text-xs px-2 py-0.5 rounded-full font-semibold bg-orange-100 text-orange-700',
+    Sent:         'text-xs px-2 py-0.5 rounded-full font-semibold bg-blue-100 text-blue-700',
+    Acknowledged: 'text-xs px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700',
+    Closed:       'text-xs px-2 py-0.5 rounded-full font-semibold bg-green-100 text-green-700',
+  })[s] || 'text-xs px-2 py-0.5 rounded-full font-semibold bg-slate-100 text-slate-600';
+  const SRT_NEXT = { Open: "Sent", Sent: "Acknowledged", Acknowledged: "Closed" };
+
+  async function loadSupplierReturns() {
+    const url = `/device-custody/supplier-returns${_srtFilter ? "?status=" + _srtFilter : ""}`;
+    const r = await req(url);
+    const rows = r?.data || r || [];
+    const tbody = document.getElementById("supplier-returns-body");
+    const role = getRole();
+    const canManage = ["Admin","InventoryManager","WarehouseOfficer"].includes(role);
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">No supplier return tickets found.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rows.map(t => {
+      const nextStatus = SRT_NEXT[t.status];
+      return `
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-3 font-mono text-xs font-semibold text-purple-700">${t.ticketRef || "—"}</td>
+          <td class="px-4 py-3 font-mono text-xs">${t.deviceSerial || "—"}</td>
+          <td class="px-4 py-3 text-xs">${t.supplierName || "—"}</td>
+          <td class="px-4 py-3"><span class="${SRT_STATUS_BADGE(t.status)}">${t.status}</span></td>
+          <td class="px-4 py-3 text-xs text-slate-400">${t.createdAt?.slice(0,10) || "—"}</td>
+          <td class="px-4 py-3 text-right">
+            ${canManage && nextStatus ? `<button onclick="advanceSRT('${t.id}','${nextStatus}')" class="text-xs px-2 py-1 rounded border border-slate-200 hover:bg-slate-50">Mark ${nextStatus}</button>` : ''}
+          </td>
+        </tr>`;
+    }).join("");
+  }
+
+  window.advanceSRT = async function(ticketId, newStatus) {
+    if (!confirm(`Mark ticket as "${newStatus}"?`)) return;
+    const r = await req(`/device-custody/supplier-returns/${ticketId}/status`, {
+      method: "PATCH", body: JSON.stringify({ status: newStatus }),
+    });
+    if (r.ok === false || r.error) { alert(r.message || "Error"); return; }
+    loadSupplierReturns();
+  };
+
+  // Filter buttons for supplier returns
+  document.querySelectorAll(".srt-filter").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".srt-filter").forEach(b => b.classList.remove("bg-white","shadow-sm","font-semibold"));
+      btn.classList.add("bg-white","shadow-sm","font-semibold");
+      _srtFilter = btn.dataset.status;
+      loadSupplierReturns();
+    });
+  });
+
+  loadDefectReports();
+  loadSupplierReturns();
+})();
+</script>
+  </body>
+</html>

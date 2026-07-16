@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Sales Performance</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <script src="assets/chart.umd.min.js"></script>
+  <style>
+    @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+    .fade-in{animation:fadeIn .22s ease;}
+    .tab-btn{padding:.35rem 1rem;border-radius:.5rem;font-size:.8rem;font-weight:500;color:#475569;transition:all .15s;white-space:nowrap;cursor:pointer;}
+    .tab-btn:hover{background:#fff;color:#0f172a;}
+    .tab-btn.active{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);color:#0f172a;font-weight:700;}
+    .badge{display:inline-flex;align-items:center;border-radius:9999px;padding:.15rem .55rem;font-size:.7rem;font-weight:600;border-width:1px;}
+    .badge-bdm{background:#fff7ed;color:#c2410c;border-color:#fed7aa;}
+    .metric-card{background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;padding:1.25rem 1.5rem;box-shadow:0 1px 3px rgba(0,0,0,.06);transition:box-shadow .15s;}
+    .metric-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1);}
+    .chart-card{background:#fff;border-radius:.75rem;padding:1.25rem 1.5rem;border:1px solid #e2e8f0;}
+    .stat-card{background:#fff;border-radius:.75rem;padding:1.1rem 1.25rem;border:1px solid #e2e8f0;transition:box-shadow .15s, transform .15s;position:relative;overflow:hidden;}
+    .stat-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.07);transform:translateY(-1px);}
+    .stat-icon{width:2rem;height:2rem;border-radius:.5rem;display:flex;align-items:center;justify-content:center;}
+    .stat-spark{height:28px;margin-top:.5rem;}
+    .bar-track{background:#e2e8f0;border-radius:9999px;height:.45rem;overflow:hidden;}
+    .bar-fill{height:100%;border-radius:9999px;transition:width .6s ease;}
+    .rank-badge{display:inline-flex;align-items:center;justify-content:center;width:1.6rem;height:1.6rem;border-radius:9999px;font-size:.7rem;font-weight:700;}
+    .rank-1{background:#f59e0b;color:#fff;}
+    .rank-2{background:#9ca3af;color:#fff;}
+    .rank-3{background:#cd7c42;color:#fff;}
+    .rank-n{background:#f1f5f9;color:#475569;}
+    .podium-card{background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;padding:1.25rem;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+    .sort-btn{cursor:pointer;user-select:none;}
+    .sort-btn:hover{color:#4f46e5;}
+    .sort-asc::after{content:" ↑"}
+    .sort-desc::after{content:" ↓"}
+    .channel-telesales{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8;}
+    .channel-fieldsales{background:#f0fdf4;border-color:#bbf7d0;color:#15803d;}
+    .channel-corporate{background:#fdf4ff;border-color:#e9d5ff;color:#7e22ce;}
+    .channel-teamlead{background:#fff7ed;border-color:#fed7aa;color:#c2410c;}
+    .eff-bar-fill{height:100%;border-radius:9999px;}
+    th.sortable{cursor:pointer;user-select:none;}
+    th.sortable:hover{color:#4f46e5;}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-4 md:p-6 max-w-[1440px] mx-auto space-y-6">
+
+    <!-- ═══ PAGE HEADER ═══ -->
+    <div class="flex flex-wrap items-center gap-3 justify-between">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Sales Team Performance</h1>
+        <p class="text-sm text-slate-500 mt-0.5">360° view of team performance · Leads · Conversions · Revenue</p>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <span id="scope-badge" class="badge badge-bdm text-xs px-3 py-1">BDM Dashboard</span>
+        <div class="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 text-xs shadow-sm">
+          <button class="date-btn rounded px-2.5 py-1.5 bg-indigo-600 text-white font-semibold" data-days="30">30d</button>
+          <button class="date-btn rounded px-2.5 py-1.5 text-slate-500 hover:bg-slate-100" data-days="90">90d</button>
+          <button class="date-btn rounded px-2.5 py-1.5 text-slate-500 hover:bg-slate-100" data-days="365">1yr</button>
+          <button class="date-btn rounded px-2.5 py-1.5 text-slate-500 hover:bg-slate-100" data-days="0">All</button>
+        </div>
+        <button onclick="refreshAll()" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 shadow-sm">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0115.7-4.4M20 15a9 9 0 01-15.7 4.4"/></svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══ TABS ═══ -->
+    <div class="flex items-center gap-1 rounded-xl bg-slate-100 p-1 overflow-x-auto">
+      <button class="tab-btn active" data-sec="overview">Overview</button>
+      <button class="tab-btn" data-sec="perRep">Per Rep</button>
+      <button class="tab-btn" data-sec="trends">Trends</button>
+      <button class="tab-btn" data-sec="leaderboard">Leaderboard</button>
+      <button class="tab-btn" data-sec="channels">Channels</button>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         SECTION: OVERVIEW
+    ════════════════════════════════════════════ -->
+    <section id="sec-overview" class="space-y-5 fade-in">
+
+      <!-- Summary cards row 1 -->
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div class="stat-card">
+          <div class="stat-icon bg-slate-100 text-slate-600">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+          </div>
+          <p class="text-xs text-slate-500 font-medium mt-2 mb-0.5">Total Leads</p>
+          <p id="ovr-total-leads" class="text-2xl font-bold text-slate-900">—</p>
+          <p id="ovr-total-leads-sub" class="text-xs text-slate-400">in period</p>
+          <div class="stat-spark"><canvas id="spark-leads"></canvas></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon bg-green-50 text-green-600">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <p class="text-xs text-slate-500 font-medium mt-2 mb-0.5">Converted</p>
+          <p id="ovr-converted" class="text-2xl font-bold text-green-600">—</p>
+          <p id="ovr-conv-rate" class="text-xs text-slate-400">— conv. rate</p>
+          <div class="stat-spark"><canvas id="spark-converted"></canvas></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon bg-indigo-50 text-indigo-600">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          </div>
+          <p class="text-xs text-slate-500 font-medium mt-2 mb-0.5">Total Invoices</p>
+          <p id="ovr-invoices" class="text-2xl font-bold text-indigo-600">—</p>
+          <p id="ovr-invoices-sub" class="text-xs text-slate-400">in period</p>
+          <div class="stat-spark"><canvas id="spark-invoices"></canvas></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon bg-emerald-50 text-emerald-600">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V6m0 10v2m9-8a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <p class="text-xs text-slate-500 font-medium mt-2 mb-0.5">Total Revenue</p>
+          <p id="ovr-revenue" class="text-2xl font-bold text-emerald-600">—</p>
+          <p class="text-xs text-slate-400">KES invoiced</p>
+          <div class="stat-spark"><canvas id="spark-revenue"></canvas></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon bg-orange-50 text-orange-500">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          </div>
+          <p class="text-xs text-slate-500 font-medium mt-2 mb-0.5">Active Reps</p>
+          <p id="ovr-reps" class="text-2xl font-bold text-orange-500">—</p>
+          <p class="text-xs text-slate-400">with activity</p>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon bg-violet-50 text-violet-600">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+          </div>
+          <p class="text-xs text-slate-500 font-medium mt-2 mb-0.5">Activity Logged</p>
+          <p id="ovr-activity" class="text-2xl font-bold text-violet-600">—</p>
+          <p id="ovr-activity-sub" class="text-xs text-slate-400">in period</p>
+          <div class="stat-spark"><canvas id="spark-activity"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Pipeline funnel + Top performers -->
+      <div class="grid md:grid-cols-2 gap-4">
+
+        <!-- Pipeline funnel visual -->
+        <div class="chart-card space-y-3">
+          <h3 class="font-semibold text-slate-900 text-sm">Lead Pipeline Funnel</h3>
+          <div class="space-y-2.5" id="funnel-rows">
+            <div class="flex items-center gap-3">
+              <span class="text-xs w-20 text-slate-500 shrink-0">New</span>
+              <div class="flex-1 bar-track"><div id="funnel-new" class="bar-fill bg-slate-400" style="width:100%"></div></div>
+              <span id="funnel-new-n" class="text-xs font-semibold w-8 text-right text-slate-600">—</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-xs w-20 text-slate-500 shrink-0">Qualified</span>
+              <div class="flex-1 bar-track"><div id="funnel-qualified" class="bar-fill bg-blue-400" style="width:0%"></div></div>
+              <span id="funnel-qualified-n" class="text-xs font-semibold w-8 text-right text-blue-600">—</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-xs w-20 text-slate-500 shrink-0">Converted</span>
+              <div class="flex-1 bar-track"><div id="funnel-converted" class="bar-fill bg-green-500" style="width:0%"></div></div>
+              <span id="funnel-converted-n" class="text-xs font-semibold w-8 text-right text-green-600">—</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-xs w-20 text-slate-500 shrink-0">Disqualified</span>
+              <div class="flex-1 bar-track"><div id="funnel-disqualified" class="bar-fill bg-red-400" style="width:0%"></div></div>
+              <span id="funnel-disqualified-n" class="text-xs font-semibold w-8 text-right text-red-500">—</span>
+            </div>
+          </div>
+          <!-- Conv rate highlight -->
+          <div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between">
+            <span class="text-xs text-slate-500">Lead → Close rate</span>
+            <span id="funnel-close-rate" class="text-sm font-bold text-indigo-600">— %</span>
+          </div>
+        </div>
+
+        <!-- Top 5 performers mini-table -->
+        <div class="chart-card">
+          <h3 class="font-semibold text-slate-900 text-sm mb-3">Top Performers (Revenue)</h3>
+          <table class="w-full text-xs">
+            <tbody id="top5-body">
+              <tr><td colspan="4" class="py-6 text-center text-slate-400">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+      <!-- Lead volume vs revenue dual chart -->
+      <div class="chart-card">
+        <h3 class="font-semibold text-slate-900 text-sm mb-3">Lead Volume vs Revenue (Monthly)</h3>
+        <div class="relative h-52"><canvas id="overview-chart"></canvas></div>
+      </div>
+
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+         SECTION: PER REP
+    ════════════════════════════════════════════ -->
+    <section id="sec-perRep" class="hidden space-y-4 fade-in">
+      <div class="flex flex-wrap items-center gap-3">
+        <h2 class="font-bold text-slate-900 text-lg flex-1">Salesperson Breakdown</h2>
+        <input id="rep-search" type="search" placeholder="Search rep…" oninput="renderPerRep()"
+          class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400/40 w-44" />
+        <select id="rep-channel-filter" onchange="renderPerRep()"
+          class="text-xs rounded-lg border border-slate-200 bg-white px-3 py-2 focus:outline-none">
+          <option value="">All Channels</option>
+          <option value="Regional Retail">Regional Retail</option>
+          <option value="Nairobi & Environs">Nairobi & Environs</option>
+          <option value="Retail Sales">Retail Sales (Other)</option>
+          <option value="Corporate Sales">Corporate Sales</option>
+        </select>
+        <select id="rep-sort-by" onchange="renderPerRep()"
+          class="text-xs rounded-lg border border-slate-200 bg-white px-3 py-2 focus:outline-none">
+          <option value="revenue">Sort: Revenue</option>
+          <option value="leads">Sort: Leads</option>
+          <option value="converted">Sort: Conversions</option>
+          <option value="convRate">Sort: Conv%</option>
+          <option value="efficiency">Sort: Efficiency</option>
+          <option value="activityCount">Sort: Activity</option>
+        </select>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+        <table class="w-full text-xs min-w-[860px]">
+          <thead>
+            <tr class="border-b border-slate-100">
+              <th class="py-3 px-3 text-left font-semibold text-slate-500 w-8">#</th>
+              <th class="py-3 px-3 text-left font-semibold text-slate-500">Rep Name</th>
+              <th class="py-3 px-3 text-left font-semibold text-slate-500">Channel</th>
+              <th class="py-3 px-3 text-center font-semibold text-slate-500">Leads</th>
+              <th class="py-3 px-3 text-center font-semibold text-slate-500">Qualified</th>
+              <th class="py-3 px-3 text-center font-semibold text-slate-500">Converted</th>
+              <th class="py-3 px-3 text-center font-semibold text-slate-500">Conv%</th>
+              <th class="py-3 px-3 text-center font-semibold text-slate-500">Invoices</th>
+              <th class="py-3 px-3 text-center font-semibold text-slate-500">Activity</th>
+              <th class="py-3 px-3 text-right font-semibold text-slate-500">Revenue (KES)</th>
+              <th class="py-3 px-3 text-center font-semibold text-slate-500">Efficiency</th>
+            </tr>
+          </thead>
+          <tbody id="per-rep-body" class="divide-y divide-slate-50">
+            <tr><td colspan="11" class="py-10 text-center text-slate-400">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="per-rep-empty" class="hidden py-12 text-center text-sm text-slate-400">No reps matched your filters.</div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+         SECTION: TRENDS
+    ════════════════════════════════════════════ -->
+    <section id="sec-trends" class="hidden space-y-5 fade-in">
+      <h2 class="font-bold text-slate-900 text-lg">Month-on-Month Trends</h2>
+
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="chart-card">
+          <h3 class="font-semibold text-slate-800 text-sm mb-3">Lead Volume per Month</h3>
+          <div class="relative h-52"><canvas id="leads-trend-chart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3 class="font-semibold text-slate-800 text-sm mb-3">Revenue per Month (KES)</h3>
+          <div class="relative h-52"><canvas id="revenue-trend-chart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="chart-card">
+          <h3 class="font-semibold text-slate-800 text-sm mb-3">Conversion Rate Trend (%)</h3>
+          <div class="relative h-48"><canvas id="conv-trend-chart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3 class="font-semibold text-slate-800 text-sm mb-3">Engagement Activity per Month</h3>
+          <div class="relative h-48"><canvas id="activity-trend-chart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Monthly breakdown table -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+        <h3 class="font-semibold text-slate-900 text-sm px-4 pt-4 pb-2">Monthly Breakdown Table</h3>
+        <table class="w-full text-xs min-w-[680px]">
+          <thead>
+            <tr class="border-y border-slate-100">
+              <th class="py-2.5 px-4 text-left font-semibold text-slate-500">Month</th>
+              <th class="py-2.5 px-4 text-center font-semibold text-slate-500">New Leads</th>
+              <th class="py-2.5 px-4 text-center font-semibold text-slate-500">Converted</th>
+              <th class="py-2.5 px-4 text-center font-semibold text-slate-500">Conv%</th>
+              <th class="py-2.5 px-4 text-center font-semibold text-slate-500">Invoices</th>
+              <th class="py-2.5 px-4 text-center font-semibold text-slate-500">Activity</th>
+              <th class="py-2.5 px-4 text-right font-semibold text-slate-500">Revenue(KES)</th>
+            </tr>
+          </thead>
+          <tbody id="monthly-table-body" class="divide-y divide-slate-50">
+            <tr><td colspan="7" class="py-8 text-center text-slate-400">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+         SECTION: LEADERBOARD
+    ════════════════════════════════════════════ -->
+    <section id="sec-leaderboard" class="hidden space-y-5 fade-in">
+      <div class="flex items-center justify-between">
+        <h2 class="font-bold text-slate-900 text-lg">Leaderboard</h2>
+        <select id="lb-metric" onchange="renderLeaderboard()"
+          class="text-xs rounded-lg border border-slate-200 bg-white px-3 py-2 focus:outline-none">
+          <option value="revenue">Rank by Revenue</option>
+          <option value="converted">Rank by Conversions</option>
+          <option value="convRate">Rank by Conv%</option>
+          <option value="efficiency">Rank by Efficiency Score</option>
+          <option value="leads">Rank by Leads Volume</option>
+          <option value="activityCount">Rank by Activity</option>
+        </select>
+      </div>
+
+      <!-- Podium top 3 -->
+      <div id="podium-row" class="grid grid-cols-3 gap-4">
+        <!-- rendered by JS -->
+      </div>
+
+      <!-- Full leaderboard table -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+        <table class="w-full text-xs min-w-[640px]">
+          <thead>
+            <tr class="border-b border-slate-100">
+              <th class="py-3 px-4 text-left font-semibold text-slate-500 w-12">Rank</th>
+              <th class="py-3 px-3 text-left font-semibold text-slate-500">Rep</th>
+              <th class="py-3 px-3 text-left font-semibold text-slate-500">Channel</th>
+              <th class="py-3 px-3 text-center font-semibold text-slate-500">Leads</th>
+              <th class="py-3 px-3 text-center font-semibold text-slate-500">Converted</th>
+              <th class="py-3 px-3 text-center font-semibold text-slate-500">Conv%</th>
+              <th class="py-3 px-3 text-right font-semibold text-slate-500">Revenue</th>
+              <th class="py-3 px-3 text-center font-semibold text-slate-500">Score</th>
+            </tr>
+          </thead>
+          <tbody id="lb-body" class="divide-y divide-slate-50">
+            <tr><td colspan="8" class="py-10 text-center text-slate-400">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+         SECTION: CHANNELS
+    ════════════════════════════════════════════ -->
+    <section id="sec-channels" class="hidden space-y-5 fade-in">
+      <h2 class="font-bold text-slate-900 text-lg">Sub-Unit Channel Comparison</h2>
+
+      <!-- Channel summary cards -->
+      <div id="channel-cards" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <!-- rendered by JS -->
+      </div>
+
+      <!-- Channel comparison chart -->
+      <div class="chart-card">
+        <h3 class="font-semibold text-slate-800 text-sm mb-3">Channel Comparison</h3>
+        <div class="relative h-60"><canvas id="channel-chart"></canvas></div>
+      </div>
+
+      <!-- Channel breakdown table -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+        <table class="w-full text-xs min-w-[600px]">
+          <thead>
+            <tr class="border-b border-slate-100">
+              <th class="py-3 px-4 text-left font-semibold text-slate-500">Channel</th>
+              <th class="py-3 px-4 text-center font-semibold text-slate-500">Reps</th>
+              <th class="py-3 px-4 text-center font-semibold text-slate-500">Leads</th>
+              <th class="py-3 px-4 text-center font-semibold text-slate-500">Converted</th>
+              <th class="py-3 px-4 text-center font-semibold text-slate-500">Conv%</th>
+              <th class="py-3 px-4 text-center font-semibold text-slate-500">Invoices</th>
+              <th class="py-3 px-4 text-right font-semibold text-slate-500">Revenue (KES)</th>
+              <th class="py-3 px-4 text-right font-semibold text-slate-500">Revenue Share</th>
+            </tr>
+          </thead>
+          <tbody id="channel-table-body" class="divide-y divide-slate-50">
+            <tr><td colspan="8" class="py-8 text-center text-slate-400">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div id="fm-footer"></div>
+
+<!-- Toast -->
+<div id="toast" class="fixed top-5 right-5 z-[70] hidden">
+  <div id="toast-inner" class="rounded-xl px-4 py-2.5 text-sm font-medium text-white shadow-lg flex items-center gap-2 min-w-[200px]">
+    <span id="toast-icon"></span><span id="toast-msg"></span>
+  </div>
+</div>
+
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => { window.FINEMARK_APP?.requirePageAccess?.(); });
+</script>
+<script>
+// ─────────────────────────────────────────────────────────────
+//  LOCAL HELPERS (mirrors sales.html pattern)
+// ─────────────────────────────────────────────────────────────
+const API = "/api";
+async function apiFetch(path, opts={}) {
+  const session=(()=>{try{return JSON.parse(localStorage.getItem("finemark_session")||"{}")}catch{return {};}})();
+  const token=session.accessToken||session.token||null;
+  const r=await fetch(API+path,{...opts,headers:{"Content-Type":"application/json",...(token?{Authorization:`Bearer ${token}`}:{}), ...(opts.headers||{})}});
+  if(r.status===401){window.location.href="login.html";return;}
+  if(!r.ok){const e=await r.json().catch(()=>({message:r.statusText}));throw new Error(e.message||r.statusText);}
+  return r.json();
+}
+function currentUser(){try{return JSON.parse(localStorage.getItem("finemark_session")||"{}")}catch{return {};}}
+
+// ─────────────────────────────────────────────────────────────
+//  CONSTANTS
+// ─────────────────────────────────────────────────────────────
+// Retail's two regional sub-teams — confirmed live: no active users hold
+// 'Telesales'/'FieldSales'/'TeamLead' at all (those channels are dropped
+// entirely), and retail's 30 'Sales' reps split under two regional BDMs
+// (Janet Muthui: 13 direct reports, Nancy Ngethe: 12) rather than one flat
+// "Retail Sales" bucket. A residual 5 reps have no manager on record (4) or
+// report to a non-BDM manager (1, an HR data anomaly) — kept visible under
+// the generic "Retail Sales" fallback rather than silently dropped or
+// force-assigned to a region.
+const REGIONAL_BDM_EMAILS = {
+  'janet@finemarktracking.co.ke': 'Regional Retail',
+  'nancy@finemarktracking.co.ke': 'Nairobi & Environs',
+};
+let _managerNameByEmail = {}; // rep email → their hr_employees.managerName (Admin-only /hr/employees fetch)
+
+function resolveChannel(role, email){
+  const lc = (email||'').toLowerCase();
+  if (REGIONAL_BDM_EMAILS[lc]) return REGIONAL_BDM_EMAILS[lc]; // Janet/Nancy's own channel = the team they run
+  if (role === 'Sales' || role === 'BDM') {
+    // A BDM viewing their own team dashboard already has every visible rep
+    // confirmed as their own direct report (applyViewerScope's real
+    // /hr/leave/my-team-based narrowing) — no need for the Admin-only
+    // /hr/employees fetch below to know which named channel applies here.
+    if (VIEWER_ROLE === 'BDM' && REGIONAL_BDM_EMAILS[VIEWER_EMAIL]) return REGIONAL_BDM_EMAILS[VIEWER_EMAIL];
+    const mgrName = _managerNameByEmail[lc];
+    if (mgrName === 'Janet Muthui') return 'Regional Retail';
+    if (mgrName === 'Nancy Ngethe') return 'Nairobi & Environs';
+    return 'Retail Sales';
+  }
+  if (role === 'CorporateSales' || role === 'BDMCorporate') return 'Corporate Sales';
+  return role || 'Unknown';
+}
+
+const CHANNEL_COLORS = {
+  'Regional Retail'     : '#a855f7',
+  'Nairobi & Environs'  : '#ec4899',
+  'Retail Sales'        : '#94a3b8',
+  'Corporate Sales'     : '#0e7490',
+};
+
+// ─────────────────────────────────────────────────────────────
+//  VIEWER SCOPE — who this dashboard is allowed to show
+// ─────────────────────────────────────────────────────────────
+// BDM/BDMCorporate managers only see their own team's reps (retail vs
+// corporate); an individual CorporateSales rep only ever sees themselves.
+// Admin/Executive stay unrestricted (both teams combined, as before).
+const CORP_TEAM_ROLES   = ['CorporateSales', 'BDMCorporate'];
+const RETAIL_TEAM_ROLES = ['Sales', 'Telesales', 'FieldSales', 'TeamLead', 'BDM'];
+const _viewer = currentUser();
+const VIEWER_ROLE  = _viewer?.user?.role || '';
+const VIEWER_EMAIL = (_viewer?.user?.email || '').toLowerCase();
+
+function viewerTeamRoles(){
+  if (VIEWER_ROLE === 'BDMCorporate') return CORP_TEAM_ROLES;
+  if (VIEWER_ROLE === 'BDM')          return RETAIL_TEAM_ROLES;
+  return null; // Admin/Executive — unrestricted
+}
+const SECTIONS = ['overview','perRep','trends','leaderboard','channels'];
+let _filterDays = 30;
+let _charts = {};
+let _allReps = [], _leads = [], _retailLeads = [], _invoices = [], _quotes = [], _communications = [];
+let _repStats = {};   // email → stats object
+let _monthlyData = []; // array of { label, leads, converted, invoices, revenue, activity }
+
+// ─────────────────────────────────────────────────────────────
+//  HELPERS
+// ─────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const fmtMoney = n => isNaN(n)||n===null ? '—' : Number(n).toLocaleString('en-KE',{minimumFractionDigits:0,maximumFractionDigits:0});
+const fmtPct   = n => isNaN(n)||n===null ? '—' : Number(n).toFixed(1)+'%';
+
+function toast(msg, type='success'){
+  const icons={success:'✓',error:'✕',info:'ℹ',warn:'⚠'};
+  const colors={success:'#16a34a',error:'#dc2626',info:'#2563eb',warn:'#d97706'};
+  $('toast-msg').textContent=msg; $('toast-icon').textContent=icons[type]||'ℹ';
+  $('toast-inner').style.background=colors[type]||colors.info;
+  $('toast').classList.remove('hidden');
+  clearTimeout(window._tt);
+  window._tt=setTimeout(()=>$('toast').classList.add('hidden'),3200);
+}
+
+function inWindow(dateStr){
+  if(!_filterDays||!dateStr) return true;
+  return new Date(dateStr) >= new Date(Date.now() - _filterDays*86400000);
+}
+
+function channelBadge(ch){
+  const cls={
+    'Regional Retail'     :'bg-purple-50 text-purple-700 border border-purple-200',
+    'Nairobi & Environs'  :'bg-pink-50 text-pink-700 border border-pink-200',
+    'Retail Sales'        :'bg-slate-100 text-slate-600 border border-slate-200',
+    'Corporate Sales'     :'bg-cyan-50 text-cyan-700 border border-cyan-200',
+  }[ch]||'bg-slate-100 text-slate-600';
+  return `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[0.65rem] font-semibold ${cls}">${ch||'—'}</span>`;
+}
+
+function effBar(score){
+  const pct = Math.min(100, Math.max(0, score));
+  const color = pct >= 70 ? '#22c55e' : pct >= 40 ? '#f59e0b' : '#ef4444';
+  return `<div class="flex items-center gap-1.5">
+    <div class="bar-track flex-1" style="height:.4rem">
+      <div class="eff-bar-fill" style="width:${pct}%;background:${color};height:100%;border-radius:9999px;"></div>
+    </div>
+    <span class="text-xs font-semibold" style="color:${color};min-width:2rem">${Math.round(pct)}</span>
+  </div>`;
+}
+
+function destroyChart(id){
+  if(_charts[id]){_charts[id].destroy();delete _charts[id];}
+}
+
+// Tiny axisless trend line for a stat card — always the full trailing-12-
+// month shape from _monthlyData, independent of the active date-range
+// filter (standard sparkline convention: quick context, not meant to sum to
+// the filtered headline number above it).
+function renderSparkline(id, values, color){
+  destroyChart(id);
+  const el = $(id);
+  if(!el) return;
+  _charts[id] = new Chart(el.getContext('2d'), {
+    type:'line',
+    data:{ labels: values.map((_,i)=>i), datasets:[{
+      data: values, borderColor: color, backgroundColor: color+'1a',
+      borderWidth: 1.5, tension:.35, fill:true, pointRadius:0,
+    }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{enabled:false} },
+      scales:{ x:{display:false}, y:{display:false} },
+      elements:{ line:{ borderJoinStyle:'round' } },
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+//  DATA LOADING
+// ─────────────────────────────────────────────────────────────
+function applyScopeBadge(){
+  const badge = $('scope-badge');
+  if (!badge) return;
+  const labels = {
+    CorporateSales: 'My Performance',
+    BDMCorporate:   'Corporate Sales Team',
+    BDM:            'Retail Sales Team',
+  };
+  badge.textContent = labels[VIEWER_ROLE] ? `${labels[VIEWER_ROLE]} Dashboard` : 'All Teams — Admin View';
+}
+
+async function loadAll(){
+  applyScopeBadge();
+  // An individual CorporateSales rep can only ever see themselves — skip the
+  // network entirely and build their one-row roster straight from the
+  // session, rather than round-tripping through /users just to filter it
+  // back down to one person.
+  if (VIEWER_ROLE === 'CorporateSales') {
+    const [lr, ir, qr, cr] = await Promise.allSettled([
+      apiFetch('/crm/leads?pageSize=1000'),
+      apiFetch('/invoices?pageSize=1000'),
+      apiFetch('/crm/quotes?pageSize=500'),
+      apiFetch('/crm/communications?pageSize=200'),
+    ]);
+    _leads         = lr.status==='fulfilled' ? (lr.value?.data||[])  : [];
+    _invoices      = ir.status==='fulfilled' ? (ir.value?.data||[])  : [];
+    _quotes        = qr.status==='fulfilled' ? (qr.value?.data||[])  : [];
+    _communications = cr.status==='fulfilled' ? (cr.value?.data||[]) : [];
+    _allReps  = [{ id: _viewer?.user?.id, name: _viewer?.user?.name || VIEWER_EMAIL, email: _viewer?.user?.email, role: VIEWER_ROLE }];
+    _communications = _communications.filter(c => (c.byUserEmail||'').toLowerCase() === VIEWER_EMAIL);
+    computeStats();
+    renderAll();
+    return;
+  }
+
+  // Fetch all data in parallel. Includes the managers themselves (BDM,
+  // BDMCorporate) — not just their ICs — since a manager's own leads/
+  // invoices/quotes need their own email in _allReps too, or
+  // applyViewerScope()'s allowlist filter silently drops the manager's own
+  // records from their own team dashboard.
+  const [lr, rr, ir, qr, cr, hr, u1, u2, u3, u4] = await Promise.allSettled([
+    apiFetch('/crm/leads?pageSize=1000'),
+    // retail_leads is the dominant deal flow for 'Sales'/'BDM' reps (297+36 of
+    // 334 total) — crm_leads alone was leaving their Per Rep/Leaderboard/
+    // Channels rows at all zeros, since almost none of their real activity
+    // lives there (only 5 of 125 crm_leads belong to role='Sales').
+    apiFetch('/retail/leads?pageSize=1000'),
+    apiFetch('/invoices?pageSize=1000'),
+    apiFetch('/crm/quotes?pageSize=500'),
+    // Activity/Engagement metric — calls/SMS/WhatsApp/meetings logged per
+    // rep. Server-side pageSize is hard-capped at 200 regardless of what's
+    // requested here; fine for current volume with comfortable headroom.
+    apiFetch('/crm/communications?pageSize=200'),
+    // Admin/HR-only — resolves which regional BDM (Janet/Nancy) each retail
+    // rep reports to, for the Regional Retail / Nairobi & Environs channel
+    // split. 403s for BDM/BDMCorporate/CorporateSales viewers; harmless
+    // (resolveChannel() doesn't need it for them — see its own comment) and
+    // handled the same allSettled way as every other fetch here.
+    apiFetch('/hr/employees?status=Active&pageSize=100'),
+    // 'Sales' and 'BDM' cover retail; 'Telesales'/'FieldSales'/'TeamLead' were
+    // dropped entirely (confirmed zero active users hold those roles).
+    apiFetch('/users?role=Sales&pageSize=200'),
+    apiFetch('/users?role=CorporateSales&pageSize=200'),
+    apiFetch('/users?role=BDM&pageSize=200'),
+    apiFetch('/users?role=BDMCorporate&pageSize=200'),
+  ]);
+
+  _leads          = lr.status==='fulfilled' ? (lr.value?.data||[])        : [];
+  _retailLeads    = rr.status==='fulfilled' ? (rr.value?.leads||[])       : [];
+  _invoices       = ir.status==='fulfilled' ? (ir.value?.data||[])        : [];
+  _quotes         = qr.status==='fulfilled' ? (qr.value?.data||[])        : [];
+  _communications = cr.status==='fulfilled' ? (cr.value?.data||[])        : [];
+
+  // Merge all rep users, de-duplicate by id
+  const rawReps = [
+    ...(u1.status==='fulfilled' ? (u1.value?.data||[]) : []),
+    ...(u2.status==='fulfilled' ? (u2.value?.data||[]) : []),
+    ...(u3.status==='fulfilled' ? (u3.value?.data||[]) : []),
+    ...(u4.status==='fulfilled' ? (u4.value?.data||[]) : []),
+  ];
+  const seen = new Set();
+  _allReps = rawReps.filter(r=>{ if(seen.has(r.id)) return false; seen.add(r.id); return true; });
+
+  // Build rep email → managerName from the HR roster (see resolveChannel()).
+  _managerNameByEmail = {};
+  if (hr.status === 'fulfilled') {
+    const empByUserId = {};
+    for (const e of (hr.value?.data || [])) { if (e.userAccountId) empByUserId[e.userAccountId] = e; }
+    for (const r of _allReps) {
+      const emp = r.id ? empByUserId[r.id] : null;
+      if (emp?.managerName && r.email) _managerNameByEmail[r.email.toLowerCase()] = emp.managerName;
+    }
+  }
+
+  await applyViewerScope();
+  computeStats();
+  renderAll();
+}
+
+// A BDM/BDMCorporate manager's /users and /invoices calls above intentionally
+// return org-wide data (other pages need that breadth) — this dashboard is
+// what actually needs the "my team only" narrowing, so it's applied here,
+// client-side, right before stats are computed from it.
+//
+// Retail now has multiple regional BDMs (e.g. Janet Muthui / Nancy Ngethe),
+// each managing their own distinct set of Sales officers — a role-based
+// "any BDM sees every Sales rep" filter would leak one manager's team into
+// the other's dashboard. /hr/leave/my-team resolves the REAL direct-report
+// list live from hr_employees.manager_id (the same source HR uses), so each
+// manager's dashboard always matches their actual current team.
+async function applyViewerScope(){
+  if (!viewerTeamRoles()) return; // Admin/Executive — unrestricted
+  let allowedEmails;
+  try {
+    const r = await apiFetch('/hr/leave/my-team');
+    allowedEmails = new Set([VIEWER_EMAIL, ...(r?.directReports || []).map(d => (d.email || '').toLowerCase()).filter(Boolean)]);
+  } catch (e) {
+    console.warn('[sales-performance] Failed to load direct reports, falling back to role-based team scope:', e);
+    const teamRoles = viewerTeamRoles();
+    _allReps = _allReps.filter(r => teamRoles.includes(r.role));
+    allowedEmails = new Set(_allReps.map(r => (r.email||'').toLowerCase()));
+  }
+  _allReps  = _allReps.filter(r => allowedEmails.has((r.email||'').toLowerCase()));
+  _leads    = _leads.filter(l => allowedEmails.has((l.salesRepEmail||'').toLowerCase()));
+  _invoices = _invoices.filter(inv => allowedEmails.has((inv.salesPerson||'').toLowerCase()));
+  _quotes   = _quotes.filter(q => allowedEmails.has((q.salesRepEmail||'').toLowerCase()));
+  _communications = _communications.filter(c => allowedEmails.has((c.byUserEmail||'').toLowerCase()));
+  // retail_leads carries no rep email on the row itself (only salesRepId/
+  // bdmId) — scope by id against the now-filtered _allReps roster instead.
+  const allowedIds = new Set(_allReps.map(r => r.id));
+  _retailLeads = _retailLeads.filter(l => allowedIds.has(l.salesRepId) || allowedIds.has(l.bdmId));
+}
+
+// ─────────────────────────────────────────────────────────────
+//  STATS COMPUTATION
+// ─────────────────────────────────────────────────────────────
+function computeStats(){
+  // Build rep maps: email → repInfo, id → repInfo (retail_leads only carries
+  // salesRepId/bdmId, no rep email on the row itself)
+  const repByEmail = {};
+  const repById = {};
+  for(const r of _allReps){
+    if(r.email) repByEmail[r.email.toLowerCase()] = r;
+    if(r.id) repById[r.id] = r;
+  }
+
+  // Initialize stats for all known reps
+  _repStats = {};
+  for(const r of _allReps){
+    const email = (r.email||'').toLowerCase();
+    if(!email) continue;
+    _repStats[email] = {
+      id: r.id, name: r.name||r.email||'Unknown', email,
+      role: r.role||'', channel: resolveChannel(r.role, email),
+      leads:0, qualified:0, converted:0, disqualified:0,
+      invoiceCount:0, revenue:0, quoteCount:0, quoteValue:0, activityCount:0,
+    };
+  }
+
+  // Tally leads in the current window
+  for(const l of _leads){
+    if(!inWindow(l.createdAt)) continue;
+    const email = (l.salesRepEmail||'').toLowerCase();
+    if(!email) continue;
+    // Ensure slot exists even for reps not in users list
+    if(!_repStats[email]){
+      const repInfo = repByEmail[email];
+      _repStats[email] = {
+        id: repInfo?.id||email, name: repInfo?.name||l.salesRepEmail||email,
+        email, role: repInfo?.role||l.leadOwnerRole||'',
+        channel: resolveChannel(repInfo?.role||l.leadOwnerRole, email),
+        leads:0, qualified:0, converted:0, disqualified:0,
+        invoiceCount:0, revenue:0, quoteCount:0, quoteValue:0, activityCount:0,
+      };
+    }
+    const st = _repStats[email];
+    st.leads++;
+    const status = (l.status||'').toLowerCase();
+    if(status==='qualified')    st.qualified++;
+    else if(status==='converted')   st.converted++;
+    else if(status==='disqualified') st.disqualified++;
+  }
+
+  // Tally retail leads (bank/dealer-partnership vehicle-loan pipeline — the
+  // dominant flow for 'Sales'/'BDM' reps). Attributed to the sales rep, not
+  // the BDM, when both are present, matching how retail_leads.sales_rep_id
+  // is the working owner of the deal. Status vocabulary differs from
+  // crm_leads ('Submitted'/'Completed'/'cancelled' vs 'Qualified'/
+  // 'Converted'/'Disqualified') — mapped onto the same funnel buckets:
+  // Submitted (in an active installation job) ~ Qualified, Completed ~
+  // Converted, cancelled ~ Disqualified.
+  for(const l of _retailLeads){
+    if(!inWindow(l.createdAt)) continue;
+    const repId = l.salesRepId || l.bdmId;
+    if(!repId) continue;
+    const repInfo = repById[repId];
+    const email = (repInfo?.email || '').toLowerCase();
+    if(!email) continue; // no known user account to attribute this to
+    if(!_repStats[email]){
+      _repStats[email] = {
+        id: repInfo.id, name: repInfo.name||email, email,
+        role: repInfo.role||'', channel: resolveChannel(repInfo.role, email),
+        leads:0, qualified:0, converted:0, disqualified:0,
+        invoiceCount:0, revenue:0, quoteCount:0, quoteValue:0, activityCount:0,
+      };
+    }
+    const st = _repStats[email];
+    st.leads++;
+    const status = (l.status||'').toLowerCase();
+    if(status==='submitted')      st.qualified++;
+    else if(status==='completed') st.converted++;
+    else if(status==='cancelled') st.disqualified++;
+  }
+
+  // Tally activity/engagement (calls, SMS, WhatsApp, meetings logged) — a
+  // secondary signal alongside leads/revenue showing who's actively working
+  // their pipeline. Only 2 records exist in prod at the time this was built
+  // (both logged by an Admin account, not a sales-role rep), so this will
+  // look sparse today; it's a real, growing metric, not a placeholder — the
+  // Overview card gives it an honest empty-state label rather than a bare
+  // misleading zero. Slot-creation-if-missing mirrors every other tally loop
+  // above (leads/retail-leads/invoices) so activity from someone outside the
+  // fetched sales-role roster still counts rather than being silently
+  // dropped.
+  for(const c of _communications){
+    if(!inWindow(c.contactedAt)) continue;
+    const email = (c.byUserEmail||'').toLowerCase();
+    if(!email) continue;
+    if(!_repStats[email]){
+      const repInfo = repByEmail[email];
+      _repStats[email] = {
+        id: repInfo?.id||email, name: repInfo?.name||email,
+        email, role: repInfo?.role||'',
+        channel: resolveChannel(repInfo?.role, email),
+        leads:0, qualified:0, converted:0, disqualified:0,
+        invoiceCount:0, revenue:0, quoteCount:0, quoteValue:0, activityCount:0,
+      };
+    }
+    _repStats[email].activityCount++;
+  }
+
+  // Tally invoices
+  for(const inv of _invoices){
+    if(!inWindow(inv.issuedOn||inv.createdAt)) continue;
+    const status = (inv.status||'').toLowerCase();
+    if(status==='cancelled'||status==='voided') continue;
+    const email = (inv.salesPerson||'').toLowerCase();
+    if(!email) continue;
+    if(!_repStats[email]){
+      const repInfo = repByEmail[email];
+      _repStats[email] = {
+        id: repInfo?.id||email, name: repInfo?.name||email,
+        email, role: repInfo?.role||'',
+        channel: resolveChannel(repInfo?.role, email),
+        leads:0, qualified:0, converted:0, disqualified:0,
+        invoiceCount:0, revenue:0, quoteCount:0, quoteValue:0, activityCount:0,
+      };
+    }
+    _repStats[email].invoiceCount++;
+    _repStats[email].revenue += parseFloat(inv.total)||0;
+  }
+
+  // Tally quotes
+  for(const q of _quotes){
+    if(!inWindow(q.createdAt)) continue;
+    const email = (q.salesRepEmail||'').toLowerCase();
+    if(!email||!_repStats[email]) continue;
+    _repStats[email].quoteCount++;
+    _repStats[email].quoteValue += parseFloat(q.total)||0;
+  }
+
+  // Compute derived metrics
+  const totalRev = Object.values(_repStats).reduce((s,r)=>s+r.revenue,0);
+  const maxRev = Math.max(...Object.values(_repStats).map(r=>r.revenue), 1);
+  for(const st of Object.values(_repStats)){
+    const decided = st.converted + st.disqualified;
+    st.convRate = decided > 0 ? (st.converted/decided*100) : 0;
+    const revScore = maxRev > 0 ? (st.revenue/maxRev*100) : 0;
+    st.efficiency = Math.round(st.convRate * 0.5 + revScore * 0.5);
+    st.revenueShare = totalRev > 0 ? (st.revenue/totalRev*100) : 0;
+  }
+
+  // Monthly bucketing (last 12 months, ordered)
+  computeMonthlyData();
+}
+
+function computeMonthlyData(){
+  const now = new Date();
+  const months = [];
+  for(let i=11;i>=0;i--){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    months.push({
+      key: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`,
+      label: d.toLocaleDateString('en-GB',{month:'short',year:'2-digit'}),
+      leads:0, converted:0, invoices:0, revenue:0, activity:0,
+    });
+  }
+  const byKey = Object.fromEntries(months.map(m=>[m.key,m]));
+
+  for(const l of _leads){
+    if(!l.createdAt) continue;
+    const d = new Date(l.createdAt);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    if(byKey[key]){
+      byKey[key].leads++;
+      if((l.status||'').toLowerCase()==='converted') byKey[key].converted++;
+    }
+  }
+  for(const l of _retailLeads){
+    if(!l.createdAt) continue;
+    const d = new Date(l.createdAt);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    if(byKey[key]){
+      byKey[key].leads++;
+      if((l.status||'').toLowerCase()==='completed') byKey[key].converted++;
+    }
+  }
+  for(const inv of _invoices){
+    const ts = inv.issuedOn||inv.createdAt;
+    if(!ts) continue;
+    if((inv.status||'').toLowerCase()==='cancelled') continue;
+    const d = new Date(ts);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    if(byKey[key]){
+      byKey[key].invoices++;
+      byKey[key].revenue += parseFloat(inv.total)||0;
+    }
+  }
+  for(const c of _communications){
+    if(!c.contactedAt) continue;
+    const d = new Date(c.contactedAt);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    if(byKey[key]) byKey[key].activity++;
+  }
+  _monthlyData = months;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  RENDER — ALL
+// ─────────────────────────────────────────────────────────────
+function renderAll(){
+  renderOverview();
+  if(!$('sec-perRep').classList.contains('hidden'))     renderPerRep();
+  if(!$('sec-trends').classList.contains('hidden'))     renderTrends();
+  if(!$('sec-leaderboard').classList.contains('hidden')) renderLeaderboard();
+  if(!$('sec-channels').classList.contains('hidden'))   renderChannels();
+}
+
+// ─────────────────────────────────────────────────────────────
+//  RENDER — OVERVIEW
+// ─────────────────────────────────────────────────────────────
+function renderOverview(){
+  const stats = Object.values(_repStats);
+  const totalLeads   = stats.reduce((s,r)=>s+r.leads, 0);
+  const totalConv    = stats.reduce((s,r)=>s+r.converted, 0);
+  const totalDisq    = stats.reduce((s,r)=>s+r.disqualified, 0);
+  const totalQual    = stats.reduce((s,r)=>s+r.qualified, 0);
+  const totalInv     = stats.reduce((s,r)=>s+r.invoiceCount, 0);
+  const totalRev     = stats.reduce((s,r)=>s+r.revenue, 0);
+  const totalActivity = stats.reduce((s,r)=>s+r.activityCount, 0);
+  const activeReps   = stats.filter(r=>r.leads>0||r.invoiceCount>0).length;
+  const decided      = totalConv + totalDisq;
+  const convRate     = decided > 0 ? (totalConv/decided*100) : 0;
+
+  $('ovr-total-leads').textContent = totalLeads;
+  $('ovr-total-leads-sub').textContent = _filterDays ? `last ${_filterDays} days` : 'all time';
+  $('ovr-converted').textContent = totalConv;
+  $('ovr-conv-rate').textContent = fmtPct(convRate) + ' conv. rate';
+  $('ovr-invoices').textContent = totalInv;
+  $('ovr-invoices-sub').textContent = _filterDays ? `last ${_filterDays} days` : 'all time';
+  $('ovr-revenue').textContent = 'KES ' + fmtMoney(totalRev);
+  $('ovr-reps').textContent = activeReps;
+  $('ovr-activity').textContent = totalActivity;
+  $('ovr-activity-sub').textContent = totalActivity > 0
+    ? (_filterDays ? `last ${_filterDays} days` : 'all time')
+    : 'No activity logged yet';
+
+  // Sparklines — full trailing-12-month shape, independent of the filter
+  renderSparkline('spark-leads',     _monthlyData.map(m=>m.leads),     '#475569');
+  renderSparkline('spark-converted', _monthlyData.map(m=>m.converted), '#16a34a');
+  renderSparkline('spark-invoices',  _monthlyData.map(m=>m.invoices),  '#4f46e5');
+  renderSparkline('spark-revenue',   _monthlyData.map(m=>m.revenue),   '#059669');
+  renderSparkline('spark-activity',  _monthlyData.map(m=>m.activity),  '#7c3aed');
+
+  // Funnel
+  const pctOf = n => totalLeads > 0 ? Math.round(n/totalLeads*100) : 0;
+  $('funnel-new').style.width = '100%';
+  $('funnel-new-n').textContent = totalLeads;
+  $('funnel-qualified').style.width = pctOf(totalQual)+'%';
+  $('funnel-qualified-n').textContent = totalQual;
+  $('funnel-converted').style.width = pctOf(totalConv)+'%';
+  $('funnel-converted-n').textContent = totalConv;
+  $('funnel-disqualified').style.width = pctOf(totalDisq)+'%';
+  $('funnel-disqualified-n').textContent = totalDisq;
+  $('funnel-close-rate').textContent = decided > 0 ? fmtPct(convRate) : '—';
+
+  // Top 5
+  const sorted = [...stats].filter(r=>r.revenue>0||r.leads>0)
+    .sort((a,b)=>b.revenue-a.revenue).slice(0,5);
+  $('top5-body').innerHTML = sorted.length ? sorted.map((r,i)=>`
+    <tr class="hover:bg-slate-50">
+      <td class="py-2 pr-1.5">
+        <span class="rank-badge ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-n'}">${i+1}</span>
+      </td>
+      <td class="py-2 pr-2 font-medium text-slate-800 max-w-[120px] truncate">${r.name}</td>
+      <td class="py-2 pr-2">${channelBadge(r.channel)}</td>
+      <td class="py-2 text-right font-semibold text-emerald-600">KES ${fmtMoney(r.revenue)}</td>
+    </tr>`).join('')
+    : '<tr><td colspan="4" class="py-8 text-center text-slate-400">No activity yet</td></tr>';
+
+  // Overview dual chart
+  destroyChart('overview-chart');
+  const ctx = $('overview-chart').getContext('2d');
+  _charts['overview-chart'] = new Chart(ctx, {
+    data: {
+      labels: _monthlyData.map(m=>m.label),
+      datasets: [
+        { type:'bar', label:'Leads', data: _monthlyData.map(m=>m.leads),
+          backgroundColor:'#818cf8', borderRadius:3, yAxisID:'y' },
+        { type:'line', label:'Revenue (KES)', data: _monthlyData.map(m=>Math.round(m.revenue/1000)),
+          borderColor:'#10b981', backgroundColor:'rgba(16,185,129,.08)',
+          tension:.4, fill:true, pointRadius:3, yAxisID:'y1' },
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{labels:{font:{size:10},boxWidth:10}} },
+      scales:{
+        y:{ position:'left', title:{display:true,text:'Leads',font:{size:9}},
+            ticks:{font:{size:9}}, grid:{color:'#f1f5f9'} },
+        y1:{ position:'right', title:{display:true,text:'Rev (K KES)',font:{size:9}},
+             ticks:{font:{size:9}}, grid:{display:false} },
+      }
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+//  RENDER — PER REP
+// ─────────────────────────────────────────────────────────────
+function renderPerRep(){
+  const search  = ($('rep-search').value||'').toLowerCase();
+  const channel = $('rep-channel-filter').value||'';
+  const sortBy  = $('rep-sort-by').value||'revenue';
+
+  let reps = Object.values(_repStats).filter(r=>{
+    if(channel && r.channel !== channel) return false;
+    if(search && !r.name.toLowerCase().includes(search) && !r.email.includes(search)) return false;
+    return true;
+  });
+  reps.sort((a,b)=>b[sortBy]-a[sortBy]);
+
+  const empty = $('per-rep-empty');
+  const tbody = $('per-rep-body');
+  if(!reps.length){ tbody.innerHTML=''; empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+
+  tbody.innerHTML = reps.map((r,i)=>`
+    <tr class="hover:bg-slate-50/70">
+      <td class="py-2.5 px-3 font-medium text-slate-500 text-center">${i+1}</td>
+      <td class="py-2.5 px-3">
+        <div class="font-semibold text-slate-800">${r.name}</div>
+        <div class="text-slate-400 text-[0.65rem]">${r.email}</div>
+      </td>
+      <td class="py-2.5 px-3">${channelBadge(r.channel)}</td>
+      <td class="py-2.5 px-3 text-center font-medium">${r.leads}</td>
+      <td class="py-2.5 px-3 text-center text-blue-600 font-medium">${r.qualified}</td>
+      <td class="py-2.5 px-3 text-center text-green-600 font-semibold">${r.converted}</td>
+      <td class="py-2.5 px-3 text-center ${r.convRate>=50?'text-green-600':r.convRate>0?'text-amber-600':'text-slate-400'}">${r.leads>0?fmtPct(r.convRate):'—'}</td>
+      <td class="py-2.5 px-3 text-center font-medium">${r.invoiceCount}</td>
+      <td class="py-2.5 px-3 text-center ${r.activityCount>0?'text-violet-600 font-medium':'text-slate-300'}">${r.activityCount}</td>
+      <td class="py-2.5 px-3 text-right font-semibold text-emerald-600">KES ${fmtMoney(r.revenue)}</td>
+      <td class="py-2.5 px-3 min-w-[100px]">${effBar(r.efficiency)}</td>
+    </tr>`).join('');
+}
+
+// ─────────────────────────────────────────────────────────────
+//  RENDER — TRENDS
+// ─────────────────────────────────────────────────────────────
+function renderTrends(){
+  const labels = _monthlyData.map(m=>m.label);
+
+  destroyChart('leads-trend-chart');
+  _charts['leads-trend-chart'] = new Chart($('leads-trend-chart').getContext('2d'), {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        { label:'New Leads', data:_monthlyData.map(m=>m.leads), backgroundColor:'#818cf8', borderRadius:3 },
+        { label:'Converted', data:_monthlyData.map(m=>m.converted), backgroundColor:'#34d399', borderRadius:3 },
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{labels:{font:{size:10},boxWidth:10}} },
+      scales:{ x:{ticks:{font:{size:9}}}, y:{ticks:{font:{size:9}},grid:{color:'#f1f5f9'}} }
+    }
+  });
+
+  destroyChart('revenue-trend-chart');
+  _charts['revenue-trend-chart'] = new Chart($('revenue-trend-chart').getContext('2d'), {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        { label:'Revenue (KES)', data:_monthlyData.map(m=>Math.round(m.revenue)),
+          backgroundColor:'#10b981', borderRadius:3 },
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{labels:{font:{size:10},boxWidth:10}} },
+      scales:{ x:{ticks:{font:{size:9}}}, y:{ticks:{font:{size:9},callback:v=>'KES '+fmtMoney(v)},grid:{color:'#f1f5f9'}} }
+    }
+  });
+
+  destroyChart('conv-trend-chart');
+  const convRates = _monthlyData.map(m=>{
+    const decided = m.converted; // we only tracked converted from leads, approximate
+    const rate = m.leads > 0 ? Math.round(m.converted/m.leads*100*10)/10 : null;
+    return rate;
+  });
+  _charts['conv-trend-chart'] = new Chart($('conv-trend-chart').getContext('2d'), {
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        label:'Conv Rate %', data: convRates,
+        borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.08)',
+        tension:.4, fill:true, pointRadius:4, spanGaps:true,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{labels:{font:{size:10},boxWidth:10}} },
+      scales:{
+        x:{ticks:{font:{size:9}}},
+        y:{ ticks:{font:{size:9},callback:v=>v+'%'}, min:0, max:100,
+            grid:{color:'#f1f5f9'} }
+      }
+    }
+  });
+
+  destroyChart('activity-trend-chart');
+  _charts['activity-trend-chart'] = new Chart($('activity-trend-chart').getContext('2d'), {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        { label:'Activity Logged', data:_monthlyData.map(m=>m.activity), backgroundColor:'#8b5cf6', borderRadius:3 },
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{labels:{font:{size:10},boxWidth:10}} },
+      scales:{ x:{ticks:{font:{size:9}}}, y:{ticks:{font:{size:9},precision:0},grid:{color:'#f1f5f9'}} }
+    }
+  });
+
+  // Monthly table
+  const rows = [..._monthlyData].reverse();
+  $('monthly-table-body').innerHTML = rows.map(m=>{
+    const cr = m.leads > 0 ? fmtPct(m.converted/m.leads*100) : '—';
+    return `<tr class="hover:bg-slate-50">
+      <td class="py-2.5 px-4 font-medium text-slate-700">${m.label}</td>
+      <td class="py-2.5 px-4 text-center">${m.leads}</td>
+      <td class="py-2.5 px-4 text-center text-green-600 font-medium">${m.converted}</td>
+      <td class="py-2.5 px-4 text-center ${m.converted/Math.max(1,m.leads)>=.5?'text-green-600':'text-slate-500'}">${cr}</td>
+      <td class="py-2.5 px-4 text-center">${m.invoices}</td>
+      <td class="py-2.5 px-4 text-center ${m.activity>0?'text-violet-600':'text-slate-400'}">${m.activity}</td>
+      <td class="py-2.5 px-4 text-right font-semibold text-emerald-600">KES ${fmtMoney(m.revenue)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────────────────────────────
+//  RENDER — LEADERBOARD
+// ─────────────────────────────────────────────────────────────
+function renderLeaderboard(){
+  const metric = ($('lb-metric')?.value)||'revenue';
+  const sorted = Object.values(_repStats)
+    .filter(r=>r.leads>0||r.invoiceCount>0)
+    .sort((a,b)=>b[metric]-a[metric]);
+
+  // Podium top 3
+  const podium = sorted.slice(0,3);
+  const podiumOrder = [1,0,2]; // visual order: 2nd, 1st, 3rd
+  const podiumColors = ['#9ca3af','#f59e0b','#cd7c42'];
+  const podiumHeights = ['h-20','h-28','h-16'];
+  const podiumLabels = ['🥈','🥇','🥉'];
+  $('podium-row').innerHTML = (podiumOrder.map(idx=>{
+    const r = podium[idx];
+    if(!r) return `<div class="podium-card flex flex-col items-center justify-end opacity-30">
+      <div class="text-2xl mb-1">${podiumLabels[idx]}</div>
+      <div class="text-xs text-slate-400">—</div>
+    </div>`;
+    const metricVal = metric==='revenue'?`KES ${fmtMoney(r.revenue)}`
+      :metric==='convRate'?fmtPct(r.convRate)
+      :metric==='efficiency'?String(r.efficiency)
+      :String(r[metric]);
+    return `<div class="podium-card flex flex-col items-center gap-1" style="border-top:3px solid ${podiumColors[idx]}">
+      <div class="text-2xl">${podiumLabels[idx]}</div>
+      <div class="font-bold text-slate-900 text-sm text-center">${r.name}</div>
+      <div class="">${channelBadge(r.channel)}</div>
+      <div class="font-semibold text-indigo-600 text-sm mt-1">${metricVal}</div>
+      <div class="text-xs text-slate-400">${idx===0?'2nd':idx===1?'1st':'3rd'} place</div>
+    </div>`;
+  })).join('');
+
+  // Full table
+  $('lb-body').innerHTML = sorted.length ? sorted.map((r,i)=>{
+    const metricVal = metric==='revenue'?`KES ${fmtMoney(r.revenue)}`
+      :metric==='convRate'?fmtPct(r.convRate)
+      :metric==='efficiency'?effBar(r.efficiency)
+      :String(r[metric]);
+    const rankCls = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-n';
+    return `<tr class="hover:bg-slate-50/50">
+      <td class="py-2.5 px-4"><span class="rank-badge ${rankCls}">${i+1}</span></td>
+      <td class="py-2.5 px-3">
+        <div class="font-semibold text-slate-800">${r.name}</div>
+        <div class="text-slate-400 text-[0.65rem]">${r.email}</div>
+      </td>
+      <td class="py-2.5 px-3">${channelBadge(r.channel)}</td>
+      <td class="py-2.5 px-3 text-center">${r.leads}</td>
+      <td class="py-2.5 px-3 text-center text-green-600 font-medium">${r.converted}</td>
+      <td class="py-2.5 px-3 text-center ${r.convRate>=50?'text-green-600':r.convRate>0?'text-amber-600':'text-slate-400'}">${r.leads>0?fmtPct(r.convRate):'—'}</td>
+      <td class="py-2.5 px-3 text-right font-semibold text-emerald-600">KES ${fmtMoney(r.revenue)}</td>
+      <td class="py-2.5 px-3 min-w-[100px]">${effBar(r.efficiency)}</td>
+    </tr>`;
+  }).join('')
+  : '<tr><td colspan="8" class="py-10 text-center text-slate-400">No data available</td></tr>';
+}
+
+// ─────────────────────────────────────────────────────────────
+//  RENDER — CHANNELS
+// ─────────────────────────────────────────────────────────────
+function renderChannels(){
+  const reps = Object.values(_repStats);
+  const channelNames = ['Regional Retail','Nairobi & Environs','Retail Sales','Corporate Sales'];
+  const totalRev = reps.reduce((s,r)=>s+r.revenue,0);
+
+  const byChannel = {};
+  for(const ch of channelNames){
+    const chReps = reps.filter(r=>r.channel===ch);
+    const leads      = chReps.reduce((s,r)=>s+r.leads,0);
+    const converted  = chReps.reduce((s,r)=>s+r.converted,0);
+    const disq       = chReps.reduce((s,r)=>s+r.disqualified,0);
+    const revenue    = chReps.reduce((s,r)=>s+r.revenue,0);
+    const invoices   = chReps.reduce((s,r)=>s+r.invoiceCount,0);
+    const decided    = converted + disq;
+    byChannel[ch] = {
+      reps: chReps.filter(r=>r.leads>0||r.invoiceCount>0).length,
+      leads, converted, disqualified:disq,
+      convRate: decided>0 ? converted/decided*100 : 0,
+      revenue, invoices, revenueShare: totalRev>0?revenue/totalRev*100:0,
+    };
+  }
+
+  // Cards
+  const cardIcons = {
+    'Regional Retail':'🗺️',
+    'Nairobi & Environs':'🏙️',
+    'Retail Sales':'🛒',
+    'Corporate Sales':'🏢',
+  };
+  $('channel-cards').innerHTML = channelNames.map(ch=>{
+    const d = byChannel[ch];
+    const color = CHANNEL_COLORS[ch]||'#6366f1';
+    return `<div class="metric-card" style="border-top:3px solid ${color}">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-xl">${cardIcons[ch]||'📊'}</span>
+        <h4 class="text-xs font-semibold text-slate-800">${ch}</h4>
+      </div>
+      <div class="grid grid-cols-2 gap-2 mt-2">
+        <div><p class="text-xs text-slate-400">Reps</p><p class="font-bold text-slate-900">${d.reps}</p></div>
+        <div><p class="text-xs text-slate-400">Leads</p><p class="font-bold text-slate-900">${d.leads}</p></div>
+        <div><p class="text-xs text-slate-400">Conv%</p><p class="font-bold ${d.convRate>=50?'text-green-600':d.convRate>0?'text-amber-600':'text-slate-400'}">${d.leads>0?fmtPct(d.convRate):'—'}</p></div>
+        <div><p class="text-xs text-slate-400">Revenue</p><p class="font-bold text-emerald-600 text-xs">KES ${fmtMoney(d.revenue)}</p></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Chart
+  destroyChart('channel-chart');
+  _charts['channel-chart'] = new Chart($('channel-chart').getContext('2d'), {
+    data:{
+      labels: channelNames,
+      datasets:[
+        { type:'bar', label:'Leads', data:channelNames.map(ch=>byChannel[ch].leads),
+          backgroundColor:'#818cf8', borderRadius:3, yAxisID:'y' },
+        { type:'bar', label:'Converted', data:channelNames.map(ch=>byChannel[ch].converted),
+          backgroundColor:'#34d399', borderRadius:3, yAxisID:'y' },
+        { type:'line', label:'Revenue (K KES)',
+          data:channelNames.map(ch=>Math.round(byChannel[ch].revenue/1000)),
+          borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.08)',
+          tension:.3, fill:false, pointRadius:5, yAxisID:'y1' },
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{labels:{font:{size:10},boxWidth:10}} },
+      scales:{
+        y:{ position:'left', title:{display:true,text:'Count',font:{size:9}},
+            ticks:{font:{size:9}}, grid:{color:'#f1f5f9'} },
+        y1:{ position:'right', title:{display:true,text:'Rev (K KES)',font:{size:9}},
+             ticks:{font:{size:9}}, grid:{display:false} },
+      }
+    }
+  });
+
+  // Table
+  $('channel-table-body').innerHTML = channelNames.map(ch=>{
+    const d = byChannel[ch];
+    return `<tr class="hover:bg-slate-50">
+      <td class="py-2.5 px-4">${channelBadge(ch)}</td>
+      <td class="py-2.5 px-4 text-center font-medium">${d.reps}</td>
+      <td class="py-2.5 px-4 text-center">${d.leads}</td>
+      <td class="py-2.5 px-4 text-center text-green-600 font-medium">${d.converted}</td>
+      <td class="py-2.5 px-4 text-center ${d.convRate>=50?'text-green-600':d.convRate>0?'text-amber-600':'text-slate-400'}">${d.leads>0?fmtPct(d.convRate):'—'}</td>
+      <td class="py-2.5 px-4 text-center">${d.invoices}</td>
+      <td class="py-2.5 px-4 text-right font-semibold text-emerald-600">KES ${fmtMoney(d.revenue)}</td>
+      <td class="py-2.5 px-4 text-right text-slate-600">${fmtPct(d.revenueShare)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────────────────────────────
+//  SECTION SWITCHING
+// ─────────────────────────────────────────────────────────────
+function showSection(name){
+  SECTIONS.forEach(s=>{
+    const el = $(`sec-${s}`);
+    if(el) el.classList.toggle('hidden', s!==name);
+  });
+  document.querySelectorAll('[data-sec]').forEach(b=>{
+    b.classList.toggle('active', b.dataset.sec===name);
+  });
+  // Lazy-render charts on tab switch
+  if(name==='trends')     renderTrends();
+  if(name==='leaderboard') renderLeaderboard();
+  if(name==='channels')   renderChannels();
+  if(name==='perRep')     renderPerRep();
+}
+
+document.querySelectorAll('[data-sec]').forEach(btn=>{
+  btn.addEventListener('click', ()=>showSection(btn.dataset.sec));
+});
+
+// ─────────────────────────────────────────────────────────────
+//  DATE FILTER
+// ─────────────────────────────────────────────────────────────
+document.querySelectorAll('.date-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.date-btn').forEach(b=>{
+      b.className='date-btn rounded px-2.5 py-1.5 text-slate-500 hover:bg-slate-100';
+    });
+    btn.className='date-btn rounded px-2.5 py-1.5 bg-indigo-600 text-white font-semibold';
+    _filterDays = parseInt(btn.dataset.days);
+    computeStats();
+    renderAll();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+//  REFRESH
+// ─────────────────────────────────────────────────────────────
+async function refreshAll(){
+  toast('Refreshing data…','info');
+  await loadAll();
+  toast('Data updated','success');
+}
+
+// ─────────────────────────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', loadAll);
+</script>
+</body>
+</html>

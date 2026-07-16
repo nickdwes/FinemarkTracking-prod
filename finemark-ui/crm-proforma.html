@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Proforma Invoices</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+    <div class="max-w-7xl mx-auto space-y-6">
+
+      <div class="flex flex-wrap items-center gap-3 justify-between">
+        <div>
+          <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Proforma Invoices</h1>
+          <p class="text-sm text-slate-500">Review, approve, and convert proforma invoices to installation tickets.</p>
+        </div>
+      </div>
+
+      <!-- Approval queue banner -->
+      <div id="pending-banner" class="hidden rounded-xl bg-amber-50 border border-amber-200 p-4 flex items-center gap-3">
+        <span class="text-amber-600 text-xl">⏳</span>
+        <div>
+          <p class="text-sm font-semibold text-amber-800">Pending Approval Queue</p>
+          <p class="text-xs text-amber-700"><span id="pending-count">0</span> proforma(s) awaiting BDM / Admin approval.</p>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div class="bg-white rounded-xl border border-slate-200/80 p-3 shadow-sm text-center">
+          <p class="text-xs text-slate-500">Draft</p><p id="s-Draft" class="text-xl font-bold text-slate-700">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200/80 p-3 shadow-sm text-center">
+          <p class="text-xs text-slate-500">Pending Approval</p><p id="s-PendingApproval" class="text-xl font-bold text-amber-600">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200/80 p-3 shadow-sm text-center">
+          <p class="text-xs text-slate-500">Approved</p><p id="s-Approved" class="text-xl font-bold text-green-600">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200/80 p-3 shadow-sm text-center">
+          <p class="text-xs text-slate-500">Rejected</p><p id="s-Rejected" class="text-xl font-bold text-red-500">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200/80 p-3 shadow-sm text-center">
+          <p class="text-xs text-slate-500">Converted</p><p id="s-Converted" class="text-xl font-bold text-blue-600">—</p>
+        </div>
+      </div>
+
+      <!-- Table card -->
+      <div class="bg-white rounded-xl border border-slate-200/80 p-6 shadow-sm space-y-4">
+        <div class="flex flex-wrap gap-3 items-end">
+          <div class="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1 text-sm">
+            <button class="tab-btn rounded-md px-3 py-1.5 bg-white shadow-sm text-slate-900" data-status="">All</button>
+            <button class="tab-btn rounded-md px-3 py-1.5 text-slate-600 hover:bg-white" data-status="Pending Approval">Pending Approval</button>
+            <button class="tab-btn rounded-md px-3 py-1.5 text-slate-600 hover:bg-white" data-status="Approved">Approved</button>
+            <button class="tab-btn rounded-md px-3 py-1.5 text-slate-600 hover:bg-white" data-status="Draft">Draft</button>
+            <button class="tab-btn rounded-md px-3 py-1.5 text-slate-600 hover:bg-white" data-status="Rejected">Rejected</button>
+            <button class="tab-btn rounded-md px-3 py-1.5 text-slate-600 hover:bg-white" data-status="Converted">Converted</button>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Search</label>
+            <input id="search-input" type="text" placeholder="Proforma no, customer…" class="w-56 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+        </div>
+
+        <div id="pf-skeleton" class="space-y-2">
+          <div class="h-10 rounded-lg bg-slate-100 animate-pulse"></div>
+          <div class="h-10 rounded-lg bg-slate-100 animate-pulse"></div>
+          <div class="h-10 rounded-lg bg-slate-100 animate-pulse"></div>
+        </div>
+        <div id="pf-empty" class="hidden rounded-lg border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">No proforma invoices found.</div>
+        <div id="pf-error" class="hidden rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700"></div>
+        <div class="overflow-x-auto">
+          <table id="pf-table" class="hidden min-w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wide">
+                <th class="py-2 pr-4 text-left font-semibold">Proforma No</th>
+                <th class="py-2 pr-4 text-left font-semibold">Customer</th>
+                <th class="py-2 pr-4 text-left font-semibold">Total (KES)</th>
+                <th class="py-2 pr-4 text-left font-semibold">Status</th>
+                <th class="py-2 pr-4 text-left font-semibold">Sales Rep</th>
+                <th class="py-2 pr-4 text-left font-semibold">Created</th>
+                <th class="py-2 text-left font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="pf-tbody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Approve / Convert Modal -->
+<div id="modal-action" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+    <h2 id="modal-action-title" class="text-lg font-semibold text-slate-900"></h2>
+    <div id="modal-action-body" class="space-y-3 text-sm text-slate-600"></div>
+    <div id="modal-action-error" class="hidden text-sm text-red-600"></div>
+    <div class="flex justify-end gap-3">
+      <button id="ma-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
+      <button id="ma-confirm" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- View Proforma PDF Modal -->
+<div id="modal-view-pf" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
+      <h2 id="view-pf-title" class="text-lg font-semibold text-slate-900">Proforma Invoice</h2>
+      <div class="flex items-center gap-2">
+        <a id="view-pf-download" href="#" download class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-1">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5"><path d="M10.75 2.75a.75.75 0 0 0-1.5 0v8.614L6.295 8.235a.75.75 0 1 0-1.09 1.03l4.25 4.5a.75.75 0 0 0 1.09 0l4.25-4.5a.75.75 0 0 0-1.09-1.03l-2.955 3.129V2.75Z"/><path d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z"/></svg>
+          Download
+        </a>
+        <button onclick="closeViewPf()" class="text-slate-400 hover:text-slate-600">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="flex-1 overflow-hidden rounded-b-2xl">
+      <iframe id="view-pf-iframe" src="" class="w-full h-full border-0 rounded-b-2xl" title="Proforma PDF"></iframe>
+    </div>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-slate-100 flex-shrink-0">
+      <button onclick="closeViewPf()" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Close</button>
+      <button id="view-pf-send-btn" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700">Send to Customer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Send Proforma Modal -->
+<div id="modal-send-pf" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+    <h2 class="text-lg font-semibold text-slate-900">Send Proforma to Customer</h2>
+    <p class="text-sm text-slate-500">A branded email with the proforma details will be sent. Leave blank to use the customer's primary email on file.</p>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Recipient Email (optional override)</label>
+      <input id="send-pf-email" type="email" placeholder="customer@example.com"
+        class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+    </div>
+    <div id="send-pf-error" class="hidden text-sm text-red-600"></div>
+    <div class="flex justify-end gap-3">
+      <button onclick="document.getElementById('modal-send-pf').classList.add('hidden')" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
+      <button id="send-pf-confirm" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700">Send Email</button>
+    </div>
+  </div>
+</div>
+
+<div id="fm-toast-root" class="fixed bottom-4 right-4 z-[9999] space-y-2"></div>
+<div id="fm-footer"></div>
+<script src="assets/app.js?v=202607011748"></script>
+<script src="assets/layout.js?v=202607011748"></script>
+<script>
+const APP = window.FINEMARK_APP;
+if (!APP || typeof APP.apiFetch !== "function") {
+  console.error("FINEMARK_APP not available");
+}
+const api = APP?.apiFetch;
+const $ = id => document.getElementById(id);
+const _session = APP?.getSession?.();
+const _userRole = (_session?.user?.role || "").toLowerCase();
+const canApproveProforma = ["admin", "finance", "bdm"].includes(_userRole);
+let activeStatus = "";
+let debounceTimer, pendingAction = null, pendingId = null;
+let _pfMap = {};
+
+const STATUS_COLORS = {
+  Draft: "bg-slate-100 text-slate-600 border-slate-200",
+  "Pending Approval": "bg-amber-50 text-amber-700 border-amber-200",
+  Approved: "bg-green-50 text-green-700 border-green-200",
+  Rejected: "bg-red-50 text-red-700 border-red-200",
+  Converted: "bg-blue-50 text-blue-700 border-blue-200",
+};
+
+function badge(s) {
+  const c = STATUS_COLORS[s] || "bg-slate-100 text-slate-600 border-slate-200";
+  return `<span class="inline-block rounded-full border px-2 py-0.5 text-xs font-semibold ${c}">${s}</span>`;
+}
+
+async function loadProformas() {
+  if (!api) return;
+  $("pf-skeleton").classList.remove("hidden");
+  $("pf-table").classList.add("hidden");
+  $("pf-empty").classList.add("hidden");
+  $("pf-error").classList.add("hidden");
+
+  const p = new URLSearchParams({ pageSize: "100" });
+  if (activeStatus) p.set("status", activeStatus);
+  const q = $("search-input").value.trim();
+  if (q) p.set("q", q);
+
+  try {
+    const r = await api(`/crm/proforma?${p.toString()}`);
+    const data = r?.data || [];
+    _pfMap = {}; data.forEach(pf => { _pfMap[pf.id] = pf; });
+    $("pf-skeleton").classList.add("hidden");
+
+    if (!activeStatus && !q) {
+      const stats = {};
+      data.forEach(d => {
+        const key = d.status.replace(" ", "");
+        stats[key] = (stats[key] || 0) + 1;
+      });
+      ["Draft","PendingApproval","Approved","Rejected","Converted"].forEach(s => {
+        const el = $("s-" + s); if (el) el.textContent = stats[s] || 0;
+      });
+      const pendingCount = stats["PendingApproval"] || 0;
+      $("pending-count").textContent = pendingCount;
+      $("pending-banner").classList.toggle("hidden", pendingCount === 0);
+    }
+
+    if (!data.length) { $("pf-empty").classList.remove("hidden"); return; }
+
+    $("pf-tbody").innerHTML = data.map(pf => {
+      const isPending = pf.status === "Pending Approval";
+      const isApproved = pf.status === "Approved";
+      const custApproved = !!pf.customerApprovedAt;
+      const rowCls = isPending ? "bg-amber-50/40" : "hover:bg-slate-50";
+      const custBadge = custApproved
+        ? `<span title="Customer approved via link on ${new Date(pf.customerApprovedAt).toLocaleDateString()}" class="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 text-xs font-semibold text-emerald-700">✓ Cust.</span>`
+        : "";
+      return `
+        <tr class="${rowCls}">
+          <td class="py-2 pr-4 font-mono text-xs"><a href="crm-proforma.html?id=${pf.id}" class="text-blue-600 hover:underline">${pf.proformaNo}</a></td>
+          <td class="py-2 pr-4">${pf.customerName || pf.customerId || "—"}</td>
+          <td class="py-2 pr-4 font-semibold">${pf.totalAmount ? Number(pf.totalAmount).toLocaleString() : "—"}</td>
+          <td class="py-2 pr-4">${badge(pf.status)} ${custBadge}</td>
+          <td class="py-2 pr-4 text-slate-500">${pf.salesRepName || pf.salesRepEmail || "—"}</td>
+          <td class="py-2 pr-4 text-slate-400 text-xs">${new Date(pf.createdAt).toLocaleDateString()}</td>
+          <td class="py-2 flex gap-1 flex-wrap">
+            <button onclick="openViewPf('${pf.id}','${pf.proformaNo}')" class="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Preview PDF</button>
+            <button onclick="openSendPf('${pf.id}')" class="rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100">Send</button>
+            ${isPending && canApproveProforma ? `<button onclick="openApprove('${pf.id}')" class="rounded-md border border-green-200 bg-green-50 px-2 py-1 text-xs font-semibold text-green-700 hover:bg-green-100">${custApproved ? "✓ Approve" : "Approve"}</button>
+              <button onclick="openRejectPf('${pf.id}')" class="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100">Reject</button>` : ""}
+          </td>
+        </tr>
+      `;
+    }).join("");
+    $("pf-table").classList.remove("hidden");
+
+    // Highlight row if arriving via ?id= link
+    const targetId = new URLSearchParams(location.search).get("id");
+    if (targetId) {
+      const rows = $("pf-tbody").querySelectorAll("tr");
+      data.forEach((pf, i) => {
+        if (pf.id === targetId) {
+          rows[i].classList.add("ring-2", "ring-blue-400", "ring-inset");
+          setTimeout(() => rows[i].scrollIntoView({ behavior: "smooth", block: "center" }), 200);
+        }
+      });
+    }
+  } catch(e) {
+    $("pf-skeleton").classList.add("hidden");
+    $("pf-error").textContent = e.message || "Failed to load.";
+    $("pf-error").classList.remove("hidden");
+  }
+}
+
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => {
+      b.classList.remove("bg-white","shadow-sm","text-slate-900"); b.classList.add("text-slate-600");
+    });
+    btn.classList.add("bg-white","shadow-sm","text-slate-900"); btn.classList.remove("text-slate-600");
+    activeStatus = btn.dataset.status;
+    loadProformas();
+  });
+});
+$("search-input").addEventListener("input", () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(loadProformas, 350); });
+
+const modal = $("modal-action");
+$("ma-cancel").addEventListener("click", () => modal.classList.add("hidden"));
+
+function openApprove(id) {
+  pendingId = id; pendingAction = "approve";
+  $("modal-action-title").textContent = "Finance Approval — Proforma Invoice";
+  $("modal-action-body").innerHTML = `
+    <p class="text-sm text-slate-700">Approving this proforma will automatically:</p>
+    <ul class="mt-2 space-y-1 text-sm text-slate-600 list-disc list-inside">
+      <li>Generate a <strong>CRM support ticket</strong> visible in the customer's ticket area</li>
+      <li>Create a <strong>tax invoice</strong> for the approved amount</li>
+      <li>Notify the customer via <strong>email</strong> (ticket + invoice details)</li>
+      <li>Route to <strong>Inventory</strong> for device checkout</li>
+      <li>Route to <strong>Technical Dashboard</strong> for engineer allocation</li>
+    </ul>
+    <div class="mt-4 border-t border-slate-100 pt-3">
+      <label class="block text-xs font-medium text-slate-500 mb-1">ETR / eTIMS Receipt No. <span class="text-slate-400 font-normal">(optional)</span></label>
+      <input id="pf-etr-no" type="text" placeholder="e.g. ETR-2026-000123"
+        class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+    </div>
+  `;
+  $('ma-confirm').className = "rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700";
+  $('ma-confirm').textContent = "Approve & Generate Invoice";
+  modal.classList.remove("hidden");
+}
+
+function openRejectPf(id) {
+  pendingId = id; pendingAction = "reject";
+  $("modal-action-title").textContent = "Reject Proforma Invoice";
+  $("modal-action-body").innerHTML = `<textarea id="pf-rej-reason" rows="3" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none" placeholder="Reason for rejection…"></textarea>`;
+  $("ma-confirm").className = "rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700";
+  $("ma-confirm").textContent = "Reject";
+  modal.classList.remove("hidden");
+}
+
+function openConvert(id) {
+  pendingId = id; pendingAction = "convert-to-ticket";
+  const pf = _pfMap[id] || {};
+  const defaultVehicleId = pf.vehicleId || "";
+  $('modal-action-title').textContent = "Convert to Installation Ticket";
+  $('modal-action-body').innerHTML = `
+    <p>This will create a new vehicle installation ticket. Please provide the customer vehicle ID.</p>
+    <div class="mt-2">
+      <label class="block text-xs font-medium text-slate-600 mb-1">Vehicle ID *</label>
+      <input id="conv-plate" type="text" value="${defaultVehicleId}" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" placeholder="e.g. 6c6f..." />
+      ${pf.vehicleRegistration ? `<p class="mt-1 text-xs text-slate-500">Pre-filled from quote vehicle: <strong>${pf.vehicleRegistration}</strong></p>` : ""}
+    </div>
+  `;
+  $('ma-confirm').className = "rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700";
+  $('ma-confirm').textContent = "Create Ticket";
+  modal.classList.remove("hidden");
+}
+
+$("ma-confirm").addEventListener("click", async () => {
+  $("modal-action-error").classList.add("hidden");
+  try {
+    let body = {};
+    if (pendingAction === "approve") {
+      const etrNo = document.getElementById("pf-etr-no")?.value?.trim();
+      if (etrNo) body = { etrReceiptNo: etrNo };
+    }
+    if (pendingAction === "reject") {
+      const r = document.getElementById("pf-rej-reason")?.value?.trim();
+      if (!r) { $("modal-action-error").textContent = "Reason required."; $("modal-action-error").classList.remove("hidden"); return; }
+      body = { reason: r };
+    }
+    if (pendingAction === "convert-to-ticket") {
+      const vehicleId = document.getElementById("conv-plate")?.value?.trim();
+      if (!vehicleId) { $("modal-action-error").textContent = "Vehicle ID required."; $("modal-action-error").classList.remove("hidden"); return; }
+      body = { vehicleId };
+    }
+
+    const d = await api(`/crm/proforma/${pendingId}/${pendingAction}`, { method: "POST", body });
+    modal.classList.add("hidden");
+    const toastMsg = pendingAction === "approve" && d?.data?.ticketNo
+      ? `Approved! Ticket ${d.data.ticketNo}${d.data.invoiceNumber ? ` · Invoice ${d.data.invoiceNumber}` : ""} created and routed to Inventory & Technical.`
+      : (d?.message || "Done.");
+    APP.showToast(toastMsg, "success");
+    loadProformas();
+  } catch(e) { $("modal-action-error").textContent = e.message; $("modal-action-error").classList.remove("hidden"); }
+});
+
+// ── View Proforma PDF ─────────────────────────────────────────────────────────
+// The PDF is loaded via an authenticated fetch (Bearer header) and shown through
+// a blob: object URL — iframes can't send custom headers, and the backend no
+// longer accepts the access token as a URL query param (that leaked into
+// server logs / browser history), so a plain src="...&token=..." 401s.
+let _viewPfId = null;
+let _viewPfObjectUrl = null;
+
+function revokeViewPfObjectUrl() {
+  if (_viewPfObjectUrl) { URL.revokeObjectURL(_viewPfObjectUrl); _viewPfObjectUrl = null; }
+}
+
+async function openViewPf(id, proformaNo) {
+  _viewPfId = id;
+  const apiBase = APP.CONFIG.API_BASE_URL;
+  const token = APP.getSession()?.accessToken || "";
+  const iframe = $("view-pf-iframe");
+  const downloadLink = $("view-pf-download");
+
+  $("view-pf-title").textContent = `Proforma Invoice — ${proformaNo || id}`;
+  revokeViewPfObjectUrl();
+  iframe.src = "about:blank";
+  downloadLink.removeAttribute("href");
+  $("modal-view-pf").classList.remove("hidden");
+  $("view-pf-send-btn").onclick = () => {
+    closeViewPf();
+    openSendPf(id);
+  };
+
+  try {
+    const resp = await fetch(`${apiBase}/crm/proforma/${id}/pdf`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) {
+      const errPayload = await resp.json().catch(() => ({}));
+      throw new Error(errPayload?.error?.message || "Failed to load PDF.");
+    }
+    const blob = await resp.blob();
+    _viewPfObjectUrl = URL.createObjectURL(blob);
+    iframe.src = _viewPfObjectUrl;
+    downloadLink.href = _viewPfObjectUrl;
+    downloadLink.download = `Proforma_${proformaNo || id}.pdf`;
+  } catch (e) {
+    iframe.srcdoc = `<p style="font-family:sans-serif;color:#b91c1c;padding:24px">${(e?.message || "Failed to load PDF.").replace(/</g, "&lt;")}</p>`;
+  }
+}
+
+function closeViewPf() {
+  $("modal-view-pf").classList.add("hidden");
+  revokeViewPfObjectUrl();
+}
+
+// ── Send Proforma ─────────────────────────────────────────────────────────────
+let _sendPfId = null;
+function openSendPf(id) {
+  _sendPfId = id;
+  $("send-pf-email").value = "";
+  $("send-pf-error").classList.add("hidden");
+  $("modal-send-pf").classList.remove("hidden");
+}
+
+$("send-pf-confirm").addEventListener("click", async () => {
+  $("send-pf-error").classList.add("hidden");
+  const toEmail = $("send-pf-email").value.trim() || undefined;
+  $("send-pf-confirm").textContent = "Sending…";
+  $("send-pf-confirm").disabled = true;
+  try {
+    await api(`/crm/proforma/${_sendPfId}/send`, { method: "POST", body: { toEmail } });
+    $("modal-send-pf").classList.add("hidden");
+    APP.showToast("Proforma sent by email.", "success");
+  } catch(e) {
+    $("send-pf-error").textContent = e.message;
+    $("send-pf-error").classList.remove("hidden");
+  } finally {
+    $("send-pf-confirm").textContent = "Send Email";
+    $("send-pf-confirm").disabled = false;
+  }
+});
+
+loadProformas();
+</script>
+</body>
+</html>

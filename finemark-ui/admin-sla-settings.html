@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | SLA Settings</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+    <div class="max-w-3xl mx-auto space-y-6">
+
+      <!-- Page header -->
+      <div class="flex flex-wrap items-center gap-3 justify-between">
+        <div class="flex items-center gap-3">
+          <a href="admin.html"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 transition shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            Back
+          </a>
+          <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900">SLA Target Settings</h1>
+            <p class="text-sm text-slate-500 mt-0.5">Configure default SLA targets for installation job tickets.</p>
+          </div>
+        </div>
+        <span class="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 border border-blue-100">
+          Technical Manager
+        </span>
+      </div>
+
+      <!-- Banner -->
+      <div id="banner" class="hidden rounded-xl border px-4 py-3 text-sm font-medium"></div>
+
+      <!-- Skeleton -->
+      <div id="skeleton" class="space-y-4">
+        <div class="h-48 bg-slate-200 rounded-xl animate-pulse"></div>
+        <div class="h-32 bg-slate-200 rounded-xl animate-pulse"></div>
+      </div>
+
+      <!-- Main settings card -->
+      <div id="settings-card" class="hidden bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <!-- Header bar -->
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h2 class="text-base font-semibold text-slate-900">Default SLA Targets</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Applied to every new installation ticket created. Existing tickets keep their own targets unless backfilled.</p>
+          </div>
+          <span id="last-modified" class="text-xs text-slate-400 shrink-0"></span>
+        </div>
+
+        <div class="p-6 space-y-5">
+          <!-- 4 SLA metric rows -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="sla-fields">
+
+            <!-- Acknowledgement -->
+            <div class="rounded-xl border border-slate-200 p-4 space-y-3 bg-slate-50/40">
+              <div class="flex items-start gap-3">
+                <span class="mt-0.5 flex-shrink-0 w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-base">📋</span>
+                <div class="flex-1">
+                  <p class="text-sm font-semibold text-slate-800">Acknowledgement</p>
+                  <p class="text-xs text-slate-500 mt-0.5">Time from ticket creation to technician acknowledgement</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <input id="sla-ack" type="number" min="1" max="168" step="1"
+                  class="w-24 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-right font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400/40" />
+                <span class="text-sm text-slate-500">hours</span>
+                <span id="sla-ack-days" class="ml-auto text-xs text-slate-400 font-medium"></span>
+              </div>
+            </div>
+
+            <!-- Job Start -->
+            <div class="rounded-xl border border-slate-200 p-4 space-y-3 bg-slate-50/40">
+              <div class="flex items-start gap-3">
+                <span class="mt-0.5 flex-shrink-0 w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-base">🚀</span>
+                <div class="flex-1">
+                  <p class="text-sm font-semibold text-slate-800">Job Start</p>
+                  <p class="text-xs text-slate-500 mt-0.5">Time from ticket creation to on-site check-in</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <input id="sla-start" type="number" min="1" max="720" step="1"
+                  class="w-24 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-right font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400/40" />
+                <span class="text-sm text-slate-500">hours</span>
+                <span id="sla-start-days" class="ml-auto text-xs text-slate-400 font-medium"></span>
+              </div>
+            </div>
+
+            <!-- Technician Sign-Off -->
+            <div class="rounded-xl border border-slate-200 p-4 space-y-3 bg-slate-50/40">
+              <div class="flex items-start gap-3">
+                <span class="mt-0.5 flex-shrink-0 w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-base">✅</span>
+                <div class="flex-1">
+                  <p class="text-sm font-semibold text-slate-800">Technician Sign-Off</p>
+                  <p class="text-xs text-slate-500 mt-0.5">Time from job start to technician completing sign-off</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <input id="sla-signoff" type="number" min="1" max="720" step="1"
+                  class="w-24 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-right font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400/40" />
+                <span class="text-sm text-slate-500">hours</span>
+                <span id="sla-signoff-days" class="ml-auto text-xs text-slate-400 font-medium"></span>
+              </div>
+            </div>
+
+            <!-- ISO Closure -->
+            <div class="rounded-xl border border-slate-200 p-4 space-y-3 bg-slate-50/40">
+              <div class="flex items-start gap-3">
+                <span class="mt-0.5 flex-shrink-0 w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-base">🔏</span>
+                <div class="flex-1">
+                  <p class="text-sm font-semibold text-slate-800">ISO Closure</p>
+                  <p class="text-xs text-slate-500 mt-0.5">Time from activation request to ISO approval &amp; closure</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <input id="sla-iso" type="number" min="1" max="168" step="1"
+                  class="w-24 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-right font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400/40" />
+                <span class="text-sm text-slate-500">hours</span>
+                <span id="sla-iso-days" class="ml-auto text-xs text-slate-400 font-medium"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Backfill option -->
+          <label class="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 cursor-pointer select-none">
+            <input id="apply-pending" type="checkbox" class="mt-0.5 h-4 w-4 rounded accent-amber-500 flex-shrink-0" />
+            <div>
+              <p class="text-sm font-semibold text-amber-800">Apply to existing Pending &amp; Assigned tickets</p>
+              <p class="text-xs text-amber-700 mt-0.5">Updates the SLA targets on all tickets that have not yet started (status: Pending or Assigned). Completed and in-progress tickets are unaffected.</p>
+            </div>
+          </label>
+
+          <!-- Save actions -->
+          <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+            <button id="btn-reset" type="button"
+              class="text-sm text-slate-500 hover:text-slate-700 transition">
+              Reset to defaults (4h / 24h / 48h / 8h)
+            </button>
+            <button id="btn-save" type="button"
+              class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+              Save SLA Targets
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Per-ticket override section -->
+      <div id="override-card" class="hidden bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100">
+          <h2 class="text-base font-semibold text-slate-900">Per-Ticket Override</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Override SLA targets on a single ticket without affecting the global defaults.</p>
+        </div>
+        <div class="p-6 space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Ticket ID or Number</label>
+            <div class="flex gap-2">
+              <input id="override-ticket-id" type="text" placeholder="e.g. TKT-00042 or paste UUID"
+                class="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40" />
+              <button id="btn-lookup" onclick="lookupTicket()"
+                class="px-4 py-2 rounded-lg bg-slate-700 text-white text-sm font-semibold hover:bg-slate-800 transition">
+                Look up
+              </button>
+            </div>
+            <div id="override-ticket-info" class="hidden mt-2 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs text-slate-600 space-y-0.5"></div>
+          </div>
+          <div id="override-fields" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Ack (h)</label>
+              <input id="ov-ack" type="number" min="1" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40" />
+            </div>
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Start (h)</label>
+              <input id="ov-start" type="number" min="1" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40" />
+            </div>
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Sign-Off (h)</label>
+              <input id="ov-signoff" type="number" min="1" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40" />
+            </div>
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">ISO Closure (h)</label>
+              <input id="ov-iso" type="number" min="1" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40" />
+            </div>
+          </div>
+          <div id="override-actions" class="hidden flex justify-end">
+            <button id="btn-override-save" onclick="saveOverride()"
+              class="px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-50">
+              Save Override
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="fm-footer"></div>
+<script src="assets/app.js?v=202607011016"></script>
+<script>
+const APP = window.APP || {};
+function authHeaders() {
+  try { const s = JSON.parse(localStorage.getItem('finemark_session')||'{}'); const t = s.accessToken||s.token||''; return t ? { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }; } catch { return { 'Content-Type': 'application/json' }; }
+}
+async function apiFetch(path, opts = {}) {
+  const base = (typeof APP.apiFetch === 'function') ? null : '/api';
+  if (typeof APP.apiFetch === 'function') return APP.apiFetch(path, opts);
+  const res = await fetch(base + path, { headers: authHeaders(), ...opts, body: opts.body ? JSON.stringify(opts.body) : undefined });
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(d.error?.message || 'Request failed'), { status: res.status });
+  return d;
+}
+
+function showBanner(msg, isErr = false) {
+  const el = document.getElementById('banner');
+  el.textContent = msg;
+  el.className = `rounded-xl border px-4 py-3 text-sm font-medium ${isErr ? 'border-red-200 bg-red-50 text-red-700' : 'border-green-200 bg-green-50 text-green-700'}`;
+  el.classList.remove('hidden');
+  if (!isErr) setTimeout(() => el.classList.add('hidden'), 4000);
+}
+
+function fmtHours(h) {
+  if (!h || h < 1) return '';
+  if (h < 24) return `${h}h`;
+  const days = (h / 24).toFixed(1).replace(/\.0$/, '');
+  return `≈ ${days} day${parseFloat(days) !== 1 ? 's' : ''}`;
+}
+
+function bindLiveLabel(inputId, labelId) {
+  const inp = document.getElementById(inputId);
+  const lbl = document.getElementById(labelId);
+  const update = () => { lbl.textContent = fmtHours(Number(inp.value)); };
+  inp.addEventListener('input', update);
+  update();
+}
+
+// ── Load global defaults ──────────────────────────────────────────────────────
+async function loadDefaults() {
+  try {
+    const d = await apiFetch('/installation-tickets/sla/defaults');
+    const cfg = d.data || {};
+
+    document.getElementById('sla-ack').value     = cfg.slaAckHours?.value     ?? 4;
+    document.getElementById('sla-start').value   = cfg.slaStartHours?.value   ?? 24;
+    document.getElementById('sla-signoff').value = cfg.slaSignoffHours?.value ?? 48;
+    document.getElementById('sla-iso').value     = cfg.slaIsoHours?.value     ?? 8;
+
+    // Live day labels
+    bindLiveLabel('sla-ack',     'sla-ack-days');
+    bindLiveLabel('sla-start',   'sla-start-days');
+    bindLiveLabel('sla-signoff', 'sla-signoff-days');
+    bindLiveLabel('sla-iso',     'sla-iso-days');
+
+    // Last modified line — use the most recent updatedAt across all fields
+    const dates = [cfg.slaAckHours, cfg.slaStartHours, cfg.slaSignoffHours, cfg.slaIsoHours]
+      .map(f => f?.updatedAt).filter(Boolean).sort().reverse();
+    if (dates[0]) {
+      document.getElementById('last-modified').textContent =
+        'Last saved ' + new Date(dates[0]).toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short' });
+    }
+
+    document.getElementById('skeleton').classList.add('hidden');
+    document.getElementById('settings-card').classList.remove('hidden');
+    document.getElementById('override-card').classList.remove('hidden');
+  } catch (e) {
+    if (e?.status === 401 || e?.status === 403) {
+      showBanner('Access denied — this page is restricted to Technical Managers and Admins.', true);
+    } else {
+      showBanner('Failed to load SLA settings. ' + (e?.message || ''), true);
+    }
+    document.getElementById('skeleton').classList.add('hidden');
+  }
+}
+
+// ── Save defaults ─────────────────────────────────────────────────────────────
+document.getElementById('btn-save').addEventListener('click', async () => {
+  const ackH     = parseInt(document.getElementById('sla-ack').value, 10);
+  const startH   = parseInt(document.getElementById('sla-start').value, 10);
+  const signoffH = parseInt(document.getElementById('sla-signoff').value, 10);
+  const isoH     = parseInt(document.getElementById('sla-iso').value, 10);
+
+  if ([ackH, startH, signoffH, isoH].some(v => !v || v < 1)) {
+    showBanner('All SLA targets must be at least 1 hour.', true); return;
+  }
+
+  const btn = document.getElementById('btn-save');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  try {
+    const r = await apiFetch('/installation-tickets/sla/defaults', {
+      method: 'PUT',
+      body: {
+        slaAckHours: ackH, slaStartHours: startH, slaSignoffHours: signoffH, slaIsoHours: isoH,
+        applyToPending: document.getElementById('apply-pending').checked,
+      },
+    });
+    const msg = r.backfilled
+      ? `SLA targets saved and applied to all pending tickets.`
+      : `SLA targets saved. New tickets will use these values.`;
+    showBanner(msg);
+    document.getElementById('last-modified').textContent = 'Last saved just now';
+  } catch (e) {
+    showBanner('Save failed: ' + (e?.message || 'Unknown error'), true);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save SLA Targets';
+  }
+});
+
+// ── Reset to defaults ─────────────────────────────────────────────────────────
+document.getElementById('btn-reset').addEventListener('click', () => {
+  document.getElementById('sla-ack').value     = 4;
+  document.getElementById('sla-start').value   = 24;
+  document.getElementById('sla-signoff').value = 48;
+  document.getElementById('sla-iso').value     = 8;
+  ['ack','start','signoff','iso'].forEach(k => {
+    const inp = document.getElementById(`sla-${k}`);
+    const lbl = document.getElementById(`sla-${k}-days`);
+    if (lbl) lbl.textContent = fmtHours(Number(inp.value));
+  });
+});
+
+// ── Per-ticket override ───────────────────────────────────────────────────────
+let _overrideTicketId = null;
+
+async function lookupTicket() {
+  const raw = document.getElementById('override-ticket-id').value.trim();
+  if (!raw) return;
+  const infoEl = document.getElementById('override-ticket-info');
+  const fieldsEl = document.getElementById('override-fields');
+  const actionsEl = document.getElementById('override-actions');
+  infoEl.classList.add('hidden'); fieldsEl.classList.add('hidden'); actionsEl.classList.add('hidden');
+  const btn = document.getElementById('btn-lookup');
+  btn.disabled = true; btn.textContent = 'Looking up…';
+
+  try {
+    const d = await apiFetch(`/installation-tickets/${encodeURIComponent(raw)}`);
+    const t = d.data || d;
+    _overrideTicketId = t.id;
+
+    infoEl.innerHTML = [
+      `<span class="font-semibold text-slate-800">${t.ticketNo || t.id}</span>`,
+      `${t.customerName || '—'} · ${t.vehicleRegistration || 'No plate'} · Status: <strong>${t.status}</strong>`,
+      `Current SLA — Ack: ${t.slaAckHours}h · Start: ${t.slaStartHours}h · Sign-Off: ${t.slaSignoffHours}h · ISO: ${t.slaIsoHours}h`,
+    ].join('<br>');
+    infoEl.classList.remove('hidden');
+
+    document.getElementById('ov-ack').value     = t.slaAckHours;
+    document.getElementById('ov-start').value   = t.slaStartHours;
+    document.getElementById('ov-signoff').value = t.slaSignoffHours;
+    document.getElementById('ov-iso').value     = t.slaIsoHours;
+
+    fieldsEl.classList.remove('hidden');
+    actionsEl.classList.remove('hidden');
+  } catch (e) {
+    infoEl.innerHTML = `<span class="text-red-600">Ticket not found: ${e?.message || raw}</span>`;
+    infoEl.classList.remove('hidden');
+    _overrideTicketId = null;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Look up';
+  }
+}
+
+async function saveOverride() {
+  if (!_overrideTicketId) return;
+  const body = {
+    slaAckHours:     parseInt(document.getElementById('ov-ack').value, 10)     || undefined,
+    slaStartHours:   parseInt(document.getElementById('ov-start').value, 10)   || undefined,
+    slaSignoffHours: parseInt(document.getElementById('ov-signoff').value, 10) || undefined,
+    slaIsoHours:     parseInt(document.getElementById('ov-iso').value, 10)     || undefined,
+  };
+  const btn = document.getElementById('btn-override-save');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    await apiFetch(`/installation-tickets/${_overrideTicketId}/sla`, { method: 'PATCH', body });
+    showBanner(`SLA targets updated on ticket.`);
+    // Refresh ticket info display
+    document.getElementById('override-ticket-id').value = _overrideTicketId;
+    await lookupTicket();
+  } catch (e) {
+    showBanner('Override failed: ' + (e?.message || 'Unknown error'), true);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save Override';
+  }
+}
+
+// Allow Enter on the lookup field
+document.getElementById('override-ticket-id').addEventListener('keydown', e => {
+  if (e.key === 'Enter') lookupTicket();
+});
+
+loadDefaults();
+</script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Reset Success</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<main class="min-h-screen flex items-center justify-center px-6 py-12">
+      <div class="w-full max-w-md">
+        <div class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 border border-slate-200/80 p-8 text-center">
+          <div class="flex items-center gap-4 mb-6 text-left">
+            <img src="assets/finemark-logo.svg" alt="Finemark logo" class="h-12 w-12" />
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Finemark</p>
+              <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Password updated</h1>
+              <p class="text-sm text-slate-600">You can now sign in with your new password.</p>
+            </div>
+          </div>
+          <div class="mx-auto h-12 w-12 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center text-xl font-semibold">
+            ✓
+          </div>
+          <div class="mt-6">
+            <a href="login.html" class="block w-full rounded-lg bg-blue-600 text-white py-2.5 font-medium shadow-sm shadow-blue-600/20 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+              Continue to Sign in
+            </a>
+          </div>
+        </div>
+
+        
+      </div>
+    </main>
+
+    
+  
+<script src="assets/contracts.js"></script>
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+      const resetComplete = localStorage.getItem("resetComplete");
+      if (resetComplete !== "true") {
+        window.location.href = "login.html";
+      } else {
+        localStorage.removeItem("resetComplete");
+      }
+    </script>
+</body>
+</html>

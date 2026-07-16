@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Leave Calendar</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+    <style>
+      .cal-day { min-height: 100px; }
+      .leave-chip { font-size: 10px; line-height: 1.3; }
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-7xl mx-auto space-y-6">
+
+          <div>
+            <nav class="text-xs text-slate-400 mb-1">
+              <a href="hr-dashboard.html" class="hover:text-teal-600">HR</a> / Leave / Calendar
+            </nav>
+            <h1 class="text-2xl font-semibold text-slate-900">Leave Calendar</h1>
+          </div>
+
+          <!-- Controls -->
+          <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm p-5 flex flex-wrap gap-4 items-center">
+            <button onclick="prevMonth()" class="px-3 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-50">← Prev</button>
+            <h2 id="month-label" class="text-base font-semibold text-slate-800 min-w-[140px] text-center"></h2>
+            <button onclick="nextMonth()" class="px-3 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-50">Next →</button>
+            <div class="ml-4">
+              <label class="text-xs text-slate-500 mr-1">Org Unit:</label>
+              <select id="filter-org" class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                <option value="">All Units</option>
+              </select>
+            </div>
+            <button onclick="loadCalendar()" class="px-4 py-2 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700">Refresh</button>
+            <div class="ml-auto flex items-center gap-4 text-xs text-slate-500">
+              <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-sm bg-teal-100 border border-teal-300"></span> Annual</span>
+              <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-sm bg-rose-100 border border-rose-300"></span> Sick</span>
+              <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-sm bg-violet-100 border border-violet-300"></span> Maternity/Paternity</span>
+              <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-sm bg-amber-100 border border-amber-300"></span> Other</span>
+            </div>
+          </div>
+
+          <!-- Calendar Grid -->
+          <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+            <div class="grid grid-cols-7 border-b border-slate-100">
+              <div class="py-2 text-xs font-semibold text-center text-slate-400">Mon</div>
+              <div class="py-2 text-xs font-semibold text-center text-slate-400">Tue</div>
+              <div class="py-2 text-xs font-semibold text-center text-slate-400">Wed</div>
+              <div class="py-2 text-xs font-semibold text-center text-slate-400">Thu</div>
+              <div class="py-2 text-xs font-semibold text-center text-slate-400">Fri</div>
+              <div class="py-2 text-xs font-semibold text-center text-slate-400 text-slate-300">Sat</div>
+              <div class="py-2 text-xs font-semibold text-center text-slate-400 text-slate-300">Sun</div>
+            </div>
+            <div id="cal-grid" class="grid grid-cols-7 divide-x divide-y divide-slate-100"></div>
+          </div>
+
+          <!-- List View -->
+          <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm p-5">
+            <h3 class="text-sm font-semibold text-slate-700 mb-3">Active Leave This Month</h3>
+            <div id="list-view" class="space-y-2"></div>
+            <p id="list-empty" class="hidden text-xs text-slate-400 text-center py-4">No approved leaves in this period.</p>
+          </div>
+
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      let currentYear = new Date().getFullYear();
+      let currentMonth = new Date().getMonth(); // 0-indexed
+      let calData = [];
+
+      const TYPE_COLOR = (name) => {
+        const n = (name||"").toLowerCase();
+        if (n.includes("annual") || n.includes("vacation")) return { bg: "bg-teal-50 border-teal-200 text-teal-800", dot: "bg-teal-400" };
+        if (n.includes("sick") || n.includes("medical")) return { bg: "bg-rose-50 border-rose-200 text-rose-800", dot: "bg-rose-400" };
+        if (n.includes("matern") || n.includes("patern")) return { bg: "bg-violet-50 border-violet-200 text-violet-800", dot: "bg-violet-400" };
+        return { bg: "bg-amber-50 border-amber-200 text-amber-800", dot: "bg-amber-400" };
+      };
+
+      const pad = n => String(n).padStart(2, "0");
+      const monthName = (y, m) => new Date(y, m, 1).toLocaleString("default", { month: "long", year: "numeric" });
+
+      const loadOrgUnits = async () => {
+        try {
+          const { data } = await window.FINEMARK_APP.apiFetch("/hr/org/units");
+          const sel = document.getElementById("filter-org");
+          (data?.units || data || []).forEach(u => { const o = document.createElement("option"); o.value = u.id; o.textContent = u.name; sel.appendChild(o); });
+        } catch {}
+      };
+
+      const loadCalendar = async () => {
+        const from = `${currentYear}-${pad(currentMonth+1)}-01`;
+        const lastDay = new Date(currentYear, currentMonth+1, 0).getDate();
+        const to = `${currentYear}-${pad(currentMonth+1)}-${pad(lastDay)}`;
+        document.getElementById("month-label").textContent = monthName(currentYear, currentMonth);
+        const org = document.getElementById("filter-org").value;
+        const q = new URLSearchParams({ from, to }); if (org) q.set("orgUnitId", org);
+        try {
+          const { data } = await window.FINEMARK_APP.apiFetch(`/hr/leave/calendar?${q}`);
+          calData = data || [];
+        } catch { calData = []; }
+        renderCalendar();
+        renderList();
+      };
+
+      const leavesOnDate = (isoDate) => calData.filter(l => l.start_date <= isoDate && l.end_date >= isoDate);
+
+      const renderCalendar = () => {
+        const grid = document.getElementById("cal-grid");
+        const firstDow = new Date(currentYear, currentMonth, 1).getDay(); // 0=Sun
+        const startOffset = firstDow === 0 ? 6 : firstDow - 1; // Mon=0
+        const daysInMonth = new Date(currentYear, currentMonth+1, 0).getDate();
+        const today = new Date().toISOString().slice(0,10);
+        let html = "";
+        for (let i = 0; i < startOffset; i++) html += `<div class="cal-day p-2 bg-slate-50/50"></div>`;
+        for (let d = 1; d <= daysInMonth; d++) {
+          const iso = `${currentYear}-${pad(currentMonth+1)}-${pad(d)}`;
+          const leaves = leavesOnDate(iso);
+          const isToday = iso === today;
+          const isWeekend = [6,0].includes(new Date(iso).getDay());
+          html += `<div class="cal-day p-2 ${isWeekend?"bg-slate-50/70":"hover:bg-slate-50"} overflow-hidden">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs ${isToday?"inline-flex h-5 w-5 rounded-full bg-teal-500 text-white items-center justify-center font-bold":"text-slate-400 font-medium"}">${d}</span>
+              ${leaves.length > 2 ? `<span class="text-[10px] text-slate-400">${leaves.length}</span>` : ""}
+            </div>
+            ${leaves.slice(0, 4).map(l => {
+              const c = TYPE_COLOR(l.leave_type_name);
+              return `<div class="leave-chip px-1 py-0.5 rounded border mb-0.5 ${c.bg} truncate">${l.employee_name.split(" ")[0]}</div>`;
+            }).join("")}
+            ${leaves.length > 4 ? `<div class="leave-chip text-slate-400">+${leaves.length-4} more</div>` : ""}
+          </div>`;
+        }
+        grid.innerHTML = html;
+      };
+
+      const renderList = () => {
+        const el = document.getElementById("list-view");
+        const empty = document.getElementById("list-empty");
+        if (!calData.length) { el.innerHTML=""; empty.classList.remove("hidden"); return; }
+        empty.classList.add("hidden");
+        // Group by employee
+        const map = {};
+        calData.forEach(l => {
+          if (!map[l.employee_id]) map[l.employee_id] = { name: l.employee_name, no: l.employee_no, leaves: [] };
+          map[l.employee_id].leaves.push(l);
+        });
+        el.innerHTML = Object.values(map).map(emp => {
+          const leaves = emp.leaves.map(l => { const c = TYPE_COLOR(l.leave_type_name); return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs ${c.bg}"><span class="w-1.5 h-1.5 rounded-full ${c.dot}"></span>${l.leave_type_name} (${l.start_date}→${l.end_date})</span>`; }).join(" ");
+          return `<div class="flex flex-wrap items-center gap-2 py-1.5 border-b border-slate-50 last:border-0">
+            <p class="text-sm font-medium text-slate-800 w-36 truncate">${emp.name}</p>
+            <p class="text-xs text-slate-400 w-20">${emp.no}</p>
+            <div class="flex flex-wrap gap-1">${leaves}</div>
+          </div>`;
+        }).join("");
+      };
+
+      const prevMonth = () => { currentMonth--; if (currentMonth < 0) { currentMonth = 11; currentYear--; } loadCalendar(); };
+      const nextMonth = () => { currentMonth++; if (currentMonth > 11) { currentMonth = 0; currentYear++; } loadCalendar(); };
+
+      (async () => {
+        await window.FINEMARK_APP.requirePageAccess();
+        await loadOrgUnits();
+        await loadCalendar();
+      })();
+    </script>
+  </body>
+</html>

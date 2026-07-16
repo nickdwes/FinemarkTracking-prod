@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Lead Detail</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+    <style>
+      .field-row { display:flex; align-items:flex-start; gap:1rem; padding:.625rem 0; border-bottom:1px solid #f1f5f9; }
+      .field-row:last-child { border-bottom:none; }
+      .field-label { width:130px; min-width:130px; font-size:.75rem; color:#94a3b8; font-weight:500; padding-top:.1rem; }
+      .field-value { flex:1; font-size:.875rem; color:#1e293b; word-break:break-word; }
+      .status-pill { display:inline-flex; align-items:center; gap:.375rem; padding:.25rem .75rem; border-radius:9999px; font-size:.75rem; font-weight:600; }
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6 lg:p-8">
+
+    <!-- Skeleton -->
+    <div id="lead-skeleton" class="max-w-5xl mx-auto space-y-5">
+      <div class="h-5 w-48 rounded-md bg-slate-200 animate-pulse"></div>
+      <div class="h-9 w-72 rounded-lg bg-slate-200 animate-pulse"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="h-64 rounded-2xl bg-slate-100 animate-pulse"></div>
+        <div class="h-64 rounded-2xl bg-slate-100 animate-pulse"></div>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div id="lead-content" class="hidden max-w-5xl mx-auto space-y-6">
+
+      <!-- Breadcrumb + Title + Actions -->
+      <div class="flex flex-wrap items-start gap-4 justify-between">
+        <div class="space-y-1">
+          <nav class="flex items-center gap-1.5 text-xs text-slate-400">
+            <a href="crm-leads.html" class="hover:text-indigo-600 transition-colors font-medium">Corporate Sales Leads</a>
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            <span id="hdr-lead-no" class="font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">—</span>
+          </nav>
+          <div class="flex items-center gap-3">
+            <h1 class="text-2xl font-bold text-slate-900" id="hdr-title">Lead Detail</h1>
+            <span id="hdr-status-badge" class="status-pill bg-slate-100 text-slate-600 border border-slate-200"></span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button id="btn-qualify" class="hidden inline-flex items-center gap-1.5 rounded-lg border border-green-300 bg-white px-3.5 py-2 text-sm font-semibold text-green-700 shadow-sm hover:bg-green-50 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            Qualify
+          </button>
+          <button id="btn-disqualify" class="hidden inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3.5 py-2 text-sm font-semibold text-red-600 shadow-sm hover:bg-red-50 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            Disqualify
+          </button>
+          <button id="btn-convert" class="hidden inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 12h15"/></svg>
+            Convert to Quote
+          </button>
+          <a id="btn-360" href="#" class="hidden inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            360° View
+          </a>
+        </div>
+      </div>
+
+      <!-- Status banner (hidden — replaced by inline badge above) -->
+      <div id="status-banner" class="hidden rounded-xl border px-4 py-3 text-sm font-medium"></div>
+
+      <!-- Conversion / disqualify banners -->
+      <div id="conversion-panel" class="hidden rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-4">
+        <div class="flex items-start gap-3">
+          <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div>
+            <p class="text-sm font-semibold text-blue-900">Converted to Quote</p>
+            <p class="text-xs text-blue-700 mt-0.5">Quote: <a id="conv-quote-link" href="#" class="font-mono font-semibold hover:underline"></a> &nbsp;·&nbsp; <span id="conv-at" class="font-normal"></span></p>
+          </div>
+        </div>
+      </div>
+      <div id="disqualify-panel" class="hidden rounded-2xl border border-red-200 bg-red-50 p-4">
+        <div class="flex items-start gap-3">
+          <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+            <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div>
+            <p class="text-sm font-semibold text-red-800">Disqualified</p>
+            <p id="disqualify-reason" class="text-xs text-red-700 mt-0.5">—</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main info cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+        <!-- Lead Information -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+          <div class="flex items-center gap-2.5 px-5 pt-5 pb-3 border-b border-slate-100">
+            <div class="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
+              <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            </div>
+            <h2 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Lead Information</h2>
+          </div>
+          <div class="px-5 pb-2">
+            <div class="field-row">
+              <span class="field-label">Lead No</span>
+              <span class="field-value font-mono font-semibold text-indigo-700" id="info-lead-no">—</span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Source</span>
+              <span class="field-value" id="info-source">—</span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Customer Type</span>
+              <span class="field-value" id="info-ctype">—</span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Service(s)</span>
+              <span class="field-value" id="info-services">—</span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Lead Date</span>
+              <span class="field-value" id="info-date">—</span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Sales Rep</span>
+              <span class="field-value text-slate-600 text-xs" id="info-rep">—</span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Notes</span>
+              <span class="field-value text-slate-500 italic text-xs leading-relaxed" id="info-notes">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Customer Information -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+          <div class="flex items-center gap-2.5 px-5 pt-5 pb-3 border-b border-slate-100">
+            <div class="w-7 h-7 rounded-lg bg-sky-50 flex items-center justify-center flex-shrink-0">
+              <svg class="w-3.5 h-3.5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            </div>
+            <h2 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Customer Information</h2>
+          </div>
+          <div class="px-5 pb-2">
+            <div class="field-row">
+              <span class="field-label">Name</span>
+              <span class="field-value font-semibold" id="cust-name">—</span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Email</span>
+              <span class="field-value text-xs" id="cust-email">—</span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Phone</span>
+              <span class="field-value" id="cust-phone">—</span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">ID/CR No.</span>
+              <span class="field-value" id="cust-idno">—</span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Address</span>
+              <span class="field-value text-slate-500" id="cust-address">—</span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Account</span>
+              <span class="field-value" id="cust-account">—</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div id="lead-error" class="hidden max-w-5xl mx-auto rounded-2xl bg-red-50 border border-red-200 p-5 text-sm text-red-700 flex items-center gap-3">
+      <svg class="w-5 h-5 flex-shrink-0 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      <span></span>
+    </div>
+
+  </main>
+</div>
+
+<!-- Disqualify Modal -->
+<div id="modal-disqualify" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+    <h2 class="text-lg font-semibold text-slate-900">Disqualify Lead</h2>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Reason *</label>
+      <textarea id="disq-reason" rows="3" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" placeholder="Explain why this lead is being disqualified…"></textarea>
+    </div>
+    <div id="disq-error" class="hidden text-sm text-red-600"></div>
+    <div class="flex justify-end gap-3">
+      <button id="disq-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
+      <button id="disq-submit" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">Disqualify</button>
+    </div>
+  </div>
+</div>
+
+<!-- Convert Modal -->
+<div id="modal-convert" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+    <h2 class="text-lg font-semibold text-slate-900">Convert to Quote</h2>
+    <p class="text-sm text-slate-500">This will create a new Quote linked to this lead and mark it as Converted.</p>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Service Type</label>
+      <select id="conv-service" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        <option value="GPS Tracker Installation">GPS Tracker Installation</option>
+        <option value="Speed Governor">Speed Governor</option>
+        <option value="Fleet Management">Fleet Management</option>
+        <option value="NTSA Compliance">NTSA Compliance</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div id="conv-error" class="hidden text-sm text-red-600"></div>
+    <div class="flex justify-end gap-3">
+      <button id="conv-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
+      <button id="conv-submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Convert</button>
+    </div>
+  </div>
+</div>
+
+<div id="fm-toast-root" class="fixed bottom-4 right-4 z-[9999] space-y-2"></div>
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+const APP = window.FINEMARK_APP;
+const api = APP.apiFetch;
+const $ = id => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+const leadId = params.get("id");
+
+const STATUS_COLORS = {
+  New: "bg-sky-50 text-sky-800 border-sky-200",
+  Qualified: "bg-green-50 text-green-800 border-green-200",
+  Disqualified: "bg-red-50 text-red-800 border-red-200",
+  Converted: "bg-blue-50 text-blue-800 border-blue-200",
+};
+
+async function loadLead() {
+  if (!leadId) { showError("No lead ID specified."); return; }
+  try {
+    const res = await api(`/crm/leads/${leadId}`);
+    const l = res?.data;
+    if (!l) throw new Error("Failed to load lead.");
+
+    // Header
+    $("hdr-lead-no").textContent = l.leadNo;
+    $("hdr-title").textContent = l.customerName || l.email || l.leadNo;
+
+    // Inline status badge
+    const STATUS_BADGE = {
+      New:           "bg-sky-100 text-sky-800 border border-sky-200",
+      Qualified:     "bg-green-100 text-green-800 border border-green-200",
+      Disqualified:  "bg-red-100 text-red-700 border border-red-200",
+      Converted:     "bg-indigo-100 text-indigo-800 border border-indigo-200",
+    };
+    const badgeCls = STATUS_BADGE[l.status] || "bg-slate-100 text-slate-600 border border-slate-200";
+    $('hdr-status-badge').className = `status-pill ${badgeCls}`;
+    $('hdr-status-badge').textContent = l.status;
+
+    // Info
+    $("info-lead-no").textContent = l.leadNo;
+    $("info-source").textContent = l.leadSource;
+    $("info-ctype").textContent = l.customerType === "existing_customer" ? "Existing Customer" : "New Customer";
+    const svcs = (() => { try { return JSON.parse(l.serviceRequested); } catch { return l.serviceRequested; } })();
+    $("info-services").textContent = Array.isArray(svcs) ? svcs.join(", ") : svcs || "—";
+    $("info-date").textContent = l.leadDate ? new Date(l.leadDate).toLocaleDateString() : "—";
+    $("info-rep").textContent = l.salesRepName || l.salesRepEmail || "—";
+    $("info-notes").textContent = l.leadNotes || "—";
+
+    // Customer
+    $("cust-name").textContent = l.customerName || l.companyName || "—";
+    $("cust-email").textContent = l.email || "—";
+    $("cust-phone").textContent = l.phone || "—";
+    $("cust-idno").textContent = l.idNumber || "—";
+    $("cust-address").textContent = l.address || "—";
+    if (l.customerId) {
+      $('cust-account').innerHTML = `<a href="crm-customer-360.html?id=${l.customerId}" class="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:underline"><svg class='w-3 h-3' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14'/></svg>View Customer</a>`;
+    } else {
+      $('cust-account').textContent = '—';
+    }
+
+    // Buttons depending on status
+    if (l.status === "New") {
+      $("btn-qualify").classList.remove("hidden");
+      $("btn-disqualify").classList.remove("hidden");
+    }
+    if (l.status === "Qualified") {
+      $("btn-convert").classList.remove("hidden");
+      $("btn-disqualify").classList.remove("hidden");
+    }
+    if (l.customerId) {
+      $("btn-360").href = `crm-customer-360.html?id=${l.customerId}`;
+      $("btn-360").classList.remove("hidden");
+    }
+
+    // Conversion / disqualify panels
+    if (l.status === "Converted" && l.convertedToQuoteId) {
+      $("conversion-panel").classList.remove("hidden");
+      $("conv-quote-link").textContent = l.convertedToQuoteId;
+      $("conv-quote-link").href = `crm-quote-detail.html?id=${l.convertedToQuoteId}`;
+      $("conv-at").textContent = l.convertedAt ? new Date(l.convertedAt).toLocaleString() : "—";
+    }
+    if (l.status === "Disqualified" && l.disqualifiedReason) {
+      $("disqualify-panel").classList.remove("hidden");
+      $("disqualify-reason").textContent = l.disqualifiedReason;
+    }
+
+    $("lead-skeleton").classList.add("hidden");
+    $("lead-content").classList.remove("hidden");
+  } catch(e) { showError(e.message); }
+}
+
+function showError(msg) {
+  $("lead-skeleton").classList.add("hidden");
+  $('lead-error').querySelector('span').textContent = msg;
+  $("lead-error").classList.remove("hidden");
+}
+
+// Qualify
+$("btn-qualify").addEventListener("click", async () => {
+  try {
+    await api(`/crm/leads/${leadId}/qualify`, { method: "POST" });
+    APP.showToast("Lead qualified.", "success");
+    loadLead();
+  } catch(e) { APP.showToast(e.message, "error"); }
+});
+
+// Disqualify modal
+const disqModal = $("modal-disqualify");
+$("btn-disqualify").addEventListener("click", () => disqModal.classList.remove("hidden"));
+$("disq-cancel").addEventListener("click", () => disqModal.classList.add("hidden"));
+$("disq-submit").addEventListener("click", async () => {
+  const reason = $("disq-reason").value.trim();
+  if (!reason) { $("disq-error").textContent = "Reason required."; $("disq-error").classList.remove("hidden"); return; }
+  try {
+    await api(`/crm/leads/${leadId}/disqualify`, { method: "POST", body: { reason } });
+    disqModal.classList.add("hidden");
+    APP.showToast("Lead disqualified.", "success");
+    loadLead();
+  } catch(e) { $("disq-error").textContent = e.message; $("disq-error").classList.remove("hidden"); }
+});
+
+// Convert modal
+const convModal = $("modal-convert");
+$("btn-convert").addEventListener("click", () => convModal.classList.remove("hidden"));
+$("conv-cancel").addEventListener("click", () => convModal.classList.add("hidden"));
+$("conv-submit").addEventListener("click", async () => {
+  try {
+    const d = await api(`/crm/leads/${leadId}/convert`, { method: "POST", body: { serviceType: $("conv-service").value } });
+    convModal.classList.add("hidden");
+    APP.showToast("Lead converted! Quote: " + d.data?.quote?.quoteNo, "success");
+    setTimeout(() => window.location.href = `crm-quote-detail.html?id=${d.data?.quote?.id}`, 800);
+  } catch(e) { $("conv-error").textContent = e.message; $("conv-error").classList.remove("hidden"); }
+});
+
+loadLead();
+</script>
+</body>
+</html>

@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Edit Quote</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-3 sm:p-6 min-w-0">
+    <div class="max-w-3xl mx-auto space-y-5">
+
+      <!-- Breadcrumb -->
+      <div class="flex flex-wrap items-center gap-3">
+        <a id="back-link" href="crm-quote-detail.html"
+          class="flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 flex-shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+        </a>
+        <div>
+          <h1 id="page-title" class="text-2xl font-semibold tracking-tight text-slate-900">Edit Quote</h1>
+          <p id="page-sub" class="text-sm text-slate-500 mt-0.5"></p>
+        </div>
+      </div>
+
+      <!-- Skeleton -->
+      <div id="eq-skeleton" class="space-y-4">
+        <div class="h-20 rounded-xl bg-slate-200 animate-pulse"></div>
+        <div class="h-56 rounded-xl bg-slate-100 animate-pulse"></div>
+        <div class="h-48 rounded-xl bg-slate-100 animate-pulse"></div>
+      </div>
+
+      <!-- Error -->
+      <div id="eq-error" class="hidden rounded-xl bg-red-50 border border-red-200 px-5 py-4 text-sm text-red-700"></div>
+
+      <!-- Content (matches New Quotation form layout) -->
+      <div id="eq-content" class="hidden">
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
+
+          <!-- Quote info banner (replaces lead banner) -->
+          <div class="px-4 sm:px-6 pt-5">
+            <div class="flex items-start gap-3 rounded-xl bg-blue-50 border border-blue-100 px-4 py-3">
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-semibold text-blue-700 uppercase tracking-wide">Editing Quote</p>
+                <p id="inf-quote-no" class="text-sm font-semibold text-slate-800 truncate"></p>
+                <p id="inf-meta" class="text-xs text-slate-500 truncate"></p>
+              </div>
+              <span id="inf-status-badge"></span>
+            </div>
+          </div>
+
+          <div class="px-4 sm:px-6 py-5 space-y-5">
+
+            <!-- Vehicle picker -->
+            <div id="eq-vehicle-wrap" class="hidden">
+              <label class="block text-xs font-medium text-slate-600 mb-1">Customer Vehicle <span class="text-slate-400">(optional)</span></label>
+              <select id="eq-vehicle-sel" onchange="onVehicleChange()" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
+                <option value="">— No specific vehicle —</option>
+              </select>
+              <p id="eq-vehicle-none" class="hidden text-xs text-slate-400 mt-1">No vehicles registered for this customer.</p>
+            </div>
+            <input id="eq-vehicle-id" type="hidden" />
+
+            <!-- Partner display (read-only) -->
+            <div id="eq-partner-wrap" class="hidden">
+              <label class="block text-xs font-medium text-slate-600 mb-1">Partner <span class="text-slate-400">(for pricing)</span></label>
+              <div id="eq-partner-badge" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-100 px-3 py-1.5 text-sm font-medium text-indigo-700"></div>
+            </div>
+
+            <!-- Loan Term (shown when partner present) -->
+            <div id="eq-loan-term-wrap" class="hidden">
+              <label class="block text-xs font-medium text-slate-600 mb-1">
+                Loan Term <span id="eq-loan-term-label" class="text-indigo-600 font-normal text-xs"></span>
+              </label>
+              <div class="flex items-center gap-3">
+                <input id="eq-loan-term" type="number" min="1" placeholder="e.g. 12" class="w-28 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                <span class="text-xs text-slate-400">months</span>
+              </div>
+            </div>
+
+            <!-- Service Category + Expiry -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Service Category</label>
+                <select id="eq-service" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
+                  <option value="">— Loading categories… —</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Expiry Date</label>
+                <input id="eq-expiry" type="date" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+              </div>
+            </div>
+
+            <!-- Line Items -->
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <p class="text-xs font-semibold text-slate-700 uppercase tracking-wide">Line Items</p>
+                <button type="button" onclick="addItem()" class="text-xs text-emerald-600 hover:text-emerald-800 font-medium">+ Add Item</button>
+              </div>
+              <div class="hidden sm:grid grid-cols-12 gap-2 text-xs font-medium text-slate-400 uppercase tracking-wide mb-1 px-1">
+                <div class="col-span-4">Product</div>
+                <div class="col-span-3">Selected Devices</div>
+                <div class="col-span-1 text-center">Qty</div>
+                <div class="col-span-2 text-right">Unit Price</div>
+                <div class="col-span-2 text-right">Total</div>
+              </div>
+              <div id="eq-items" class="space-y-2"></div>
+              <!-- Totals -->
+              <div class="mt-3 pt-3 border-t border-slate-100">
+                <div class="flex justify-end">
+                  <div class="w-full space-y-1 text-sm">
+                    <div class="flex justify-between text-slate-500">
+                      <span>Subtotal</span><span id="eq-subtotal" class="font-mono">KES 0.00</span>
+                    </div>
+                    <div class="flex justify-between items-center text-slate-500">
+                      <label class="flex items-center gap-1.5">Tax
+                        <input id="eq-tax" type="number" min="0" max="100" value="16" oninput="recalcTotals()"
+                          class="w-14 border border-slate-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:border-emerald-400" /> %
+                      </label>
+                      <span id="eq-tax-amount" class="font-mono">KES 0.00</span>
+                    </div>
+                    <div class="flex justify-between items-center text-slate-500">
+                      <label class="flex items-center gap-1.5">Discount
+                        <input id="eq-discount" type="number" min="0" value="0" oninput="recalcTotals()"
+                          class="w-20 border border-slate-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:border-emerald-400" />
+                      </label>
+                      <span id="eq-discount-display" class="font-mono">KES 0.00</span>
+                    </div>
+                    <div class="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-1">
+                      <span>Total</span><span id="eq-total" class="font-mono text-emerald-700">KES 0.00</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Notes -->
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Notes / Terms</label>
+              <textarea id="eq-notes" rows="2" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none" placeholder="Validity, payment terms, special conditions…"></textarea>
+            </div>
+
+            <p id="eq-form-error" class="text-red-500 text-xs min-h-[1rem]"></p>
+          </div>
+
+          <!-- Footer actions -->
+          <div class="px-4 sm:px-6 pb-5 flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-4">
+            <a id="btn-cancel" href="#" class="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">Cancel</a>
+            <button id="btn-save" onclick="saveEdit()" class="px-5 py-2 text-sm font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">Save Changes</button>
+          </div>
+        </div>
+      </div><!-- /eq-content -->
+
+      <!-- Edit History -->
+      <div id="history-section" class="hidden bg-white rounded-xl border border-slate-200/80 px-5 py-5 shadow-sm">
+        <h2 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+          <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Edit History
+        </h2>
+        <div id="history-list" class="space-y-3 text-sm text-slate-600">—</div>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="fm-footer"></div>
+<div id="fm-toast-root" class="fixed bottom-4 right-4 z-[9999] space-y-2"></div>
+<script src="assets/app.js"></script>
+<script src="assets/layout.js"></script>
+<script>
+const APP = window.FINEMARK_APP;
+const api = APP.apiFetch;
+const $ = id => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+const quoteId = params.get("id");
+
+let _quote = null;
+let _items = [];        // { id, productId, productName, productCode, deviceModel, description, unitPrice, installationPrice, subscriptionPrice, selectedDevices }
+let _nextId = 0;
+let _productCache = null;
+let _deviceCache = {};
+let _catId = "";
+
+if (!quoteId) {
+  $("eq-skeleton").classList.add("hidden");
+  $("eq-error").textContent = "No quote ID provided.";
+  $("eq-error").classList.remove("hidden");
+} else {
+  $("back-link").href  = `crm-quote-detail.html?id=${quoteId}`;
+  $("btn-cancel").href = `crm-quote-detail.html?id=${quoteId}`;
+  init();
+}
+
+// ── Initialise ────────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    const [quoteRes, catRes] = await Promise.all([
+      api(`/crm/quotes/${quoteId}`),
+      api("/inventory/catalog/categories").catch(() => ({ data: [] })),
+    ]);
+    _quote = quoteRes.data;
+
+    // Info banner
+    $("inf-quote-no").textContent = `${_quote.quoteNo} — ${_quote.customerName || ""}`;
+    $("inf-meta").textContent     = [_quote.salesRepEmail, _quote.serviceType].filter(Boolean).join(" · ");
+    $("inf-status-badge").innerHTML = statusBadge(_quote.status);
+    $("page-title").textContent   = `Edit Quote — ${_quote.quoteNo}`;
+    $("page-sub").textContent     = _quote.customerName || "";
+
+    // Service category
+    const sel = $("eq-service");
+    sel.innerHTML = '<option value="">— Select category —</option>';
+    (catRes.data || []).forEach(cat => {
+      const o = document.createElement("option");
+      o.value = cat.id; o.dataset.name = cat.name; o.textContent = cat.name;
+      sel.appendChild(o);
+    });
+    // "Other" isn't a real inventory category — it exists so a quote can be
+    // created for a custom/one-off listing without forcing a category match.
+    const otherOpt = document.createElement("option");
+    otherOpt.value = "__other__"; otherOpt.textContent = "Other";
+    sel.appendChild(otherOpt);
+    if (_quote.serviceType) {
+      for (const opt of sel.options) {
+        if (opt.textContent.trim() === _quote.serviceType) {
+          opt.selected = true;
+          _catId = opt.value;
+          break;
+        }
+      }
+    }
+    sel.addEventListener("change", () => { _catId = sel.value; renderItems(); });
+
+    // Expiry — use existing value or default to 7 days from today
+    const defaultExpiry = new Date(); defaultExpiry.setDate(defaultExpiry.getDate() + 7);
+    $("eq-expiry").value = _quote.expiryDate ? _quote.expiryDate.slice(0, 10) : defaultExpiry.toISOString().slice(0, 10);
+
+    // Tax / discount
+    $("eq-tax").value      = _quote.taxRate       != null ? _quote.taxRate       : 16;
+    $("eq-discount").value = _quote.discountAmount != null ? _quote.discountAmount : 0;
+
+    // Notes
+    $("eq-notes").value = _quote.notes || "";
+
+    // Partner
+    if (_quote.partnerName) {
+      $("eq-partner-badge").textContent = _quote.partnerName;
+      $("eq-partner-wrap").classList.remove("hidden");
+      $("eq-loan-term-wrap").classList.remove("hidden");
+      $("eq-loan-term-label").textContent = `(partner pricing — ${_quote.partnerName})`;
+      $("eq-loan-term").value = _quote.loanTermMonths || "";
+    }
+
+    // Vehicle
+    if (_quote.customerId) loadVehicles(_quote.customerId);
+
+    // Pre-warm product cache + map existing items
+    const allProds = await loadProducts();
+    _items = (_quote.items || []).map((it, i) => {
+      const prod = allProds.find(p => p.id === it.productId);
+      const isCustom = !it.productId && !prod;
+      return {
+        id:                i,
+        type:              isCustom ? "custom" : "product",
+        productId:         it.productId         || "",
+        productName:       prod?.productName     || it.deviceModel || "",
+        productCode:       prod?.productCode     || it.deviceType  || "",
+        categoryName:      prod?.categoryName    || "",
+        deviceModel:       it.deviceModel        || prod?.deviceModel || "",
+        description:       it.description        || "",
+        descriptionMode:   "quotation",
+        unitPrice:         it.unitPrice          || 0,
+        installationPrice: 0,
+        subscriptionPrice: 0,
+        // Custom service fields
+        customName:        isCustom ? (it.deviceModel || it.description || "") : "",
+        customDescription: isCustom ? (it.description || "") : "",
+        customPrice:       isCustom ? (it.unitPrice || 0) : 0,
+        selectedDevices: (it.stockItemIds || []).map((sid, j) => ({
+          id:     sid,
+          serial: (it.serialNumbers || [])[j] || "—",
+          imei:   (it.imeiNumbers   || [])[j] || "—",
+        })),
+      };
+    });
+    _nextId = _items.length;
+    if (_items.length === 0) addItem();
+    else renderItems();
+
+    $("eq-skeleton").classList.add("hidden");
+    $("eq-content").classList.remove("hidden");
+    loadHistory();
+  } catch(e) {
+    $("eq-skeleton").classList.add("hidden");
+    $("eq-error").textContent = e.message || "Failed to load quote.";
+    $("eq-error").classList.remove("hidden");
+  }
+}
+
+// ── Product catalogue ─────────────────────────────────────────────────────────
+async function loadProducts() {
+  if (_productCache) return _productCache;
+  try {
+    const r = await api("/inventory/catalog?pageSize=500");
+    _productCache = (r.data || []).map(p => ({
+      id:                p.id,
+      categoryId:        p.categoryId        || p.category_id        || "",
+      categoryName:      p.categoryName      || p.category_name      || "",
+      productCode:       p.productCode       || p.product_code       || "",
+      productName:       p.productName       || p.product_name       || p.name   || "",
+      deviceModel:       p.deviceModel       || p.device_model       || "",
+      description:       p.description       || "",
+      quotationDescription: p.quotationDescription || p.quotation_description || "",
+      keyFeatures:       p.keyFeatures       || p.key_features       || "",
+      salePrice:         Number(p.salePrice         ?? p.sale_price         ?? 0),
+      installationPrice: Number(p.installationPrice ?? p.installation_price ?? 0),
+      subscriptionPrice: Number(p.subscriptionPrice ?? p.subscription_price ?? 0),
+    }));
+  } catch { _productCache = []; }
+  return _productCache;
+}
+
+async function loadDevices(productId) {
+  if (_deviceCache[productId]) return _deviceCache[productId];
+  try {
+    const r = await api(`/inventory/items?status=In+Stock&productId=${productId}&pageSize=200`);
+    _deviceCache[productId] = (r.data || []).map(d => ({
+      id:       d.id,
+      serial:   d.serial_number || d.serialNumber || "—",
+      imei:     d.imei || "—",
+      location: d.warehouse_location || d.warehouseLocation || "",
+    }));
+  } catch { _deviceCache[productId] = []; }
+  return _deviceCache[productId];
+}
+
+async function loadVehicles(customerId) {
+  try {
+    const r = await api(`/crm/customers/${customerId}/vehicles`);
+    const vehs = r.data || [];
+    const sel = $("eq-vehicle-sel");
+    sel.innerHTML = '<option value="">— No specific vehicle —</option>';
+
+    // If quote already has a vehicle that isn't in the list, add it as a fallback option
+    const quoteVehInList = vehs.find(v => v.id === _quote.vehicleId);
+    if (_quote.vehicleId && !quoteVehInList) {
+      const o = document.createElement("option");
+      o.value = _quote.vehicleId;
+      o.textContent = _quote.vehicleRegistration || "Current vehicle";
+      sel.appendChild(o);
+    }
+
+    if (vehs.length) {
+      vehs.forEach(v => {
+        const o = document.createElement("option");
+        o.value = v.id;
+        o.textContent = `${v.registration || v.make || "Vehicle"} ${v.model ? "— " + v.model : ""}`.trim();
+        sel.appendChild(o);
+      });
+    } else if (!_quote.vehicleId) {
+      $("eq-vehicle-none").classList.remove("hidden");
+    }
+
+    if (_quote.vehicleId) sel.value = _quote.vehicleId;
+    $("eq-vehicle-id").value = _quote.vehicleId || "";
+    $("eq-vehicle-wrap").classList.remove("hidden");
+  } catch(_) {}
+}
+
+function onVehicleChange() {
+  $("eq-vehicle-id").value = $("eq-vehicle-sel").value;
+}
+
+// ── Items CRUD ────────────────────────────────────────────────────────────────
+function addItem() {
+  const id = _nextId++;
+  _items.push({ id, type:"product", productId:"", productName:"", productCode:"", deviceModel:"", description:"", descriptionMode:"quotation", unitPrice:0, installationPrice:0, subscriptionPrice:0, customName:"", customDescription:"", customPrice:0, selectedDevices:[] });
+  renderItems();
+  setTimeout(() => { const sel = $("eq-prod-" + id); if (sel) sel.focus(); }, 50);
+}
+
+function setItemType(id, type) {
+  const item = _items.find(i => i.id === id);
+  if (!item || item.type === type) return;
+  item.type = type;
+  if (type === "custom") {
+    item.productId = ""; item.productName = ""; item.productCode = "";
+    item.deviceModel = ""; item.description = ""; item.descriptionMode = "quotation";
+    item.unitPrice = 0; item.installationPrice = 0; item.subscriptionPrice = 0;
+    item.selectedDevices = [];
+  } else {
+    item.customName = ""; item.customDescription = ""; item.customPrice = 0;
+  }
+  renderItems(); recalcTotals();
+}
+
+function updateCustomField(id, field, val) {
+  const item = _items.find(i => i.id === id);
+  if (!item) return;
+  item[field] = (field === "customPrice") ? (parseFloat(val) || 0) : val;
+  if (field === "customPrice") {
+    const rowTot = $("eq-row-total-" + id);
+    if (rowTot) rowTot.textContent = "KES " + fmtN(item.customPrice);
+    recalcTotals();
+  }
+}
+
+function removeItem(id) { _items = _items.filter(i => i.id !== id); renderItems(); }
+
+function updatePrice(id, field, val) {
+  const item = _items.find(i => i.id === id);
+  if (!item) return;
+  item[field] = parseFloat(val) || 0;
+  refreshRowTotal(item);
+  recalcTotals();
+}
+
+function refreshRowTotal(item) {
+  const qty = Math.max(item.selectedDevices.length, 1);
+  const el = $("eq-row-total-" + item.id);
+  if (el) el.textContent = "KES " + fmtN((item.unitPrice + item.installationPrice + item.subscriptionPrice) * qty);
+}
+
+async function onProductChange(id, productId) {
+  const item = _items.find(i => i.id === id);
+  if (!item) return;
+  item.selectedDevices = [];
+  if (!productId) {
+    item.productId = ""; item.productName = ""; item.productCode = "";
+    item.deviceModel = ""; item.description = ""; item.descriptionMode = "quotation"; item.unitPrice = 0;
+    item.installationPrice = 0; item.subscriptionPrice = 0;
+    renderItems(); return;
+  }
+  const prods = await loadProducts();
+  const prod = prods.find(p => p.id === productId);
+  if (prod) {
+    item.productId         = prod.id;
+    item.productName       = prod.productName;
+    item.productCode       = prod.productCode;
+    item.categoryName      = prod.categoryName;
+    item.deviceModel       = prod.deviceModel;
+    item.description       = prod.quotationDescription || prod.description || prod.productName;
+    item.descriptionMode   = "quotation";
+    item.unitPrice         = prod.salePrice || 0;
+    item.installationPrice = prod.installationPrice || 0;
+    item.subscriptionPrice = prod.subscriptionPrice || 0;
+  }
+  delete _deviceCache[productId];
+  renderItems(); recalcTotals();
+}
+
+function removeDevice(itemId, deviceId) {
+  const item = _items.find(i => i.id === itemId);
+  if (!item) return;
+  item.selectedDevices = item.selectedDevices.filter(d => d.id !== deviceId);
+  renderItems(); recalcTotals();
+}
+
+async function toggleDeviceDropdown(itemId) {
+  const dd = $("eq-dev-dd-" + itemId);
+  if (!dd) return;
+  if (!dd.classList.contains("hidden")) { dd.classList.add("hidden"); return; }
+  const item = _items.find(i => i.id === itemId);
+  if (!item || !item.productId) return;
+  dd.innerHTML = '<li class="px-3 py-2 text-xs text-slate-400">Loading…</li>';
+  dd.classList.remove("hidden");
+  const devices = await loadDevices(item.productId);
+  const available = devices.filter(d => !item.selectedDevices.find(s => s.id === d.id));
+  if (!available.length) { dd.innerHTML = '<li class="px-3 py-2 text-xs text-slate-400">No In-Stock devices available.</li>'; return; }
+  dd.innerHTML = available.map(d => `
+    <li class="px-3 py-2.5 hover:bg-blue-50 cursor-pointer border-b border-slate-100 last:border-0"
+        data-id="${d.id}" data-serial="${escAttr(d.serial)}" data-imei="${escAttr(d.imei)}">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <span class="text-xs font-mono font-semibold text-slate-700">SN: ${escAttr(d.serial)}</span>
+          <span class="mx-1.5 text-slate-300">·</span>
+          <span class="text-xs font-mono text-slate-500">IMEI: ${escAttr(d.imei)}</span>
+        </div>
+        ${d.location ? `<span class="text-xs text-slate-400 shrink-0">${escAttr(d.location)}</span>` : ""}
+      </div>
+    </li>`).join("");
+  dd.querySelectorAll("li[data-id]").forEach(li => {
+    li.addEventListener("mousedown", e => {
+      e.preventDefault();
+      const itm = _items.find(i => i.id === itemId);
+      if (itm) itm.selectedDevices.push({ id: li.dataset.id, serial: li.dataset.serial, imei: li.dataset.imei });
+      dd.classList.add("hidden");
+      renderItems(); recalcTotals();
+    });
+  });
+}
+
+function renderItems() {
+  const container = $("eq-items");
+  const products = _productCache || [];
+  container.innerHTML = _items.map(item => {
+    const isCustom = item.type === "custom";
+    const typeToggle = `
+      <div class="flex rounded overflow-hidden border border-slate-200 text-xs shrink-0">
+        <button type="button" onclick="setItemType(${item.id},'product')"
+          class="px-2.5 py-1 ${!isCustom ? 'bg-emerald-500 text-white font-semibold' : 'bg-white text-slate-500 hover:bg-slate-50'}">Product</button>
+        <button type="button" onclick="setItemType(${item.id},'custom')"
+          class="px-2.5 py-1 border-l border-slate-200 ${isCustom ? 'bg-emerald-500 text-white font-semibold' : 'bg-white text-slate-500 hover:bg-slate-50'}">Custom Service</button>
+      </div>`;
+
+    if (isCustom) {
+      const rowTotal = item.customPrice || 0;
+      return `
+      <div class="bg-slate-50 rounded-xl px-3 py-3 space-y-2.5 border border-slate-100">
+        <div class="flex items-center justify-between gap-2">
+          ${typeToggle}
+          <button type="button" onclick="removeItem(${item.id})" class="text-red-400 hover:text-red-600 text-xl leading-none">&times;</button>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-500 mb-0.5">Service Name <span class="text-red-400">*</span></label>
+          <input type="text" placeholder="e.g. Speed Governor Installation"
+            value="${escAttr(item.customName || '')}"
+            oninput="updateCustomField(${item.id},'customName',this.value)"
+            class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-400 bg-white" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-500 mb-0.5">Description</label>
+          <input type="text" placeholder="Additional details (optional)"
+            value="${escAttr(item.customDescription || '')}"
+            oninput="updateCustomField(${item.id},'customDescription',this.value)"
+            class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-400 bg-white" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-500 mb-0.5">Amount (KES)</label>
+          <input type="number" min="0" step="0.01" placeholder="0.00"
+            value="${item.customPrice || ''}"
+            oninput="updateCustomField(${item.id},'customPrice',this.value)"
+            class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:border-emerald-400 bg-white" />
+        </div>
+        <div class="flex items-center justify-between pt-0.5 border-t border-slate-200">
+          <div id="eq-row-total-${item.id}" class="text-sm font-semibold text-emerald-700">KES ${fmtN(rowTotal)}</div>
+          <div class="text-xs text-slate-400">flat rate</div>
+        </div>
+      </div>`;
+    }
+
+    // ── Product mode ──────────────────────────────────────────────────────────
+    const qty = Math.max(item.selectedDevices.length, 1);
+    const rowTotal = (item.unitPrice + item.installationPrice + item.subscriptionPrice) * qty;
+    const chips = item.selectedDevices.map(d => `
+      <span class="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-xs font-medium whitespace-nowrap">
+        <span class="font-mono">SN:${escAttr(d.serial)}</span>
+        <span class="text-indigo-400 mx-0.5">·</span>
+        <span class="font-mono">IMEI:${escAttr(d.imei)}</span>
+        <button type="button" onmousedown="event.preventDefault();removeDevice(${item.id},'${d.id}')"
+          class="ml-0.5 rounded-full hover:bg-indigo-200 w-4 h-4 flex items-center justify-center text-indigo-600 leading-none text-sm">&times;</button>
+      </span>`).join("");
+    const addDevBtn = item.productId ? `
+      <div class="relative inline-block">
+        <button type="button" onclick="toggleDeviceDropdown(${item.id})"
+          class="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium border border-blue-200 rounded-full px-2 py-0.5 hover:bg-blue-50">
+          + Add Device
+        </button>
+        <ul id="eq-dev-dd-${item.id}" class="eq-dev-dropdown hidden absolute z-50 left-0 mt-1 w-80 bg-white border border-slate-200 rounded-xl shadow-xl max-h-52 overflow-y-auto text-sm"></ul>
+      </div>` : "";
+    const filteredProds = (_catId && _catId !== '__other__') ? products.filter(p => p.categoryId === _catId) : products;
+    const prodOpts = filteredProds.map(p =>
+      `<option value="${p.id}" ${p.id === item.productId ? "selected" : ""}>${p.productCode ? p.productCode + " — " : ""}${escAttr(p.productName)}</option>`
+    ).join("");
+    return `
+    <div class="bg-slate-50 rounded-xl px-3 py-3 space-y-2.5 border border-slate-100">
+      <div class="flex flex-wrap items-center gap-2">
+        ${typeToggle}
+        <div class="flex-1 min-w-[140px]">
+          <select id="eq-prod-${item.id}" onchange="onProductChange(${item.id}, this.value)"
+            class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-400 bg-white">
+            <option value="">— Select product —</option>
+            ${prodOpts}
+          </select>
+        </div>
+        <div class="shrink-0 text-xs text-slate-500 font-semibold w-14 text-center">Qty: <span class="text-slate-800">${qty}</span></div>
+        <button type="button" onclick="removeItem(${item.id})" class="shrink-0 text-red-400 hover:text-red-600 text-xl leading-none">&times;</button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div>
+          <label class="block text-xs text-slate-500 mb-0.5">Device Price (KES)</label>
+          <input type="number" min="0" step="0.01" placeholder="0.00" value="${item.unitPrice || ""}"
+            oninput="updatePrice(${item.id},'unitPrice',this.value)"
+            class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:border-emerald-400 bg-white" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-500 mb-0.5">Installation (KES)</label>
+          <input type="number" min="0" step="0.01" placeholder="0.00" value="${item.installationPrice || ""}"
+            oninput="updatePrice(${item.id},'installationPrice',this.value)"
+            class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:border-emerald-400 bg-white" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-500 mb-0.5">Subscription /mo (KES)</label>
+          <input type="number" min="0" step="0.01" placeholder="0.00" value="${item.subscriptionPrice || ""}"
+            oninput="updatePrice(${item.id},'subscriptionPrice',this.value)"
+            class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:border-emerald-400 bg-white" />
+        </div>
+      </div>
+      <div class="flex items-center justify-between">
+        <div id="eq-row-total-${item.id}" class="text-sm font-semibold text-emerald-700">KES ${fmtN(rowTotal)}</div>
+        <div class="text-xs text-slate-400">(device + install + sub) &times; ${qty}</div>
+      </div>
+      <div class="flex flex-wrap items-center gap-1.5 min-h-[1.75rem] pt-0.5 border-t border-slate-200">
+        ${chips}
+        ${addDevBtn}
+        ${!item.productId ? '<span class="text-xs text-slate-400 italic">Select a product above to pick devices</span>' : ""}
+      </div>
+      ${item.productId ? eqDescriptionBlock(item, products) : ""}
+    </div>`;
+  }).join("");
+  recalcTotals();
+}
+
+// ── Quotation description + features (per line item) ──────────────────────────
+function eqDescriptionBlock(item, products) {
+  const prod = products.find(p => p.id === item.productId);
+  const isCustomMode = item.descriptionMode === "custom";
+  const features = ((prod && prod.keyFeatures) || "").split("\n").map(s => s.trim()).filter(Boolean);
+  return `
+  <div class="border-t border-slate-200 pt-2 space-y-1.5">
+    <div class="flex items-center justify-between">
+      <label class="text-xs text-slate-500 font-semibold">Quotation Description</label>
+      <label class="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer select-none">
+        <input type="checkbox" ${isCustomMode ? "checked" : ""} onchange="toggleEqDescriptionMode(${item.id}, this.checked)" class="accent-emerald-600" />
+        Edit description
+      </label>
+    </div>
+    <textarea rows="2" ${isCustomMode ? "" : "readonly"}
+      oninput="updateEqDescription(${item.id}, this.value)"
+      class="w-full border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-400 resize-y ${isCustomMode ? "border-slate-200 bg-white" : "border-slate-100 bg-slate-100 text-slate-500"}">${escAttr(item.description || "")}</textarea>
+    ${features.length ? `
+    <div class="flex flex-wrap gap-1.5 pt-0.5">
+      ${features.map((f, idx) => `
+        <button type="button" onclick="addEqFeatureToDescription(${item.id}, ${idx})" ${isCustomMode ? "" : "disabled"}
+          class="text-xs px-2 py-0.5 rounded-full border border-slate-200 text-slate-600 hover:bg-emerald-50 hover:border-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed">+ ${escAttr(f)}</button>
+      `).join("")}
+    </div>` : ""}
+  </div>`;
+}
+
+function toggleEqDescriptionMode(id, editing) {
+  const item = _items.find(i => i.id === id);
+  if (!item) return;
+  item.descriptionMode = editing ? "custom" : "quotation";
+  if (!editing) {
+    const prod = (_productCache || []).find(p => p.id === item.productId);
+    item.description = prod ? (prod.quotationDescription || prod.description || prod.productName) : item.description;
+  }
+  renderItems();
+}
+
+function updateEqDescription(id, value) {
+  const item = _items.find(i => i.id === id);
+  if (!item) return;
+  item.description = value;
+}
+
+function addEqFeatureToDescription(id, featureIdx) {
+  const item = _items.find(i => i.id === id);
+  if (!item || item.descriptionMode !== "custom") return;
+  const prod = (_productCache || []).find(p => p.id === item.productId);
+  if (!prod) return;
+  const features = (prod.keyFeatures || "").split("\n").map(s => s.trim()).filter(Boolean);
+  const feature = features[featureIdx];
+  if (!feature) return;
+  item.description = item.description ? `${item.description}\n${feature}` : feature;
+  renderItems();
+}
+
+function recalcTotals() {
+  const subtotal = _items.reduce((s, i) => {
+    if (i.type === "custom") return s + (i.customPrice || 0);
+    const qty = Math.max(i.selectedDevices.length, 1);
+    return s + (i.unitPrice + i.installationPrice + i.subscriptionPrice) * qty;
+  }, 0);
+  const taxRate  = parseFloat($("eq-tax").value)      || 0;
+  const discount = parseFloat($("eq-discount").value) || 0;
+  const afterDisc = Math.max(0, subtotal - discount);
+  const taxAmt = afterDisc * (taxRate / 100);
+  $("eq-subtotal").textContent        = "KES " + fmtN(subtotal);
+  $("eq-tax-amount").textContent      = "KES " + fmtN(taxAmt);
+  $("eq-discount-display").textContent = "KES " + fmtN(discount);
+  $("eq-total").textContent           = "KES " + fmtN(afterDisc + taxAmt);
+}
+
+// Close device dropdowns on outside click
+document.addEventListener("click", e => {
+  document.querySelectorAll(".eq-dev-dropdown").forEach(dd => {
+    if (!dd.contains(e.target) && !e.target.closest("button[onclick*='toggleDeviceDropdown']")) {
+      dd.classList.add("hidden");
+    }
+  });
+});
+
+// ── Save ──────────────────────────────────────────────────────────────────────
+async function saveEdit() {
+  const errEl = $("eq-form-error");
+  errEl.textContent = "";
+  if (_items.length === 0) { errEl.textContent = "Add at least one line item."; return; }
+
+  const sel = $("eq-service");
+  const serviceType = sel.selectedIndex > 0 ? sel.options[sel.selectedIndex].textContent.trim() : null;
+
+  const body = {
+    serviceType,
+    taxRate:        parseFloat($("eq-tax").value)      || 0,
+    discountAmount: parseFloat($("eq-discount").value) || 0,
+    expiryDate:     $("eq-expiry").value || null,
+    notes:          $("eq-notes").value  || null,
+    loanTermMonths: parseInt($("eq-loan-term").value)  || null,
+    vehicleId:      $("eq-vehicle-id").value || null,
+    items: _items.map(it => {
+      if (it.type === "custom") {
+        return {
+          productId:    null,
+          deviceModel:  it.customName || "Custom Service",
+          description:  it.customDescription || null,
+          deviceType:   null,
+          quantity:     1,
+          unitPrice:    it.customPrice || 0,
+          stockItemIds: [],
+          stockItemId:  null,
+        };
+      }
+      const devs = it.selectedDevices || [];
+      const qty  = Math.max(devs.length, 1);
+      const combined = it.unitPrice + it.installationPrice + it.subscriptionPrice;
+      return {
+        productId:    it.productId   || null,
+        deviceModel:  it.productName || it.deviceModel || it.description || "—",
+        description:  it.description || it.productName || null,
+        deviceType:   it.categoryName || null,
+        quantity:     qty,
+        unitPrice:    combined,
+        stockItemIds: devs.map(d => d.id),
+        stockItemId:  devs[0]?.id || null,
+      };
+    }),
+  };
+
+  const btn = $("btn-save");
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    await api(`/crm/quotes/${quoteId}`, { method: "PATCH", body });
+    APP.showToast("Quote updated.", "success");
+    setTimeout(() => { window.location.href = `crm-quote-detail.html?id=${quoteId}`; }, 600);
+  } catch(err) {
+    errEl.textContent = err.message || "Failed to save changes.";
+  } finally {
+    btn.disabled = false; btn.textContent = "Save Changes";
+  }
+}
+
+// ── Edit History ──────────────────────────────────────────────────────────────
+async function loadHistory() {
+  try {
+    const r = await api(`/crm/quotes/${quoteId}/history`);
+    const history = r.data || [];
+    if (!history.length) return;
+    $("history-section").classList.remove("hidden");
+    $("history-list").innerHTML = history.map(h => {
+      const totalLine = (h.before_total != null && h.after_total != null && h.before_total !== h.after_total)
+        ? `<span class="ml-2 text-slate-400">KES ${fmtN(h.before_total)} → <span class="text-emerald-700 font-semibold">KES ${fmtN(h.after_total)}</span></span>`
+        : "";
+      return `<div class="flex gap-3 pb-3 border-b border-slate-100 last:border-0 last:pb-0">
+        <div class="flex-shrink-0 w-7 h-7 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center mt-0.5 text-amber-400">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6-6M3 21h3.536L18 9.536 14.464 6 3 17.464V21z"/></svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex flex-wrap items-baseline gap-1.5 text-xs">
+            <span class="font-semibold text-slate-700">${escHtml(h.edited_by_name || h.edited_by_user_id || "Unknown")}</span>
+            <span class="text-slate-400">${new Date(h.edited_at).toLocaleString()}</span>
+            ${totalLine}
+          </div>
+          <p class="text-xs text-slate-500 mt-0.5">${escHtml(h.change_summary || "No details")}</p>
+        </div>
+      </div>`;
+    }).join("");
+  } catch(_) {}
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function fmtN(n) { return (Math.round((n||0)*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function escAttr(s) { return (s||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#39;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function escHtml(s)  { return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+const STATUS_COLORS={Draft:"bg-slate-100 text-slate-600 border-slate-200",Sent:"bg-sky-50 text-sky-700 border-sky-200",Accepted:"bg-green-50 text-green-700 border-green-200",Rejected:"bg-red-50 text-red-700 border-red-200",Expired:"bg-amber-50 text-amber-700 border-amber-200",Superseded:"bg-purple-50 text-purple-700 border-purple-200"};
+function statusBadge(s){const c=STATUS_COLORS[s]||"bg-slate-100 text-slate-600 border-slate-200";return `<span class="inline-block rounded-full border px-2 py-0.5 text-xs font-semibold ${c}">${s}</span>`;}
+</script>
+</body>
+</html>

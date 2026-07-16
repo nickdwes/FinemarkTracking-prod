@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Invoice Template | Finemark</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; padding: 20px; }
+    .container { max-width: 900px; margin: 0 auto; }
+    
+    .invoice-preview {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .invoice-document {
+      background: white;
+      padding: 40px;
+      page-break-after: always;
+    }
+
+    /* Header */
+    .invoice-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 40px;
+      border-bottom: 3px solid #2563eb;
+      padding-bottom: 30px;
+    }
+
+    .company-info {
+      flex: 1;
+    }
+
+    .company-logo {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+      border-radius: 6px;
+      margin-bottom: 10px;
+    }
+
+    .company-name {
+      font-size: 24px;
+      font-weight: 700;
+      color: #111;
+      margin-bottom: 5px;
+    }
+
+    .company-contact {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.6;
+    }
+
+    .invoice-meta {
+      text-align: right;
+    }
+
+    .invoice-title {
+      font-size: 36px;
+      font-weight: 700;
+      color: #111;
+      margin-bottom: 10px;
+    }
+
+    .invoice-number {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .invoice-status {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #f0fdf4;
+      color: #166534;
+    }
+
+    /* Dates and Customer Info */
+    .invoice-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      margin-bottom: 40px;
+    }
+
+    .detail-block h3 {
+      font-size: 12px;
+      font-weight: 700;
+      color: #666;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    .detail-block p {
+      font-size: 14px;
+      color: #111;
+      line-height: 1.8;
+      margin-bottom: 5px;
+    }
+
+    /* Line Items Table */
+    .line-items {
+      margin-bottom: 40px;
+    }
+
+    .line-items table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .line-items thead {
+      background: #f8f9fa;
+      border-top: 2px solid #dee2e6;
+      border-bottom: 2px solid #dee2e6;
+    }
+
+    .line-items th {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 700;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .line-items td {
+      padding: 14px 16px;
+      font-size: 14px;
+      color: #111;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .line-items tbody tr:last-child td {
+      border-bottom: 2px solid #dee2e6;
+    }
+
+    .item-description {
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .item-notes {
+      font-size: 12px;
+      color: #999;
+    }
+
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+
+    /* Totals */
+    .invoice-totals {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 40px;
+    }
+
+    .totals-table {
+      width: 280px;
+    }
+
+    .totals-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      font-size: 14px;
+      color: #111;
+    }
+
+    .totals-row.subtotal { border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; }
+    .totals-row.tax { border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; }
+    
+    .totals-row.total {
+      font-size: 18px;
+      font-weight: 700;
+      color: #2563eb;
+      padding-top: 15px;
+      border-top: 2px solid #2563eb;
+    }
+
+    .totals-label { font-weight: 500; }
+    .totals-amount { text-align: right; font-weight: 600; }
+
+    /* Footer */
+    .invoice-footer {
+      border-top: 1px solid #e5e7eb;
+      padding-top: 30px;
+      margin-top: 40px;
+    }
+
+    .footer-section {
+      margin-bottom: 20px;
+    }
+
+    .footer-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #666;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      letter-spacing: 0.5px;
+    }
+
+    .footer-text {
+      font-size: 13px;
+      color: #555;
+      line-height: 1.6;
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      padding: 20px;
+      background: #f9fafb;
+      border-radius: 8px 8px 0 0;
+    }
+
+    .btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #1d4ed8;
+    }
+
+    .btn-secondary {
+      background: #e5e7eb;
+      color: #111;
+    }
+
+    .btn-secondary:hover {
+      background: #d1d5db;
+    }
+
+    @media print {
+      body { background: white; padding: 0; }
+      .controls { display: none; }
+      .invoice-preview { box-shadow: none; border-radius: 0; }
+      .invoice-document { page-break-after: always; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="invoice-preview">
+    <div class="controls">
+      <button class="btn btn-primary" onclick="window.print()">🖨️ Print / Save as PDF</button>
+      <button class="btn btn-secondary" onclick="sendInvoice()">📧 Send via Email</button>
+      <button class="btn btn-secondary" onclick="editInvoice()">✏️ Edit</button>
+    </div>
+
+    <div class="invoice-document" id="invoice-document">
+      <!-- Header -->
+      <div class="invoice-header">
+        <div class="company-info">
+          <div class="company-logo"></div>
+          <div class="company-name">FINEMARK TRACKING</div>
+          <div class="company-contact">
+            <p>Nairobi, Kenya</p>
+            <p>support@finemarktracking.co.ke</p>
+            <p>+254 (0) 795-123-456</p>
+          </div>
+        </div>
+        <div class="invoice-meta">
+          <div class="invoice-title">INVOICE</div>
+          <div class="invoice-number">Invoice #: <strong id="inv-number">INV-2024-001</strong></div>
+          <div class="invoice-status" id="inv-status">Draft</div>
+        </div>
+      </div>
+
+      <!-- Details -->
+      <div class="invoice-details">
+        <div>
+          <div class="detail-block">
+            <h3>Bill To</h3>
+            <p id="bill-to-name">ABC Corporation</p>
+            <p id="bill-to-email">accounting@abc.com</p>
+            <p id="bill-to-phone">+254 712 345 678</p>
+            <p id="bill-to-address">P.O. Box 1234, Nairobi</p>
+          </div>
+        </div>
+        <div>
+          <div class="detail-block">
+            <h3>Invoice Details</h3>
+            <p><strong>Invoice Date:</strong> <span id="inv-date">Jan 15, 2024</span></p>
+            <p><strong>Due Date:</strong> <span id="due-date">Feb 14, 2024</span></p>
+            <p><strong>Payment Terms:</strong> <span id="payment-terms">Net 30</span></p>
+            <p><strong>PO Number:</strong> <span id="po-number">N/A</span></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Line Items -->
+      <div class="line-items">
+        <table>
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th class="text-center" style="width: 80px;">Quantity</th>
+              <th class="text-right" style="width: 100px;">Unit Price</th>
+              <th class="text-right" style="width: 100px;">Amount</th>
+            </tr>
+          </thead>
+          <tbody id="line-items-tbody">
+            <tr>
+              <td>
+                <div class="item-description">GPS Tracking Device Installation</div>
+                <div class="item-notes">Standard installation with 1-month trial</div>
+              </td>
+              <td class="text-center">5</td>
+              <td class="text-right">KES 2,500.00</td>
+              <td class="text-right">KES 12,500.00</td>
+            </tr>
+            <tr>
+              <td>
+                <div class="item-description">Monthly Subscription Fee</div>
+                <div class="item-notes">GPS tracking + reporting dashboard</div>
+              </td>
+              <td class="text-center">5</td>
+              <td class="text-right">KES 1,200.00</td>
+              <td class="text-right">KES 6,000.00</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Totals -->
+      <div class="invoice-totals">
+        <div class="totals-table">
+          <div class="totals-row subtotal">
+            <span class="totals-label">Subtotal</span>
+            <span class="totals-amount">KES <span id="subtotal">18,500.00</span></span>
+          </div>
+          <div class="totals-row tax">
+            <span class="totals-label">Tax (16%)</span>
+            <span class="totals-amount">KES <span id="tax-amount">2,960.00</span></span>
+          </div>
+          <div class="totals-row total">
+            <span class="totals-label">Total Due</span>
+            <span class="totals-amount">KES <span id="total-due">21,460.00</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="invoice-footer">
+        <div class="footer-section">
+          <div class="footer-label">Payment Instructions</div>
+          <div class="footer-text">
+            Please remit payment to:<br>
+            Bank: Kenya Commercial Bank<br>
+            Account: 1234567890<br>
+            Reference: Invoice #<span id="footer-inv-number">INV-2024-001</span>
+          </div>
+        </div>
+        <div class="footer-section">
+          <div class="footer-label">Terms & Conditions</div>
+          <div class="footer-text">
+            Payment is due within 30 days of invoice date. Overdue invoices may incur a 1.5% monthly interest charge. For inquiries, please contact our finance department.
+          </div>
+        </div>
+        <div class="footer-section" style="text-align: center; color: #999; font-size: 12px; margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+          Thank you for your business! | Invoice Generated on <span id="generated-date">Jan 15, 2024</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Sample invoice data - in real application, this would come from API
+  const invoiceData = {
+    id: 'inv-123',
+    invoiceNumber: 'INV-2024-001',
+    status: 'Draft',
+    billToName: 'ABC Corporation',
+    billToEmail: 'accounting@abc.com',
+    billToPhone: '+254 712 345 678',
+    billToAddress: 'P.O. Box 1234, Nairobi',
+    invoiceDate: new Date(2024, 0, 15),
+    dueDate: new Date(2024, 1, 14),
+    paymentTerms: 'Net 30',
+    poNumber: 'PO-2024-5678',
+    items: [
+      {
+        description: 'GPS Tracking Device Installation',
+        notes: 'Standard installation with 1-month trial',
+        quantity: 5,
+        unitPrice: 2500,
+      },
+      {
+        description: 'Monthly Subscription Fee',
+        notes: 'GPS tracking + reporting dashboard',
+        quantity: 5,
+        unitPrice: 1200,
+      }
+    ],
+    taxRate: 0.16,
+    notes: 'Payment is due within 30 days of invoice date. Overdue invoices may incur a 1.5% monthly interest charge.'
+  };
+
+  function formatCurrency(value) {
+    return new Intl.NumberFormat('en-KE', {
+      style: 'currency',
+      currency: 'KES',
+      minimumFractionDigits: 2
+    }).format(value).replace('KES', '').trim();
+  }
+
+  function formatDate(date) {
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    }).format(date);
+  }
+
+  function calculateTotals() {
+    let subtotal = 0;
+    invoiceData.items.forEach(item => {
+      subtotal += item.quantity * item.unitPrice;
+    });
+    const tax = subtotal * invoiceData.taxRate;
+    const total = subtotal + tax;
+    return { subtotal, tax, total };
+  }
+
+  function renderInvoice() {
+    const { subtotal, tax, total } = calculateTotals();
+
+    // Header and meta
+    document.getElementById('inv-number').textContent = invoiceData.invoiceNumber;
+    document.getElementById('inv-status').textContent = invoiceData.status;
+
+    // Bill to
+    document.getElementById('bill-to-name').textContent = invoiceData.billToName;
+    document.getElementById('bill-to-email').textContent = invoiceData.billToEmail;
+    document.getElementById('bill-to-phone').textContent = invoiceData.billToPhone;
+    document.getElementById('bill-to-address').textContent = invoiceData.billToAddress;
+
+    // Dates
+    document.getElementById('inv-date').textContent = formatDate(invoiceData.invoiceDate);
+    document.getElementById('due-date').textContent = formatDate(invoiceData.dueDate);
+    document.getElementById('payment-terms').textContent = invoiceData.paymentTerms;
+    document.getElementById('po-number').textContent = invoiceData.poNumber;
+
+    // Line items
+    const tbody = document.getElementById('line-items-tbody');
+    tbody.innerHTML = invoiceData.items.map(item => `
+      <tr>
+        <td>
+          <div class="item-description">${item.description}</div>
+          <div class="item-notes">${item.notes}</div>
+        </td>
+        <td class="text-center">${item.quantity}</td>
+        <td class="text-right">KES ${formatCurrency(item.unitPrice)}</td>
+        <td class="text-right">KES ${formatCurrency(item.quantity * item.unitPrice)}</td>
+      </tr>
+    `).join('');
+
+    // Totals
+    document.getElementById('subtotal').textContent = formatCurrency(subtotal);
+    document.getElementById('tax-amount').textContent = formatCurrency(tax);
+    document.getElementById('total-due').textContent = formatCurrency(total);
+    document.getElementById('footer-inv-number').textContent = invoiceData.invoiceNumber;
+    document.getElementById('generated-date').textContent = formatDate(new Date());
+  }
+
+  function sendInvoice() {
+    alert('Send invoice functionality - would trigger email to: ' + invoiceData.billToEmail);
+  }
+
+  function editInvoice() {
+    alert('Redirect to edit invoice page');
+  }
+
+  // Initial render
+  renderInvoice();
+</script>
+</body>
+</html>

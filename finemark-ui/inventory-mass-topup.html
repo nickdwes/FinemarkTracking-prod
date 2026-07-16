@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Mass Top-Up</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    .badge{display:inline-flex;align-items:center;border-radius:9999px;padding:.15rem .6rem;font-size:.7rem;font-weight:600;border-width:1px;}
+    .badge-pending{background:#fff7ed;color:#c2410c;border-color:#fed7aa;}
+    .badge-completed{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}
+    table.tt th{position:sticky;top:0;background:#f8fafc;text-align:left;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:#64748b;padding:.55rem .75rem;border-bottom:1px solid #e2e8f0;}
+    table.tt td{padding:.55rem .75rem;font-size:.8rem;border-bottom:1px solid #f1f5f9;color:#334155;}
+    .modal{display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);align-items:center;justify-content:center;z-index:1000;padding:1rem;}
+    .modal.show{display:flex;}
+    .modal-content{background:#fff;border-radius:.75rem;width:100%;max-width:32rem;max-height:90vh;overflow-y:auto;padding:1.5rem;}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-3 sm:p-6 min-w-0 space-y-5">
+
+    <div class="flex flex-wrap items-center gap-3 justify-between">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Mass Top-Up</h1>
+        <p class="text-sm text-slate-500 mt-0.5">Track SIM/tracker numbers that need an airtime or data top-up, and mark them off once done.</p>
+      </div>
+      <div class="flex gap-2">
+        <button id="btn-add" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">+ Add Numbers</button>
+        <button id="btn-import" class="rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-100">Import CSV</button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div class="bg-white border border-slate-200 rounded-xl p-4">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Pending</p>
+        <p id="stat-pending-n" class="text-2xl font-bold text-orange-600 mt-1">—</p>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-xl p-4">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Pending Amount</p>
+        <p id="stat-pending-amt" class="text-2xl font-bold text-orange-600 mt-1">—</p>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-xl p-4">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Completed</p>
+        <p id="stat-completed-n" class="text-2xl font-bold text-emerald-600 mt-1">—</p>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-xl p-4">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Completed Amount</p>
+        <p id="stat-completed-amt" class="text-2xl font-bold text-emerald-600 mt-1">—</p>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+      <div class="grid gap-3 sm:grid-cols-3">
+        <div class="sm:col-span-2">
+          <label class="text-xs font-semibold text-slate-600">Search</label>
+          <input id="f-search" type="text" placeholder="Phone, organization, network"
+            class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Status</label>
+          <select id="f-status" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+            <option value="">All</option>
+            <option value="Pending">Pending</option>
+            <option value="Completed">Completed</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-3">
+        <button id="btn-apply" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Apply</button>
+        <button id="btn-reset" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Reset</button>
+        <button id="btn-export" class="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100">Export CSV</button>
+        <span id="result-count" class="text-xs text-slate-500 ml-auto"></span>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      <div class="overflow-x-auto max-h-[560px]">
+        <table class="tt min-w-full">
+          <thead>
+            <tr>
+              <th>Phone</th><th>Amount (KES)</th><th>Organization</th><th>Network</th>
+              <th>Status</th><th>Completed At</th><th>Added</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"><tr><td colspan="8" class="text-center py-10 text-slate-400">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div id="pagination" class="flex items-center justify-between gap-3 px-4 py-3 border-t border-slate-100 text-xs text-slate-500"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Add Numbers Modal -->
+<div id="modal-add" class="modal">
+  <div class="modal-content">
+    <h2 class="text-lg font-bold text-slate-900 mb-4">Add Numbers to Top-Up Queue</h2>
+    <div id="add-error" class="hidden bg-red-50 text-red-700 text-sm rounded-lg p-3 mb-3"></div>
+    <div class="space-y-3">
+      <div>
+        <label class="text-xs font-semibold text-slate-600">Phone Numbers <span class="text-slate-400 font-normal">(one per line)</span></label>
+        <textarea id="add-numbers" rows="6" placeholder="0712345678&#10;0798765432" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono"></textarea>
+        <p id="add-numbers-err" class="text-xs text-red-500 mt-1 hidden"></p>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Amount (KES)</label>
+          <input id="add-amount" type="number" step="0.01" min="0" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Network</label>
+          <input id="add-network" type="text" list="network-options" value="Safaricom" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+          <datalist id="network-options"><option value="Safaricom"><option value="Airtel"><option value="Telkom"></datalist>
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-slate-600">Organization <span class="text-slate-400 font-normal">(optional)</span></label>
+        <input id="add-organization" type="text" placeholder="e.g. partner/bank name" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+      </div>
+    </div>
+    <div class="flex justify-end gap-2 mt-5">
+      <button id="add-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
+      <button id="add-submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="modal-edit" class="modal">
+  <div class="modal-content">
+    <h2 class="text-lg font-bold text-slate-900 mb-4">Edit Record</h2>
+    <div id="edit-error" class="hidden bg-red-50 text-red-700 text-sm rounded-lg p-3 mb-3"></div>
+    <input type="hidden" id="edit-id" />
+    <div class="space-y-3">
+      <div>
+        <label class="text-xs font-semibold text-slate-600">Phone</label>
+        <input id="edit-phone" type="tel" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Amount (KES)</label>
+          <input id="edit-amount" type="number" step="0.01" min="0" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Network</label>
+          <input id="edit-network" type="text" list="network-options" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-slate-600">Organization</label>
+        <input id="edit-organization" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-slate-600">Notes</label>
+        <textarea id="edit-notes" rows="2" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"></textarea>
+      </div>
+    </div>
+    <div class="flex justify-end gap-2 mt-5">
+      <button id="edit-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
+      <button id="edit-submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- CSV Import Modal -->
+<div id="modal-csv" class="modal">
+  <div class="modal-content" style="max-width:40rem;">
+    <h2 class="text-lg font-bold text-slate-900 mb-4">Import CSV</h2>
+
+    <div id="csv-step-upload" class="space-y-3">
+      <p class="text-sm text-slate-600">CSV must have headers: <code class="font-mono bg-slate-100 px-1 rounded">number,amount,organization,network</code></p>
+      <button type="button" id="btn-download-template" class="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-800">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+        Download CSV template
+      </button>
+      <input id="csv-file-input" type="file" accept=".csv" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+      <p id="csv-error" class="hidden text-sm text-red-600"></p>
+    </div>
+
+    <div id="csv-step-preview" class="hidden space-y-3">
+      <div class="flex items-center gap-3 text-sm">
+        <span id="csv-valid-count" class="text-emerald-700 font-semibold"></span>
+        <span id="csv-error-count" class="text-red-600 font-semibold"></span>
+      </div>
+      <div id="csv-error-section" class="hidden">
+        <h3 class="text-sm font-semibold text-slate-700 mb-2">Rows with errors</h3>
+        <div class="overflow-x-auto max-h-40 border border-red-100 rounded-lg">
+          <table class="w-full text-xs">
+            <thead><tr class="bg-red-50"><th class="px-3 py-1.5 text-left">Row</th><th class="px-3 py-1.5 text-left">Data</th><th class="px-3 py-1.5 text-left">Reason</th></tr></thead>
+            <tbody id="csv-errors-tbody" class="divide-y divide-red-50"></tbody>
+          </table>
+        </div>
+      </div>
+      <p id="csv-commit-error" class="hidden text-sm text-red-600"></p>
+    </div>
+
+    <div id="csv-step-result" class="hidden text-center py-4">
+      <p id="csv-result-text" class="text-lg font-semibold text-emerald-700"></p>
+      <p id="csv-result-sub" class="text-sm text-slate-500 mt-1"></p>
+    </div>
+
+    <div class="flex justify-end gap-2 mt-5">
+      <button id="csv-btn-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
+      <button id="csv-btn-preview" class="hidden rounded-lg bg-slate-600 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Preview</button>
+      <button id="csv-btn-commit" class="hidden rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">Import <span id="csv-btn-count"></span></button>
+    </div>
+  </div>
+</div>
+
+<div id="fm-footer"></div>
+
+<script src="assets/validation.js"></script>
+<script src="assets/app.js?v=202607131300"></script>
+<script src="assets/layout.js?v=202607131300"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  window.FINEMARK_APP?.requirePageAccess?.();
+  init();
+});
+
+const APP = window.FINEMARK_APP;
+const $ = (id) => document.getElementById(id);
+const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtMoney = (v) => Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 0 });
+const fmtDate = (v) => v ? new Date(v).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+
+let _page = 1, _pageSize = 50, _total = 0;
+
+function authHeaders() {
+  const token = APP?.getSession?.()?.accessToken;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function loadStats() {
+  const res = await APP.apiFetch("/inventory/mass-topup/stats");
+  const s = res?.stats || {};
+  $("stat-pending-n").textContent = s.pending ?? 0;
+  $("stat-pending-amt").textContent = fmtMoney(s.pendingAmount);
+  $("stat-completed-n").textContent = s.completed ?? 0;
+  $("stat-completed-amt").textContent = fmtMoney(s.completedAmount);
+}
+
+let _rows = [];
+
+async function loadTable() {
+  $("table-body").innerHTML = `<tr><td colspan="8" class="text-center py-10 text-slate-400">Loading…</td></tr>`;
+  const params = new URLSearchParams({ page: _page, pageSize: _pageSize });
+  const search = $("f-search").value.trim();
+  const status = $("f-status").value;
+  if (search) params.set("search", search);
+  if (status) params.set("status", status);
+
+  try {
+    const res = await APP.apiFetch(`/inventory/mass-topup?${params.toString()}`);
+    _rows = res?.data || [];
+    _total = res?.meta?.total || 0;
+    $("table-body").innerHTML = _rows.length ? _rows.map(rowHtml).join("") :
+      `<tr><td colspan="8" class="text-center py-10 text-slate-400">No records for this filter.</td></tr>`;
+    renderPagination();
+  } catch (e) {
+    $("table-body").innerHTML = `<tr><td colspan="8" class="text-center py-10 text-red-500">${escapeHtml(e?.message || "Failed to load.")}</td></tr>`;
+  }
+}
+
+function rowHtml(r) {
+  const badge = r.status === "Completed" ? "badge-completed" : "badge-pending";
+  return `<tr class="hover:bg-slate-50/60">
+    <td class="font-mono">${escapeHtml(r.phone)}</td>
+    <td>${fmtMoney(r.amount)}</td>
+    <td>${escapeHtml(r.organization || "—")}</td>
+    <td>${escapeHtml(r.network)}</td>
+    <td><span class="badge ${badge}">${escapeHtml(r.status)}</span></td>
+    <td>${fmtDate(r.completedAt)}</td>
+    <td>${fmtDate(r.createdAt)}</td>
+    <td class="whitespace-nowrap">
+      <button class="text-xs font-medium text-emerald-700 hover:text-emerald-900 mr-2" onclick="toggleStatus('${r.id}','${r.status}')">${r.status === "Completed" ? "Reopen" : "Mark Done"}</button>
+      <button class="text-xs font-medium text-blue-600 hover:text-blue-800 mr-2" onclick="openEdit('${r.id}')">Edit</button>
+      <button class="text-xs font-medium text-red-600 hover:text-red-800" onclick="deleteRow('${r.id}')">Delete</button>
+    </td>
+  </tr>`;
+}
+
+function renderPagination() {
+  const totalPages = Math.max(1, Math.ceil(_total / _pageSize));
+  $("result-count").textContent = `${_total} result${_total === 1 ? "" : "s"}`;
+  $("pagination").innerHTML = `
+    <span>Page ${_page} of ${totalPages}</span>
+    <div class="flex gap-2">
+      <button id="pg-prev" class="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40" ${_page <= 1 ? "disabled" : ""}>Prev</button>
+      <button id="pg-next" class="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40" ${_page >= totalPages ? "disabled" : ""}>Next</button>
+    </div>`;
+  $("pg-prev")?.addEventListener("click", () => { if (_page > 1) { _page--; loadTable(); } });
+  $("pg-next")?.addEventListener("click", () => { if (_page < totalPages) { _page++; loadTable(); } });
+}
+
+async function toggleStatus(id, currentStatus) {
+  const nextStatus = currentStatus === "Completed" ? "Pending" : "Completed";
+  try {
+    await APP.apiFetch(`/inventory/mass-topup/${id}`, { method: "PATCH", body: { status: nextStatus } });
+    loadStats(); loadTable();
+  } catch (e) { APP.showToast?.(e?.message || "Update failed.", "error"); }
+}
+
+async function deleteRow(id) {
+  if (!confirm("Delete this top-up record?")) return;
+  try {
+    await APP.apiFetch(`/inventory/mass-topup/${id}`, { method: "DELETE" });
+    loadStats(); loadTable();
+  } catch (e) { APP.showToast?.(e?.message || "Delete failed.", "error"); }
+}
+
+function openEdit(id) {
+  const row = _rows.find((r) => r.id === id);
+  fillEditModal(row);
+}
+
+function fillEditModal(row) {
+  if (!row) return;
+  $("edit-id").value = row.id;
+  $("edit-phone").value = row.phone;
+  $("edit-amount").value = row.amount;
+  $("edit-network").value = row.network;
+  $("edit-organization").value = row.organization || "";
+  $("edit-notes").value = row.notes || "";
+  $("edit-error").classList.add("hidden");
+  $("modal-edit").classList.add("show");
+}
+
+function closeEdit() { $("modal-edit").classList.remove("show"); }
+
+$("edit-cancel").addEventListener("click", closeEdit);
+$("edit-submit").addEventListener("click", async () => {
+  const id = $("edit-id").value;
+  const phone = $("edit-phone").value.trim();
+  const errEl = $("edit-error");
+  errEl.classList.add("hidden");
+  if (!FinemarkValidation.isValidKePhone(phone)) {
+    errEl.textContent = "Invalid Kenyan phone number."; errEl.classList.remove("hidden"); return;
+  }
+  try {
+    await APP.apiFetch(`/inventory/mass-topup/${id}`, {
+      method: "PATCH",
+      body: {
+        phone, amount: Number($("edit-amount").value), network: $("edit-network").value.trim(),
+        organization: $("edit-organization").value.trim(), notes: $("edit-notes").value.trim(),
+      },
+    });
+    closeEdit(); loadStats(); loadTable();
+  } catch (e) {
+    errEl.textContent = e?.message || "Save failed."; errEl.classList.remove("hidden");
+  }
+});
+
+// ── Add Numbers modal ────────────────────────────────────────────────────────
+function openAdd() {
+  $("add-numbers").value = ""; $("add-amount").value = ""; $("add-organization").value = "";
+  $("add-network").value = "Safaricom";
+  $("add-error").classList.add("hidden"); $("add-numbers-err").classList.add("hidden");
+  $("modal-add").classList.add("show");
+}
+function closeAdd() { $("modal-add").classList.remove("show"); }
+
+$("btn-add").addEventListener("click", openAdd);
+$("add-cancel").addEventListener("click", closeAdd);
+$("add-numbers").addEventListener("blur", function () {
+  const lines = this.value.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const bad = lines.filter((l) => !FinemarkValidation.isValidKePhone(l));
+  const err = $("add-numbers-err");
+  if (bad.length) {
+    err.textContent = `${bad.length} line(s) aren't valid Kenyan numbers: ${bad.slice(0, 3).join(", ")}${bad.length > 3 ? "…" : ""}`;
+    err.classList.remove("hidden");
+  } else {
+    err.classList.add("hidden");
+  }
+});
+
+$("add-submit").addEventListener("click", async () => {
+  const errEl = $("add-error");
+  errEl.classList.add("hidden");
+  const numbers = $("add-numbers").value.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const amount = Number($("add-amount").value);
+  const network = $("add-network").value.trim();
+  const organization = $("add-organization").value.trim();
+
+  if (!numbers.length) { errEl.textContent = "Enter at least one phone number."; errEl.classList.remove("hidden"); return; }
+  if (!Number.isFinite(amount) || amount < 0) { errEl.textContent = "Amount must be a non-negative number."; errEl.classList.remove("hidden"); return; }
+  if (!network) { errEl.textContent = "Network is required."; errEl.classList.remove("hidden"); return; }
+
+  try {
+    const res = await APP.apiFetch("/inventory/mass-topup", { method: "POST", body: { numbers, amount, network, organization } });
+    closeAdd(); loadStats(); loadTable();
+    if (res?.skipped?.length) {
+      APP.showToast?.(`Added ${res.inserted}, skipped ${res.skipped.length} (invalid/duplicate).`, "info");
+    } else {
+      APP.showToast?.(`Added ${res.inserted} number(s).`, "success");
+    }
+  } catch (e) {
+    errEl.textContent = e?.message || "Failed to add."; errEl.classList.remove("hidden");
+  }
+});
+
+// ── CSV import modal ──────────────────────────────────────────────────────────
+let _csvPreview = null;
+
+function openCsv() {
+  $("csv-step-upload").classList.remove("hidden");
+  $("csv-step-preview").classList.add("hidden");
+  $("csv-step-result").classList.add("hidden");
+  $("csv-file-input").value = "";
+  $("csv-error").classList.add("hidden");
+  $("csv-btn-preview").classList.add("hidden");
+  $("csv-btn-commit").classList.add("hidden");
+  $("csv-btn-cancel").textContent = "Cancel";
+  $("modal-csv").classList.add("show");
+}
+function closeCsv() { $("modal-csv").classList.remove("show"); }
+
+$("btn-import").addEventListener("click", openCsv);
+$("csv-btn-cancel").addEventListener("click", closeCsv);
+
+$("btn-download-template").addEventListener("click", () => {
+  const csv = "number,amount,organization,network\r\n"
+    + "0712345678,7.00,Sample Org,Safaricom\r\n"
+    + "0798765432,7.00,Sample Org,Airtel\r\n";
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "mass-topup-template.csv";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+});
+
+$("csv-file-input").addEventListener("change", (e) => {
+  if (e.target.files?.[0]) {
+    $("csv-btn-preview").classList.remove("hidden");
+    $("csv-btn-preview").textContent = `Preview "${e.target.files[0].name}"`;
+  }
+});
+
+$("csv-btn-preview").addEventListener("click", async () => {
+  const file = $("csv-file-input").files?.[0];
+  if (!file) return;
+  const errEl = $("csv-error");
+  errEl.classList.add("hidden");
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    const r = await fetch(`${APP.API_BASE}/inventory/mass-topup/import-csv`, { method: "POST", headers: authHeaders(), body: fd });
+    const json = await r.json();
+    if (!r.ok) throw new Error(json?.error?.message || json?.message || "Preview failed.");
+    _csvPreview = json.data;
+    renderCsvPreview(_csvPreview);
+  } catch (e) {
+    errEl.textContent = e?.message || "Preview failed."; errEl.classList.remove("hidden");
+  }
+});
+
+function renderCsvPreview(data) {
+  const { valid, errors } = data;
+  $("csv-step-upload").classList.add("hidden");
+  $("csv-step-preview").classList.remove("hidden");
+  $("csv-btn-preview").classList.add("hidden");
+  $("csv-valid-count").textContent = `✓ ${valid.length} valid row${valid.length !== 1 ? "s" : ""}`;
+  $("csv-error-count").textContent = errors.length ? `✗ ${errors.length} error${errors.length !== 1 ? "s" : ""}` : "";
+
+  if (errors.length) {
+    $("csv-error-section").classList.remove("hidden");
+    $("csv-errors-tbody").innerHTML = errors.map((e) => `<tr><td class="px-3 py-1.5">${e.row}</td><td class="px-3 py-1.5 font-mono">${escapeHtml(e.data)}</td><td class="px-3 py-1.5">${escapeHtml(e.reason)}</td></tr>`).join("");
+  } else {
+    $("csv-error-section").classList.add("hidden");
+  }
+  if (valid.length) {
+    $("csv-btn-commit").classList.remove("hidden");
+    $("csv-btn-count").textContent = `(${valid.length})`;
+  }
+}
+
+$("csv-btn-commit").addEventListener("click", async () => {
+  const file = $("csv-file-input").files?.[0];
+  if (!file) return;
+  const errEl = $("csv-commit-error");
+  errEl.classList.add("hidden");
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    const r = await fetch(`${APP.API_BASE}/inventory/mass-topup/import-csv?commit=true`, { method: "POST", headers: authHeaders(), body: fd });
+    const json = await r.json();
+    if (!r.ok) throw new Error(json?.error?.message || json?.message || "Import failed.");
+    const d = json.data;
+    $("csv-step-preview").classList.add("hidden");
+    $("csv-step-result").classList.remove("hidden");
+    $("csv-result-text").textContent = `${d.inserted} number${d.inserted !== 1 ? "s" : ""} added to the queue`;
+    $("csv-result-sub").textContent = d.errors?.length ? `${d.errors.length} row(s) skipped (duplicates or errors).` : "All valid rows imported.";
+    $("csv-btn-commit").classList.add("hidden");
+    $("csv-btn-cancel").textContent = "Close";
+    loadStats(); loadTable();
+  } catch (e) {
+    errEl.textContent = e?.message || "Import failed."; errEl.classList.remove("hidden");
+  }
+});
+
+// ── CSV export ─────────────────────────────────────────────────────────────
+$("btn-export").addEventListener("click", async () => {
+  try {
+    const r = await fetch(`${APP.API_BASE}/inventory/mass-topup/export.csv`, { headers: authHeaders() });
+    if (!r.ok) throw new Error("Export failed.");
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "mass-topups.csv";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } catch (e) {
+    APP.showToast?.(e?.message || "Export failed.", "error");
+  }
+});
+
+function init() {
+  $("btn-apply").addEventListener("click", () => { _page = 1; loadTable(); });
+  $("btn-reset").addEventListener("click", () => { $("f-search").value = ""; $("f-status").value = ""; _page = 1; loadTable(); });
+  loadStats();
+  loadTable();
+}
+</script>
+</body>
+</html>

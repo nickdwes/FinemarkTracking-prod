@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Register Vehicle</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-4xl mx-auto space-y-6">
+
+          <!-- Page header -->
+          <div class="flex flex-wrap items-center gap-3 justify-between">
+            <div>
+              <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Register Vehicle</h1>
+              <p class="text-sm text-slate-500 mt-0.5">Add a new vehicle to the registry. Fields marked <span class="text-red-500">*</span> are required.</p>
+            </div>
+            <a href="vehicles-list.html" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+              <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 19l-7-7 7-7"/><path d="M3 12h18"/></svg>
+              Vehicle List
+            </a>
+          </div>
+
+          <!-- Registering-for-lead locked banner (Corporate Lead Redesign Phase 4) -->
+          <div id="from-lead-banner" class="hidden rounded-xl bg-amber-50 border border-amber-200 p-4 flex items-start gap-3">
+            <svg class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z"/></svg>
+            <div>
+              <p class="text-sm font-semibold text-amber-800" id="from-lead-title">Registering vehicles for lead</p>
+              <p class="text-sm text-amber-700" id="from-lead-desc">Loading lead details…</p>
+            </div>
+          </div>
+
+          <!-- Global notification -->
+          <div id="reg-notification" class="hidden rounded-lg border px-4 py-3 text-sm"></div>
+
+          <!-- Duplicate override banner (shown when admin can override) -->
+          <div id="dup-override-banner" class="hidden rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
+            <div class="flex items-start gap-3">
+              <svg viewBox="0 0 24 24" class="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+              <div class="flex-1">
+                <p class="font-semibold text-amber-800 text-sm">Duplicate Vehicle Detected</p>
+                <div id="dup-details" class="mt-1 text-xs text-amber-700 space-y-0.5"></div>
+                <label class="mt-2 flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="override-duplicate" class="rounded border-amber-400 text-amber-600 focus:ring-amber-500" />
+                  <span class="text-xs font-medium text-amber-800">I confirm this is a new unique vehicle — override duplicate check</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <form id="vehicle-form" novalidate class="space-y-5">
+
+            <!-- ── Batch Vehicle Capture (Corporate Lead Redesign Phase 4 — shown only when leadId is present) ── -->
+            <div id="batch-vehicles-section" class="hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-100/60">
+              <div class="border-b border-slate-100 px-5 py-3.5 flex items-center justify-between">
+                <h2 class="text-sm font-semibold text-slate-700">Vehicles</h2>
+                <button type="button" id="batch-add-row" class="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                  Add Another Vehicle
+                </button>
+              </div>
+              <div id="batch-vehicle-list" class="p-5 space-y-3"></div>
+            </div>
+
+            <!-- ── Installation Location (Corporate Lead Redesign Phase 4 — shown only when leadId is present) ── -->
+            <div id="batch-location-section" class="hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-100/60">
+              <div class="border-b border-slate-100 px-5 py-3.5">
+                <h2 class="text-sm font-semibold text-slate-700">Installation Location</h2>
+              </div>
+              <div class="p-5 grid gap-4 md:grid-cols-2">
+                <div class="md:col-span-2">
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-location-name">Location / Site Name <span class="text-red-500">*</span></label>
+                  <input id="f-location-name" type="text" placeholder="e.g. Acme Motors Ltd HQ, Industrial Area"
+                    class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-installation-county">County</label>
+                  <input id="f-installation-county" type="text" placeholder="e.g. Nairobi"
+                    class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                </div>
+                <div></div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-install-contact-name">Installation Contact Name <span class="text-red-500">*</span></label>
+                  <input id="f-install-contact-name" type="text" placeholder="Contact person on site"
+                    class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-install-contact-phone">Installation Contact Phone</label>
+                  <input id="f-install-contact-phone" type="tel" placeholder="+254 7XX XXX XXX"
+                    class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                </div>
+                <div class="md:col-span-2">
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-location-desc">Location Description</label>
+                  <textarea id="f-location-desc" rows="2" placeholder="Landmarks, directions, gate/floor access…"
+                    class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm resize-y focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"></textarea>
+                </div>
+                <div class="md:col-span-2">
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-location-notes">Instructions / Notes for Technician</label>
+                  <textarea id="f-location-notes" rows="2" placeholder="Special access instructions, best time to visit, etc."
+                    class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm resize-y focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── Section 1: Registration & Identity ── -->
+            <div id="section-1" class="rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-100/60">
+              <div class="border-b border-slate-100 px-5 py-3.5">
+                <h2 class="text-sm font-semibold text-slate-700">Registration &amp; Identity</h2>
+              </div>
+              <div class="p-5 grid gap-4 md:grid-cols-2">
+
+                <!-- Registered / Not Registered toggle -->
+                <div class="md:col-span-2">
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5">Vehicle Registration Status</label>
+                  <div class="inline-flex rounded-lg border border-slate-200 overflow-hidden">
+                    <button type="button" id="reg-status-btn-registered" onclick="setRegStatus('registered')"
+                      class="px-4 py-2 text-sm font-medium transition">Registered</button>
+                    <button type="button" id="reg-status-btn-unregistered" onclick="setRegStatus('not_registered')"
+                      class="px-4 py-2 text-sm font-medium transition border-l border-slate-200">Not Registered</button>
+                  </div>
+                  <p class="text-xs text-slate-400 mt-1">If the vehicle has no number plate yet, switch to "Not Registered" — the chassis number becomes the required identifier instead.</p>
+                </div>
+
+                <!-- Registration Number -->
+                <div class="md:col-span-2" id="f-registration-wrap">
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-registration">
+                    Registration Number <span id="reg-req-mark" class="text-red-500">*</span>
+                  </label>
+                  <div class="relative">
+                    <input id="f-registration" type="text" maxlength="12" placeholder="e.g. KCA 001B"
+                      class="field-input w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-10 text-sm uppercase tracking-wider font-mono placeholder:text-slate-400 placeholder:font-sans placeholder:tracking-normal focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 transition-colors" />
+                    <span id="reg-status-icon" class="absolute right-3 top-1/2 -translate-y-1/2 hidden"></span>
+                  </div>
+                  <p id="reg-hint" class="mt-1 text-xs text-slate-400">Kenyan format: KDA 123A · GK A123A · CD 123A · 12 CD 34K · 45 UN 678K</p>
+                  <p id="reg-error" class="fm-inline-error mt-1 text-xs text-red-600 hidden"></p>
+                  <p id="reg-dup-warn" class="mt-1 text-xs text-amber-600 hidden flex items-center gap-1">
+                    <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 inline" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                    <span id="reg-dup-text"></span>
+                  </p>
+                </div>
+
+                <!-- VIN / Chassis Number -->
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-vin">
+                    VIN / Chassis Number <span id="vin-req-mark" class="text-red-500 hidden">*</span>
+                  </label>
+                  <div class="relative">
+                    <input id="f-vin" type="text" maxlength="17" placeholder="17-character VIN"
+                      class="field-input w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-16 text-sm uppercase font-mono tracking-wider placeholder:text-slate-400 placeholder:font-sans placeholder:tracking-normal focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 transition-colors" />
+                    <span id="vin-char-count" class="absolute right-9 top-1/2 -translate-y-1/2 text-xs tabular-nums text-slate-400 select-none">0/17</span>
+                    <span id="vin-status-icon" class="absolute right-3 top-1/2 -translate-y-1/2 hidden"></span>
+                  </div>
+                  <p id="vin-error" class="fm-inline-error mt-1 text-xs text-red-600 hidden"></p>
+                  <p id="vin-dup-warn" class="mt-1 text-xs text-amber-600 hidden">
+                    <span id="vin-dup-text"></span>
+                  </p>
+                </div>
+
+                <!-- Engine Number -->
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-engine">Engine Number</label>
+                  <div class="relative">
+                    <input id="f-engine" type="text" maxlength="30" placeholder="e.g. 1GR-FE1234567"
+                      class="field-input w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-10 text-sm uppercase font-mono tracking-wider placeholder:text-slate-400 placeholder:font-sans placeholder:tracking-normal focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 transition-colors" />
+                    <span id="engine-status-icon" class="absolute right-3 top-1/2 -translate-y-1/2 hidden"></span>
+                  </div>
+                  <p id="engine-error" class="fm-inline-error mt-1 text-xs text-red-600 hidden"></p>
+                  <p id="engine-dup-warn" class="mt-1 text-xs text-amber-600 hidden">
+                    <span id="engine-dup-text"></span>
+                  </p>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- ── Section 2: Vehicle Details ── -->
+            <div id="section-2" class="rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-100/60">
+              <div class="border-b border-slate-100 px-5 py-3.5">
+                <h2 class="text-sm font-semibold text-slate-700">Vehicle Details</h2>
+              </div>
+              <div class="p-5 grid gap-4 md:grid-cols-3">
+
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-category">Category</label>
+                  <select id="f-category" class="field-input w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"></select>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-make">Make</label>
+                  <input id="f-make" type="text" list="makes-list" placeholder="e.g. TOYOTA"
+                    class="field-input w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  <datalist id="makes-list"></datalist>
+                  <p class="mt-1 text-xs text-slate-400">Suggestions from the Vehicle Master catalog — you can still type any make.</p>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-model">Model</label>
+                  <input id="f-model" type="text" list="models-list" placeholder="e.g. Hilux"
+                    class="field-input w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  <datalist id="models-list"></datalist>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-model-number">Model Number / Trim</label>
+                  <input id="f-model-number" type="text" list="model-numbers-list" placeholder="e.g. GD6 4x4 AT"
+                    class="field-input w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  <datalist id="model-numbers-list"></datalist>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-body-type">Body Type</label>
+                  <select id="f-body-type" class="field-input w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                    <option value="">— Select —</option>
+                    <option>Saloon</option><option>Hatchback</option><option>Estate / Wagon</option>
+                    <option>SUV</option><option>Pickup / Double Cab</option><option>Pickup / Single Cab</option>
+                    <option>Van</option><option>Minibus</option><option>Bus</option>
+                    <option>Truck / Lorry</option><option>Tractor</option><option>Motorcycle</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-color">Color</label>
+                  <input id="f-color" type="text" placeholder="e.g. Pearl White"
+                    class="field-input w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-year">Year of Manufacture</label>
+                  <input id="f-year" type="number" min="1980" max="2030" placeholder="e.g. 2022"
+                    class="field-input w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-vehicle-no">Fleet / Vehicle No.</label>
+                  <input id="f-vehicle-no" type="text" placeholder="Internal fleet reference"
+                    class="field-input w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                </div>
+
+              </div>
+            </div>
+
+            <!-- ── Section 3: Customer & Partner ── -->
+            <div class="rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-100/60">
+              <div class="border-b border-slate-100 px-5 py-3.5">
+                <h2 class="text-sm font-semibold text-slate-700">Customer &amp; Partner</h2>
+              </div>
+              <div class="p-5 grid gap-4 md:grid-cols-2">
+
+                <!-- Customer search -->
+                <div class="md:col-span-2">
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-customer-search">Customer</label>
+                  <div class="relative">
+                    <input id="f-customer-search" type="text" autocomplete="off" placeholder="Search by account no or name…"
+                      class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                    <div id="customer-dropdown" class="hidden absolute z-20 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg max-h-56 overflow-y-auto"></div>
+                  </div>
+                  <input type="hidden" id="f-customer-id" />
+                  <div id="customer-selected" class="hidden mt-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 flex items-center justify-between">
+                    <div>
+                      <p class="text-xs font-semibold text-blue-800" id="customer-selected-name"></p>
+                      <p class="text-xs text-blue-600" id="customer-selected-meta"></p>
+                    </div>
+                    <button type="button" id="clear-customer" class="text-blue-400 hover:text-blue-700 text-lg leading-none">&times;</button>
+                  </div>
+                </div>
+
+                <!-- Partner -->
+                <div class="md:col-span-2">
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-partner">Partner / Financier</label>
+                  <select id="f-partner" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                    <option value="">— None —</option>
+                  </select>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- ── Section 4: Loan Info (optional) ── -->
+            <div id="section-4" class="rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-100/60">
+              <div class="border-b border-slate-100 px-5 py-3.5 flex items-center justify-between">
+                <h2 class="text-sm font-semibold text-slate-700">Loan Information <span class="text-xs font-normal text-slate-400">(optional)</span></h2>
+                <button type="button" id="toggle-loan" class="text-xs text-blue-600 hover:underline">Show fields</button>
+              </div>
+              <div id="loan-fields" class="hidden p-5 grid gap-4 md:grid-cols-2">
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-loan-start">Loan Start Date</label>
+                  <input id="f-loan-start" type="date"
+                    class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-loan-tenure">Loan Tenure (months)</label>
+                  <input id="f-loan-tenure" type="number" min="1" max="120" placeholder="e.g. 36"
+                    class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                </div>
+              </div>
+            </div>
+
+            <!-- ── Section 5: Notes ── -->
+            <div id="section-5" class="rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-100/60">
+              <div class="border-b border-slate-100 px-5 py-3.5">
+                <h2 class="text-sm font-semibold text-slate-700">Notes</h2>
+              </div>
+              <div class="p-5">
+                <textarea id="f-notes" rows="3" placeholder="Any additional notes about this vehicle…"
+                  class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm resize-y focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"></textarea>
+              </div>
+            </div>
+
+            <!-- ── Submit row ── -->
+            <div class="flex flex-wrap items-center justify-between gap-3 pb-6">
+              <p class="text-xs text-slate-400 flex items-center gap-1">
+                <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                This registration will be audit-logged.
+              </p>
+              <div class="flex items-center gap-3">
+                <a href="vehicles-list.html" class="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">Cancel</a>
+                <button type="submit" id="submit-btn"
+                  class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100">
+                  <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12l5 5L20 7"/></svg>
+                  <span id="submit-btn-label">Register Vehicle</span>
+                </button>
+              </div>
+            </div>
+
+          </form>
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+
+    <script src="assets/vehicleCatalog.js"></script>
+    <script src="assets/validation.js"></script>
+    <script type="module" src="assets/app.js?v=202607011016"></script>
+    <script type="module" src="assets/layout.js?v=202607011016"></script>
+    <script type="module">
+      const APP = window.FINEMARK_APP || {};
+      APP.requirePageAccess?.();
+
+      // Registration format validation now uses the shared, category-aware
+      // FinemarkValidation.isValidKeRegistration (assets/validation.js) —
+      // tractors/tuktuks/special equipment get a looser check since they're
+      // often not NTSA-plated the same way as standard vehicles.
+      // No VIN/chassis format regex — real-world chassis numbers on older or
+      // non-standard vehicles don't always fit the strict 17-character ISO
+      // 3779 shape, same relaxation already applied to the leads/cert/job-card modules.
+
+      // ── Registered / Not Registered toggle ─────────────────────────────────
+      // This is a module script, so top-level functions aren't reachable from
+      // inline onclick="" attributes unless explicitly attached to window.
+      let regStatus = 'registered';
+      function setRegStatus(status) {
+        regStatus = status;
+        updateRegStatusUI();
+      }
+      window.setRegStatus = setRegStatus;
+      function updateRegStatusUI() {
+        const isRegistered = regStatus === 'registered';
+        const regBtn = document.getElementById('reg-status-btn-registered');
+        const unregBtn = document.getElementById('reg-status-btn-unregistered');
+        const activeCls = ['bg-blue-600', 'text-white'];
+        const inactiveCls = ['bg-white', 'text-slate-600', 'hover:bg-slate-50'];
+        regBtn.classList.remove(...activeCls, ...inactiveCls);
+        regBtn.classList.add(...(isRegistered ? activeCls : inactiveCls));
+        unregBtn.classList.remove(...activeCls, ...inactiveCls);
+        unregBtn.classList.add(...(!isRegistered ? activeCls : inactiveCls));
+        document.getElementById('f-registration-wrap').classList.toggle('hidden', !isRegistered);
+        document.getElementById('reg-req-mark').classList.toggle('hidden', !isRegistered);
+        document.getElementById('vin-req-mark').classList.toggle('hidden', isRegistered);
+        if (!isRegistered) {
+          $('f-registration').value = '';
+          $('reg-error').classList.add('hidden');
+          $('reg-dup-warn').classList.add('hidden');
+        }
+      }
+      document.addEventListener('DOMContentLoaded', updateRegStatusUI);
+
+      // ── Utilities ─────────────────────────────────────────────────────────
+      const $ = id => document.getElementById(id);
+      let debounceTimers = {};
+      function debounce(key, fn, ms = 500) {
+        clearTimeout(debounceTimers[key]);
+        debounceTimers[key] = setTimeout(fn, ms);
+      }
+
+      // Field state helpers
+      function setFieldState(inputEl, state /* valid|invalid|warn|idle */, msg) {
+        const border = { valid: 'border-green-400', invalid: 'border-red-400', warn: 'border-amber-400', idle: 'border-slate-200' };
+        const ring   = { valid: 'focus-visible:ring-green-500/40', invalid: 'focus-visible:ring-red-500/40', warn: 'focus-visible:ring-amber-500/40', idle: 'focus-visible:ring-blue-500/40' };
+        ['border-green-400','border-red-400','border-amber-400','border-slate-200'].forEach(c => inputEl.classList.remove(c));
+        ['focus-visible:ring-green-500/40','focus-visible:ring-red-500/40','focus-visible:ring-amber-500/40','focus-visible:ring-blue-500/40'].forEach(c => inputEl.classList.remove(c));
+        inputEl.classList.add(border[state] || border.idle, ring[state] || ring.idle);
+      }
+
+      const ICON_OK   = `<svg viewBox="0 0 24 24" class="h-4 w-4 text-green-500" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12l5 5L20 7"/></svg>`;
+      const ICON_ERR  = `<svg viewBox="0 0 24 24" class="h-4 w-4 text-red-500" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>`;
+      const ICON_WARN = `<svg viewBox="0 0 24 24" class="h-4 w-4 text-amber-500" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>`;
+      const ICON_SPIN = `<svg viewBox="0 0 24 24" class="h-4 w-4 animate-spin text-slate-400" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>`;
+
+      function showIcon(iconEl, type) {
+        const map = { ok: ICON_OK, err: ICON_ERR, warn: ICON_WARN, spin: ICON_SPIN };
+        iconEl.innerHTML = map[type] || '';
+        iconEl.classList.toggle('hidden', !type);
+      }
+
+      // Duplicate check state
+      const dupState = { registration: false, vin: false, engine: false };
+      const formatErrors = { registration: false, vin: false, engine: false };
+
+      // ── Registration validation ────────────────────────────────────────────
+      const regInput = $('f-registration');
+      const regError = $('reg-error');
+      const regDupWarn = $('reg-dup-warn');
+      const regDupText = $('reg-dup-text');
+      const regIcon = $('reg-status-icon');
+
+      function validateRegistration(val) {
+        if (!val) { setFieldState(regInput, 'idle'); showIcon(regIcon, null); regError.classList.add('hidden'); return; }
+        if (!FinemarkValidation.isValidKeRegistration(val.trim(), $('f-category')?.value)) {
+          setFieldState(regInput, 'invalid');
+          showIcon(regIcon, 'err');
+          regError.textContent = 'Invalid Kenyan registration number format. Please enter a valid plate number.';
+          regError.classList.remove('hidden');
+          formatErrors.registration = true;
+          return;
+        }
+        formatErrors.registration = false;
+        regError.classList.add('hidden');
+        setFieldState(regInput, 'valid');
+        showIcon(regIcon, 'spin');
+        debounce('reg-dup', () => checkDuplicateField('registration', val.trim()), 500);
+      }
+
+      regInput.addEventListener('input', () => {
+        regInput.value = regInput.value.toUpperCase();
+        regDupWarn.classList.add('hidden');
+        dupState.registration = false;
+        validateRegistration(regInput.value);
+      });
+
+      // ── VIN validation ─────────────────────────────────────────────────────
+      const vinInput = $('f-vin');
+      const vinError = $('vin-error');
+      const vinDupWarn = $('vin-dup-warn');
+      const vinDupText = $('vin-dup-text');
+      const vinIcon = $('vin-status-icon');
+      const vinCount = $('vin-char-count');
+
+      function validateVin(val) {
+        const len = val.trim().length;
+        vinCount.textContent = `${len}/17`;
+        vinCount.className = `absolute right-9 top-1/2 -translate-y-1/2 text-xs tabular-nums select-none ${len === 17 ? 'text-green-600 font-semibold' : len > 0 ? 'text-slate-500' : 'text-slate-400'}`;
+        if (!val) { setFieldState(vinInput, 'idle'); showIcon(vinIcon, null); vinError.classList.add('hidden'); return; }
+        // No format check — real-world chassis numbers don't always fit the
+        // strict 17-character shape, so any non-empty value is accepted.
+        formatErrors.vin = false;
+        vinError.classList.add('hidden');
+        setFieldState(vinInput, 'valid');
+        showIcon(vinIcon, 'spin');
+        debounce('vin-dup', () => checkDuplicateField('vin', val.trim()), 500);
+      }
+
+      vinInput.addEventListener('input', () => {
+        vinInput.value = vinInput.value.toUpperCase();
+        vinDupWarn.classList.add('hidden');
+        dupState.vin = false;
+        validateVin(vinInput.value);
+      });
+
+      // ── Engine number validation ───────────────────────────────────────────
+      const engineInput = $('f-engine');
+      const engineError = $('engine-error');
+      const engineDupWarn = $('engine-dup-warn');
+      const engineDupText = $('engine-dup-text');
+      const engineIcon = $('engine-status-icon');
+
+      engineInput.addEventListener('input', () => {
+        engineInput.value = engineInput.value.toUpperCase();
+        const val = engineInput.value.trim();
+        engineDupWarn.classList.add('hidden');
+        dupState.engine = false;
+        if (!val) { setFieldState(engineInput, 'idle'); showIcon(engineIcon, null); return; }
+        setFieldState(engineInput, 'idle');
+        showIcon(engineIcon, 'spin');
+        debounce('engine-dup', () => checkDuplicateField('engine', val), 600);
+      });
+
+      // ── Duplicate check API ────────────────────────────────────────────────
+      async function checkDuplicateField(field, value) {
+        const paramMap = { registration: 'registration', vin: 'vin', engine: 'engine' };
+        const iconMap  = { registration: regIcon, vin: vinIcon, engine: engineIcon };
+        const inputMap = { registration: regInput, vin: vinInput, engine: engineInput };
+        const warnMap  = { registration: regDupWarn, vin: vinDupWarn, engine: engineDupWarn };
+        const textMap  = { registration: regDupText, vin: vinDupText, engine: engineDupText };
+        if (!value || formatErrors[field === 'vin' ? 'vin' : field]) return;
+        try {
+          const data = await APP.apiFetch?.(`/vehicles/check-duplicate?${paramMap[field]}=${encodeURIComponent(value)}`);
+          const result = data?.[paramMap[field]];
+          if (result?.isDuplicate) {
+            dupState[field] = true;
+            setFieldState(inputMap[field], 'warn');
+            showIcon(iconMap[field], 'warn');
+            textMap[field].textContent = `Duplicate found — existing vehicle: ${result.existingRef || result.existingId}`;
+            warnMap[field].classList.remove('hidden');
+            updateDupBanner();
+          } else {
+            dupState[field] = false;
+            setFieldState(inputMap[field], 'valid');
+            showIcon(iconMap[field], 'ok');
+            warnMap[field].classList.add('hidden');
+            updateDupBanner();
+          }
+        } catch (e) {
+          showIcon(iconMap[field], null);
+          setFieldState(inputMap[field], 'idle');
+        }
+      }
+
+      function updateDupBanner() {
+        const hasDup = dupState.registration || dupState.vin || dupState.engine;
+        const banner = $('dup-override-banner');
+        if (!hasDup) { banner.classList.add('hidden'); return; }
+        const details = $('dup-details');
+        details.innerHTML = '';
+        if (dupState.registration) details.innerHTML += `<p>• Registration: ${regDupText.textContent}</p>`;
+        if (dupState.vin)          details.innerHTML += `<p>• VIN/Chassis: ${vinDupText.textContent}</p>`;
+        if (dupState.engine)       details.innerHTML += `<p>• Engine No: ${engineDupText.textContent}</p>`;
+        banner.classList.remove('hidden');
+      }
+
+      // ── Loan toggle ────────────────────────────────────────────────────────
+      $('toggle-loan').addEventListener('click', () => {
+        const lf = $('loan-fields');
+        const isHidden = lf.classList.toggle('hidden');
+        $('toggle-loan').textContent = isHidden ? 'Show fields' : 'Hide fields';
+      });
+
+      // ── Customer search ───────────────────────────────────────────────────
+      let customerSearchTimer;
+      const customerSearch = $('f-customer-search');
+      const customerDropdown = $('customer-dropdown');
+
+      customerSearch.addEventListener('input', () => {
+        clearTimeout(customerSearchTimer);
+        const q = customerSearch.value.trim();
+        if (q.length < 2) { customerDropdown.classList.add('hidden'); return; }
+        customerSearchTimer = setTimeout(async () => {
+          try {
+            const data = await APP.apiFetch?.(`/customers?search=${encodeURIComponent(q)}&pageSize=10`);
+            const items = data?.customers || data?.data || [];
+            customerDropdown.innerHTML = '';
+            if (!items.length) {
+              customerDropdown.innerHTML = `<p class="px-3 py-2 text-xs text-slate-400">No customers found.</p>`;
+            } else {
+              items.forEach(c => {
+                const el = document.createElement('div');
+                el.className = 'px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer border-b border-slate-100 last:border-0';
+                el.innerHTML = `<p class="font-medium text-slate-800">${c.account_no}</p><p class="text-xs text-slate-500">${c.type || ''} · ${c.region || '—'} · ${c.segment || '—'}</p>`;
+                el.addEventListener('click', () => selectCustomer(c));
+                customerDropdown.appendChild(el);
+              });
+            }
+            customerDropdown.classList.remove('hidden');
+          } catch {}
+        }, 300);
+      });
+
+      document.addEventListener('click', e => {
+        if (!customerDropdown.contains(e.target) && e.target !== customerSearch) {
+          customerDropdown.classList.add('hidden');
+        }
+      });
+
+      function selectCustomer(c) {
+        $('f-customer-id').value = c.id;
+        $('customer-selected-name').textContent = c.account_no;
+        $('customer-selected-meta').textContent = `${c.type || 'Retail'} · ${c.region || '—'} · ${c.segment || '—'}`;
+        $('customer-selected').classList.remove('hidden');
+        customerSearch.value = '';
+        customerDropdown.classList.add('hidden');
+      }
+
+      $('clear-customer').addEventListener('click', () => {
+        $('f-customer-id').value = '';
+        $('customer-selected').classList.add('hidden');
+        customerSearch.value = '';
+      });
+
+      // ── Load makes datalist + partners ────────────────────────────────────
+      // Make/Model/Model Number stay free-typable (list=" " datalist, not a
+      // forced <select>) since this page registers real, sometimes-older or
+      // unusual customer vehicles that may not be in the Vehicle Master
+      // catalog — the datalist only offers suggestions from the live central
+      // table (replacing the previous, narrower "distinct makes already in
+      // our own DB" source), it never blocks typing something else.
+      async function refreshMakesList() {
+        const category = $('f-category').value || undefined;
+        const makes = await vehicleCatalogMakes(category);
+        $('makes-list').innerHTML = makes.map(m => `<option value="${m}">`).join('');
+      }
+
+      async function loadMeta() {
+        $('f-category').innerHTML = window.VEHICLE_CATEGORIES.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
+        try { await refreshMakesList(); } catch {}
+
+        try {
+          const data = await APP.apiFetch?.('/partners?pageSize=100');
+          const partners = data?.partners || data?.data || [];
+          const sel = $('f-partner');
+          partners.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            sel.appendChild(opt);
+          });
+        } catch {}
+      }
+      loadMeta();
+
+      // Category narrows the Make suggestions (and clears whatever downstream
+      // Model/Model Number the user had typed, since it no longer applies).
+      $('f-category').addEventListener('change', async () => {
+        $('f-make').value = ''; $('f-model').value = ''; $('f-model-number').value = '';
+        $('models-list').innerHTML = ''; $('model-numbers-list').innerHTML = '';
+        try { await refreshMakesList(); } catch {}
+      });
+
+      // Single-vehicle form: Make → Model → Model Number suggestion cascade.
+      $('f-make').addEventListener('change', async () => {
+        const make = $('f-make').value.trim();
+        const category = $('f-category').value || undefined;
+        $('models-list').innerHTML = '';
+        $('model-numbers-list').innerHTML = '';
+        if (!make) return;
+        const models = await vehicleCatalogModels(make, category);
+        $('models-list').innerHTML = models.map(({ model }) => `<option value="${model}">`).join('');
+      });
+      $('f-model').addEventListener('change', async () => {
+        const make = $('f-make').value.trim();
+        const model = $('f-model').value.trim();
+        const category = $('f-category').value || undefined;
+        $('model-numbers-list').innerHTML = '';
+        if (!make || !model) return;
+        const nums = await vehicleCatalogModelNumbers(make, model, category);
+        $('model-numbers-list').innerHTML = nums.map(({ modelNumber }) => `<option value="${modelNumber}">`).join('');
+      });
+
+      // ── Notification helper ────────────────────────────────────────────────
+      function notify(msg, type = 'error') {
+        const n = $('reg-notification');
+        const styles = {
+          error:   'border-red-200 bg-red-50 text-red-700',
+          success: 'border-green-200 bg-green-50 text-green-700',
+          warn:    'border-amber-200 bg-amber-50 text-amber-700',
+        };
+        n.className = `rounded-lg border px-4 py-3 text-sm ${styles[type] || styles.error}`;
+        n.textContent = msg;
+        n.classList.remove('hidden');
+        n.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      function clearNotify() { $('reg-notification').classList.add('hidden'); }
+
+      // ── Corporate Lead Redesign Phase 4: Stage Two batch capture ───────────
+      // ?customerId=&leadId=&fleetSize=&batch=1 — leadId present switches the
+      // page from single-vehicle registration into a repeatable batch flow
+      // scoped to that lead's fleet, with Installation Location fields folded
+      // in (both previously lived on the New Lead form, moved here in Phase 1).
+      let isBatchMode = false;
+      let batchLeadId = null;
+      let batchCustomerId = null;
+      let batchRowKeys = [];
+      let batchRowSeq = 0;
+
+      async function lockCustomer(customerId) {
+        try {
+          const resp = await APP.apiFetch?.(`/crm/customers/${customerId}`);
+          const c = resp?.data || resp;
+          $('f-customer-id').value = customerId;
+          $('customer-selected-name').textContent = c?.displayName || c?.accountNo || 'Selected customer';
+          $('customer-selected-meta').textContent = `${c?.type || ''} · ${c?.accountNo || ''}`.replace(/^ · /, '');
+          $('customer-selected').classList.remove('hidden');
+          $('f-customer-search').classList.add('hidden');
+        } catch { /* non-critical — form still works, just unlocked */ }
+      }
+
+      function newBatchRowKey() { return `bv${++batchRowSeq}`; }
+
+      function batchRowTemplate(key, idx) {
+        return `
+    <div class="batch-vehicle-row rounded-xl border border-slate-200 p-4 space-y-3" data-key="${key}">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-slate-400">VEHICLE ${idx + 1}</span>
+        ${batchRowKeys.length > 1 ? `<button type="button" class="batch-row-remove text-xs text-slate-400 hover:text-red-500 font-medium" data-key="${key}">✕ Remove</button>` : ''}
+      </div>
+      <div class="flex gap-4">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="radio" name="bv-regstatus-${key}" value="registered" checked class="bv-regstatus accent-blue-600" data-key="${key}" />
+          <span class="text-xs font-medium text-slate-700">Registered</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="radio" name="bv-regstatus-${key}" value="not_registered" class="bv-regstatus accent-blue-600" data-key="${key}" />
+          <span class="text-xs font-medium text-slate-700">Not Registered</span>
+        </label>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Registration <span class="text-slate-400 font-normal">(optional)</span></label>
+          <input id="bv-reg-${key}" type="text" class="bv-reg w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-blue-500/40" placeholder="e.g. KCA 123A" oninput="this.value=this.value.toUpperCase()" />
+          <p id="bv-reg-err-${key}" class="hidden text-xs text-red-500 mt-1"></p>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">VIN / Chassis No. <span id="bv-chassis-req-${key}" class="hidden text-red-500">*</span></label>
+          <input id="bv-chassis-${key}" type="text" class="bv-chassis w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-blue-500/40" placeholder="Chassis / VIN number" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Category</label>
+          <select id="bv-category-${key}" class="bv-category w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" data-key="${key}"></select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Make</label>
+          <input id="bv-make-${key}" list="makes-list-${key}" class="bv-make w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" placeholder="e.g. Toyota" data-key="${key}" />
+          <datalist id="makes-list-${key}"></datalist>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Model</label>
+          <input id="bv-model-${key}" type="text" list="models-list-${key}" class="bv-model w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" placeholder="e.g. Hiace" />
+          <datalist id="models-list-${key}"></datalist>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Year</label>
+          <input id="bv-year-${key}" type="number" min="1980" max="2030" class="bv-year w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" placeholder="e.g. 2022" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Color</label>
+          <input id="bv-color-${key}" type="text" class="bv-color w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" placeholder="e.g. White" />
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Engine Number</label>
+          <input id="bv-engine-${key}" type="text" class="bv-engine w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" placeholder="Engine number" />
+        </div>
+      </div>
+    </div>`;
+      }
+
+      async function refreshBatchRowMakes(key) {
+        const category = $(`bv-category-${key}`)?.value || undefined;
+        const dl = document.getElementById(`makes-list-${key}`);
+        if (!dl) return;
+        const makes = await vehicleCatalogMakes(category);
+        dl.innerHTML = makes.map(m => `<option value="${m}">`).join('');
+      }
+
+      function renderBatchRows() {
+        const list = $('batch-vehicle-list');
+        list.innerHTML = batchRowKeys.map((key, idx) => batchRowTemplate(key, idx)).join('');
+        batchRowKeys.forEach(key => {
+          const catEl = $(`bv-category-${key}`);
+          if (catEl) catEl.innerHTML = window.VEHICLE_CATEGORIES.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
+          refreshBatchRowMakes(key);
+        });
+      }
+      function addBatchRow() { batchRowKeys.push(newBatchRowKey()); renderBatchRows(); }
+      function removeBatchRow(key) { batchRowKeys = batchRowKeys.filter(k => k !== key); renderBatchRows(); }
+
+      $('batch-add-row').addEventListener('click', addBatchRow);
+      $('batch-vehicle-list').addEventListener('click', e => {
+        const btn = e.target.closest('.batch-row-remove');
+        if (btn) removeBatchRow(btn.dataset.key);
+      });
+      $('batch-vehicle-list').addEventListener('change', async e => {
+        if (e.target.classList.contains('bv-regstatus')) {
+          const key = e.target.dataset.key;
+          const isRegistered = e.target.value === 'registered';
+          document.getElementById(`bv-chassis-req-${key}`)?.classList.toggle('hidden', isRegistered);
+        }
+        // Category → Make suggestion refresh, per row (each row can be a
+        // different vehicle type, so each has its own Category + Make datalist).
+        if (e.target.classList.contains('bv-category')) {
+          const key = e.target.dataset.key;
+          $(`bv-make-${key}`).value = ''; $(`bv-model-${key}`).value = '';
+          const modelsDl = document.getElementById(`models-list-${key}`);
+          if (modelsDl) modelsDl.innerHTML = '';
+          await refreshBatchRowMakes(key);
+        }
+        // Make → Model suggestion cascade, per row (each row can be a
+        // different vehicle, so each needs its own <datalist>).
+        if (e.target.classList.contains('bv-make')) {
+          const key = e.target.dataset.key;
+          const make = e.target.value.trim();
+          const category = $(`bv-category-${key}`)?.value || undefined;
+          const dl = document.getElementById(`models-list-${key}`);
+          if (!dl) return;
+          dl.innerHTML = '';
+          if (!make) return;
+          const models = await vehicleCatalogModels(make, category);
+          dl.innerHTML = models.map(({ model }) => `<option value="${model}">`).join('');
+        }
+      });
+
+      async function initBatchMode(leadId, customerId, fleetSize) {
+        isBatchMode = true;
+        batchLeadId = leadId;
+        batchCustomerId = customerId;
+
+        ['section-1', 'section-2', 'section-4', 'section-5'].forEach(id => $(id)?.classList.add('hidden'));
+        $('batch-vehicles-section').classList.remove('hidden');
+        $('batch-location-section').classList.remove('hidden');
+
+        const n = Math.min(Math.max(parseInt(fleetSize, 10) || 1, 1), 50);
+        batchRowKeys = Array.from({ length: n }, () => newBatchRowKey());
+        renderBatchRows();
+
+        $('submit-btn-label').textContent = `Register ${n} Vehicle${n !== 1 ? 's' : ''}`;
+
+        try {
+          const resp = await APP.apiFetch?.(`/crm/leads/${leadId}`);
+          const lead = resp?.data || resp;
+          $('from-lead-title').textContent = `Registering vehicles for lead ${lead?.leadNo || ''}`;
+          $('from-lead-desc').textContent = `${lead?.customerName || 'This customer'} — fleet size ${lead?.fleetSize ?? n}. Submitting will register these vehicles and raise the installation location on the lead.`;
+        } catch {
+          $('from-lead-desc').textContent = 'Submitting will register these vehicles for this lead.';
+        }
+        $('from-lead-banner').classList.remove('hidden');
+      }
+
+      function initFromParams() {
+        const params = new URLSearchParams(window.location.search);
+        const customerId = params.get('customerId');
+        const leadId = params.get('leadId');
+        const fleetSize = params.get('fleetSize');
+
+        if (customerId) lockCustomer(customerId);
+        if (leadId) initBatchMode(leadId, customerId, fleetSize);
+      }
+      initFromParams();
+
+      // ── Post-capture toast (2-button, modeled on crm-customer-360.html's
+      // existing new-customer toast — APP.showToast is message-only) ─────────
+      function showVehicleCaptureToast(customerId, leadId, vehicleIds) {
+        const toast = document.createElement('div');
+        toast.id = 'toast-vehicles-captured';
+        toast.style.cssText = 'position:fixed;top:72px;right:20px;z-index:9999;max-width:380px;animation:slideInToast .3s ease;';
+        toast.innerHTML = `
+          <div style="background:#fff;border:1px solid #e2e8f0;border-left:4px solid #2563eb;border-radius:12px;padding:14px 16px;box-shadow:0 8px 24px rgba(0,0,0,.12);display:flex;gap:12px;align-items:flex-start;">
+            <span style="font-size:1.3rem;line-height:1;">🚗</span>
+            <div style="flex:1;">
+              <p style="margin:0 0 3px;font-size:.85rem;font-weight:700;color:#1e293b;">${vehicleIds.length} vehicle${vehicleIds.length !== 1 ? 's' : ''} registered</p>
+              <p style="margin:0 0 10px;font-size:.78rem;color:#64748b;line-height:1.4;">What would you like to do next?</p>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button id="toast-vc-quote" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:.75rem;font-weight:700;cursor:pointer;">Create a quotation</button>
+                <button id="toast-vc-ticket" style="background:#059669;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:.75rem;font-weight:700;cursor:pointer;">Raise an installation ticket</button>
+                <button id="toast-vc-dismiss" style="background:#f1f5f9;color:#475569;border:none;border-radius:6px;padding:5px 12px;font-size:.75rem;font-weight:600;cursor:pointer;">Dismiss</button>
+              </div>
+            </div>
+          </div>`;
+        if (!document.getElementById('slideInToastStyle')) {
+          const style = document.createElement('style');
+          style.id = 'slideInToastStyle';
+          style.textContent = '@keyframes slideInToast{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}';
+          document.head.appendChild(style);
+        }
+        document.body.appendChild(toast);
+
+        toast.querySelector('#toast-vc-dismiss').addEventListener('click', () => toast.remove());
+        toast.querySelector('#toast-vc-quote').addEventListener('click', () => {
+          window.location.href = `crm-customer-360.html?id=${customerId}&openQuote=1&vehicleId=${vehicleIds[0]}`;
+        });
+        toast.querySelector('#toast-vc-ticket').addEventListener('click', async () => {
+          const btn = toast.querySelector('#toast-vc-ticket');
+          btn.disabled = true; btn.textContent = 'Raising…';
+          try {
+            await APP.apiFetch?.('/installation-tickets/batch', {
+              method: 'POST',
+              body: { customerId, vehicleIds, crmTicketId: leadId },
+            });
+            APP.showToast?.('Installation ticket(s) raised.', 'success');
+            window.location.href = `crm-customer-360.html?id=${customerId}&tab=install-tickets`;
+          } catch (err) {
+            APP.showToast?.(err?.message || 'Failed to raise installation ticket(s).', 'error');
+            btn.disabled = false; btn.textContent = 'Raise an installation ticket';
+          }
+        });
+      }
+
+      async function submitBatch() {
+        clearNotify();
+        const locationName = $('f-location-name').value.trim();
+        const installContactName = $('f-install-contact-name').value.trim();
+        if (!locationName) { notify('Location / Site Name is required.'); $('f-location-name').focus(); return; }
+        if (!installContactName) { notify('Installation Contact Name is required.'); $('f-install-contact-name').focus(); return; }
+        if (!batchCustomerId) { notify('No customer is linked to this lead yet — register the customer first.'); return; }
+
+        const btn = $('submit-btn');
+        btn.disabled = true;
+        const originalLabel = $('submit-btn-label').textContent;
+        $('submit-btn-label').textContent = 'Registering…';
+
+        const createdVehicleIds = [];
+        const rowErrors = [];
+
+        for (const key of batchRowKeys) {
+          const errEl = $(`bv-reg-err-${key}`);
+          errEl?.classList.add('hidden');
+          const isRegistered = document.querySelector(`input[name="bv-regstatus-${key}"]:checked`)?.value !== 'not_registered';
+          const reg = $(`bv-reg-${key}`).value.trim().toUpperCase();
+          const chassis = $(`bv-chassis-${key}`).value.trim().toUpperCase();
+
+          if (isRegistered && reg && !FinemarkValidation.isValidKeRegistration(reg, $(`bv-category-${key}`)?.value)) {
+            if (errEl) { errEl.textContent = 'Invalid registration format — e.g. KCA 123A.'; errEl.classList.remove('hidden'); }
+            rowErrors.push(key); continue;
+          }
+          if (!isRegistered && !chassis) {
+            if (errEl) { errEl.textContent = 'VIN / Chassis number is required for a not-yet-registered vehicle.'; errEl.classList.remove('hidden'); }
+            rowErrors.push(key); continue;
+          }
+          if (!reg && !chassis) { continue; } // blank optional row — skip silently
+
+          try {
+            const payload = {
+              registration: isRegistered ? (reg || null) : null,
+              registrationKnown: isRegistered,
+              chassis_number: chassis || null,
+              vehicle_category: $(`bv-category-${key}`)?.value || 'motor_vehicle',
+              make: $(`bv-make-${key}`).value.trim().toUpperCase() || null,
+              model: $(`bv-model-${key}`).value.trim() || null,
+              year_of_manufacture: $(`bv-year-${key}`).value ? Number($(`bv-year-${key}`).value) : null,
+              color: $(`bv-color-${key}`).value.trim() || null,
+              engine_number: $(`bv-engine-${key}`).value.trim().toUpperCase() || null,
+              customer_id: batchCustomerId,
+              lead_id: batchLeadId,
+            };
+            const result = await APP.apiFetch?.('/vehicles', { method: 'POST', body: payload });
+            const newId = result?.data?.id || result?.id;
+            if (newId) createdVehicleIds.push(newId);
+          } catch (err) {
+            if (errEl) { errEl.textContent = err?.message || 'Failed to register this vehicle.'; errEl.classList.remove('hidden'); }
+            rowErrors.push(key);
+          }
+        }
+
+        // Persist the Installation Location fields onto the lead regardless of
+        // per-row outcomes, as long as at least one vehicle made it through.
+        if (createdVehicleIds.length) {
+          try {
+            await APP.apiFetch?.(`/crm/leads/${batchLeadId}`, {
+              method: 'PATCH',
+              body: {
+                locationName,
+                installationContactName: installContactName,
+                installationCounty: $('f-installation-county').value.trim() || null,
+                installationContactPhone: $('f-install-contact-phone').value.trim() || null,
+                locationDescription: $('f-location-desc').value.trim() || null,
+                locationNotes: $('f-location-notes').value.trim() || null,
+              },
+            });
+          } catch { /* location save failure shouldn't block the vehicle-capture success path */ }
+
+          showVehicleCaptureToast(batchCustomerId, batchLeadId, createdVehicleIds);
+        }
+
+        btn.disabled = false;
+        $('submit-btn-label').textContent = originalLabel;
+
+        if (rowErrors.length && !createdVehicleIds.length) {
+          notify('No vehicles were registered — please fix the errors above and try again.');
+        } else if (rowErrors.length) {
+          notify(`${createdVehicleIds.length} vehicle(s) registered; ${rowErrors.length} row(s) need attention above.`, 'warn');
+        } else {
+          notify(`${createdVehicleIds.length} vehicle(s) registered successfully.`, 'success');
+        }
+      }
+
+      // ── Form submit ────────────────────────────────────────────────────────
+      $('vehicle-form').addEventListener('submit', async e => {
+        e.preventDefault();
+        if (isBatchMode) { await submitBatch(); return; }
+        clearNotify();
+
+        const isRegistered = regStatus === 'registered';
+        const reg = isRegistered ? regInput.value.trim().toUpperCase() : '';
+        const vin = vinInput.value.trim().toUpperCase() || null;
+        const engine = engineInput.value.trim().toUpperCase() || null;
+
+        // Client-side required + format checks
+        if (isRegistered) {
+          if (!reg) { notify('Registration number is required.'); regInput.focus(); return; }
+          if (!FinemarkValidation.isValidKeRegistration(reg, $('f-category')?.value)) { notify('Invalid Kenyan registration number format. Please enter a valid plate number.'); regInput.focus(); return; }
+        } else if (!vin) {
+          notify('Chassis / VIN number is required for a vehicle that isn\'t registered yet.'); vinInput.focus(); return;
+        }
+        if (formatErrors.registration) { notify('Please fix validation errors before submitting.'); return; }
+
+        // Duplicates — require override
+        const hasDup = dupState.registration || dupState.vin || dupState.engine;
+        const overrideChecked = $('override-duplicate')?.checked;
+        if (hasDup && !overrideChecked) {
+          notify('Duplicate vehicle detected. Please review the duplicate warning above. An admin must tick the override checkbox to proceed.', 'warn');
+          $('dup-override-banner').scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
+
+        const btn = $('submit-btn');
+        btn.disabled = true;
+        btn.innerHTML = `<svg viewBox="0 0 24 24" class="h-4 w-4 animate-spin" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Registering…`;
+
+        try {
+          const payload = {
+            registration: reg || null,
+            registrationKnown: isRegistered,
+            chassis_number: vin,
+            engine_number:  engine,
+            vehicle_category: $('f-category').value || 'motor_vehicle',
+            make:        $('f-make').value.trim().toUpperCase() || null,
+            model:       $('f-model').value.trim() || null,
+            model_number:$('f-model-number').value.trim() || null,
+            body_type:   $('f-body-type').value || null,
+            color:       $('f-color').value.trim() || null,
+            year_of_manufacture: $('f-year').value ? Number($('f-year').value) : null,
+            vehicle_no:  $('f-vehicle-no').value.trim() || null,
+            customer_id: $('f-customer-id').value || null,
+            partner_id:  $('f-partner').value || null,
+            loan_start_date:   $('f-loan-start').value || null,
+            loan_tenure_months:$('f-loan-tenure').value ? Number($('f-loan-tenure').value) : null,
+            notes:       $('f-notes').value.trim() || null,
+            overrideDuplicate: hasDup && overrideChecked,
+          };
+
+          const result = await APP.apiFetch?.('/vehicles', { method: 'POST', body: payload });
+          const newId = result?.data?.id || result?.id;
+          APP.showToast?.('Vehicle registered successfully!', 'success');
+          // Navigate to the new vehicle's 360 page
+          window.location.href = `vehicle-360.html?id=${newId}`;
+        } catch (err) {
+          const msg = err?.message || 'Registration failed. Please try again.';
+          const isDup = msg.includes('already exists') || msg.includes('DUPLICATE');
+          notify(isDup ? 'A vehicle with these details already exists. Check the duplicate warning.' : msg, isDup ? 'warn' : 'error');
+          btn.disabled = false;
+          btn.innerHTML = `<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12l5 5L20 7"/></svg> Register Vehicle`;
+        }
+      });
+    </script>
+  </body>
+</html>

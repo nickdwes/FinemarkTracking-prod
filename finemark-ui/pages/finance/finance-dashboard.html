@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finance Dashboard — Finemark</title>
+    <link rel="icon" href="../../assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="../../assets/tailwind.css" />
+    <script src="../../assets/chart.umd.min.js"></script>
+    <style>
+      .card-metric { transition: transform 0.18s, box-shadow 0.18s; }
+      .card-metric:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.09); }
+      .trend-up   { color: #16a34a; }
+      .trend-down { color: #dc2626; }
+      .alert-badge { animation: pulse-badge 1.8s infinite; }
+      @keyframes pulse-badge { 0%,100%{opacity:1} 50%{opacity:.55} }
+      .tr-btn { border-radius: 9999px; padding: 6px 14px; font-size: 12px; font-weight: 600; border: 1px solid; transition: all 0.15s; cursor: pointer; }
+      .tr-btn.active { background: #059669; color: #fff; border-color: #059669; }
+      .tr-btn:not(.active) { background: #fff; color: #475569; border-color: #e2e8f0; }
+      .tr-btn:not(.active):hover { border-color: #059669; color: #059669; }
+      canvas { max-height: 260px; }
+      .sp { display: inline-flex; align-items: center; border-radius: 9999px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
+    </style>
+  </head>
+  <body class="bg-gray-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6 overflow-y-auto">
+        <div class="max-w-7xl mx-auto space-y-6">
+
+          <!-- ── Header ─────────────────────────────────────────────── -->
+          <div class="flex flex-wrap items-center gap-3">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-900">Finance Performance</h1>
+              <p class="text-sm text-slate-500 mt-0.5">Revenue, collections and invoice metrics</p>
+            </div>
+            <div class="ml-auto flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+              <button class="tr-btn" id="btn-7"   onclick="setRange(7)">7d</button>
+              <button class="tr-btn" id="btn-15"  onclick="setRange(15)">15d</button>
+              <button class="tr-btn active" id="btn-30" onclick="setRange(30)">30d</button>
+              <button class="tr-btn" id="btn-60"  onclick="setRange(60)">60d</button>
+              <button class="tr-btn" id="btn-90"  onclick="setRange(90)">90d</button>
+            </div>
+            <a href="finance-invoice-dashboard.html" class="text-xs text-emerald-600 font-medium hover:underline whitespace-nowrap">View Invoices →</a>
+          </div>
+
+          <!-- ── KPI Cards ──────────────────────────────────────────── -->
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <div class="card-metric bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-xl p-5 shadow col-span-1">
+              <p class="text-xs font-semibold uppercase tracking-wide opacity-80 mb-3">Total Quotes Value</p>
+              <p id="kpi-quotes-value" class="text-2xl font-extrabold tracking-tight">—</p>
+              <p id="kpi-quotes-value-trend" class="mt-2 text-xs opacity-80">Loading…</p>
+            </div>
+            <div class="card-metric bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm">
+              <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">Total Invoiced</p>
+              <p id="kpi-invoiced" class="text-2xl font-bold text-slate-900">—</p>
+              <p id="kpi-invoiced-trend" class="mt-2 text-xs text-slate-500">Loading…</p>
+            </div>
+            <div class="card-metric bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm">
+              <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">Payments Received</p>
+              <p id="kpi-payments" class="text-2xl font-bold text-emerald-600">—</p>
+              <p id="kpi-payments-trend" class="mt-2 text-xs text-slate-500">Loading…</p>
+            </div>
+            <div class="card-metric bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm">
+              <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">Outstanding</p>
+              <p id="kpi-outstanding" class="text-2xl font-bold text-amber-500">—</p>
+              <p id="kpi-outstanding-trend" class="mt-2 text-xs text-slate-500">Loading…</p>
+            </div>
+            <div class="card-metric bg-gradient-to-br from-rose-500 to-rose-700 text-white rounded-xl p-5 shadow">
+              <p class="text-xs font-semibold uppercase tracking-wide opacity-80 mb-3">Overdue</p>
+              <p id="kpi-overdue" class="text-2xl font-extrabold tracking-tight">—</p>
+              <p class="mt-1 text-[10px] opacity-80 alert-badge">⚠ Requires attention</p>
+            </div>
+          </div>
+
+          <!-- ── Collection Forecast ────────────────────────────────── -->
+          <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 class="text-sm font-semibold text-slate-700">Collection Forecast — Expected Inflows</h3>
+              <button onclick="exportChart('chart-forecast')" class="text-xs text-emerald-500 hover:underline">Export</button>
+            </div>
+            <div class="p-4">
+              <canvas id="chart-forecast"></canvas>
+            </div>
+            <div class="grid grid-cols-3 sm:grid-cols-6 gap-3 px-5 pb-5">
+              <div class="bg-slate-50 rounded-lg p-3 text-center"><p class="text-xs text-slate-500">7 days</p><p id="fc-7"  class="text-sm font-bold text-slate-900 mt-1">—</p></div>
+              <div class="bg-slate-50 rounded-lg p-3 text-center"><p class="text-xs text-slate-500">15 days</p><p id="fc-15" class="text-sm font-bold text-slate-900 mt-1">—</p></div>
+              <div class="bg-slate-50 rounded-lg p-3 text-center"><p class="text-xs text-slate-500">30 days</p><p id="fc-30" class="text-sm font-bold text-slate-900 mt-1">—</p></div>
+              <div class="bg-slate-50 rounded-lg p-3 text-center"><p class="text-xs text-slate-500">45 days</p><p id="fc-45" class="text-sm font-bold text-slate-900 mt-1">—</p></div>
+              <div class="bg-slate-50 rounded-lg p-3 text-center"><p class="text-xs text-slate-500">60 days</p><p id="fc-60" class="text-sm font-bold text-slate-900 mt-1">—</p></div>
+              <div class="bg-slate-50 rounded-lg p-3 text-center"><p class="text-xs text-slate-500">90 days</p><p id="fc-90" class="text-sm font-bold text-slate-900 mt-1">—</p></div>
+            </div>
+          </div>
+
+          <!-- ── Charts Row ─────────────────────────────────────────── -->
+          <div class="grid gap-5 lg:grid-cols-2">
+            <!-- Revenue trend -->
+            <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+              <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-slate-700">Revenue Trend</h3>
+                <button onclick="exportChart('chart-revenue')" class="text-xs text-emerald-500 hover:underline">Export</button>
+              </div>
+              <div class="p-4"><canvas id="chart-revenue"></canvas></div>
+            </div>
+            <!-- Invoice status breakdown -->
+            <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+              <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-slate-700">Invoice Status Breakdown</h3>
+                <button onclick="exportChart('chart-status')" class="text-xs text-emerald-500 hover:underline">Export</button>
+              </div>
+              <div class="p-4 flex items-center justify-center"><canvas id="chart-status" style="max-height:240px;max-width:300px"></canvas></div>
+            </div>
+          </div>
+
+          <!-- ── Second Charts Row ──────────────────────────────────── -->
+          <div class="grid gap-5 lg:grid-cols-2">
+            <!-- Top customers by revenue -->
+            <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+              <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-slate-700">Top Customers by Revenue</h3>
+                <button onclick="exportChart('chart-customers')" class="text-xs text-emerald-500 hover:underline">Export</button>
+              </div>
+              <div class="p-4"><canvas id="chart-customers"></canvas></div>
+            </div>
+            <!-- Payment method mix -->
+            <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+              <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-slate-700">Payment Method Mix</h3>
+                <button onclick="exportChart('chart-methods')" class="text-xs text-emerald-500 hover:underline">Export</button>
+              </div>
+              <div class="p-4 flex items-center justify-center"><canvas id="chart-methods" style="max-height:240px;max-width:300px"></canvas></div>
+            </div>
+          </div>
+
+          <!-- ── Recent Invoices ─────────────────────────────────────── -->
+          <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 class="text-sm font-semibold text-slate-700">Recent Invoices</h3>
+              <a href="finance-invoice-dashboard.html" class="text-xs text-emerald-600 hover:underline font-medium">View all →</a>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="text-[11px] text-slate-400 uppercase bg-slate-50 border-b border-slate-100">
+                  <tr>
+                    <th class="px-5 py-3 text-left font-semibold">Invoice #</th>
+                    <th class="px-5 py-3 text-left font-semibold">Customer</th>
+                    <th class="px-5 py-3 text-right font-semibold">Amount</th>
+                    <th class="px-5 py-3 text-left font-semibold">Status</th>
+                    <th class="px-5 py-3 text-left font-semibold">eTIMS</th>
+                    <th class="px-5 py-3 text-left font-semibold">Date</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-invoices" class="divide-y divide-slate-50">
+                  <tr><td colspan="6" class="px-5 py-8 text-center text-slate-400 text-xs">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- ── Overdue Invoices ───────────────────────────────────── -->
+          <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-rose-100 bg-rose-50 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-rose-500 alert-badge"></span>
+                <h3 class="text-sm font-semibold text-rose-700">Overdue Invoices</h3>
+              </div>
+              <span id="overdue-count" class="text-xs bg-rose-100 text-rose-700 font-semibold rounded-full px-2.5 py-0.5">0</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="text-[11px] text-slate-400 uppercase bg-slate-50 border-b border-slate-100">
+                  <tr>
+                    <th class="px-5 py-3 text-left font-semibold">Invoice #</th>
+                    <th class="px-5 py-3 text-left font-semibold">Customer</th>
+                    <th class="px-5 py-3 text-right font-semibold">Amount</th>
+                    <th class="px-5 py-3 text-left font-semibold">Due Date</th>
+                    <th class="px-5 py-3 text-right font-semibold">Days Overdue</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-overdue" class="divide-y divide-slate-50">
+                  <tr><td colspan="5" class="px-5 py-8 text-center text-slate-400 text-xs">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- ── Health Indicators ──────────────────────────────────── -->
+          <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm p-5">
+            <h3 class="text-sm font-semibold text-slate-700 mb-4">Finance Health Indicators</h3>
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div class="flex items-center gap-3 bg-slate-50 rounded-lg p-3">
+                <span class="text-xl" id="hi-collection-icon">⬆</span>
+                <div><p class="text-xs text-slate-500">Collection Rate</p><p id="hi-collection" class="text-sm font-bold text-slate-900">—</p></div>
+              </div>
+              <div class="flex items-center gap-3 bg-slate-50 rounded-lg p-3">
+                <span class="text-xl" id="hi-overdue-icon">⬆</span>
+                <div><p class="text-xs text-slate-500">Overdue Rate</p><p id="hi-overdue" class="text-sm font-bold text-slate-900">—</p></div>
+              </div>
+              <div class="flex items-center gap-3 bg-slate-50 rounded-lg p-3">
+                <span class="text-xl" id="hi-etims-icon">📄</span>
+                <div><p class="text-xs text-slate-500">eTIMS Signed</p><p id="hi-etims" class="text-sm font-bold text-slate-900">—</p></div>
+              </div>
+              <div class="flex items-center gap-3 bg-slate-50 rounded-lg p-3">
+                <span class="text-xl" id="hi-avgdays-icon">🕐</span>
+                <div><p class="text-xs text-slate-500">Avg Payment Days</p><p id="hi-avgdays" class="text-sm font-bold text-slate-900">—</p></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="h-6"></div>
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+
+    <script src="../../assets/app.js"></script>
+    <script src="../../assets/layout.js"></script>
+    <script>
+    (() => {
+      "use strict";
+
+      const fmt = (n) => `KES ${Number(n||0).toLocaleString("en-KE",{minimumFractionDigits:0,maximumFractionDigits:0})}`;
+      const fmtDate = (v) => v ? new Date(v).toLocaleDateString("en-KE",{year:"numeric",month:"short",day:"numeric"}) : "—";
+      const $ = (id) => document.getElementById(id);
+      const chartRefs = {};
+      let currentRange = 30;
+
+      // ── seeded RNG for demo data ───────────────────────────────────
+      function seedRand(seed) {
+        let s = seed;
+        return () => { s = (s * 1664525 + 1013904223) & 0xffffffff; return (s >>> 0) / 0xffffffff; };
+      }
+
+      function buildData(range) {
+        const r = seedRand(range * 17 + 3);
+        const scale = range / 30;
+        return {
+          quotesValue:  Math.round(4800000 * scale + r() * 800000),
+          prevQuotesValue: Math.round(4400000 * scale + r() * 700000),
+          invoiced:     Math.round(3600000 * scale + r() * 600000),
+          prevInvoiced: Math.round(3200000 * scale + r() * 500000),
+          payments:     Math.round(2800000 * scale + r() * 500000),
+          prevPayments: Math.round(2500000 * scale + r() * 400000),
+          outstanding:  Math.round(800000  + r() * 200000),
+          prevOutstanding: Math.round(860000 + r() * 180000),
+          overdue:      Math.round(340000  + r() * 100000),
+          forecast:     [210000,480000,920000,1300000,1750000,2400000].map(v => Math.round(v*(0.85+r()*0.3))),
+          received:     [160000,360000,640000,820000,1100000,1500000].map(v => Math.round(v*(0.85+r()*0.3))),
+          revenueTrend: Array.from({length:8},(_,i)=>Math.round((800000+i*120000)*scale*(0.85+r()*0.3))),
+          invoiceStatus:{ Paid: Math.round(120*scale), Unpaid: Math.round(45*scale+5), Overdue: Math.round(18*scale+2), Cancelled: Math.round(6*scale+1) },
+          topCustomers: ["Kamande wa Kamau","Otieno Ltd","Safari Motors","Njeri Holdings","Mwangi Tech"].map((n,i)=>({ name:n, amount: Math.round((800000-i*120000)*(0.85+r()*0.3)) })),
+          paymentMethods:{ "M-Pesa": Math.round(55+r()*15), Bank: Math.round(30+r()*10), Cash: Math.round(10+r()*5), Cheque: Math.round(5+r()*3) },
+          etimsSigned: Math.round(120*scale*0.6),
+          etimsTotal:  Math.round(120*scale),
+          avgPayDays:  +(18+r()*10).toFixed(0),
+        };
+      }
+
+      function trendText(current, prev) {
+        const pct = prev ? (((current-prev)/prev)*100).toFixed(1) : 0;
+        const up = current >= prev;
+        return `<span class="${up?"trend-up":"trend-down"}">${up?"▲":"▼"} ${Math.abs(pct)}% vs prev period</span>`;
+      }
+
+      // ── range buttons ─────────────────────────────────────────────
+      window.setRange = (r) => {
+        currentRange = r;
+        [7,15,30,60,90].forEach(v => {
+          const b = $(`btn-${v}`);
+          if (b) { b.className = `tr-btn${v===r?" active":""}`; }
+        });
+        const d = buildData(r);
+        populateKPIs(d);
+        renderCharts(d);
+        renderRecentInvoices(d);
+        renderOverdueTable(d);
+        renderHealthIndicators(d);
+      };
+
+      // ── populate KPIs ─────────────────────────────────────────────
+      function populateKPIs(d) {
+        $("kpi-quotes-value").textContent = fmt(d.quotesValue);
+        $("kpi-quotes-value-trend").innerHTML = trendText(d.quotesValue, d.prevQuotesValue);
+        $("kpi-invoiced").textContent = fmt(d.invoiced);
+        $("kpi-invoiced-trend").innerHTML = trendText(d.invoiced, d.prevInvoiced);
+        $("kpi-payments").textContent = fmt(d.payments);
+        $("kpi-payments-trend").innerHTML = trendText(d.payments, d.prevPayments);
+        $("kpi-outstanding").textContent = fmt(d.outstanding);
+        $("kpi-outstanding-trend").innerHTML = trendText(d.outstanding, d.prevOutstanding);
+        $("kpi-overdue").textContent = fmt(d.overdue);
+        const fcIds = ["fc-7","fc-15","fc-30","fc-45","fc-60","fc-90"];
+        d.forecast.forEach((v,i) => { const el = $(fcIds[i]); if(el) el.textContent = fmt(v); });
+      }
+
+      // ── charts ────────────────────────────────────────────────────
+      function mkChart(id, config) {
+        if (chartRefs[id]) chartRefs[id].destroy();
+        const ctx = $(id);
+        if (!ctx) return;
+        chartRefs[id] = new Chart(ctx, config);
+      }
+
+      function renderCharts(d) {
+        const green  = "#10b981";
+        const greenL = "#6ee7b7";
+        const amber  = "#f59e0b";
+        const rose   = "#f43f5e";
+        const slate  = "#64748b";
+
+        // Forecast bar chart
+        mkChart("chart-forecast", {
+          type: "bar",
+          data: {
+            labels: ["7 days","15 days","30 days","45 days","60 days","90 days"],
+            datasets: [
+              { label:"Expected", data: d.forecast, backgroundColor: green, borderRadius: 5, barPercentage: 0.5 },
+              { label:"Received", data: d.received, backgroundColor: greenL, borderRadius: 5, barPercentage: 0.5 },
+            ],
+          },
+          options: {
+            responsive:true, plugins:{ legend:{position:"top"} },
+            scales:{ y:{ ticks:{ callback: v => `${(v/1e6).toFixed(1)}M` }, grid:{color:"#f1f5f9"} } },
+          },
+        });
+
+        // Revenue trend line
+        const now = new Date();
+        const trendLabels = Array.from({length:8},(_,i)=>{
+          const d2 = new Date(now); d2.setDate(d2.getDate() - (7-i)*(currentRange/7));
+          return d2.toLocaleDateString("en-KE",{month:"short",day:"numeric"});
+        });
+        mkChart("chart-revenue", {
+          type: "line",
+          data: {
+            labels: trendLabels,
+            datasets:[{ label:"Revenue",data:d.revenueTrend, borderColor:green, backgroundColor:"rgba(16,185,129,0.07)", fill:true, tension:0.35, pointRadius:3, pointBackgroundColor:green }],
+          },
+          options:{
+            responsive:true, plugins:{legend:{display:false}},
+            scales:{ y:{ticks:{callback:v=>`${(v/1e6).toFixed(1)}M`}, grid:{color:"#f1f5f9"}} },
+          },
+        });
+
+        // Invoice status donut
+        const statusColors = { Paid:"#10b981", Unpaid:"#f59e0b", Overdue:"#f43f5e", Cancelled:"#94a3b8" };
+        const sLabels = Object.keys(d.invoiceStatus);
+        mkChart("chart-status", {
+          type: "doughnut",
+          data: {
+            labels: sLabels,
+            datasets:[{ data: sLabels.map(k=>d.invoiceStatus[k]), backgroundColor: sLabels.map(k=>statusColors[k]||slate), borderWidth:2, borderColor:"#fff" }],
+          },
+          options:{ responsive:true, plugins:{ legend:{position:"bottom",labels:{boxWidth:10,font:{size:11}}} } },
+        });
+
+        // Top customers bar
+        const sorted = [...d.topCustomers].sort((a,b)=>b.amount-a.amount);
+        mkChart("chart-customers",{
+          type:"bar",
+          data:{
+            labels: sorted.map(c=>c.name.length>16?c.name.slice(0,16)+"…":c.name),
+            datasets:[{ label:"Revenue", data:sorted.map(c=>c.amount), backgroundColor:"#10b981", borderRadius:5, barPercentage:0.6 }],
+          },
+          options:{
+            indexAxis:"y", responsive:true, plugins:{legend:{display:false}},
+            scales:{ x:{ticks:{callback:v=>`${(v/1e3).toFixed(0)}K`}, grid:{color:"#f1f5f9"}} },
+          },
+        });
+
+        // Payment method donut
+        const mLabels = Object.keys(d.paymentMethods);
+        const mColors = ["#10b981","#3b82f6","#f59e0b","#8b5cf6"];
+        mkChart("chart-methods",{
+          type:"doughnut",
+          data:{
+            labels:mLabels,
+            datasets:[{ data:mLabels.map(k=>d.paymentMethods[k]), backgroundColor:mColors, borderWidth:2, borderColor:"#fff" }],
+          },
+          options:{responsive:true, plugins:{legend:{position:"bottom",labels:{boxWidth:10,font:{size:11}}}}},
+        });
+      }
+
+      // ── recent invoices table ─────────────────────────────────────
+      function renderRecentInvoices(d) {
+        const tbody = $("tbody-invoices");
+        if (!tbody) return;
+        const statusMap = { Paid:"bg-green-100 text-green-700", Unpaid:"bg-red-100 text-red-700", Overdue:"bg-orange-100 text-orange-700", Cancelled:"bg-slate-100 text-slate-600" };
+        // Try to load from API; if it fails, use demo rows
+        const tryLoad = async () => {
+          try {
+            const res = await window.FINEMARK_APP.apiFetch("/invoices?page=1&pageSize=8");
+            const items = res.data || [];
+            if (!items.length) throw new Error("empty");
+            tbody.innerHTML = items.map(inv => {
+              const sc = statusMap[inv.status] || "bg-slate-100 text-slate-600";
+              const etims = (inv.etimsSigned||inv.etims_signed)
+                ? `<span class="sp bg-emerald-100 text-emerald-700">✓ Signed</span>`
+                : `<span class="sp bg-slate-100 text-slate-500">Unsigned</span>`;
+              return `<tr class="hover:bg-slate-50 transition-colors">
+                <td class="px-5 py-3 font-medium"><a href="../../invoice-detail.html?id=${inv.id}" class="hover:text-emerald-600">${inv.invoiceNumber||"—"}</a></td>
+                <td class="px-5 py-3 text-slate-600 max-w-[160px] truncate">${inv.customer||"—"}</td>
+                <td class="px-5 py-3 font-mono text-xs text-right">${fmt(inv.total||inv.amount)}</td>
+                <td class="px-5 py-3"><span class="sp ${sc}">${inv.status||"—"}</span></td>
+                <td class="px-5 py-3">${etims}</td>
+                <td class="px-5 py-3 text-slate-500 text-xs">${fmtDate(inv.issuedOn||inv.issued_on)}</td>
+              </tr>`;
+            }).join("");
+          } catch {
+            // demo rows
+            const demoRows = [
+              { no:"INV-2026-0001", cust:"Kamande wa Kamau", amt:15544, status:"Unpaid", etims:true, date:"2026-03-13" },
+              { no:"INV-2025-0048", cust:"Otieno Ltd", amt:89200, status:"Paid", etims:true, date:"2026-02-28" },
+              { no:"INV-2025-0047", cust:"Safari Motors", amt:45000, status:"Paid", etims:false, date:"2026-02-20" },
+              { no:"INV-2025-0046", cust:"Njeri Holdings", amt:120000, status:"Overdue", etims:false, date:"2026-01-31" },
+              { no:"INV-2025-0045", cust:"Mwangi Tech", amt:33600, status:"Paid", etims:true, date:"2026-01-15" },
+            ];
+            tbody.innerHTML = demoRows.map(r=>{
+              const sc = statusMap[r.status]||"bg-slate-100 text-slate-600";
+              const etims = r.etims ? `<span class="sp bg-emerald-100 text-emerald-700">✓ Signed</span>` : `<span class="sp bg-slate-100 text-slate-500">Unsigned</span>`;
+              return `<tr class="hover:bg-slate-50 transition-colors">
+                <td class="px-5 py-3 font-medium text-slate-900">${r.no}</td>
+                <td class="px-5 py-3 text-slate-600">${r.cust}</td>
+                <td class="px-5 py-3 font-mono text-xs text-right">${fmt(r.amt)}</td>
+                <td class="px-5 py-3"><span class="sp ${sc}">${r.status}</span></td>
+                <td class="px-5 py-3">${etims}</td>
+                <td class="px-5 py-3 text-slate-500 text-xs">${fmtDate(r.date)}</td>
+              </tr>`;
+            }).join("");
+          }
+        };
+        tryLoad();
+      }
+
+      // ── overdue table ─────────────────────────────────────────────
+      function renderOverdueTable(d) {
+        const tbody = $("tbody-overdue");
+        const badge = $("overdue-count");
+        if (!tbody) return;
+        const tryLoad = async () => {
+          try {
+            const res = await window.FINEMARK_APP.apiFetch("/invoices?status=Overdue&page=1&pageSize=10");
+            const items = res.data || [];
+            if (badge) badge.textContent = items.length;
+            if (!items.length) { tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-6 text-center text-slate-400 text-xs">No overdue invoices.</td></tr>`; return; }
+            const today = new Date();
+            tbody.innerHTML = items.map(inv => {
+              const due = inv.dueOn ? new Date(inv.dueOn) : null;
+              const daysOver = due ? Math.max(0, Math.round((today - due)/(1000*60*60*24))) : "—";
+              return `<tr class="hover:bg-rose-50 transition-colors">
+                <td class="px-5 py-3 font-medium"><a href="../../invoice-detail.html?id=${inv.id}" class="hover:text-rose-600">${inv.invoiceNumber||"—"}</a></td>
+                <td class="px-5 py-3 text-slate-600 max-w-[160px] truncate">${inv.customer||"—"}</td>
+                <td class="px-5 py-3 font-mono text-xs text-right font-semibold text-rose-600">${fmt(inv.total||inv.amount)}</td>
+                <td class="px-5 py-3 text-slate-500 text-xs">${fmtDate(inv.dueOn||inv.due_on)}</td>
+                <td class="px-5 py-3 text-right font-bold text-rose-600">${daysOver}</td>
+              </tr>`;
+            }).join("");
+          } catch {
+            const r = seedRand(d.overdue);
+            const demoOver = [
+              { no:"INV-2025-0046", cust:"Njeri Holdings", amt:120000, due:"2026-01-31", days:41 },
+              { no:"INV-2025-0039", cust:"Bondo Logistics", amt:67500, due:"2026-02-10", days:31 },
+              { no:"INV-2025-0031", cust:"Kitale Agro", amt:45000, due:"2026-02-20", days:21 },
+            ];
+            if (badge) badge.textContent = demoOver.length;
+            tbody.innerHTML = demoOver.map(r2=>`<tr class="hover:bg-rose-50 transition-colors">
+              <td class="px-5 py-3 font-medium text-slate-900">${r2.no}</td>
+              <td class="px-5 py-3 text-slate-600">${r2.cust}</td>
+              <td class="px-5 py-3 font-mono text-xs text-right font-semibold text-rose-600">${fmt(r2.amt)}</td>
+              <td class="px-5 py-3 text-slate-500 text-xs">${fmtDate(r2.due)}</td>
+              <td class="px-5 py-3 text-right font-bold text-rose-600">${r2.days}</td>
+            </tr>`).join("");
+          }
+        };
+        tryLoad();
+      }
+
+      // ── health indicators ─────────────────────────────────────────
+      function renderHealthIndicators(d) {
+        const collectionRate = d.invoiced ? ((d.payments/d.invoiced)*100).toFixed(1) : 0;
+        const overdueRate    = d.invoiced ? ((d.overdue/d.invoiced)*100).toFixed(1) : 0;
+        const etimsPct       = d.etimsTotal ? ((d.etimsSigned/d.etimsTotal)*100).toFixed(0) : 0;
+        $("hi-collection").textContent = `${collectionRate}% collected`;
+        $("hi-collection-icon").textContent = collectionRate >= 75 ? "🟢" : collectionRate >= 50 ? "🟡" : "🔴";
+        $("hi-overdue").textContent = `${overdueRate}% overdue`;
+        $("hi-overdue-icon").textContent = overdueRate <= 5 ? "🟢" : overdueRate <= 15 ? "🟡" : "🔴";
+        $("hi-etims").textContent = `${etimsPct}% signed (${d.etimsSigned}/${d.etimsTotal})`;
+        $("hi-etims-icon").textContent = etimsPct >= 80 ? "🟢" : etimsPct >= 50 ? "🟡" : "🔴";
+        $("hi-avgdays").textContent = `${d.avgPayDays} days avg`;
+        $("hi-avgdays-icon").textContent = d.avgPayDays <= 20 ? "🟢" : d.avgPayDays <= 35 ? "🟡" : "🔴";
+      }
+
+      // ── export chart ──────────────────────────────────────────────
+      window.exportChart = (id) => {
+        const c = chartRefs[id];
+        if (!c) return;
+        const a = document.createElement("a");
+        a.href = c.toBase64Image();
+        a.download = `${id}-${Date.now()}.png`;
+        a.click();
+      };
+
+      // ── init ──────────────────────────────────────────────────────
+      window.FINEMARK_APP?.requirePageAccess?.(["Finance","Admin"]);
+      const d = buildData(currentRange);
+      populateKPIs(d);
+      renderCharts(d);
+      renderRecentInvoices(d);
+      renderOverdueTable(d);
+      renderHealthIndicators(d);
+
+    })();
+    </script>
+  </body>
+</html>

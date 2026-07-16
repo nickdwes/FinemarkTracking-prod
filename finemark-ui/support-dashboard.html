@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Support Dashboard</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+    <script src="assets/chart.umd.min.js"></script>
+    <style>
+      .stat-card{background:#fff;border-radius:.75rem;padding:1.25rem 1.5rem;border:1px solid #e2e8f0;transition:box-shadow .15s, transform .15s;}
+      .stat-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.07);transform:translateY(-1px);}
+      canvas{max-height:260px;}
+      .chart-card{background:#fff;border-radius:.75rem;padding:1.25rem 1.5rem;border:1px solid #e2e8f0;}
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-4 md:p-6 max-w-[1500px] mx-auto space-y-6">
+
+        <!-- Header -->
+        <div class="flex flex-wrap items-center gap-3 justify-between">
+          <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900">Support Dashboard</h1>
+            <p class="text-sm text-slate-500 mt-0.5">Support team ticket queue, SLA performance, and workload at a glance.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <a href="crm-tickets.html" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">View All Tickets</a>
+            <a href="crm-ticket-new.html" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 transition-colors">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></svg>
+              New Ticket
+            </a>
+          </div>
+        </div>
+
+        <!-- Stat Cards -->
+        <div id="stats-grid" class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          <div class="stat-card animate-pulse bg-slate-100 h-24 rounded-lg"></div>
+          <div class="stat-card animate-pulse bg-slate-100 h-24 rounded-lg"></div>
+          <div class="stat-card animate-pulse bg-slate-100 h-24 rounded-lg"></div>
+          <div class="stat-card animate-pulse bg-slate-100 h-24 rounded-lg"></div>
+          <div class="stat-card animate-pulse bg-slate-100 h-24 rounded-lg"></div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div class="chart-card lg:col-span-2">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Ticket Volume — Last 30 Days</p>
+            <canvas id="chart-volume"></canvas>
+          </div>
+          <div class="chart-card">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Status Breakdown</p>
+            <canvas id="chart-status"></canvas>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div class="chart-card">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Category Breakdown</p>
+            <canvas id="chart-category"></canvas>
+          </div>
+
+          <!-- Team Workload -->
+          <div class="chart-card lg:col-span-2">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Team Workload — Open Tickets by Assignee</p>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="text-slate-500 text-xs uppercase tracking-wide border-b border-slate-200">
+                  <tr><th class="py-2 text-left">Assignee</th><th class="py-2 text-right">Open Tickets</th></tr>
+                </thead>
+                <tbody id="workload-tbody" class="divide-y divide-slate-100">
+                  <tr><td colspan="2" class="py-6 text-center text-slate-400">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Oldest Open Tickets -->
+        <div class="chart-card">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Oldest Open Tickets — Needs Attention</p>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm min-w-[800px]">
+              <thead class="text-slate-500 text-xs uppercase tracking-wide border-b border-slate-200">
+                <tr>
+                  <th class="py-2 pr-4 text-left">Ticket #</th>
+                  <th class="py-2 pr-4 text-left">Customer</th>
+                  <th class="py-2 pr-4 text-left">Subject</th>
+                  <th class="py-2 pr-4 text-left">Category</th>
+                  <th class="py-2 pr-4 text-left">Priority</th>
+                  <th class="py-2 pr-4 text-left">Status</th>
+                  <th class="py-2 pr-4 text-left">Assignee</th>
+                  <th class="py-2 pr-4 text-left">Opened</th>
+                </tr>
+              </thead>
+              <tbody id="oldest-tbody" class="divide-y divide-slate-100">
+                <tr><td colspan="8" class="py-6 text-center text-slate-400">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </main>
+    </div>
+
+    <div id="fm-footer"></div>
+
+    <script src="assets/app.js?v=202607141000"></script>
+    <script src="assets/layout.js?v=202607141000"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        window.FINEMARK_APP?.requirePageAccess?.(["Admin", "Technical", "Finance", "Support", "Operations"]);
+        init();
+      });
+
+      const APP = window.FINEMARK_APP;
+      const $ = (id) => document.getElementById(id);
+      const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+      const PRIORITY_BADGE = { Critical: "bg-rose-50 text-rose-700 border-rose-200", High: "bg-orange-50 text-orange-700 border-orange-200", Normal: "bg-blue-50 text-blue-700 border-blue-200", Low: "bg-slate-50 text-slate-600 border-slate-200" };
+      const STATUS_BADGE = { "Open": "bg-amber-50 text-amber-700 border-amber-200", "In Progress": "bg-blue-50 text-blue-700 border-blue-200", "Resolved": "bg-green-50 text-green-700 border-green-200", "Closed": "bg-slate-100 text-slate-600 border-slate-200", "Merged": "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200" };
+      const badge = (map, v) => `<span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold border ${map[v] || "bg-slate-50 text-slate-600 border-slate-200"}">${escapeHtml(v)}</span>`;
+
+      const chartRefs = {};
+      function mkChart(id, config) {
+        if (chartRefs[id]) chartRefs[id].destroy();
+        const ctx = $(id);
+        if (!ctx) return;
+        chartRefs[id] = new Chart(ctx, config);
+      }
+
+      function renderStats(cards) {
+        const items = [
+          { label: "Open", value: cards.open, color: "amber", desc: "Awaiting first action", href: "crm-tickets.html?team=Support&status=Open" },
+          { label: "In Progress", value: cards.inProgress, color: "blue", desc: "Being worked on", href: "crm-tickets.html?team=Support&status=In%20Progress" },
+          { label: "Resolved This Week", value: cards.resolvedThisWeek, color: "green", desc: "Last 7 days", href: "crm-tickets.html?team=Support&status=Resolved" },
+          { label: "SLA Breached", value: cards.slaBreached, color: "rose", desc: "Past due, still open", href: "crm-tickets.html?team=Support" },
+          { label: "Avg Resolution", value: cards.avgResolutionHours != null ? `${cards.avgResolutionHours}h` : "—", color: "violet", desc: "Last 30 days", href: "crm-tickets.html?team=Support&status=Resolved", isText: true },
+        ];
+        const colMap = { amber: "text-amber-600 bg-amber-50", blue: "text-blue-600 bg-blue-50", green: "text-green-600 bg-green-50", rose: "text-rose-600 bg-rose-50", violet: "text-violet-600 bg-violet-50" };
+        $("stats-grid").innerHTML = items.map((c) => `
+          <a href="${c.href}" class="stat-card block">
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">${c.label}</p>
+            <p class="text-3xl font-bold mt-1 ${colMap[c.color].split(" ")[0]}">${c.isText ? c.value : Number(c.value).toLocaleString()}</p>
+            <p class="text-xs text-slate-400 mt-1">${c.desc}</p>
+          </a>`).join("");
+      }
+
+      function renderCharts(d) {
+        mkChart("chart-volume", {
+          type: "line",
+          data: {
+            labels: d.volumeTrend.map((r) => r.date.slice(5)),
+            datasets: [{ label: "Tickets Opened", data: d.volumeTrend.map((r) => r.count), borderColor: "#2563eb", backgroundColor: "rgba(37,99,235,0.08)", fill: true, tension: 0.3, pointRadius: 2 }],
+          },
+          options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: "#f1f5f9" } }, x: { grid: { display: false } } } },
+        });
+
+        const statusColors = { "Open": "#f59e0b", "In Progress": "#3b82f6", "Resolved": "#22c55e", "Closed": "#64748b", "Merged": "#a855f7" };
+        mkChart("chart-status", {
+          type: "doughnut",
+          data: {
+            labels: d.statusBreakdown.map((r) => r.status),
+            datasets: [{ data: d.statusBreakdown.map((r) => r.count), backgroundColor: d.statusBreakdown.map((r) => statusColors[r.status] || "#cbd5e1") }],
+          },
+          options: { responsive: true, plugins: { legend: { position: "bottom", labels: { boxWidth: 10, font: { size: 11 } } } } },
+        });
+
+        mkChart("chart-category", {
+          type: "bar",
+          data: {
+            labels: d.categoryBreakdown.map((r) => r.category),
+            datasets: [{ label: "Tickets", data: d.categoryBreakdown.map((r) => r.count), backgroundColor: "#6366f1", borderRadius: 5, barPercentage: 0.6 }],
+          },
+          options: { responsive: true, indexAxis: "y", plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: "#f1f5f9" } } } },
+        });
+      }
+
+      function renderOldestOpen(rows) {
+        $("oldest-tbody").innerHTML = rows.length ? rows.map((t) => `
+          <tr class="hover:bg-slate-50 cursor-pointer" onclick="location.href='crm-ticket-detail.html?id=${t.id}'">
+            <td class="py-2.5 pr-4 font-mono text-xs font-bold text-blue-700">${escapeHtml(t.ticketNo)}</td>
+            <td class="py-2.5 pr-4 text-xs text-slate-700">${escapeHtml(t.customerName || "—")}</td>
+            <td class="py-2.5 pr-4 max-w-[220px] truncate font-medium text-slate-900 text-xs">${escapeHtml(t.subject)}</td>
+            <td class="py-2.5 pr-4 text-xs text-slate-500">${escapeHtml(t.category)}</td>
+            <td class="py-2.5 pr-4">${badge(PRIORITY_BADGE, t.priority)}</td>
+            <td class="py-2.5 pr-4">${badge(STATUS_BADGE, t.status)}</td>
+            <td class="py-2.5 pr-4 text-xs text-slate-500">${escapeHtml(t.assigneeEmail || "Unassigned")}</td>
+            <td class="py-2.5 pr-4 text-xs text-slate-400">${t.openedAt ? t.openedAt.slice(0, 10) : "—"}</td>
+          </tr>`).join("") : `<tr><td colspan="8" class="py-6 text-center text-slate-400">No open tickets — nice work!</td></tr>`;
+      }
+
+      function renderWorkload(rows) {
+        $("workload-tbody").innerHTML = rows.length ? rows.map((r) => `
+          <tr>
+            <td class="py-2 text-slate-700">${escapeHtml(r.assigneeEmail)}</td>
+            <td class="py-2 text-right font-semibold text-slate-800">${r.count}</td>
+          </tr>`).join("") : `<tr><td colspan="2" class="py-6 text-center text-slate-400">No open tickets.</td></tr>`;
+      }
+
+      async function init() {
+        try {
+          const d = await APP.apiFetch("/crm/tickets/stats/support-dashboard");
+          renderStats(d.cards);
+          renderCharts(d);
+          renderOldestOpen(d.oldestOpen || []);
+          renderWorkload(d.workload || []);
+        } catch (e) {
+          $("stats-grid").innerHTML = `<p class="col-span-5 text-center text-red-500 py-6">Failed to load dashboard: ${escapeHtml(e?.message || "unknown error")}</p>`;
+        }
+      }
+    </script>
+  </body>
+</html>

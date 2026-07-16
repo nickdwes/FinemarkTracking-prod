@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | OTP Verification</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+
+          <div class="max-w-md mx-auto space-y-6">
+            <h1 class="text-3xl font-semibold tracking-tight text-slate-900">OTP Verification</h1>
+            <p id="otp-message" class="text-sm text-slate-600">OTP sent to customer.</p>
+
+            <div class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm shadow-slate-200/60 space-y-4">
+              <label class="block text-sm font-medium text-slate-700">Enter 6-digit OTP</label>
+              <div class="grid grid-cols-6 gap-2">
+                <input maxlength="1" inputmode="numeric" class="otp-input h-12 rounded-lg border border-slate-200 text-center text-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                <input maxlength="1" inputmode="numeric" class="otp-input h-12 rounded-lg border border-slate-200 text-center text-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                <input maxlength="1" inputmode="numeric" class="otp-input h-12 rounded-lg border border-slate-200 text-center text-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                <input maxlength="1" inputmode="numeric" class="otp-input h-12 rounded-lg border border-slate-200 text-center text-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                <input maxlength="1" inputmode="numeric" class="otp-input h-12 rounded-lg border border-slate-200 text-center text-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                <input maxlength="1" inputmode="numeric" class="otp-input h-12 rounded-lg border border-slate-200 text-center text-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+              </div>
+              <p id="otp-error" class="text-xs text-red-600 hidden">Invalid OTP. Try again.</p>
+              <p id="otp-expired" class="text-xs text-amber-700 hidden">OTP expired. Please request a new one.</p>
+              <div class="flex items-center justify-between text-xs text-slate-500">
+                <span id="attempts-left">Attempts left: 3</span>
+                <span id="expires-in">Expires in 05:00</span>
+              </div>
+              <div class="flex items-center justify-end gap-3">
+                <button id="mark-rescheduled" type="button" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  Mark Rescheduled
+                </button>
+                <button id="verify-otp" type="button" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+                  Verify
+                </button>
+              </div>
+            </div>
+            <a href="technician-jobs.html" class="inline-flex items-center text-sm text-blue-600 hover:underline">← Back to My Jobs</a>
+          </div>
+        
+  </main>
+</div>
+<div id="fm-footer"></div>
+<script src="assets/contracts.js"></script>
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    window.FINEMARK_APP?.requirePageAccess?.();
+  });
+</script>
+<script>
+      const storedUser = localStorage.getItem("finemarkUser");
+      let userData = null;
+      try {
+        userData = storedUser ? JSON.parse(storedUser) : null;
+      } catch (error) {
+        userData = null;
+      }
+
+      if (!userData || !userData.role || userData.role !== "technician") {
+        window.location.href = "login.html";
+      } else {
+        const userInfo = document.getElementById("user-info");
+        userInfo.textContent = `User: ${userData.email} (${userData.role})`;
+      }
+
+      document.getElementById("logout").addEventListener("click", () => {
+        localStorage.removeItem("finemarkUser");
+        window.location.href = "login.html";
+      });
+
+      const jobsKey = "finemark_installations";
+      const activityKey = "finemark_activity";
+      const jobId = new URLSearchParams(window.location.search).get("id");
+      const jobs = JSON.parse(localStorage.getItem(jobsKey) || "[]");
+      const job = jobs.find((item) => item.id === jobId);
+      const otpInputs = document.querySelectorAll(".otp-input");
+      const otpMessage = document.getElementById("otp-message");
+      const otpError = document.getElementById("otp-error");
+      const otpExpired = document.getElementById("otp-expired");
+      const attemptsLeft = document.getElementById("attempts-left");
+      const expiresIn = document.getElementById("expires-in");
+      const verifyButton = document.getElementById("verify-otp");
+      const rescheduleButton = document.getElementById("mark-rescheduled");
+
+      const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+      const otpCreatedAt = Date.now();
+      let attempts = 3;
+
+      if (job) {
+        otpMessage.textContent = `OTP sent to ${job.customerPhone || "customer phone"}`;
+      }
+
+      const updateCountdown = () => {
+        const remaining = 5 * 60 * 1000 - (Date.now() - otpCreatedAt);
+        if (remaining <= 0) {
+          otpExpired.classList.remove("hidden");
+          verifyButton.disabled = true;
+          return;
+        }
+        const minutes = String(Math.floor(remaining / 60000)).padStart(2, "0");
+        const seconds = String(Math.floor((remaining % 60000) / 1000)).padStart(2, "0");
+        expiresIn.textContent = `Expires in ${minutes}:${seconds}`;
+      };
+
+      setInterval(updateCountdown, 1000);
+      updateCountdown();
+      updateOtpState();
+
+      const getOtpValue = () => Array.from(otpInputs).map((input) => input.value).join("");
+      const isOtpValid = (value) => /^[0-9]{6}$/.test(value);
+
+      const updateOtpState = () => {
+        const value = getOtpValue();
+        verifyButton.disabled = !isOtpValid(value);
+        verifyButton.classList.toggle("opacity-60", verifyButton.disabled);
+      };
+
+      otpInputs.forEach((input, index) => {
+        input.addEventListener("input", () => {
+          if (input.value && index < otpInputs.length - 1) {
+            otpInputs[index + 1].focus();
+          }
+          updateOtpState();
+        });
+      });
+
+      const logActivity = (action, summary) => {
+        const activity = {
+          id: `ACT-${Date.now()}`,
+          action,
+          recordId: job?.requestId || "unknown",
+          recordType: "installation",
+          summary,
+          timestamp: new Date().toISOString(),
+          actor: userData ? userData.email : "demo@finemark.com",
+        };
+        const activityLog = JSON.parse(localStorage.getItem(activityKey) || "[]");
+        activityLog.unshift(activity);
+        localStorage.setItem(activityKey, JSON.stringify(activityLog));
+      };
+
+      verifyButton.addEventListener("click", () => {
+        if (!job) return;
+        otpError.classList.add("hidden");
+        if (verifyButton.disabled) return;
+
+        const entered = getOtpValue();
+        if (!isOtpValid(entered)) {
+          otpError.textContent = "Enter a valid 6-digit OTP.";
+          otpError.classList.remove("hidden");
+          return;
+        }
+        if (entered === otpCode) {
+          job.confirmation = {
+            ...(job.confirmation || {}),
+            method: "otp",
+            verified: true,
+            otpCode: entered,
+          };
+          job.status = "Completed";
+          job.updatedAt = new Date().toISOString();
+          localStorage.setItem(jobsKey, JSON.stringify(jobs));
+          logActivity("INSTALLATION_COMPLETED_OTP", `Completed installation for ${job.customerName} with OTP`);
+          localStorage.setItem("finemark_toast", "Installation completed");
+          window.location.href = "technician-jobs.html";
+          return;
+        }
+
+        attempts -= 1;
+        attemptsLeft.textContent = `Attempts left: ${attempts}`;
+        otpError.classList.remove("hidden");
+        if (attempts <= 0) {
+          verifyButton.disabled = true;
+        }
+      });
+
+      rescheduleButton.addEventListener("click", () => {
+        if (!job) return;
+        job.status = "Failed / Rescheduled";
+        job.updatedAt = new Date().toISOString();
+        localStorage.setItem(jobsKey, JSON.stringify(jobs));
+        logActivity("UPDATED", `Marked ${job.customerName} as rescheduled`);
+        localStorage.setItem("finemark_toast", "Job rescheduled");
+        window.location.href = "technician-jobs.html";
+      });
+    </script>
+</body>
+</html>

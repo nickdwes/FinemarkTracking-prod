@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | CRM Customers</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+    <script src="assets/chart.umd.min.js"></script>
+    <style>
+      .chart-card { background:#fff; border:1px solid #e2e8f0; border-radius:1rem; padding:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+      .lb-bar { height:8px; border-radius:4px; background:linear-gradient(90deg,#6366f1,#8b5cf6); transition:width .6s cubic-bezier(.4,0,.2,1); }
+      .rank-gold   { background:#fbbf24; color:#fff; }
+      .rank-silver { background:#94a3b8; color:#fff; }
+      .rank-bronze { background:#b45309; color:#fff; }
+      .rank-other  { background:#e2e8f0; color:#475569; }
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-7xl mx-auto space-y-7">
+
+          <!-- ── Page header ── -->
+          <div class="flex flex-wrap items-center gap-3 justify-between">
+            <div>
+              <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Customers</h1>
+              <p class="text-sm text-slate-500">Segment analytics, vehicle ownership, and customer directory.</p>
+            </div>
+            <a href="crm-register.html"
+               class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></svg>
+              Register Customer
+            </a>
+          </div>
+          <nav class="text-xs text-slate-500"><span class="font-medium text-slate-600">CRM</span> / Customers</nav>
+
+          <!-- ── KPI cards ── -->
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
+            <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm">
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Total</p>
+              <p id="stat-total" class="text-2xl font-bold text-slate-900 mt-1">—</p>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm">
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Individual</p>
+              <p id="stat-individual" class="text-2xl font-bold text-indigo-600 mt-1">—</p>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm">
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Corporate</p>
+              <p id="stat-corporate" class="text-2xl font-bold text-teal-600 mt-1">—</p>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm">
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Active</p>
+              <p id="stat-active" class="text-2xl font-bold text-green-600 mt-1">—</p>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm">
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Renewing ≤ 30d</p>
+              <p id="stat-renewing" class="text-2xl font-bold text-amber-600 mt-1">—</p>
+            </div>
+          </div>
+
+          <!-- ── Analytics divider ── -->
+          <div class="flex items-center gap-3">
+            <div class="h-px flex-1 bg-slate-200"></div>
+            <span class="text-xs font-semibold uppercase tracking-widest text-slate-400">Segment Analytics</span>
+            <div class="h-px flex-1 bg-slate-200"></div>
+          </div>
+
+          <!-- ── Analytics row 1: Region + Cohort ── -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- Region doughnut -->
+            <div class="chart-card flex flex-col gap-4">
+              <div>
+                <p class="text-sm font-semibold text-slate-800">Customers by Region</p>
+                <p class="text-xs text-slate-400">Geographic distribution of all customers</p>
+              </div>
+              <div class="flex gap-5 items-start">
+                <div class="w-40 h-40 shrink-0">
+                  <canvas id="regionChart"></canvas>
+                </div>
+                <div id="regionLegend" class="flex-1 space-y-1.5 overflow-y-auto max-h-40 pr-1 text-xs">
+                  <p class="text-slate-400 italic">Loading…</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Acquisition cohort -->
+            <div class="chart-card flex flex-col gap-4">
+              <div>
+                <p class="text-sm font-semibold text-slate-800">Customer Acquisition Over Time</p>
+                <p class="text-xs text-slate-400">New customers per month with cumulative growth</p>
+              </div>
+              <div class="relative h-44">
+                <canvas id="cohortChart"></canvas>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- ── Analytics row 2: Industry + Leaderboard ── -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- Industry horizontal bar -->
+            <div class="chart-card flex flex-col gap-4">
+              <div>
+                <p class="text-sm font-semibold text-slate-800">Customers by Industry</p>
+                <p class="text-xs text-slate-400">Sector concentration across all accounts</p>
+              </div>
+              <div class="relative h-64">
+                <canvas id="industryChart"></canvas>
+              </div>
+            </div>
+
+            <!-- Vehicle leaderboard -->
+            <div class="chart-card flex flex-col gap-4">
+              <div>
+                <p class="text-sm font-semibold text-slate-800">Vehicle Ownership Leaderboard</p>
+                <p class="text-xs text-slate-400">Top 10 customers by number of registered vehicles</p>
+              </div>
+              <div id="leaderboard" class="space-y-2.5">
+                <p class="text-xs text-slate-400 italic">Loading…</p>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- ── Table divider ── -->
+          <div class="flex items-center gap-3">
+            <div class="h-px flex-1 bg-slate-200"></div>
+            <span class="text-xs font-semibold uppercase tracking-widest text-slate-400">Customer Directory</span>
+            <div class="h-px flex-1 bg-slate-200"></div>
+          </div>
+
+          <!-- ── Filters + Table ── -->
+          <div class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm space-y-4">
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div class="col-span-2 sm:col-span-3 lg:col-span-2">
+                <label class="block text-xs font-medium text-slate-500 mb-1">Search</label>
+                <input id="crm-search" type="text" placeholder="Name, account no…"
+                       class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Account Manager</label>
+                <select id="crm-account-manager" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="">All</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Region</label>
+                <select id="crm-region" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="">All</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Type</label>
+                <select id="crm-type" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="">All</option>
+                  <option value="individual">Individual</option>
+                  <option value="corporate">Corporate</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Industry</label>
+                <select id="crm-industry" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="">All</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Status</label>
+                <select id="crm-status" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="">All</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                  <option value="Suspended">Suspended</option>
+                </select>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button id="btn-search" class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">Search</button>
+              <button id="btn-clear"  class="rounded-lg border border-slate-200 px-5 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">Clear</button>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="text-left text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                    <th class="pb-3 pr-4">Account No</th>
+                    <th class="pb-3 pr-4">Name</th>
+                    <th class="pb-3 pr-4">Type</th>
+                    <th class="pb-3 pr-4">Status</th>
+                    <th class="pb-3 pr-4">Account Manager</th>
+                    <th class="pb-3 pr-4">Region</th>
+                    <th class="pb-3 pr-4">Since</th>
+                    <th class="pb-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="customers-tbody" class="divide-y divide-slate-50">
+                  <tr><td colspan="8" class="py-8 text-center text-slate-400 text-sm">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="flex items-center justify-between text-xs text-slate-500">
+              <span id="crm-meta">—</span>
+              <div class="flex gap-2">
+                <button id="btn-prev" class="px-3 py-1 rounded border border-slate-200 hover:bg-slate-50 disabled:opacity-40" disabled>← Prev</button>
+                <button id="btn-next" class="px-3 py-1 rounded border border-slate-200 hover:bg-slate-50 disabled:opacity-40" disabled>Next →</button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /max-w -->
+      </main>
+    </div>
+
+    <div id="fm-footer"></div>
+    <script src="assets/contracts.js"></script>
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => window.FINEMARK_APP?.requirePageAccess?.());
+
+      // ── Badges ─────────────────────────────────────────────────────────────
+      const TYPE_BADGES = {
+        individual: `<span class="inline-flex rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700 border border-indigo-100">Individual</span>`,
+        corporate:  `<span class="inline-flex rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-700 border border-teal-100">Corporate</span>`,
+      };
+      const STATUS_BADGES = {
+        Active:    `<span class="inline-flex rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700 border border-green-100">Active</span>`,
+        Inactive:  `<span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500 border border-slate-200">Inactive</span>`,
+        Suspended: `<span class="inline-flex rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600 border border-red-100">Suspended</span>`,
+      };
+
+      // ── Colour palette ─────────────────────────────────────────────────────
+      const PALETTE = [
+        "#6366f1","#3b82f6","#0ea5e9","#14b8a6","#22c55e",
+        "#a855f7","#ec4899","#f97316","#eab308","#ef4444",
+        "#8b5cf6","#06b6d4","#84cc16","#f43f5e","#64748b",
+      ];
+
+      // ── KPI stats ──────────────────────────────────────────────────────────
+      async function loadStats() {
+        try {
+          const d = await window.FINEMARK_APP.apiFetch("/crm/customers/stats/summary");
+          document.getElementById("stat-total").textContent      = d.total ?? "—";
+          document.getElementById("stat-individual").textContent = d.individual ?? "—";
+          document.getElementById("stat-corporate").textContent  = d.corporate ?? "—";
+          document.getElementById("stat-active").textContent     = d.active ?? "—";
+          document.getElementById("stat-renewing").textContent   = d.subscriptionsExpiringSoon ?? "—";
+        } catch {}
+      }
+
+      // ── Analytics ──────────────────────────────────────────────────────────
+      async function loadAnalytics() {
+        let data;
+        try {
+          data = await window.FINEMARK_APP.apiFetch("/crm/customers/stats/analytics");
+        } catch { return; }
+
+        /* 1 ── Region doughnut */
+        const regionLabels = data.byRegion.map(r => r.label);
+        const regionCounts = data.byRegion.map(r => r.count);
+        const regionMax    = Math.max(...regionCounts, 1);
+        new Chart(document.getElementById("regionChart"), {
+          type: "doughnut",
+          data: {
+            labels: regionLabels,
+            datasets: [{
+              data:            regionCounts,
+              backgroundColor: PALETTE,
+              borderWidth:     2,
+              borderColor:     "#fff",
+              hoverOffset:     6,
+            }],
+          },
+          options: {
+            cutout: "62%",
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+              legend: { display: false },
+              tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}` } },
+            },
+          },
+        });
+        document.getElementById("regionLegend").innerHTML = data.byRegion.map((r, i) => `
+          <div class="flex items-center gap-2">
+            <span class="shrink-0 w-2.5 h-2.5 rounded-sm" style="background:${PALETTE[i % PALETTE.length]}"></span>
+            <span class="flex-1 truncate text-slate-600">${r.label}</span>
+            <span class="font-bold text-slate-800 tabular-nums">${r.count}</span>
+            <div class="w-10 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+              <div class="h-full rounded-full" style="width:${Math.round(r.count/regionMax*100)}%;background:${PALETTE[i%PALETTE.length]}"></div>
+            </div>
+          </div>`).join("");
+
+        // ── Populate Region filter dropdown from analytics data ───────────
+        const regionSel = document.getElementById("crm-region");
+        data.byRegion.filter(r => r.label && r.label !== "Unknown").forEach(r => {
+          const opt = document.createElement("option");
+          opt.value = r.label;
+          opt.textContent = r.label;
+          regionSel.appendChild(opt);
+        });
+
+        // ── Populate Industry filter dropdown from analytics data ─────────
+        const industrySel = document.getElementById("crm-industry");
+        data.byIndustry.filter(r => r.label && r.label !== "Unknown").forEach(r => {
+          const opt = document.createElement("option");
+          opt.value = r.label;
+          opt.textContent = r.label;
+          industrySel.appendChild(opt);
+        });
+
+        /* 2 ── Acquisition cohort (bar + line) */
+        const monthLabels  = data.byMonth.map(r => {
+          const [y, m] = r.label.split("-");
+          return new Date(+y, +m - 1, 1).toLocaleString("en", { month: "short", year: "2-digit" });
+        });
+        const monthCounts  = data.byMonth.map(r => r.count);
+        const cumulative   = monthCounts.reduce((acc, v, i) => { acc.push((acc[i-1] || 0) + v); return acc; }, []);
+        new Chart(document.getElementById("cohortChart"), {
+          data: {
+            labels: monthLabels,
+            datasets: [
+              {
+                type:            "line",
+                label:           "Cumulative",
+                data:            cumulative,
+                borderColor:     "#6366f1",
+                backgroundColor: "rgba(99,102,241,.1)",
+                fill:            true,
+                tension:         0.4,
+                pointRadius:     3,
+                pointBackgroundColor: "#6366f1",
+                yAxisID:         "yRight",
+                order:           1,
+              },
+              {
+                type:            "bar",
+                label:           "New / month",
+                data:            monthCounts,
+                backgroundColor: "rgba(14,165,233,.65)",
+                borderRadius:    4,
+                yAxisID:         "yLeft",
+                order:           2,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
+            plugins: { legend: { labels: { font: { size: 11 }, boxWidth: 12, padding: 12 } } },
+            scales: {
+              yLeft:  { type:"linear", position:"left",  beginAtZero:true, grid:{ color:"#f1f5f9" }, ticks:{ font:{size:10}, stepSize:1 } },
+              yRight: { type:"linear", position:"right", beginAtZero:true, grid:{ display:false },   ticks:{ font:{size:10} } },
+              x:      { grid:{ display:false }, ticks:{ font:{size:10} } },
+            },
+          },
+        });
+
+        /* 3 ── Industry horizontal bar */
+        new Chart(document.getElementById("industryChart"), {
+          type: "bar",
+          data: {
+            labels: data.byIndustry.map(r => r.label),
+            datasets: [{
+              label:           "Customers",
+              data:            data.byIndustry.map(r => r.count),
+              backgroundColor: data.byIndustry.map((_, i) => PALETTE[i % PALETTE.length]),
+              borderRadius:    4,
+            }],
+          },
+          options: {
+            indexAxis: "y",
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { beginAtZero:true, grid:{ color:"#f1f5f9" }, ticks:{ font:{size:10}, stepSize:1 } },
+              y: { grid:{ display:false }, ticks:{ font:{size:11} } },
+            },
+          },
+        });
+
+        /* 4 ── Vehicle leaderboard */
+        const lb    = data.vehicleLeaderboard;
+        const lbMax = lb.length ? lb[0].count : 1;
+        const rankCls = i => i === 0 ? "rank-gold" : i === 1 ? "rank-silver" : i === 2 ? "rank-bronze" : "rank-other";
+        document.getElementById("leaderboard").innerHTML = lb.length
+          ? lb.map((c, i) => `
+              <div class="flex items-center gap-3">
+                <span class="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${rankCls(i)}">${i+1}</span>
+                <a href="crm-customer-360.html?id=${c.id}" class="flex-1 min-w-0 hover:text-blue-600 transition-colors">
+                  <p class="text-xs font-semibold text-slate-800 truncate">${c.name}</p>
+                  <p class="text-xs text-slate-400">${c.accountNo}</p>
+                </a>
+                <span class="shrink-0 text-xs font-bold text-slate-700 tabular-nums">
+                  ${c.count} <span class="font-normal text-slate-400">vehicle${c.count !== 1 ? "s" : ""}</span>
+                </span>
+                <div class="w-20 h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div class="lb-bar" style="width:${Math.round(c.count/lbMax*100)}%"></div>
+                </div>
+              </div>`).join("")
+          : `<p class="text-xs text-slate-400 italic">No vehicle registrations found.</p>`;
+      }
+
+      // ── Customer table ─────────────────────────────────────────────────────
+      let page = 1;
+      const pageSize = 25;
+
+      async function loadCustomers() {
+        const search         = document.getElementById("crm-search").value.trim();
+        const type           = document.getElementById("crm-type").value;
+        const status         = document.getElementById("crm-status").value;
+        const region         = document.getElementById("crm-region").value;
+        const industry       = document.getElementById("crm-industry").value;
+        const accountManager = document.getElementById("crm-account-manager").value;
+        const params = new URLSearchParams({ page, pageSize });
+        if (search)         params.set("search",           search);
+        if (type)           params.set("type",             type);
+        if (status)         params.set("status",           status);
+        if (region)         params.set("region",           region);
+        if (industry)       params.set("industry",         industry);
+        if (accountManager) params.set("accountManagerId", accountManager);
+
+        document.getElementById("customers-tbody").innerHTML =
+          `<tr><td colspan="8" class="py-8 text-center text-slate-400">Loading…</td></tr>`;
+        try {
+          const { data, meta } = await window.FINEMARK_APP.apiFetch(`/crm/customers?${params}`);
+          if (!data.length) {
+            document.getElementById("customers-tbody").innerHTML =
+              `<tr><td colspan="8" class="py-8 text-center text-slate-400">No customers found.</td></tr>`;
+          } else {
+            document.getElementById("customers-tbody").innerHTML = data.map(c => `
+              <tr class="hover:bg-slate-50/60 transition-colors">
+                <td class="py-3 pr-4 font-mono text-xs text-slate-700">${c.accountNo}</td>
+                <td class="py-3 pr-4 font-medium text-slate-900">${c.displayName || "—"}</td>
+                <td class="py-3 pr-4">${TYPE_BADGES[c.type]    || c.type}</td>
+                <td class="py-3 pr-4">${STATUS_BADGES[c.status] || c.status}</td>
+                <td class="py-3 pr-4 text-slate-600 text-xs">${c.accountManagerEmail || "—"}</td>
+                <td class="py-3 pr-4 text-slate-600 text-xs">${c.region || "—"}</td>
+                <td class="py-3 pr-4 text-slate-500 text-xs">${c.createdAt ? c.createdAt.slice(0,10) : "—"}</td>
+                <td class="py-3">
+                  <a href="crm-customer-360.html?id=${c.id}" class="text-xs font-medium text-blue-600 hover:text-blue-800">360° View</a>
+                </td>
+              </tr>`).join("");
+          }
+          const total = meta?.total ?? 0;
+          document.getElementById("crm-meta").textContent =
+            `Showing ${(page-1)*pageSize+1}–${Math.min(page*pageSize,total)} of ${total}`;
+          document.getElementById("btn-prev").disabled = page <= 1;
+          document.getElementById("btn-next").disabled = page * pageSize >= total;
+        } catch {
+          document.getElementById("customers-tbody").innerHTML =
+            `<tr><td colspan="8" class="py-8 text-center text-red-500">Failed to load customers.</td></tr>`;
+        }
+      }
+
+      document.getElementById("btn-search").addEventListener("click", () => { page = 1; loadCustomers(); });
+      document.getElementById("btn-clear").addEventListener("click", () => {
+        document.getElementById("crm-search").value          = "";
+        document.getElementById("crm-type").value            = "";
+        document.getElementById("crm-status").value          = "";
+        document.getElementById("crm-region").value          = "";
+        document.getElementById("crm-industry").value        = "";
+        document.getElementById("crm-account-manager").value = "";
+        page = 1; loadCustomers();
+      });
+      document.getElementById("crm-search").addEventListener("keydown", e => {
+        if (e.key === "Enter") { page = 1; loadCustomers(); }
+      });
+      document.getElementById("btn-prev").addEventListener("click", () => { if (page > 1) { page--; loadCustomers(); } });
+      document.getElementById("btn-next").addEventListener("click", () => { page++; loadCustomers(); });
+
+      // ── Populate Account Manager dropdown ────────────────────────────────
+      async function loadAccountManagers() {
+        try {
+          const { data } = await window.FINEMARK_APP.apiFetch("/crm/customers/account-managers");
+          const sel = document.getElementById("crm-account-manager");
+          data.forEach(m => {
+            const opt = document.createElement("option");
+            opt.value = m.id;
+            opt.textContent = m.name || m.email;
+            sel.appendChild(opt);
+          });
+        } catch {}
+      }
+
+      loadStats();
+      loadAccountManagers();
+      loadAnalytics();
+      loadCustomers();
+    </script>
+  </body>
+</html>

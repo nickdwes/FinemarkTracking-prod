@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Vehicle List</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    .tbl-row:hover { background:#f8fafc; }
+    .tbl-row td { padding:10px 14px; border-bottom:1px solid #f1f5f9; font-size:.78rem; vertical-align:middle; }
+    .tbl-head th { padding:9px 14px; background:#f8fafc; font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#64748b; border-bottom:1px solid #e2e8f0; white-space:nowrap; }
+    .badge { display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:99px; font-size:.65rem; font-weight:700; white-space:nowrap; }
+    .badge-green  { background:#d1fae5; color:#065f46; }
+    .badge-blue   { background:#dbeafe; color:#1e40af; }
+    .badge-amber  { background:#fef3c7; color:#92400e; }
+    .badge-rose   { background:#ffe4e6; color:#9f1239; }
+    .badge-slate  { background:#f1f5f9; color:#475569; }
+    .badge-violet { background:#ede9fe; color:#5b21b6; }
+    .sort-btn { cursor:pointer; user-select:none; }
+    .sort-btn:hover { color:#1e293b; }
+    .sort-asc  { color:#2563eb !important; }
+    .sort-desc { color:#2563eb !important; }
+    tr.selected-row td { background:#eff6ff !important; }
+    .col-vis-item { display:flex; align-items:center; gap:6px; padding:5px 8px; border-radius:6px; cursor:pointer; font-size:.75rem; color:#334155; }
+    .col-vis-item:hover { background:#f1f5f9; }
+    input[type=checkbox].col-vis-cb { accent-color:#2563eb; }
+    .spinner { border:2.5px solid #e2e8f0; border-top-color:#2563eb; border-radius:50%; width:20px; height:20px; animation:spin .7s linear infinite; display:inline-block; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+  <div id="fm-header"></div>
+  <div class="flex min-h-screen pt-16">
+    <div id="fm-sidebar"></div>
+    <main class="flex-1 p-5 lg:p-7 overflow-x-hidden">
+      <div class="max-w-screen-2xl mx-auto space-y-5">
+
+        <!-- Page header -->
+        <div class="flex flex-wrap items-center gap-3 justify-between bg-white border border-slate-200 rounded-2xl px-6 py-4 shadow-sm">
+          <div>
+            <div class="flex items-center gap-2.5">
+              <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600 text-white shadow">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h9l2-2z"/><path stroke-linecap="round" stroke-linejoin="round" d="M13 11h4l2 5H13v-5z"/></svg>
+              </span>
+              <h1 class="text-xl font-extrabold tracking-tight text-slate-900">Vehicle Registry</h1>
+              <span id="total-badge" class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-600 border border-slate-200"></span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <a href="vehicles-dashboard.html" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+              Dashboard
+            </a>
+            <button id="btn-export" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              Export CSV
+            </button>
+            <div class="relative">
+              <button id="btn-columns" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>
+                Columns
+              </button>
+              <div id="col-vis-menu" class="hidden absolute right-0 top-full mt-1 w-52 bg-white border border-slate-200 rounded-xl shadow-lg z-30 p-2"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 items-end">
+            <div class="lg:col-span-2">
+              <label class="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1">Search</label>
+              <input id="f-search" type="text" placeholder="Registration, make, chassis…" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1">Make</label>
+              <input id="f-make" type="text" placeholder="TOYOTA, ISUZU…" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1">Has Device</label>
+              <select id="f-device" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30">
+                <option value="">All</option>
+                <option value="true">Installed</option>
+                <option value="false">Pending</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1">Ticket Status</label>
+              <select id="f-ticket" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30">
+                <option value="">All</option>
+                <option value="Assigned">Assigned</option>
+                <option value="Acknowledged">Acknowledged</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div class="flex gap-2">
+              <button id="btn-filter" class="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 transition">Apply</button>
+              <button id="btn-reset" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">Reset</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full min-w-max">
+              <thead>
+                <tr>
+                  <th class="tbl-head pl-4"><input type="checkbox" id="chk-all" class="rounded" /></th>
+                  <th class="tbl-head" data-col="registration"><span class="sort-btn" data-sort="registration">Reg. No <span class="sort-indicator"></span></span></th>
+                  <th class="tbl-head" data-col="make">Make / Model</th>
+                  <th class="tbl-head" data-col="year_of_manufacture">Year</th>
+                  <th class="tbl-head" data-col="customer">Customer</th>
+                  <th class="tbl-head" data-col="partner">Partner</th>
+                  <th class="tbl-head" data-col="device_status">Device Status</th>
+                  <th class="tbl-head" data-col="tickets">Tickets</th>
+                  <th class="tbl-head" data-col="latest_ticket_status">Latest Status</th>
+                  <th class="tbl-head" data-col="technician">Technician</th>
+                  <th class="tbl-head" data-col="created_at">Registered</th>
+                  <th class="tbl-head" data-col="actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="veh-table-body">
+                <tr><td colspan="12" class="text-center py-10 text-slate-400">
+                  <div class="inline-block spinner mr-2"></div>Loading vehicles…
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          <div class="flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50/50">
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-slate-500">Rows per page:</span>
+              <select id="page-size" class="border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-700 focus:outline-none">
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+            <div id="pagination-info" class="text-xs text-slate-500"></div>
+            <div class="flex items-center gap-1">
+              <button id="btn-prev" class="rounded-lg px-3 py-1.5 text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed" disabled>← Prev</button>
+              <div id="page-numbers" class="flex gap-1"></div>
+              <button id="btn-next" class="rounded-lg px-3 py-1.5 text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed" disabled>Next →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bulk action bar (hidden until rows selected) -->
+        <div id="bulk-bar" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-slate-900 text-white rounded-2xl px-5 py-3 shadow-2xl z-50">
+          <span id="bulk-count" class="text-sm font-bold"></span>
+          <span class="text-slate-500 text-xs">vehicles selected</span>
+          <button id="bulk-export" class="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg font-semibold">Export Selected</button>
+          <button id="bulk-clear" class="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg font-semibold">Clear</button>
+        </div>
+
+      </div><!-- /max-w -->
+    </main>
+  </div>
+  <div id="fm-footer"></div>
+
+  <script src="assets/app.js?v=202607011016"></script>
+  <script src="assets/layout.js?v=202607011016"></script>
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const { requirePageAccess, apiFetch, showToast } = window.FINEMARK_APP || {};
+    requirePageAccess?.();
+
+    const state = {
+      page: 1, pageSize: 25, total: 0,
+      sort: '', dir: 'asc',
+      filters: {},
+      data: [],
+      selected: new Set(),
+    };
+
+    // Read URL params for pre-filters
+    const urlParams = new URLSearchParams(location.search);
+    if (urlParams.get('hasDevice'))    { document.getElementById('f-device').value  = urlParams.get('hasDevice');    state.filters.hasDevice    = urlParams.get('hasDevice'); }
+    if (urlParams.get('ticketStatus')) { document.getElementById('f-ticket').value  = urlParams.get('ticketStatus'); state.filters.ticketStatus = urlParams.get('ticketStatus'); }
+
+    // Column visibility
+    const COLS = [
+      { key:'registration', label:'Reg. No', visible:true },
+      { key:'make', label:'Make/Model', visible:true },
+      { key:'year_of_manufacture', label:'Year', visible:true },
+      { key:'customer', label:'Customer', visible:true },
+      { key:'partner', label:'Partner', visible:false },
+      { key:'device_status', label:'Device Status', visible:true },
+      { key:'tickets', label:'Tickets', visible:true },
+      { key:'latest_ticket_status', label:'Latest Status', visible:true },
+      { key:'technician', label:'Technician', visible:false },
+      { key:'created_at', label:'Registered', visible:true },
+      { key:'actions', label:'Actions', visible:true },
+    ];
+
+    function buildColVisMenu() {
+      const menu = document.getElementById('col-vis-menu');
+      menu.innerHTML = COLS.map((c,i) => `
+        <label class="col-vis-item">
+          <input type="checkbox" class="col-vis-cb" data-col="${c.key}" ${c.visible?'checked':''} />
+          ${c.label}
+        </label>`).join('');
+      menu.querySelectorAll('.col-vis-cb').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const col = COLS.find(c => c.key === cb.dataset.col);
+          if (col) col.visible = cb.checked;
+          applyColVis();
+          renderTable(state.data);
+        });
+      });
+    }
+
+    function applyColVis() {
+      document.querySelectorAll('[data-col]').forEach(el => {
+        const col = COLS.find(c => c.key === el.dataset.col);
+        if (col) el.style.display = col.visible ? '' : 'none';
+      });
+    }
+
+    document.getElementById('btn-columns').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('col-vis-menu').classList.toggle('hidden');
+    });
+    document.addEventListener('click', () => document.getElementById('col-vis-menu').classList.add('hidden'));
+
+    function fmtDate(d) {
+      if (!d) return '—';
+      return new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'2-digit' });
+    }
+
+    function deviceBadge(v) {
+      if (v.completed_ticket_count > 0) return '<span class="badge badge-green">✓ Installed</span>';
+      if (v.open_ticket_count > 0)      return '<span class="badge badge-amber">⟳ In Progress</span>';
+      return '<span class="badge badge-slate">Pending</span>';
+    }
+
+    function ticketStatusBadge(status) {
+      if (!status) return '—';
+      const map = { Completed:'badge-green', Assigned:'badge-blue', Acknowledged:'badge-violet', 'In Progress':'badge-amber', Cancelled:'badge-rose' };
+      return `<span class="badge ${map[status]||'badge-slate'}">${status}</span>`;
+    }
+
+    function renderTable(rows) {
+      const tbody = document.getElementById('veh-table-body');
+      if (!rows?.length) {
+        tbody.innerHTML = '<tr><td colspan="12" class="text-center py-16 text-slate-400 text-sm">No vehicles found matching your filters.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map(v => `
+        <tr class="tbl-row${state.selected.has(v.id)?' selected-row':''}" data-id="${v.id}">
+          <td class="pl-4" data-col="check"><input type="checkbox" class="row-check rounded" data-id="${v.id}" ${state.selected.has(v.id)?'checked':''}></td>
+          <td data-col="registration">
+            <a href="vehicle-360.html?id=${encodeURIComponent(v.id)}" class="font-bold text-blue-700 hover:underline">${v.registration||'—'}</a>
+            ${v.vehicle_no ? `<div class="text-[10px] text-slate-400">${v.vehicle_no}</div>` : ''}
+          </td>
+          <td data-col="make">
+            <div class="font-semibold text-slate-800">${v.make||'—'}</div>
+            <div class="text-[11px] text-slate-500">${v.model||''}</div>
+          </td>
+          <td data-col="year_of_manufacture" class="text-slate-600">${v.year_of_manufacture||'—'}</td>
+          <td data-col="customer">
+            <div class="font-medium text-slate-800">${v.customer_name||v.customer_account_no||'—'}</div>
+            <div class="text-[10px] text-slate-400">${v.customer_segment||v.customer_type||''}</div>
+          </td>
+          <td data-col="partner" class="text-slate-600">${v.partner_name||'Direct'}</td>
+          <td data-col="device_status">${deviceBadge(v)}</td>
+          <td data-col="tickets">
+            <div class="text-xs text-slate-700">
+              ${v.ticket_count>0 ? `<span class="font-bold">${v.ticket_count}</span> total` : '—'}
+              ${v.open_ticket_count>0 ? ` · <span class="text-amber-600 font-semibold">${v.open_ticket_count} open</span>` : ''}
+            </div>
+            ${v.latest_ticket_no ? `<div class="text-[10px] text-slate-400">${v.latest_ticket_no}</div>` : ''}
+          </td>
+          <td data-col="latest_ticket_status">${ticketStatusBadge(v.latest_ticket_status)}</td>
+          <td data-col="technician" class="text-[11px] text-slate-500">${v.latest_technician_email||'—'}</td>
+          <td data-col="created_at" class="text-slate-500">${fmtDate(v.created_at)}</td>
+          <td data-col="actions">
+            <div class="flex items-center gap-1">
+              <a href="vehicle-360.html?id=${encodeURIComponent(v.id)}" title="View 360" class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-blue-600 hover:bg-blue-50 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              </a>
+              ${v.customer_id ? `<a href="crm-customer-360.html?id=${encodeURIComponent(v.customer_id)}" title="Customer" class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-emerald-600 hover:bg-emerald-50 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+              </a>` : ''}
+              ${v.latest_ticket_no ? `<a href="job-details.html?ticket=${encodeURIComponent(v.id)}" title="Latest Ticket" class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-violet-600 hover:bg-violet-50 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+              </a>` : ''}
+            </div>
+          </td>
+        </tr>`).join('');
+
+      // Row checkbox listeners
+      tbody.querySelectorAll('.row-check').forEach(cb => {
+        cb.addEventListener('change', () => {
+          if (cb.checked) state.selected.add(cb.dataset.id);
+          else state.selected.delete(cb.dataset.id);
+          updateBulkBar();
+          cb.closest('tr').classList.toggle('selected-row', cb.checked);
+        });
+      });
+
+      applyColVis();
+    }
+
+    function renderPagination() {
+      const totalPages = Math.ceil(state.total / state.pageSize) || 1;
+      document.getElementById('pagination-info').textContent = `Showing ${((state.page-1)*state.pageSize)+1}–${Math.min(state.page*state.pageSize,state.total)} of ${state.total.toLocaleString()}`;
+      document.getElementById('total-badge').textContent = `${state.total.toLocaleString()} vehicles`;
+      document.getElementById('btn-prev').disabled = state.page <= 1;
+      document.getElementById('btn-next').disabled = state.page >= totalPages;
+      const pn = document.getElementById('page-numbers');
+      const pages = [];
+      for (let p = Math.max(1, state.page-2); p <= Math.min(totalPages, state.page+2); p++) pages.push(p);
+      pn.innerHTML = pages.map(p => `<button class="rounded-lg px-3 py-1.5 text-xs font-semibold border ${p===state.page?'bg-blue-600 text-white border-blue-600':'border-slate-200 text-slate-600 hover:bg-slate-50'}" data-page="${p}">${p}</button>`).join('');
+      pn.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { state.page = +b.dataset.page; load(); }));
+    }
+
+    function updateBulkBar() {
+      const bar = document.getElementById('bulk-bar');
+      const cnt = state.selected.size;
+      if (cnt > 0) { bar.classList.remove('hidden'); document.getElementById('bulk-count').textContent = cnt; }
+      else bar.classList.add('hidden');
+    }
+
+    async function load() {
+      const tbody = document.getElementById('veh-table-body');
+      tbody.innerHTML = '<tr><td colspan="12" class="text-center py-10"><div class="inline-block spinner"></div></td></tr>';
+      try {
+        const q = new URLSearchParams({
+          page: state.page, pageSize: state.pageSize,
+          ...Object.fromEntries(Object.entries(state.filters).filter(([,v])=>v)),
+        });
+        const resp = await apiFetch(`/vehicles?${q}`);
+        state.data  = resp?.data ?? [];
+        state.total = resp?.pagination?.total ?? 0;
+        renderTable(state.data);
+        renderPagination();
+      } catch(e) {
+        tbody.innerHTML = `<tr><td colspan="12" class="text-center py-10 text-rose-500 text-sm">${e?.message||'Failed to load vehicles'}</td></tr>`;
+        showToast?.('Failed to load vehicles', 'error');
+      }
+    }
+
+    // Filter handlers
+    function collectFilters() {
+      state.filters = {
+        search:       document.getElementById('f-search').value.trim(),
+        make:         document.getElementById('f-make').value.trim(),
+        hasDevice:    document.getElementById('f-device').value,
+        ticketStatus: document.getElementById('f-ticket').value,
+      };
+    }
+
+    document.getElementById('btn-filter').addEventListener('click', () => { state.page=1; collectFilters(); load(); });
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      document.getElementById('f-search').value = '';
+      document.getElementById('f-make').value   = '';
+      document.getElementById('f-device').value = '';
+      document.getElementById('f-ticket').value = '';
+      state.filters = {}; state.page = 1; load();
+    });
+    ['f-search','f-make'].forEach(id => {
+      document.getElementById(id).addEventListener('keydown', e => { if(e.key==='Enter'){state.page=1;collectFilters();load();} });
+    });
+
+    document.getElementById('btn-prev').addEventListener('click', () => { if(state.page>1){state.page--;load();} });
+    document.getElementById('btn-next').addEventListener('click', () => { state.page++;load(); });
+    document.getElementById('page-size').addEventListener('change', e => { state.pageSize=+e.target.value; state.page=1; load(); });
+
+    document.getElementById('chk-all').addEventListener('change', e => {
+      state.data.forEach(v => { if(e.target.checked) state.selected.add(v.id); else state.selected.delete(v.id); });
+      renderTable(state.data);
+      updateBulkBar();
+    });
+    document.getElementById('bulk-clear').addEventListener('click', () => { state.selected.clear(); renderTable(state.data); updateBulkBar(); document.getElementById('chk-all').checked=false; });
+
+    // Export CSV
+    function exportCsv(rows) {
+      const headers = ['ID','Registration','Make','Model','Year','Customer','Partner','Device Status','Ticket Count','Latest Ticket','Status','Registered'];
+      const csvRows = [headers.join(',')];
+      rows.forEach(v => {
+        csvRows.push([
+          v.id, v.registration, v.make, v.model, v.year_of_manufacture,
+          v.customer_name||v.customer_account_no||'', v.partner_name||'Direct',
+          v.completed_ticket_count>0?'Installed':v.open_ticket_count>0?'In Progress':'Pending',
+          v.ticket_count, v.latest_ticket_no||'', v.latest_ticket_status||'',
+          v.created_at?.slice(0,10)
+        ].map(f=>`"${(f||'').toString().replace(/"/g,'""')}"`).join(','));
+      });
+      const blob = new Blob([csvRows.join('\n')], {type:'text/csv'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `vehicles_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+    }
+
+    document.getElementById('btn-export').addEventListener('click', () => exportCsv(state.data));
+    document.getElementById('bulk-export').addEventListener('click', () => exportCsv(state.data.filter(v=>state.selected.has(v.id))));
+
+    buildColVisMenu();
+    collectFilters();
+    load();
+  });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Executive Dashboard</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+    <script src="assets/chart.umd.min.js"></script>
+    <style>
+      .card-metric { transition: transform 0.18s, box-shadow 0.18s; }
+      .card-metric:hover { transform: translateY(-2px); box-shadow: 0 8px 24px 0 rgba(0,0,0,0.09); }
+      .card-metric:active { transform: translateY(0); }
+      .trend-up   { color: #16a34a; }
+      .trend-down { color: #dc2626; }
+      .trend-flat { color: #d97706; }
+      .alert-badge { animation: pulse-badge 1.8s infinite; }
+      @keyframes pulse-badge { 0%,100%{opacity:1} 50%{opacity:.55} }
+      /* time-range pill buttons */
+      .tr-btn { @apply px-3 py-1.5 rounded-full text-xs font-semibold border transition; }
+      .tr-btn.active { @apply bg-indigo-600 text-white border-indigo-600; }
+      .tr-btn:not(.active) { @apply bg-white text-slate-600 border-slate-200 hover:border-indigo-400 hover:text-indigo-600; }
+      /* section colour strips */
+      .sec-sales   { border-left: 4px solid #6366f1; }
+      .sec-finance { border-left: 4px solid #10b981; }
+      .sec-inv     { border-left: 4px solid #f59e0b; }
+      .sec-tech    { border-left: 4px solid #8b5cf6; }
+      .sec-hr      { border-left: 4px solid #0ea5e9; }
+      /* leaderboard rank */
+      .rank-1 { background: linear-gradient(135deg,#fbbf24,#f59e0b); }
+      .rank-2 { background: linear-gradient(135deg,#94a3b8,#64748b); }
+      .rank-3 { background: linear-gradient(135deg,#c2813a,#a16207); }
+      .rank-n { background: #e2e8f0; color: #64748b; }
+      canvas { max-height: 260px; }
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-5 lg:p-7 overflow-x-hidden">
+        <div class="max-w-screen-2xl mx-auto space-y-8">
+
+          <!-- ── Page header ────────────────────────────────────────── -->
+          <div class="flex flex-wrap items-start gap-3 justify-between">
+            <div>
+              <h1 class="text-3xl font-bold tracking-tight text-slate-900">Executive Dashboard</h1>
+              <p class="text-sm text-slate-500 mt-1">Organisation-wide performance · Real-time overview</p>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <span id="exec-role-badge" class="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 border border-indigo-100">Executive</span>
+
+              <!-- Demo / Live toggle -->
+              <div class="inline-flex items-center rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <button id="btn-demo-mode" onclick="setMode('demo')" class="px-3 py-1.5 text-xs font-semibold transition">
+                  🎭 Demo
+                </button>
+                <button id="btn-live-mode" onclick="setMode('live')" class="px-3 py-1.5 text-xs font-semibold transition">
+                  🟢 Live
+                </button>
+              </div>
+
+              <button onclick="exportDashboard()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:border-indigo-400 hover:text-indigo-700 transition shadow-sm">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Export
+              </button>
+              <button onclick="refreshAll()" id="refresh-btn" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:border-indigo-400 hover:text-indigo-700 transition shadow-sm">
+                <svg id="refresh-icon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          <!-- ── Global time slider ─────────────────────────────────── -->
+          <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm p-4 flex flex-wrap items-center gap-3">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide mr-1">Period</span>
+            <div class="flex flex-wrap gap-2" id="time-range-btns">
+              <button class="tr-btn" data-range="7">Last 7 days</button>
+              <button class="tr-btn active" data-range="30">Last 30 days</button>
+              <button class="tr-btn" data-range="90">Last 90 days</button>
+              <button class="tr-btn" data-range="180">Last 6 months</button>
+              <button class="tr-btn" data-range="365">Last 12 months</button>
+            </div>
+            <span class="ml-auto text-xs text-slate-400" id="last-updated">Updating…</span>
+          </div>
+
+          <!-- ══════════════════════════════════════════════════════════
+               1 · SALES PERFORMANCE
+          ════════════════════════════════════════════════════════════ -->
+          <section>
+            <div class="flex items-center gap-3 mb-4">
+              <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+              </span>
+              <h2 class="text-lg font-bold text-slate-800">Sales Performance</h2>
+              <a href="crm-leads.html" class="ml-auto text-xs text-indigo-600 hover:underline font-medium">View Sales →</a>
+            </div>
+
+            <!-- KPI cards -->
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <div class="card-metric cursor-pointer bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-xl p-5 shadow sec-sales border-l-0" onclick="openDrilldown('leads')">
+                <div class="flex items-center justify-between mb-3">
+                  <p class="text-xs font-semibold uppercase tracking-wide opacity-80">Active Leads</p>
+                  <svg class="w-5 h-5 opacity-70" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/></svg>
+                </div>
+                <p id="kpi-leads" class="text-4xl font-extrabold tracking-tight">—</p>
+                <p id="kpi-leads-trend" class="mt-2 text-xs opacity-80">Loading…</p>
+              </div>
+              <div class="card-metric cursor-pointer bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm" onclick="openDrilldown('quotes')">
+                <div class="flex items-center justify-between mb-3">
+                  <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold">Quotes Issued</p>
+                  <span class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                  </span>
+                </div>
+                <p id="kpi-quotes" class="text-3xl font-bold text-slate-900">—</p>
+                <p id="kpi-quotes-trend" class="mt-2 text-xs text-slate-500">Loading…</p>
+              </div>
+              <div class="card-metric cursor-pointer bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm" onclick="openDrilldown('quotes-accepted')">
+                <div class="flex items-center justify-between mb-3">
+                  <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold">Accepted</p>
+                  <span class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-500">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  </span>
+                </div>
+                <p id="kpi-accepted" class="text-3xl font-bold text-emerald-600">—</p>
+                <p id="kpi-accepted-trend" class="mt-2 text-xs text-slate-500">Loading…</p>
+              </div>
+              <div class="card-metric cursor-pointer bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm" onclick="openDrilldown('quotes-rejected')">
+                <div class="flex items-center justify-between mb-3">
+                  <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold">Rejected</p>
+                  <span class="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-500">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  </span>
+                </div>
+                <p id="kpi-rejected" class="text-3xl font-bold text-rose-500">—</p>
+                <p id="kpi-rejected-trend" class="mt-2 text-xs text-slate-500">Loading…</p>
+              </div>
+              <div class="card-metric cursor-pointer bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-xl p-5 shadow" onclick="openDrilldown('conversion')">
+                <div class="flex items-center justify-between mb-3">
+                  <p class="text-xs font-semibold uppercase tracking-wide opacity-80">Conversion Rate</p>
+                  <svg class="w-5 h-5 opacity-70" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                </div>
+                <p id="kpi-conversion" class="text-4xl font-extrabold tracking-tight">—%</p>
+                <p id="kpi-conversion-trend" class="mt-2 text-xs opacity-80">Loading…</p>
+              </div>
+            </div>
+
+            <!-- Charts row -->
+            <div class="grid gap-5 lg:grid-cols-2 mt-5">
+              <!-- Top sales by revenue -->
+              <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <h3 class="text-sm font-semibold text-slate-700">Top Sales Persons — Revenue</h3>
+                  <button onclick="exportChart('chart-sales-revenue')" class="text-xs text-indigo-500 hover:underline">Export</button>
+                </div>
+                <div class="p-4"><canvas id="chart-sales-revenue"></canvas></div>
+              </div>
+              <!-- Revenue by source -->
+              <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <h3 class="text-sm font-semibold text-slate-700">Revenue by Business Source</h3>
+                  <button onclick="exportChart('chart-biz-source')" class="text-xs text-indigo-500 hover:underline">Export</button>
+                </div>
+                <div class="p-4"><canvas id="chart-biz-source"></canvas></div>
+              </div>
+            </div>
+
+            <!-- Leaderboard row -->
+            <div class="grid gap-5 lg:grid-cols-2 mt-5">
+              <!-- Top by deals -->
+              <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+                <div class="px-5 py-4 border-b border-slate-100">
+                  <h3 class="text-sm font-semibold text-slate-700">Top Sales Persons — Deals Closed</h3>
+                </div>
+                <div class="p-3" id="lb-sales-deals">
+                  <p class="text-center text-slate-400 text-sm py-6">Loading…</p>
+                </div>
+              </div>
+              <!-- Top by revenue leaderboard -->
+              <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+                <div class="px-5 py-4 border-b border-slate-100">
+                  <h3 class="text-sm font-semibold text-slate-700">Leaderboard — Revenue Generated</h3>
+                </div>
+                <div class="p-3" id="lb-sales-revenue">
+                  <p class="text-center text-slate-400 text-sm py-6">Loading…</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ══════════════════════════════════════════════════════════
+               2 · FINANCE PERFORMANCE
+          ════════════════════════════════════════════════════════════ -->
+          <section>
+            <div class="flex items-center gap-3 mb-4">
+              <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </span>
+              <h2 class="text-lg font-bold text-slate-800">Finance Performance</h2>
+              <a href="finance-dashboard.html" class="ml-auto text-xs text-emerald-600 hover:underline font-medium">View Finance →</a>
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <div class="card-metric cursor-pointer bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-xl p-5 shadow" onclick="openDrilldown('quotes-value')">
+                <p class="text-xs font-semibold uppercase tracking-wide opacity-80 mb-3">Total Quotes Value</p>
+                <p id="kpi-quotes-value" class="text-2xl font-extrabold tracking-tight">—</p>
+                <p id="kpi-quotes-value-trend" class="mt-2 text-xs opacity-80">Loading…</p>
+              </div>
+              <div class="card-metric cursor-pointer bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm" onclick="openDrilldown('invoiced')">
+                <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">Total Invoiced</p>
+                <p id="kpi-invoiced" class="text-2xl font-bold text-slate-900">—</p>
+                <p id="kpi-invoiced-trend" class="mt-2 text-xs text-slate-500">Loading…</p>
+              </div>
+              <div class="card-metric cursor-pointer bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm" onclick="openDrilldown('payments')">
+                <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">Payments Received</p>
+                <p id="kpi-payments" class="text-2xl font-bold text-emerald-600">—</p>
+                <p id="kpi-payments-trend" class="mt-2 text-xs text-slate-500">Loading…</p>
+              </div>
+              <div class="card-metric cursor-pointer bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm" onclick="openDrilldown('outstanding')">
+                <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">Outstanding</p>
+                <p id="kpi-outstanding" class="text-2xl font-bold text-amber-500">—</p>
+                <p id="kpi-outstanding-trend" class="mt-2 text-xs text-slate-500">Loading…</p>
+              </div>
+              <div class="card-metric cursor-pointer bg-gradient-to-br from-rose-500 to-rose-700 text-white rounded-xl p-5 shadow" onclick="openDrilldown('overdue')">
+                <p class="text-xs font-semibold uppercase tracking-wide opacity-80 mb-3">Overdue</p>
+                <p id="kpi-overdue" class="text-2xl font-extrabold tracking-tight">—</p>
+                <p class="mt-1 text-[10px] opacity-80 alert-badge" id="overdue-alert">⚠ Requires attention</p>
+              </div>
+            </div>
+
+            <!-- Collection forecast chart -->
+            <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm mt-5">
+              <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-slate-700">Collection Forecast — Expected Inflows</h3>
+                <button onclick="exportChart('chart-forecast')" class="text-xs text-emerald-500 hover:underline">Export</button>
+              </div>
+              <div class="p-4">
+                <canvas id="chart-forecast" style="max-height:220px"></canvas>
+              </div>
+              <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 px-5 pb-5">
+                <div class="bg-slate-50 rounded-lg p-3 text-center">
+                  <p class="text-xs text-slate-500">7 days</p>
+                  <p id="fc-7" class="text-sm font-bold text-slate-900 mt-1">—</p>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-3 text-center">
+                  <p class="text-xs text-slate-500">15 days</p>
+                  <p id="fc-15" class="text-sm font-bold text-slate-900 mt-1">—</p>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-3 text-center">
+                  <p class="text-xs text-slate-500">30 days</p>
+                  <p id="fc-30" class="text-sm font-bold text-slate-900 mt-1">—</p>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-3 text-center">
+                  <p class="text-xs text-slate-500">45 days</p>
+                  <p id="fc-45" class="text-sm font-bold text-slate-900 mt-1">—</p>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-3 text-center">
+                  <p class="text-xs text-slate-500">60 days</p>
+                  <p id="fc-60" class="text-sm font-bold text-slate-900 mt-1">—</p>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-3 text-center">
+                  <p class="text-xs text-slate-500">90 days</p>
+                  <p id="fc-90" class="text-sm font-bold text-slate-900 mt-1">—</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ══════════════════════════════════════════════════════════
+               3 · INVENTORY INTELLIGENCE
+          ════════════════════════════════════════════════════════════ -->
+          <section>
+            <div class="flex items-center gap-3 mb-4">
+              <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 text-amber-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7"/></svg>
+              </span>
+              <h2 class="text-lg font-bold text-slate-800">Inventory Intelligence</h2>
+              <a href="inventory-dashboard.html" class="ml-auto text-xs text-amber-600 hover:underline font-medium">View Inventory →</a>
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div class="card-metric cursor-pointer bg-gradient-to-br from-amber-500 to-orange-600 text-white rounded-xl p-5 shadow" onclick="openDrilldown('inv-value')">
+                <p class="text-xs font-semibold uppercase tracking-wide opacity-80 mb-3">Total Inventory Value</p>
+                <p id="kpi-inv-value" class="text-2xl font-extrabold tracking-tight">—</p>
+                <p id="kpi-inv-value-trend" class="mt-2 text-xs opacity-80">Loading…</p>
+              </div>
+              <div class="card-metric cursor-pointer bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm" onclick="openDrilldown('inv-stock')">
+                <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">Items in Stock</p>
+                <p id="kpi-inv-stock" class="text-3xl font-bold text-slate-900">—</p>
+                <p id="kpi-inv-stock-trend" class="mt-2 text-xs text-slate-500">Loading…</p>
+              </div>
+              <div class="card-metric cursor-pointer bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm" onclick="openDrilldown('inv-lowstock')">
+                <div class="flex items-center justify-between mb-3">
+                  <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold">Low Stock Alerts</p>
+                  <span id="lowstock-dot" class="hidden w-2 h-2 rounded-full bg-rose-500 alert-badge"></span>
+                </div>
+                <p id="kpi-inv-low" class="text-3xl font-bold text-rose-500">—</p>
+                <p id="kpi-inv-low-trend" class="mt-2 text-xs text-slate-500">Loading…</p>
+              </div>
+              <div class="card-metric cursor-pointer bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm" onclick="openDrilldown('inv-reserved')">
+                <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">Reserved Inventory</p>
+                <p id="kpi-inv-reserved" class="text-3xl font-bold text-amber-600">—</p>
+                <p id="kpi-inv-reserved-trend" class="mt-2 text-xs text-slate-500">Loading…</p>
+              </div>
+            </div>
+
+            <div class="grid gap-5 lg:grid-cols-2 mt-5">
+              <!-- Top selling products -->
+              <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <h3 class="text-sm font-semibold text-slate-700">Top Selling Products</h3>
+                  <button onclick="exportChart('chart-top-products')" class="text-xs text-amber-500 hover:underline">Export</button>
+                </div>
+                <div class="p-4"><canvas id="chart-top-products"></canvas></div>
+              </div>
+              <!-- Inventory turnover by category -->
+              <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <h3 class="text-sm font-semibold text-slate-700">Turnover Rate by Category</h3>
+                  <button onclick="exportChart('chart-inv-turnover')" class="text-xs text-amber-500 hover:underline">Export</button>
+                </div>
+                <div class="p-4"><canvas id="chart-inv-turnover"></canvas></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ══════════════════════════════════════════════════════════
+               4 · TECHNICAL OPERATIONS
+          ════════════════════════════════════════════════════════════ -->
+          <section>
+            <div class="flex items-center gap-3 mb-4">
+              <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-violet-100 text-violet-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              </span>
+              <h2 class="text-lg font-bold text-slate-800">Technical Operations</h2>
+              <a href="technical.html" class="ml-auto text-xs text-violet-600 hover:underline font-medium">View Technical →</a>
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div class="card-metric cursor-pointer bg-gradient-to-br from-violet-600 to-purple-700 text-white rounded-xl p-5 shadow" onclick="openDrilldown('installs-done')">
+                <p class="text-xs font-semibold uppercase tracking-wide opacity-80 mb-3">Completed Installations</p>
+                <p id="kpi-inst-done" class="text-4xl font-extrabold tracking-tight">—</p>
+                <p id="kpi-inst-done-trend" class="mt-2 text-xs opacity-80">Loading…</p>
+              </div>
+              <div class="card-metric cursor-pointer bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm" onclick="openDrilldown('installs-progress')">
+                <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">In Progress</p>
+                <p id="kpi-inst-progress" class="text-3xl font-bold text-violet-600">—</p>
+                <p id="kpi-inst-progress-trend" class="mt-2 text-xs text-slate-500">Loading…</p>
+              </div>
+              <div class="card-metric cursor-pointer bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm" onclick="openDrilldown('installs-pending')">
+                <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">Pending</p>
+                <p id="kpi-inst-pending" class="text-3xl font-bold text-amber-500">—</p>
+                <p id="kpi-inst-pending-trend" class="mt-2 text-xs text-slate-500">Loading…</p>
+              </div>
+              <div class="card-metric cursor-pointer bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm" onclick="openDrilldown('avg-time')">
+                <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">Avg Completion Time</p>
+                <p id="kpi-inst-avgtime" class="text-3xl font-bold text-slate-900">—</p>
+                <p id="kpi-inst-avgtime-trend" class="mt-2 text-xs text-slate-500">Loading…</p>
+              </div>
+            </div>
+
+            <div class="grid gap-5 lg:grid-cols-2 mt-5">
+              <!-- Installations by customer type -->
+              <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <h3 class="text-sm font-semibold text-slate-700">Installations by Customer Type</h3>
+                  <button onclick="exportChart('chart-inst-type')" class="text-xs text-violet-500 hover:underline">Export</button>
+                </div>
+                <div class="p-4 flex items-center justify-center"><canvas id="chart-inst-type" style="max-height:220px;max-width:280px"></canvas></div>
+              </div>
+              <!-- Technician leaderboard -->
+              <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+                <div class="px-5 py-4 border-b border-slate-100">
+                  <h3 class="text-sm font-semibold text-slate-700">Technician Performance Leaderboard</h3>
+                </div>
+                <div class="p-3" id="lb-technicians">
+                  <p class="text-center text-slate-400 text-sm py-6">Loading…</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ══════════════════════════════════════════════════════════
+               5 · HR WORKFORCE OVERVIEW
+          ════════════════════════════════════════════════════════════ -->
+          <section>
+            <div class="flex items-center gap-3 mb-4">
+              <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-sky-100 text-sky-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+              </span>
+              <h2 class="text-lg font-bold text-slate-800">HR Workforce Overview</h2>
+              <a href="hr-dashboard.html" class="ml-auto text-xs text-sky-600 hover:underline font-medium">View HR →</a>
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <div class="card-metric cursor-pointer bg-gradient-to-br from-sky-500 to-cyan-600 text-white rounded-xl p-5 shadow" onclick="openDrilldown('hr-total')">
+                <p class="text-xs font-semibold uppercase tracking-wide opacity-80 mb-3">Total Employees</p>
+                <p id="kpi-hr-total" class="text-4xl font-extrabold tracking-tight">—</p>
+                <p id="kpi-hr-total-trend" class="mt-2 text-xs opacity-80">Loading…</p>
+              </div>
+              <div class="card-metric cursor-pointer bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm" onclick="openDrilldown('hr-active')">
+                <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">Active</p>
+                <p id="kpi-hr-active" class="text-3xl font-bold text-emerald-600">—</p>
+                <p id="kpi-hr-active-trend" class="mt-2 text-xs text-slate-500">Loading…</p>
+              </div>
+              <div class="card-metric cursor-pointer bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm" onclick="openDrilldown('hr-leave')">
+                <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">On Leave</p>
+                <p id="kpi-hr-leave" class="text-3xl font-bold text-amber-500">—</p>
+                <p id="kpi-hr-leave-trend" class="mt-2 text-xs text-slate-500">Loading…</p>
+              </div>
+              <div class="card-metric cursor-pointer bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm" onclick="openDrilldown('hr-probation')">
+                <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">Probation</p>
+                <p id="kpi-hr-probation" class="text-3xl font-bold text-violet-500">—</p>
+                <p id="kpi-hr-probation-trend" class="mt-2 text-xs text-slate-500">Loading…</p>
+              </div>
+              <div class="card-metric cursor-pointer bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm" onclick="openDrilldown('hr-contract')">
+                <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">Contract</p>
+                <p id="kpi-hr-contract" class="text-3xl font-bold text-slate-500">—</p>
+                <p id="kpi-hr-contract-trend" class="mt-2 text-xs text-slate-500">Loading…</p>
+              </div>
+            </div>
+
+            <div class="grid gap-5 lg:grid-cols-2 mt-5">
+              <!-- Distribution by department -->
+              <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <h3 class="text-sm font-semibold text-slate-700">Headcount by Department</h3>
+                  <button onclick="exportChart('chart-hr-dept')" class="text-xs text-sky-500 hover:underline">Export</button>
+                </div>
+                <div class="p-4"><canvas id="chart-hr-dept"></canvas></div>
+              </div>
+              <!-- Distribution by role category -->
+              <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <h3 class="text-sm font-semibold text-slate-700">Distribution by Role Category</h3>
+                  <button onclick="exportChart('chart-hr-role')" class="text-xs text-sky-500 hover:underline">Export</button>
+                </div>
+                <div class="p-4 flex items-center justify-center"><canvas id="chart-hr-role" style="max-height:220px;max-width:280px"></canvas></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ── Performance Indicators footer ─────────────────────── -->
+          <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm p-5">
+            <h3 class="text-sm font-semibold text-slate-700 mb-4">Organisation Health Indicators</h3>
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" id="health-indicators">
+              <div class="flex items-center gap-3 bg-slate-50 rounded-lg p-3">
+                <span class="text-xl" id="hi-revenue-icon">⬆</span>
+                <div>
+                  <p class="text-xs text-slate-500">Revenue Growth</p>
+                  <p id="hi-revenue" class="text-sm font-bold text-slate-900">—</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-3 bg-slate-50 rounded-lg p-3">
+                <span class="text-xl" id="hi-conversion-icon">⬆</span>
+                <div>
+                  <p class="text-xs text-slate-500">Sales Conversion</p>
+                  <p id="hi-conversion" class="text-sm font-bold text-slate-900">—</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-3 bg-slate-50 rounded-lg p-3">
+                <span class="text-xl" id="hi-install-icon">⬆</span>
+                <div>
+                  <p class="text-xs text-slate-500">Avg Installation Time</p>
+                  <p id="hi-install" class="text-sm font-bold text-slate-900">—</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-3 bg-slate-50 rounded-lg p-3">
+                <span class="text-xl" id="hi-inv-icon">⬆</span>
+                <div>
+                  <p class="text-xs text-slate-500">Inventory Restock Alerts</p>
+                  <p id="hi-inv" class="text-sm font-bold text-slate-900">—</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- spacing -->
+          <div class="h-6"></div>
+        </div><!-- max-w -->
+      </main>
+    </div><!-- flex -->
+    <div id="fm-footer"></div>
+
+    <!-- ══ DRILLDOWN MODAL ══════════════════════════════════════════ -->
+    <div id="drilldown-overlay" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onclick="closeDrilldown(event)">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 p-6 relative max-h-[85vh] overflow-y-auto" onclick="event.stopPropagation()">
+        <button onclick="closeDrilldown(null)" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+        <h2 id="dd-title" class="text-lg font-bold text-slate-900 mb-1">Detail View</h2>
+        <p id="dd-subtitle" class="text-xs text-slate-500 mb-5">—</p>
+        <div id="dd-body" class="space-y-3 text-sm text-slate-700">Loading…</div>
+      </div>
+    </div>
+
+    <!-- ══ SCRIPTS ══════════════════════════════════════════════════ -->
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+    (() => {
+      "use strict";
+
+      // ── helpers ───────────────────────────────────────────────────
+      const fmt = window.FINEMARK_APP?.formatKES ?? ((n) => `KES ${Number(n).toLocaleString()}`);
+      const api = window.FINEMARK_APP?.apiFetch;
+      const $ = (id) => document.getElementById(id);
+      let currentRange = 30;
+      let currentMode = sessionStorage.getItem("exec_dash_mode") || "demo"; // 'demo' | 'live'
+      const chartRefs = {};
+
+      // ── mode toggle UI ────────────────────────────────────────────
+      function applyModeUI() {
+        const demoBtn = $("btn-demo-mode");
+        const liveBtn = $("btn-live-mode");
+        if (!demoBtn || !liveBtn) return;
+        if (currentMode === "live") {
+          liveBtn.className  = "px-3 py-1.5 text-xs font-semibold bg-emerald-600 text-white transition";
+          demoBtn.className  = "px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition";
+        } else {
+          demoBtn.className  = "px-3 py-1.5 text-xs font-semibold bg-indigo-600 text-white transition";
+          liveBtn.className  = "px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition";
+        }
+      }
+
+      window.setMode = (mode) => {
+        currentMode = mode;
+        sessionStorage.setItem("exec_dash_mode", mode);
+        applyModeUI();
+        loadAll();
+      };
+
+      // ── time range selector ───────────────────────────────────────
+      document.querySelectorAll("#time-range-btns .tr-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll("#time-range-btns .tr-btn").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          currentRange = parseInt(btn.dataset.range, 10);
+          loadAll();
+        });
+      });
+
+      // ── chart factory ─────────────────────────────────────────────
+      function makeChart(canvasId, config) {
+        if (chartRefs[canvasId]) chartRefs[canvasId].destroy();
+        const ctx = document.getElementById(canvasId)?.getContext("2d");
+        if (!ctx) return;
+        chartRefs[canvasId] = new Chart(ctx, config);
+        return chartRefs[canvasId];
+      }
+
+      // ── seed data generator (simulates API response) ──────────────
+      function seedRand(seed) {
+        let s = seed;
+        return () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+      }
+
+      function generateData(range) {
+        const r = seedRand(range * 17 + 3);
+        const scale = range / 30;
+        return {
+          range,
+          // Sales
+          leads: Math.round(120 * scale + r() * 40),
+          quotes: Math.round(88 * scale + r() * 30),
+          accepted: Math.round(54 * scale + r() * 20),
+          rejected: Math.round(18 * scale + r() * 10),
+          conversion: +(54 / (54 + 18 + r() * 5) * 100).toFixed(1),
+          // Finance
+          quotesValue:  Math.round(4800000 * scale + r() * 800000),
+          invoiced:     Math.round(3600000 * scale + r() * 600000),
+          payments:     Math.round(2800000 * scale + r() * 500000),
+          outstanding:  Math.round(800000  + r() * 200000),
+          overdue:      Math.round(340000  + r() * 100000),
+          forecast:     [210000,480000,920000,1300000,1750000,2400000].map((v) => Math.round(v * (0.85 + r() * 0.3))),
+          // Inventory
+          invValue:   Math.round(12000000 + r() * 2000000),
+          invStock:   Math.round(1800 + r() * 400),
+          invLow:     Math.round(14 + r() * 12),
+          invReserved:Math.round(320 + r() * 80),
+          // Technical
+          instDone:     Math.round(180 * scale + r() * 40),
+          instProgress: Math.round(22 + r() * 10),
+          instPending:  Math.round(35 + r() * 15),
+          avgTime:      +(2.8 + r() * 0.9).toFixed(1),
+          // HR
+          hrTotal:     Math.round(134 + r() * 10),
+          hrActive:    Math.round(118 + r() * 8),
+          hrLeave:     Math.round(8 + r() * 4),
+          hrProbation: Math.round(4 + r() * 3),
+          hrContract:  Math.round(4 + r() * 3),
+        };
+      }
+
+      // ── trend helper ──────────────────────────────────────────────
+      function trendText(current, previous, suffix = "") {
+        const pct = previous ? (((current - previous) / previous) * 100).toFixed(1) : 0;
+        const up = current >= previous;
+        const arrow = up ? "▲" : "▼";
+        const cls = up ? "trend-up" : "trend-down";
+        return `<span class="${cls}">${arrow} ${Math.abs(pct)}% vs prev period</span>`;
+      }
+
+      // ── update all KPI text fields ────────────────────────────────
+      function populateKPIs(d, prev) {
+        // Sales
+        $("kpi-leads").textContent = d.leads.toLocaleString();
+        $("kpi-leads-trend").innerHTML = trendText(d.leads, prev.leads);
+        $("kpi-quotes").textContent = d.quotes.toLocaleString();
+        $("kpi-quotes-trend").innerHTML = trendText(d.quotes, prev.quotes);
+        $("kpi-accepted").textContent = d.accepted.toLocaleString();
+        $("kpi-accepted-trend").innerHTML = trendText(d.accepted, prev.accepted);
+        $("kpi-rejected").textContent = d.rejected.toLocaleString();
+        $("kpi-rejected-trend").innerHTML = trendText(d.rejected, prev.rejected, "");
+        $("kpi-conversion").textContent = d.conversion + "%";
+        $("kpi-conversion-trend").innerHTML = trendText(d.conversion, prev.conversion);
+        // Finance
+        $("kpi-quotes-value").textContent = fmt(d.quotesValue);
+        $("kpi-quotes-value-trend").innerHTML = trendText(d.quotesValue, prev.quotesValue);
+        $("kpi-invoiced").textContent = fmt(d.invoiced);
+        $("kpi-invoiced-trend").innerHTML = trendText(d.invoiced, prev.invoiced);
+        $("kpi-payments").textContent = fmt(d.payments);
+        $("kpi-payments-trend").innerHTML = trendText(d.payments, prev.payments);
+        $("kpi-outstanding").textContent = fmt(d.outstanding);
+        $("kpi-outstanding-trend").innerHTML = trendText(d.outstanding, prev.outstanding);
+        $("kpi-overdue").textContent = fmt(d.overdue);
+        // Inventory
+        $("kpi-inv-value").textContent = fmt(d.invValue);
+        $("kpi-inv-value-trend").innerHTML = trendText(d.invValue, prev.invValue);
+        $("kpi-inv-stock").textContent = d.invStock.toLocaleString();
+        $("kpi-inv-stock-trend").innerHTML = trendText(d.invStock, prev.invStock);
+        $("kpi-inv-low").textContent = d.invLow.toLocaleString();
+        $("kpi-inv-low-trend").textContent = d.invLow > 10 ? "⚠ Reorder required" : "Within threshold";
+        if (d.invLow > 0) $("lowstock-dot").classList.remove("hidden");
+        $("kpi-inv-reserved").textContent = d.invReserved.toLocaleString();
+        $("kpi-inv-reserved-trend").innerHTML = trendText(d.invReserved, prev.invReserved);
+        // Technical
+        $("kpi-inst-done").textContent = d.instDone.toLocaleString();
+        $("kpi-inst-done-trend").innerHTML = trendText(d.instDone, prev.instDone);
+        $("kpi-inst-progress").textContent = d.instProgress.toLocaleString();
+        $("kpi-inst-progress-trend").textContent = "Active jobs";
+        $("kpi-inst-pending").textContent = d.instPending.toLocaleString();
+        $("kpi-inst-pending-trend").textContent = "Awaiting assignment";
+        $("kpi-inst-avgtime").textContent = d.avgTime + " hrs";
+        $("kpi-inst-avgtime-trend").innerHTML = trendText(d.avgTime, prev.avgTime);
+        // HR
+        $("kpi-hr-total").textContent = d.hrTotal.toLocaleString();
+        $("kpi-hr-total-trend").innerHTML = trendText(d.hrTotal, prev.hrTotal);
+        $("kpi-hr-active").textContent = d.hrActive.toLocaleString();
+        $("kpi-hr-active-trend").textContent = "On active duty";
+        $("kpi-hr-leave").textContent = d.hrLeave.toLocaleString();
+        $("kpi-hr-leave-trend").textContent = "Currently on leave";
+        $("kpi-hr-probation").textContent = d.hrProbation.toLocaleString();
+        $("kpi-hr-probation-trend").textContent = "Probation period";
+        $("kpi-hr-contract").textContent = d.hrContract.toLocaleString();
+        $("kpi-hr-contract-trend").textContent = "Contract staff";
+        // Collection forecast buckets
+        const labels = ["7d","15d","30d","45d","60d","90d"];
+        const fcIds = ["fc-7","fc-15","fc-30","fc-45","fc-60","fc-90"];
+        d.forecast.forEach((v, i) => { $(fcIds[i]).textContent = fmt(v); });
+        // Health indicators
+        const revPct = prev.invoiced ? (((d.invoiced - prev.invoiced) / prev.invoiced) * 100).toFixed(1) : 0;
+        const isRevUp = d.invoiced >= prev.invoiced;
+        $("hi-revenue").textContent = `${isRevUp ? "+" : ""}${revPct}% vs prev period`;
+        $("hi-revenue-icon").textContent = isRevUp ? "📈" : "📉";
+        $("hi-conversion").textContent = `${d.conversion}% conversion rate`;
+        $("hi-conversion-icon").textContent = d.conversion >= 55 ? "🟢" : d.conversion >= 40 ? "🟡" : "🔴";
+        $("hi-install").textContent = `${d.avgTime} hrs avg`;
+        $("hi-install-icon").textContent = d.avgTime <= 3 ? "🟢" : d.avgTime <= 5 ? "🟡" : "🔴";
+        $("hi-inv").textContent = `${d.invLow} items need reorder`;
+        $("hi-inv-icon").textContent = d.invLow === 0 ? "🟢" : d.invLow <= 10 ? "🟡" : "🔴";
+      }
+
+      // ── chart: sales revenue by person ───────────────────────────
+      function renderSalesRevenueChart(d) {
+        let sorted;
+        if (d._salesPersons && d._salesPersons.length) {
+          sorted = d._salesPersons;
+        } else {
+          const r = seedRand(d.range * 5);
+          const people = ["Alice M.","Brian K.","Carol N.","David O.","Eve W.","Frank R.","Grace L."];
+          sorted = people.map((n) => ({ n, v: Math.round(d.invoiced * (0.08 + r() * 0.22)) }))
+                         .sort((a,b) => b.v - a.v);
+        }
+        makeChart("chart-sales-revenue", {
+          type: "bar",
+          data: {
+            labels: sorted.map(x => x.n),
+            datasets: [{
+              label: "Revenue (KES)",
+              data: sorted.map(x => x.v),
+              backgroundColor: ["#6366f1","#818cf8","#a5b4fc","#c7d2fe","#e0e7ff","#6366f1","#818cf8"],
+              borderRadius: 6,
+            }],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: true,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => fmt(c.raw) } } },
+            scales: { y: { ticks: { callback: (v) => `${(v/1e6).toFixed(1)}M`, font: { size: 10 } }, grid: { color: "#f1f5f9" } }, x: { ticks: { font: { size: 10 } } } },
+          },
+        });
+        renderSalesLeaderboard(sorted, "revenue");
+      }
+
+      // ── chart: business source ────────────────────────────────────
+      function renderBizSourceChart(d) {
+        let sources, values;
+        if (d._bizSource && Object.keys(d._bizSource).length) {
+          const entries = Object.entries(d._bizSource).sort((a,b) => b[1] - a[1]);
+          sources = entries.map(e => e[0]);
+          values  = entries.map(e => e[1]);
+        } else {
+          const r = seedRand(d.range * 11);
+          sources = ["Walk-in","Referral","Online Inquiry","Field Sales","Bank Partnership","Car Yard","Other"];
+          values  = [0.18, 0.22, 0.15, 0.18, 0.12, 0.10, 0.05].map((w) => Math.round(d.invoiced * w * (0.8 + r() * 0.4)));
+        }
+        makeChart("chart-biz-source", {
+          type: "doughnut",
+          data: {
+            labels: sources,
+            datasets: [{
+              data: values,
+              backgroundColor: ["#6366f1","#10b981","#f59e0b","#ef4444","#8b5cf6","#0ea5e9","#d1d5db"],
+              borderWidth: 2, borderColor: "#fff",
+            }],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: true,
+            plugins: {
+              legend: { position: "right", labels: { font: { size: 11 }, boxWidth: 12 } },
+              tooltip: { callbacks: { label: (c) => `${c.label}: ${fmt(c.raw)}` } },
+            },
+          },
+        });
+      }
+
+      // ── leaderboard renderers ─────────────────────────────────────
+      function rankBadge(i) {
+        const cls = i === 0 ? "rank-1 text-white" : i === 1 ? "rank-2 text-white" : i === 2 ? "rank-3 text-white" : "rank-n";
+        return `<span class="inline-flex w-6 h-6 rounded-full items-center justify-center text-xs font-bold ${cls}">${i+1}</span>`;
+      }
+
+      function renderSalesLeaderboard(sorted, type) {
+        const r = seedRand(99 + sorted.length);
+        const lbDeals = sorted.map((p, i) => {
+          const deals = Math.round(8 + r() * 18);
+          const rev = p.v;
+          return `<div class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition cursor-default">
+            ${rankBadge(i)}
+            <span class="flex-1 text-sm font-medium text-slate-800">${p.n}</span>
+            <span class="text-xs text-slate-500">${deals} deals</span>
+            <span class="text-xs font-semibold text-indigo-700 w-28 text-right">${fmt(rev)}</span>
+          </div>`;
+        }).join("");
+        $("lb-sales-deals").innerHTML = lbDeals;
+        $("lb-sales-revenue").innerHTML = sorted.map((p, i) => `
+          <div class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition cursor-default">
+            ${rankBadge(i)}
+            <span class="flex-1 text-sm font-medium text-slate-800">${p.n}</span>
+            <div class="w-32 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+              <div class="h-1.5 rounded-full bg-indigo-500" style="width:${Math.round(p.v/sorted[0].v*100)}%"></div>
+            </div>
+            <span class="text-xs font-semibold text-indigo-700 w-28 text-right">${fmt(p.v)}</span>
+          </div>`).join("");
+      }
+
+      // ── chart: collection forecast ────────────────────────────────
+      function renderForecastChart(d) {
+        makeChart("chart-forecast", {
+          type: "bar",
+          data: {
+            labels: ["7 days","15 days","30 days","45 days","60 days","90 days"],
+            datasets: [
+              { label: "Expected", data: d.forecast, backgroundColor: "#10b981cc", borderRadius: 6 },
+              { label: "Received", data: d.forecast.map((v,i) => Math.round(v * (0.3 + i * 0.05))), backgroundColor: "#6ee7b7cc", borderRadius: 6 },
+            ],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: true,
+            plugins: { legend: { labels: { font: { size: 11 } } }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmt(c.raw)}` } } },
+            scales: { x: { ticks: { font: { size: 10 } } }, y: { ticks: { callback: (v) => `${(v/1e6).toFixed(1)}M`, font: { size: 10 } }, stacked: false, grid: { color: "#f1f5f9" } } },
+          },
+        });
+      }
+
+      // ── chart: top products ───────────────────────────────────────
+      function renderTopProductsChart(d) {
+        const r = seedRand(d.range * 7);
+        const products = ["GPS Tracker Pro","Cargo Tracker X2","Fuel Sensor FS3","DashCam 4K","AntiTheft Shield","Fleet Tracker","Temp Sensor"];
+        const sold = products.map(() => Math.round(30 + r() * 120));
+        const pairs = products.map((n,i) => ({n, v: sold[i]})).sort((a,b) => b.v - a.v);
+        makeChart("chart-top-products", {
+          type: "bar",
+          data: {
+            labels: pairs.map(x => x.n),
+            datasets: [{ label: "Units Sold", data: pairs.map(x => x.v), backgroundColor: ["#f59e0b","#fbbf24","#fcd34d","#fde68a","#fef3c7","#f59e0b","#fbbf24"], borderRadius: 6 }],
+          },
+          options: {
+            indexAxis: "y",
+            responsive: true, maintainAspectRatio: true,
+            plugins: { legend: { display: false } },
+            scales: { x: { ticks: { font: { size: 10 } }, grid: { color: "#f1f5f9" } }, y: { ticks: { font: { size: 10 } } } },
+          },
+        });
+      }
+
+      // ── chart: inventory turnover ─────────────────────────────────
+      function renderTurnoverChart(d) {
+        const r = seedRand(d.range * 9);
+        const cats = ["Vehicle Trackers","Cargo Trackers","Fuel Sensors","Dash Cameras","Anti-Theft Systems"];
+        makeChart("chart-inv-turnover", {
+          type: "radar",
+          data: {
+            labels: cats,
+            datasets: [{
+              label: "Turnover Rate",
+              data: cats.map(() => +(1.5 + r() * 4.5).toFixed(1)),
+              backgroundColor: "rgba(245,158,11,0.15)",
+              borderColor: "#f59e0b",
+              pointBackgroundColor: "#f59e0b",
+              borderWidth: 2,
+            }],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: true,
+            plugins: { legend: { display: false } },
+            scales: { r: { ticks: { font: { size: 9 } }, grid: { color: "#f1f5f9" } } },
+          },
+        });
+      }
+
+      // ── chart: installations by customer type ─────────────────────
+      function renderInstTypeChart(d) {
+        let indiv, corp;
+        if (d._instIndiv != null) {
+          indiv = d._instIndiv;
+          corp  = d._instCorp || 0;
+        } else {
+          const r = seedRand(d.range * 3);
+          indiv = Math.round(d.instDone * (0.4 + r() * 0.2));
+          corp  = d.instDone - indiv;
+        }
+        makeChart("chart-inst-type", {
+          type: "pie",
+          data: {
+            labels: ["Individual","Corporate"],
+            datasets: [{ data: [indiv, corp], backgroundColor: ["#8b5cf6","#a78bfa"], borderWidth: 2, borderColor: "#fff" }],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: true,
+            plugins: { legend: { position: "bottom", labels: { font: { size: 11 }, boxWidth: 12 } }, tooltip: { callbacks: { label: (c) => `${c.label}: ${c.raw} installs` } } },
+          },
+        });
+      }
+
+      // ── technician leaderboard ────────────────────────────────────
+      function renderTechLeaderboard(d) {
+        let techs;
+        if (d._techList && d._techList.length) {
+          const rr = seedRand(77);
+          techs = d._techList.map(t => ({ ...t, rating: (4.0 + rr() * 0.9).toFixed(1) }));
+        } else {
+          const r = seedRand(d.range * 41);
+          techs = [
+            { n: "James M.",  done: Math.round(25 + r() * 30), rating: (4.2 + r() * 0.8).toFixed(1), success: Math.round(92 + r() * 7) },
+            { n: "Peter O.",  done: Math.round(22 + r() * 28), rating: (4.0 + r() * 0.9).toFixed(1), success: Math.round(90 + r() * 8) },
+            { n: "Samuel K.", done: Math.round(18 + r() * 25), rating: (3.8 + r() * 1.0).toFixed(1), success: Math.round(88 + r() * 9) },
+            { n: "Mary W.",   done: Math.round(16 + r() * 22), rating: (4.1 + r() * 0.8).toFixed(1), success: Math.round(91 + r() * 7) },
+            { n: "Grace N.",  done: Math.round(14 + r() * 20), rating: (3.9 + r() * 0.9).toFixed(1), success: Math.round(87 + r() * 9) },
+          ].sort((a, b) => b.done - a.done);
+        }
+        $("lb-technicians").innerHTML = techs.map((t, i) => `
+          <div class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition cursor-default">
+            ${rankBadge(i)}
+            <span class="flex-1 text-sm font-medium text-slate-800">${t.n}</span>
+            <span class="text-xs text-slate-500">${t.done} installs</span>
+            <span class="text-xs font-semibold text-amber-600">★ ${t.rating}</span>
+            <span class="text-xs font-semibold text-violet-700 w-12 text-right">${t.success}%</span>
+          </div>`).join("");
+      }
+
+      // ── chart: HR department ──────────────────────────────────────
+      function renderHrDeptChart(d) {
+        let depts, counts;
+        if (d._deptMap && Object.keys(d._deptMap).length) {
+          const entries = Object.entries(d._deptMap).sort((a,b) => b[1] - a[1]);
+          depts  = entries.map(e => e[0]);
+          counts = entries.map(e => e[1]);
+        } else {
+          const r = seedRand(d.range * 13);
+          depts  = ["Sales","Technical","Finance","HR","Administration","IT","Operations"];
+          counts = depts.map(() => Math.round(8 + r() * 20));
+        }
+        makeChart("chart-hr-dept", {
+          type: "bar",
+          data: {
+            labels: depts,
+            datasets: [{ label: "Headcount", data: counts, backgroundColor: ["#0ea5e9","#0284c7","#38bdf8","#7dd3fc","#bae6fd","#0ea5e9","#0284c7"], borderRadius: 6 }],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { ticks: { font: { size: 10 } }, grid: { color: "#f1f5f9" } }, x: { ticks: { font: { size: 10 } } } },
+          },
+        });
+      }
+
+      // ── chart: HR role category ───────────────────────────────────
+      function renderHrRoleChart(d) {
+        let roles, counts;
+        if (d._roleMap && Object.keys(d._roleMap).length) {
+          const entries = Object.entries(d._roleMap).sort((a,b) => b[1] - a[1]);
+          roles  = entries.map(e => e[0]);
+          counts = entries.map(e => e[1]);
+        } else {
+          const r = seedRand(d.range * 17);
+          roles  = ["Sales","Technical","Finance","HR","Administration"];
+          counts = [0.22, 0.28, 0.15, 0.10, 0.25].map((w) => Math.round(d.hrTotal * w * (0.8 + r() * 0.4)));
+        }
+        makeChart("chart-hr-role", {
+          type: "doughnut",
+          data: {
+            labels: roles,
+            datasets: [{ data: counts, backgroundColor: ["#6366f1","#8b5cf6","#10b981","#f59e0b","#0ea5e9"], borderWidth: 2, borderColor: "#fff" }],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: true,
+            plugins: { legend: { position: "bottom", labels: { font: { size: 11 }, boxWidth: 12 } } },
+          },
+        });
+      }
+
+      // ── drilldown modal ───────────────────────────────────────────
+      const DRILLDOWN_INFO = {
+        leads: { title: "Active Leads", sub: "All open leads in the sales pipeline.", href: "crm-leads.html" },
+        quotes: { title: "Quotes Issued", sub: "Quotations sent to prospects.", href: "crm-quotes.html" },
+        "quotes-accepted": { title: "Accepted Quotes", sub: "Quotes that converted to deals.", href: "crm-quotes.html" },
+        "quotes-rejected": { title: "Rejected Quotes", sub: "Quotes that did not proceed.", href: "crm-quotes.html" },
+        conversion: { title: "Sales Conversion Rate", sub: "Accepted / (Accepted + Rejected).", href: "crm-leads.html" },
+        "quotes-value": { title: "Total Quotes Value", sub: "Sum of all issued quote values.", href: "crm-quotes.html" },
+        invoiced: { title: "Total Invoiced", sub: "Sum of all invoices raised.", href: "finance-dashboard.html" },
+        payments: { title: "Payments Received", sub: "Cash collected against invoices.", href: "payment-processing.html" },
+        outstanding: { title: "Outstanding Invoices", sub: "Invoices not yet fully paid.", href: "invoice-follow-up.html" },
+        overdue: { title: "Overdue Invoices", sub: "Past due date — immediate action required.", href: "invoice-follow-up.html" },
+        "inv-value": { title: "Total Inventory Value", sub: "Current stock at cost.", href: "inventory-dashboard.html" },
+        "inv-stock": { title: "Items in Stock", sub: "Total units across all warehouses.", href: "inventory-items.html" },
+        "inv-lowstock": { title: "Low Stock Alerts", sub: "Items below reorder threshold.", href: "inventory-dashboard.html" },
+        "inv-reserved": { title: "Reserved Inventory", sub: "Allocated to pending orders.", href: "inventory-items.html" },
+        "installs-done": { title: "Completed Installations", sub: "Installations signed off.", href: "technical.html" },
+        "installs-progress": { title: "Installations In Progress", sub: "Active jobs on-site.", href: "technical.html" },
+        "installs-pending": { title: "Pending Installations", sub: "Awaiting technician assignment.", href: "technical.html" },
+        "avg-time": { title: "Avg Installation Time", sub: "Average hours per job.", href: "technical.html" },
+        "hr-total": { title: "Total Employees", sub: "All staff on record.", href: "hr-employees.html" },
+        "hr-active": { title: "Active Employees", sub: "Currently on duty.", href: "hr-employees.html" },
+        "hr-leave": { title: "Employees on Leave", sub: "Approved leave.", href: "hr-leave-approvals.html" },
+        "hr-probation": { title: "Probation", sub: "Staff in probation period.", href: "hr-employees.html" },
+        "hr-contract": { title: "Contract Staff", sub: "Fixed-term contract employees.", href: "hr-employees.html" },
+      };
+
+      window.openDrilldown = (key) => {
+        const info = DRILLDOWN_INFO[key] || { title: key, sub: "Detailed analytics." };
+        $("dd-title").textContent = info.title;
+        $("dd-subtitle").textContent = info.sub;
+        $("dd-body").innerHTML = `
+          <div class="bg-slate-50 rounded-lg p-4 text-slate-600 text-sm">
+            This card summarises <strong>${info.title}</strong> for the selected period.
+            Full analytics are available in the dedicated module.
+          </div>
+          ${info.href ? `<a href="${info.href}" class="inline-flex items-center gap-2 mt-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition">Open detailed view →</a>` : ""}`;
+        $("drilldown-overlay").classList.remove("hidden");
+      };
+
+      window.closeDrilldown = (e) => {
+        if (e === null || e.target === $("drilldown-overlay")) $("drilldown-overlay").classList.add("hidden");
+      };
+
+      // ── chart export ──────────────────────────────────────────────
+      window.exportChart = (chartId) => {
+        const chart = chartRefs[chartId];
+        if (!chart) return;
+        const a = document.createElement("a");
+        a.href = chart.toBase64Image();
+        a.download = `${chartId}.png`;
+        a.click();
+      };
+
+      // ── full dashboard export ─────────────────────────────────────
+      window.exportDashboard = () => {
+        const report = [`Finemark Executive Dashboard — ${new Date().toDateString()}`, `Period: Last ${currentRange} days`, ""];
+        const s = generateData(currentRange);
+        report.push("== SALES ==");
+        report.push(`Active Leads: ${s.leads}  |  Quotes: ${s.quotes}  |  Accepted: ${s.accepted}  |  Rejected: ${s.rejected}  |  Conversion: ${s.conversion}%`);
+        report.push("");
+        report.push("== FINANCE ==");
+        report.push(`Quotes Value: ${fmt(s.quotesValue)}  |  Invoiced: ${fmt(s.invoiced)}  |  Payments: ${fmt(s.payments)}`);
+        report.push(`Outstanding: ${fmt(s.outstanding)}  |  Overdue: ${fmt(s.overdue)}`);
+        report.push("");
+        report.push("== INVENTORY ==");
+        report.push(`Value: ${fmt(s.invValue)}  |  Stock: ${s.invStock}  |  Low Stock: ${s.invLow}  |  Reserved: ${s.invReserved}`);
+        report.push("");
+        report.push("== TECHNICAL ==");
+        report.push(`Completed: ${s.instDone}  |  In Progress: ${s.instProgress}  |  Pending: ${s.instPending}  |  Avg Time: ${s.avgTime} hrs`);
+        report.push("");
+        report.push("== HR ==");
+        report.push(`Total: ${s.hrTotal}  |  Active: ${s.hrActive}  |  On Leave: ${s.hrLeave}  |  Probation: ${s.hrProbation}  |  Contract: ${s.hrContract}`);
+        const blob = new Blob([report.join("\n")], { type: "text/plain" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `executive-dashboard-${currentRange}d.txt`;
+        a.click();
+      };
+
+      // ── refresh button spin ───────────────────────────────────────
+      window.refreshAll = () => {
+        const icon = $("refresh-icon");
+        icon.style.transition = "transform 0.6s";
+        icon.style.transform = "rotate(360deg)";
+        setTimeout(() => { icon.style.transition = "none"; icon.style.transform = ""; }, 650);
+        loadAll();
+      };
+
+      // ── main render dispatcher ────────────────────────────────────
+      function loadAll() {
+        if (currentMode === "live") { loadLive(); } else { loadDemo(); }
+      }
+
+      // ── DEMO MODE: seeded data ────────────────────────────────────
+      function loadDemo() {
+        const d    = generateData(currentRange);
+        const prev = generateData(Math.round(currentRange * 1.15));
+        populateKPIs(d, prev);
+        renderAllCharts(d);
+        $("last-updated").textContent = "Demo data · " + new Date().toLocaleTimeString();
+      }
+
+      // ── LIVE MODE: real API calls ─────────────────────────────────
+      async function loadLive() {
+        if (!api) {
+          window.FINEMARK_APP?.showToast?.("API not available — showing demo data", "warning");
+          loadDemo();
+          return;
+        }
+
+        $("last-updated").textContent = "Fetching live data…";
+
+        // Fire all API calls in parallel
+        const [
+          leadsRes, quotesRes, financeRes, invoicesRes, paymentsRes,
+          installsCountRes, invStatsRes, hrRes, hrOrgRes, hrLeaveRes,
+        ] = await Promise.allSettled([
+          api("/crm/leads?pageSize=200"),
+          api("/crm/quotes?pageSize=200"),
+          api("/finance/summary"),
+          api("/invoices?pageSize=200"),
+          api("/payments?pageSize=200"),
+          api("/vehicle-installations?pageSize=200"),
+          api("/inventory/items/stats"),
+          api("/hr/employees?pageSize=500"),
+          api("/hr/org/units"),
+          api("/hr/leave?pageSize=200"),
+        ]);
+
+        // ── Unwrap results ──
+        const ok = (r) => r.status === "fulfilled" ? (r.value?.data ?? r.value) : null;
+        const leads    = ok(leadsRes);
+        const quotes   = ok(quotesRes);
+        const finance  = ok(financeRes);
+        const invoices = ok(invoicesRes);
+        const payments = ok(paymentsRes);
+        const installs = ok(installsCountRes);
+        const invStats = ok(invStatsRes);
+        const hrList   = ok(hrRes);
+        const hrUnits  = ok(hrOrgRes);
+        const hrLeave  = ok(hrLeaveRes);
+
+        // Build a data object for chart rendering (falls back to demo seed for charts)
+        const d    = generateData(currentRange); // used by charts only
+        const prev = generateData(Math.round(currentRange * 1.15));
+        const apiKPIs = {}; // overrides for KPI tiles only
+
+        // ── SALES ──────────────────────────────────────────────────
+        const leadsArr   = Array.isArray(leads)   ? leads   : (Array.isArray(leads?.data)   ? leads.data   : []);
+        const quotesArr  = Array.isArray(quotes)  ? quotes  : (Array.isArray(quotes?.data)  ? quotes.data  : []);
+        if (leadsArr.length || leadsCountRes?.status === "fulfilled") {
+          apiKPIs.leads     = leadsArr.length;
+          apiKPIs.prevLeads = prev.leads;
+        }
+        if (quotesArr.length) {
+          const totalQ    = quotesArr.length;
+          const accepted  = quotesArr.filter(q => ["Accepted","accepted","Approved","approved"].includes(q.status)).length;
+          const rejected  = quotesArr.filter(q => ["Rejected","rejected","Declined","declined"].includes(q.status)).length;
+          const quotesVal = quotesArr.reduce((s, q) => s + parseFloat(q.total_amount || q.totalAmount || 0), 0);
+          apiKPIs.quotes       = totalQ;
+          apiKPIs.accepted     = accepted;
+          apiKPIs.rejected     = rejected;
+          apiKPIs.conversion   = totalQ > 0 ? +((accepted / totalQ) * 100).toFixed(1) : 0;
+          apiKPIs.quotesValue  = quotesVal;
+          // For chart: top sales persons from quotes
+          const bySales = {};
+          quotesArr.forEach(q => {
+            const rep = q.salesRepName || q.salesRepEmail || q.sales_rep_email || "Unknown";
+            bySales[rep] = (bySales[rep] || 0) + parseFloat(q.total_amount || 0);
+          });
+          d._salesPersons = Object.entries(bySales)
+            .map(([n, v]) => ({n, v}))
+            .sort((a,b) => b.v - a.v).slice(0, 7);
+          // Business source breakdown
+          const srcMap = {};
+          quotesArr.forEach(q => {
+            const src = q.leadSource || q.lead_source || "Other";
+            srcMap[src] = (srcMap[src] || 0) + parseFloat(q.total_amount || 0);
+          });
+          d._bizSource = srcMap;
+        }
+
+        // ── FINANCE ────────────────────────────────────────────────
+        const invArr = Array.isArray(invoices) ? invoices : (Array.isArray(invoices?.data) ? invoices.data : []);
+        const payArr = Array.isArray(payments) ? payments : (Array.isArray(payments?.data) ? payments.data : []);
+        if (finance && typeof finance === "object") {
+          apiKPIs.invoiced    = finance.totalRevenue ?? finance.total_revenue ?? null;
+          apiKPIs.outstanding = finance.outstanding  ?? null;
+          apiKPIs.payments    = finance.thisMonthRevenue ?? finance.this_month_revenue ?? null;
+          apiKPIs.avgPayDays  = finance.avgPaymentDays   ?? finance.avg_payment_days   ?? null;
+        }
+        if (invArr.length) {
+          const totalInvoiced = invArr.reduce((s, i) => s + parseFloat(i.amount || i.total_amount || 0), 0);
+          if (!apiKPIs.invoiced) apiKPIs.invoiced = totalInvoiced;
+          const totalPaid = invArr.filter(i => i.status === "Paid").reduce((s, i) => s + parseFloat(i.amount || 0), 0);
+          if (!apiKPIs.payments) apiKPIs.payments = totalPaid;
+          const unpaid = invArr.filter(i => i.status !== "Paid" && i.status !== "Cancelled");
+          if (!apiKPIs.outstanding) apiKPIs.outstanding = unpaid.reduce((s, i) => s + parseFloat(i.amount || 0), 0);
+          const overdueList = invArr.filter(i => {
+            if (["Paid","Cancelled"].includes(i.status)) return false;
+            const due = i.due_date || i.due_on;
+            return due && new Date(due) < new Date();
+          });
+          apiKPIs.overdue = overdueList.reduce((s, i) => s + parseFloat(i.amount || 0), 0);
+          // Collection forecast: group by days-until-due
+          const forec = [7,15,30,45,60,90].map(days => {
+            const cutoff = new Date(Date.now() + days * 864e5);
+            return unpaid.filter(i => {
+              const due = i.due_date || i.due_on;
+              return due && new Date(due) <= cutoff;
+            }).reduce((s, i) => s + parseFloat(i.amount || 0), 0);
+          });
+          d.forecast = forec;
+        }
+        if (!apiKPIs.quotesValue && invArr.length) {
+          apiKPIs.quotesValue = invArr.reduce((s, i) => s + parseFloat(i.amount || 0), 0);
+        }
+
+        // ── INVENTORY ──────────────────────────────────────────────
+        const invSummary = invStats?.summary ?? invStats;
+        if (invSummary && typeof invSummary === "object") {
+          const inStock   = Number(invSummary["In Stock"]  || invSummary.in_stock  || invSummary.inStock  || 0);
+          const reserved  = Number(invSummary["Reserved"] || invSummary.reserved  || 0);
+          const installed = Number(invSummary["Installed"] || invSummary.installed || 0);
+          const total     = inStock + reserved + installed +
+                            Number(invSummary["Defective"]||0) + Number(invSummary["Returned"]||0);
+          apiKPIs.invStock    = inStock + reserved;
+          apiKPIs.invReserved = reserved;
+          // Estimate value: average unit price from catalog if available, else seed
+          const lowStockArr = invStats.lowStock || invStats.low_stock || [];
+          apiKPIs.invLow = lowStockArr.length;
+          // Low-stock items for indicator
+          d._lowStockItems = lowStockArr.slice(0, 5);
+        }
+
+        // ── TECHNICAL ──────────────────────────────────────────────
+        const instArr = Array.isArray(installs) ? installs : (Array.isArray(installs?.data) ? installs.data : []);
+        if (instArr.length) {
+          const completedStatuses = ["Completed","completed","Complete","Done","done","Signed Off"];
+          const progressStatuses  = ["In Progress","in_progress","InProgress","ongoing","Active","Scheduled"];
+          const pendingStatuses   = ["Pending","pending","Assigned","Unassigned","Awaiting"];
+          apiKPIs.instDone     = instArr.filter(i => completedStatuses.includes(i.status)).length;
+          apiKPIs.instProgress = instArr.filter(i => progressStatuses.includes(i.status)).length;
+          apiKPIs.instPending  = instArr.filter(i => pendingStatuses.includes(i.status)).length;
+          // Customer type breakdown from live data
+          const indiv = instArr.filter(i => i.customerType === "individual" || i.customer_type === "individual" ||
+                                            i.customerName && !i.company_name).length;
+          d._instIndiv = indiv || Math.round(instArr.length * 0.45);
+          d._instCorp  = instArr.length - d._instIndiv;
+          // Technician performance
+          const byTech = {};
+          instArr.forEach(i => {
+            const name = i.technicianName || i.technician_name || "Unassigned";
+            if (!byTech[name]) byTech[name] = { done: 0, total: 0 };
+            byTech[name].total++;
+            if (completedStatuses.includes(i.status)) byTech[name].done++;
+          });
+          d._techList = Object.entries(byTech)
+            .filter(([n]) => n !== "Unassigned")
+            .map(([n, v]) => ({ n, done: v.done, success: Math.round(v.done / Math.max(v.total,1) * 100) }))
+            .sort((a,b) => b.done - a.done).slice(0, 7);
+        }
+
+        // ── HR ─────────────────────────────────────────────────────
+        const hrArr = Array.isArray(hrList) ? hrList : (Array.isArray(hrList?.data) ? hrList.data : []);
+        if (hrArr.length) {
+          apiKPIs.hrTotal     = hrArr.length;
+          apiKPIs.hrActive    = hrArr.filter(e => ["Active","active"].includes(e.status || e.employment_status)).length;
+          apiKPIs.hrProbation = hrArr.filter(e => ["Probation","probation"].includes(e.status || e.employment_status)).length;
+          apiKPIs.hrContract  = hrArr.filter(e => e.employment_type === "contract" || e.contract_type === "Contract").length;
+          // Count leave from HR leave endpoint
+          const leaveArr = Array.isArray(hrLeave) ? hrLeave : (Array.isArray(hrLeave?.data) ? hrLeave.data : []);
+          const onLeaveIds = new Set(leaveArr.filter(l => l.status === "Approved" || l.status === "approved")
+                                            .map(l => l.employee_id));
+          apiKPIs.hrLeave = onLeaveIds.size;
+          // Department breakdown
+          const deptMap = {};
+          hrArr.forEach(e => {
+            const dept = e.unit_name || e.department || e.dept || "Other";
+            deptMap[dept] = (deptMap[dept] || 0) + 1;
+          });
+          d._deptMap = deptMap;
+          // Role category
+          const roleMap = {};
+          hrArr.forEach(e => {
+            const role = e.job_title || e.role_name || e.designation || "Other";
+            // Bucket into category
+            const cat = role.toLowerCase().includes("sales") ? "Sales" :
+                        role.toLowerCase().includes("tech") ? "Technical" :
+                        role.toLowerCase().includes("financ") ? "Finance" :
+                        role.toLowerCase().includes("hr") ? "HR" : "Administration";
+            roleMap[cat] = (roleMap[cat] || 0) + 1;
+          });
+          d._roleMap = roleMap;
+        }
+
+        // ── Merge overrides into d ──────────────────────────────────
+        const overrideKeys = [
+          "leads","quotes","accepted","rejected","conversion","quotesValue",
+          "invoiced","payments","outstanding","overdue",
+          "invStock","invLow","invReserved",
+          "instDone","instProgress","instPending",
+          "hrTotal","hrActive","hrLeave","hrProbation","hrContract",
+        ];
+        overrideKeys.forEach(k => { if (apiKPIs[k] != null) d[k] = apiKPIs[k]; });
+
+        populateKPIs(d, prev);
+        renderAllCharts(d);
+        $("last-updated").textContent = "Live · " + new Date().toLocaleTimeString();
+      }
+
+      // ── Shared chart renderer ─────────────────────────────────────
+      function renderAllCharts(d) {
+        renderSalesRevenueChart(d);
+        renderBizSourceChart(d);
+        renderForecastChart(d);
+        renderTopProductsChart(d);
+        renderTurnoverChart(d);
+        renderInstTypeChart(d);
+        renderTechLeaderboard(d);
+        renderHrDeptChart(d);
+        renderHrRoleChart(d);
+      }
+
+      // ── boot ──────────────────────────────────────────────────────
+      document.addEventListener("DOMContentLoaded", async () => {
+        await window.FINEMARK_APP?.requirePageAccess();
+        applyModeUI();
+        const user = window.FINEMARK_APP?.getSession()?.user;
+        if (user?.role) $("exec-role-badge").textContent = user.role;
+        // Log access for audit
+        try { api?.("audit-logs", { method: "POST", body: { action: "executive_dashboard_view", user: user?.email } }); } catch (_) {}
+        loadAll();
+        // Auto-refresh every 5 minutes
+        setInterval(loadAll, 5 * 60 * 1000);
+      });
+    })();
+    </script>
+  </body>
+</html>

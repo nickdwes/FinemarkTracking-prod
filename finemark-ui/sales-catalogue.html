@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Product Catalogue</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+    <style>
+      .line-clamp-3 { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+      .feature-line { display:flex; align-items:flex-start; gap:8px; }
+      .feature-line::before { content:"✓"; color:#059669; flex-shrink:0; font-weight:700; margin-top:1px; }
+      .talking-line { display:flex; align-items:flex-start; gap:8px; }
+      .talking-line::before { content:"→"; color:#2563eb; flex-shrink:0; font-weight:700; margin-top:1px; }
+      .spec-line { display:flex; align-items:flex-start; gap:8px; }
+      .spec-line::before { content:"•"; color:#64748b; flex-shrink:0; margin-top:1px; }
+      .cat-chip.active { @apply bg-blue-600 text-white border-blue-600; }
+      .product-card { transition: box-shadow .15s, border-color .15s; }
+      .product-card:hover { box-shadow: 0 4px 16px 0 rgba(30,64,175,.12); border-color: #93c5fd; }
+      .product-card.selected { border-color: #2563eb; box-shadow: 0 0 0 2px #bfdbfe; }
+      #detail-panel { transition: transform .2s ease; }
+      #detail-panel.hidden-panel { transform: translateX(100%); }
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 flex flex-col min-h-0">
+
+    <!-- Top bar -->
+    <div class="bg-white border-b border-slate-200 px-6 py-4 flex flex-wrap items-center gap-3 justify-between">
+      <div>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Product Catalogue</h1>
+        <nav class="text-xs text-slate-500 mt-0.5">Sales / Product Catalogue</nav>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="relative">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/></svg>
+          <input id="search-input" type="text" placeholder="Search products…" class="pl-9 pr-4 py-2 w-56 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+        <span class="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 border border-blue-100">Sales</span>
+      </div>
+    </div>
+
+    <!-- Category filter chips -->
+    <div class="bg-white border-b border-slate-100 px-6 py-3 flex gap-2 flex-wrap" id="cat-chips">
+      <button class="cat-chip active rounded-full border border-slate-200 px-4 py-1.5 text-xs font-semibold transition" data-cat="">All Products</button>
+    </div>
+
+    <!-- Content area -->
+    <div class="flex flex-1 min-h-0 overflow-hidden">
+
+      <!-- Product grid -->
+      <div class="flex-1 overflow-y-auto p-6" id="grid-scroll">
+        <div id="product-grid" class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <!-- skeleton -->
+          <div class="h-48 rounded-xl bg-slate-100 animate-pulse"></div>
+          <div class="h-48 rounded-xl bg-slate-100 animate-pulse"></div>
+          <div class="h-48 rounded-xl bg-slate-100 animate-pulse"></div>
+          <div class="h-48 rounded-xl bg-slate-100 animate-pulse"></div>
+        </div>
+        <p id="empty-msg" class="hidden text-center py-16 text-slate-400">No products found.</p>
+      </div>
+
+      <!-- Detail side panel -->
+      <div id="detail-panel" class="hidden-panel w-full max-w-lg bg-white border-l border-slate-200 shadow-xl flex flex-col overflow-y-auto" style="flex-shrink:0; max-height:calc(100vh - 120px); position:sticky; top:0;">
+        <!-- panel header -->
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white sticky top-0 z-10">
+          <div>
+            <p id="dp-code" class="text-xs font-mono text-blue-600 font-semibold"></p>
+            <h2 id="dp-name" class="text-lg font-semibold text-slate-900 leading-tight"></h2>
+            <p id="dp-model" class="text-sm text-slate-500"></p>
+          </div>
+          <button id="btn-close-panel" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <!-- Badges -->
+        <div class="px-6 pt-4 flex flex-wrap gap-2" id="dp-badges"></div>
+
+        <!-- Tabs -->
+        <div class="px-6 mt-4 flex gap-1 border-b border-slate-100">
+          <button class="dp-tab active-tab px-4 py-2 text-xs font-semibold border-b-2 border-blue-600 text-blue-700" data-tab="overview">Overview</button>
+          <button class="dp-tab px-4 py-2 text-xs font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-700" data-tab="features">Features</button>
+          <button class="dp-tab px-4 py-2 text-xs font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-700" data-tab="selling">Selling Points</button>
+          <button class="dp-tab px-4 py-2 text-xs font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-700" data-tab="specs">Tech Specs</button>
+          <button class="dp-tab px-4 py-2 text-xs font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-700" data-tab="pricing">Pricing</button>
+        </div>
+
+        <!-- Tab content -->
+        <div class="flex-1 px-6 py-5 space-y-4 overflow-y-auto">
+
+          <!-- Overview tab -->
+          <div id="tab-overview">
+            <div id="dp-description" class="text-sm text-slate-700 leading-relaxed"></div>
+            <div id="dp-target-wrap" class="mt-4 hidden">
+              <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Target Customers</p>
+              <p id="dp-target" class="text-sm text-slate-700 bg-blue-50 rounded-lg px-4 py-2 border border-blue-100"></p>
+            </div>
+            <div id="dp-warranty-wrap" class="mt-4">
+              <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Warranty</p>
+              <p id="dp-warranty" class="text-sm text-slate-700"></p>
+            </div>
+            <div id="dp-manufacturer-wrap" class="mt-4">
+              <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Manufacturer</p>
+              <p id="dp-manufacturer" class="text-sm text-slate-700"></p>
+            </div>
+          </div>
+
+          <!-- Features tab -->
+          <div id="tab-features" class="hidden">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Key Features</p>
+            <div id="dp-features" class="space-y-2 text-sm text-slate-700"></div>
+            <p id="dp-features-empty" class="hidden text-sm text-slate-400 italic">No features added yet. Ask your manager to update the product catalogue.</p>
+          </div>
+
+          <!-- Selling tab -->
+          <div id="tab-selling" class="hidden">
+            <div class="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 mb-4">
+              <p class="text-xs font-semibold text-blue-700 uppercase tracking-wide">💡 Sales talking points</p>
+              <p class="text-xs text-blue-600 mt-0.5">Use these to open conversations and handle objections with customers.</p>
+            </div>
+            <div id="dp-talking" class="space-y-3 text-sm text-slate-700"></div>
+            <p id="dp-talking-empty" class="hidden text-sm text-slate-400 italic">No talking points added yet.</p>
+          </div>
+
+          <!-- Specs tab -->
+          <div id="tab-specs" class="hidden">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Technical Specifications</p>
+            <div id="dp-specs" class="space-y-1.5 text-sm text-slate-700 bg-slate-50 rounded-xl p-4 font-mono"></div>
+            <p id="dp-specs-empty" class="hidden text-sm text-slate-400 italic">No specs added yet.</p>
+          </div>
+
+          <!-- Pricing tab -->
+          <div id="tab-pricing" class="hidden">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Pricing (KES)</p>
+            <div class="space-y-3" id="dp-pricing"></div>
+            <div class="mt-4 rounded-xl bg-amber-50 border border-amber-100 px-4 py-3">
+              <p class="text-xs font-semibold text-amber-700 uppercase tracking-wide">⚠ Pricing Policy</p>
+              <p class="text-xs text-amber-600 mt-0.5">All prices are subject to approval. Do not quote prices verbally without a formal quotation.</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<div id="fm-footer"></div>
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+  const API = "/api";
+
+  async function req(path, opts = {}) {
+    const session = JSON.parse(localStorage.getItem("finemark_session") || "{}");
+    const r = await fetch(API + path, {
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.accessToken}` },
+      ...opts,
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.message || r.statusText);
+    return j;
+  }
+
+  const kes = n => Number(n || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  let allProducts = [];
+  let activeCategory = "";
+  let selectedProduct = null;
+
+  // ── Load catalogue ─────────────────────────────────────────────────────────
+  async function loadCatalogue() {
+    try {
+      const r = await req("/inventory/catalog");
+      allProducts = (r.data || []).filter(p => p.active);
+      buildCategoryChips();
+      renderGrid();
+    } catch (e) {
+      document.getElementById("product-grid").innerHTML = `<p class="col-span-4 text-center py-16 text-red-500 text-sm">Failed to load products: ${e.message}</p>`;
+    }
+  }
+
+  // ── Category chips ─────────────────────────────────────────────────────────
+  function buildCategoryChips() {
+    const catMap = {};
+    allProducts.forEach(p => { if (p.category_name) catMap[p.category_id] = p.category_name; });
+    const chips = document.getElementById("cat-chips");
+    chips.innerHTML = `<button class="cat-chip active rounded-full border border-slate-200 px-4 py-1.5 text-xs font-semibold transition bg-blue-600 text-white border-blue-600" data-cat="">All Products</button>`;
+    Object.entries(catMap).forEach(([id, name]) => {
+      const btn = document.createElement("button");
+      btn.className = "cat-chip rounded-full border border-slate-200 px-4 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition";
+      btn.dataset.cat = id;
+      btn.textContent = name;
+      chips.appendChild(btn);
+    });
+    chips.querySelectorAll(".cat-chip").forEach(btn => {
+      btn.addEventListener("click", () => {
+        chips.querySelectorAll(".cat-chip").forEach(b => { b.classList.remove("bg-blue-600","text-white","border-blue-600"); b.classList.add("text-slate-600","border-slate-200"); });
+        btn.classList.add("bg-blue-600","text-white","border-blue-600"); btn.classList.remove("text-slate-600","border-slate-200");
+        activeCategory = btn.dataset.cat;
+        renderGrid();
+      });
+    });
+  }
+
+  // ── Render grid ────────────────────────────────────────────────────────────
+  function renderGrid() {
+    const q = document.getElementById("search-input").value.toLowerCase();
+    const filtered = allProducts.filter(p => {
+      if (activeCategory && p.category_id !== activeCategory) return false;
+      if (q && !(`${p.product_name} ${p.product_code} ${p.device_model} ${p.description || ""}`.toLowerCase().includes(q))) return false;
+      return true;
+    });
+    const grid = document.getElementById("product-grid");
+    const empty = document.getElementById("empty-msg");
+    if (!filtered.length) {
+      grid.innerHTML = "";
+      empty.classList.remove("hidden");
+      return;
+    }
+    empty.classList.add("hidden");
+    grid.innerHTML = filtered.map(p => {
+      const hasFeatures = !!(p.key_features || p.talking_points);
+      const priceStr = p.sale_price ? `KES ${kes(p.sale_price)}` : (p.installation_price ? `From KES ${kes(p.installation_price)}` : "Contact for pricing");
+      return `<button class="product-card text-left bg-white rounded-xl border border-slate-200 p-5 flex flex-col gap-3 cursor-pointer w-full" data-id="${p.id}">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">${p.category_name ?? ""}</span>
+            <p class="mt-2 font-semibold text-slate-900 leading-snug">${p.product_name}</p>
+            <p class="text-xs text-slate-400 font-mono mt-0.5">${p.product_code} · ${p.device_model}</p>
+          </div>
+          ${hasFeatures ? `<span class="flex-shrink-0 inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-100">Ready</span>` : ""}
+        </div>
+        <p class="text-xs text-slate-500 line-clamp-3 flex-1">${p.description ?? "No description added yet."}</p>
+        <div class="border-t border-slate-100 pt-3 flex items-center justify-between">
+          <span class="text-xs font-semibold text-slate-700">${priceStr}</span>
+          <span class="text-xs text-slate-400">${p.warranty_months ?? 12} mo warranty</span>
+        </div>
+      </button>`;
+    }).join("");
+    grid.querySelectorAll(".product-card").forEach(card => {
+      card.addEventListener("click", () => openDetail(card.dataset.id));
+    });
+    // Re-highlight selected
+    if (selectedProduct) {
+      grid.querySelectorAll(".product-card").forEach(c => c.classList.toggle("selected", c.dataset.id === selectedProduct.id));
+    }
+  }
+
+  // ── Detail panel ───────────────────────────────────────────────────────────
+  function openDetail(id) {
+    const p = allProducts.find(x => x.id === id);
+    if (!p) return;
+    selectedProduct = p;
+    document.querySelectorAll(".product-card").forEach(c => c.classList.toggle("selected", c.dataset.id === id));
+
+    // Header
+    document.getElementById("dp-code").textContent = p.product_code;
+    document.getElementById("dp-name").textContent = p.product_name;
+    document.getElementById("dp-model").textContent = p.device_model;
+
+    // Badges
+    const badges = document.getElementById("dp-badges");
+    badges.innerHTML = `
+      <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">${p.category_name ?? ""}</span>
+      ${p.manufacturer ? `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-slate-100 text-slate-600">${p.manufacturer}</span>` : ""}
+      ${p.active ? `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">Active</span>` : `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-50 text-red-600 border border-red-100">Inactive</span>`}
+    `;
+
+    // Overview
+    document.getElementById("dp-description").textContent = p.description ?? "No description provided for this product.";
+    const targetWrap = document.getElementById("dp-target-wrap");
+    if (p.target_segment) {
+      targetWrap.classList.remove("hidden");
+      document.getElementById("dp-target").textContent = p.target_segment;
+    } else {
+      targetWrap.classList.add("hidden");
+    }
+    document.getElementById("dp-warranty").textContent = `${p.warranty_months ?? 12} months`;
+    document.getElementById("dp-manufacturer").textContent = p.manufacturer ?? "—";
+
+    // Features
+    const featDiv = document.getElementById("dp-features");
+    const featEmpty = document.getElementById("dp-features-empty");
+    if (p.key_features && p.key_features.trim()) {
+      featDiv.innerHTML = p.key_features.split("\n").filter(Boolean).map(f => `<div class="feature-line">${escHtml(f.trim())}</div>`).join("");
+      featEmpty.classList.add("hidden");
+    } else {
+      featDiv.innerHTML = "";
+      featEmpty.classList.remove("hidden");
+    }
+
+    // Talking points
+    const talkDiv = document.getElementById("dp-talking");
+    const talkEmpty = document.getElementById("dp-talking-empty");
+    if (p.talking_points && p.talking_points.trim()) {
+      talkDiv.innerHTML = p.talking_points.split("\n").filter(Boolean).map(t => `<div class="talking-line">${escHtml(t.trim())}</div>`).join("");
+      talkEmpty.classList.add("hidden");
+    } else {
+      talkDiv.innerHTML = "";
+      talkEmpty.classList.remove("hidden");
+    }
+
+    // Tech specs
+    const specsDiv = document.getElementById("dp-specs");
+    const specsEmpty = document.getElementById("dp-specs-empty");
+    if (p.tech_specs && p.tech_specs.trim()) {
+      specsDiv.innerHTML = p.tech_specs.split("\n").filter(Boolean).map(s => `<div class="spec-line">${escHtml(s.trim())}</div>`).join("");
+      specsEmpty.classList.add("hidden");
+    } else {
+      specsDiv.innerHTML = "";
+      specsEmpty.classList.remove("hidden");
+    }
+
+    // Pricing
+    const pricingDiv = document.getElementById("dp-pricing");
+    const items = [
+      { label: "Device / Unit Price", val: p.sale_price, color: "blue" },
+      { label: "Installation Charge", val: p.installation_price, color: "emerald" },
+      { label: "Monthly Subscription", val: p.subscription_price, color: "violet" },
+    ].filter(x => x.val);
+    if (items.length) {
+      pricingDiv.innerHTML = items.map(item => `
+        <div class="flex items-center justify-between rounded-lg bg-${item.color}-50 border border-${item.color}-100 px-4 py-3">
+          <span class="text-sm font-medium text-${item.color}-800">${item.label}</span>
+          <span class="text-base font-bold text-${item.color}-700">KES ${kes(item.val)}</span>
+        </div>`).join("");
+    } else {
+      pricingDiv.innerHTML = `<p class="text-sm text-slate-400 italic">Pricing not yet configured. Create a formal quotation request.</p>`;
+    }
+
+    // Show panel
+    const panel = document.getElementById("detail-panel");
+    panel.classList.remove("hidden-panel");
+    switchTab("overview");
+  }
+
+  function closeDetail() {
+    selectedProduct = null;
+    document.querySelectorAll(".product-card").forEach(c => c.classList.remove("selected"));
+    document.getElementById("detail-panel").classList.add("hidden-panel");
+  }
+
+  // ── Tab switching ──────────────────────────────────────────────────────────
+  function switchTab(name) {
+    document.querySelectorAll(".dp-tab").forEach(btn => {
+      const isActive = btn.dataset.tab === name;
+      btn.classList.toggle("active-tab", isActive);
+      btn.classList.toggle("border-blue-600", isActive);
+      btn.classList.toggle("text-blue-700", isActive);
+      btn.classList.toggle("border-transparent", !isActive);
+      btn.classList.toggle("text-slate-500", !isActive);
+    });
+    ["overview","features","selling","specs","pricing"].forEach(t => {
+      document.getElementById(`tab-${t}`).classList.toggle("hidden", t !== name);
+    });
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  // ── Event listeners ────────────────────────────────────────────────────────
+  document.getElementById("btn-close-panel").addEventListener("click", closeDetail);
+  document.querySelectorAll(".dp-tab").forEach(btn => btn.addEventListener("click", () => switchTab(btn.dataset.tab)));
+
+  let searchTimer;
+  document.getElementById("search-input").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(renderGrid, 250); });
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  document.addEventListener("DOMContentLoaded", () => {
+    loadCatalogue();
+  });
+</script>
+</body>
+</html>

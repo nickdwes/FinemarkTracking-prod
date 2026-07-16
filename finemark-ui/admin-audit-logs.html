@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Admin Audit Logs</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+
+          <div class="max-w-6xl mx-auto space-y-6">
+            <div class="flex flex-wrap items-center gap-3 justify-between">
+              <div>
+                <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Audit Logs</h1>
+                <p class="text-sm text-slate-600">Track administrative and system activity.</p>
+              </div>
+              <span class="inline-flex items-center rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700 border border-purple-100">
+                Admin
+              </span>
+            </div>
+
+            <div class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm shadow-slate-200/60 space-y-4">
+              <div class="flex flex-wrap items-end gap-3">
+                <div>
+                  <label class="block text-xs font-medium text-slate-500 mb-1" for="log-search">Search</label>
+                  <input id="log-search" type="text" placeholder="Search user or action" class="w-full sm:w-64 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-500 mb-1" for="from-date">From</label>
+                  <input id="from-date" type="date" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-500 mb-1" for="to-date">To</label>
+                  <input id="to-date" type="date" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-500 mb-1" for="severity-filter">Severity</label>
+                  <select id="severity-filter" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                    <option value="all">All</option>
+                    <option value="Info">Info</option>
+                    <option value="Warning">Warning</option>
+                    <option value="Critical">Critical</option>
+                  </select>
+                </div>
+              </div>
+
+              <div id="audit-inline-error" class="hidden mb-3"></div>
+              <div id="audit-skeleton" class="hidden mb-3"></div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm min-w-[1080px]">
+                  <thead class="text-left text-slate-500">
+                    <tr>
+                      <th class="py-2">Timestamp</th>
+                      <th class="py-2">User</th>
+                      <th class="py-2">Action</th>
+                      <th class="py-2">Target</th>
+                      <th class="py-2">Severity</th>
+                      <th class="py-2">IP Address</th>
+                      <th class="py-2">Location</th>
+                      <th class="py-2">Browser</th>
+                    </tr>
+                  </thead>
+                  <tbody id="logs-body" class="divide-y divide-slate-200"></tbody>
+                </table>
+              </div>
+              <div id="audit-pagination" class="flex items-center justify-between pt-3 text-xs text-slate-500"></div>
+            </div>
+          </div>
+
+  </main>
+</div>
+<div id="fm-footer"></div>
+<script src="assets/contracts.js"></script>
+<script src="assets/app.js?v=202607011748"></script>
+<script src="assets/layout.js?v=202607011748"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    window.FINEMARK_APP?.requirePageAccess?.();
+  });
+</script>
+<script>
+      let logs = [];
+      let currentPage = 1;
+      let totalLogs = 0;
+      const PAGE_SIZE = 50;
+      const logsBody = document.getElementById("logs-body");
+      const auditInlineError = document.getElementById("audit-inline-error");
+      const auditSkeleton = document.getElementById("audit-skeleton");
+      const pagination = document.getElementById("audit-pagination");
+      const searchInput = document.getElementById("log-search");
+      const fromDate = document.getElementById("from-date");
+      const toDate = document.getElementById("to-date");
+      const severityFilter = document.getElementById("severity-filter");
+
+      const severityBadge = (severity) => {
+        const colors = {
+          Info: "bg-emerald-50 text-emerald-700 border-emerald-100",
+          Warning: "bg-amber-50 text-amber-700 border-amber-100",
+          Critical: "bg-red-50 text-red-700 border-red-100",
+        };
+        const classes = colors[severity] || "bg-slate-100 text-slate-700 border-slate-200";
+        return `<span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${classes}">${severity}</span>`;
+      };
+
+      const locationLabel = (log) => [log.city, log.country].filter(Boolean).join(", ") || "—";
+      const browserLabel = (log) => [log.browser, log.os].filter(Boolean).join(" · ") || "—";
+
+      const renderLogs = () => {
+        if (!logs.length) {
+          logsBody.innerHTML = `<tr><td class="py-4 text-slate-500" colspan="8">No logs found.</td></tr>`;
+          return;
+        }
+        logsBody.innerHTML = logs
+          .map((log) => `
+            <tr class="cursor-pointer hover:bg-slate-50" data-id="${log.id}">
+              <td class="py-2 whitespace-nowrap">${log.timestamp}</td>
+              <td class="py-2 font-medium">${log.user}</td>
+              <td class="py-2">${log.action}</td>
+              <td class="py-2 max-w-[220px] truncate" title="${log.target}">${log.target}</td>
+              <td class="py-2">${severityBadge(log.severity)}</td>
+              <td class="py-2 font-mono text-xs">${log.ip}</td>
+              <td class="py-2 whitespace-nowrap">${locationLabel(log)}</td>
+              <td class="py-2 whitespace-nowrap">${browserLabel(log)}</td>
+            </tr>
+          `)
+          .join("");
+      };
+
+      const renderPagination = () => {
+        const totalPages = Math.max(Math.ceil(totalLogs / PAGE_SIZE), 1);
+        pagination.innerHTML = `
+          <span>${totalLogs.toLocaleString()} event${totalLogs === 1 ? "" : "s"} · page ${currentPage} of ${totalPages}</span>
+          <div class="flex items-center gap-2">
+            <button id="audit-prev" class="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50" ${currentPage <= 1 ? "disabled" : ""}>Previous</button>
+            <button id="audit-next" class="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50" ${currentPage >= totalPages ? "disabled" : ""}>Next</button>
+          </div>`;
+        document.getElementById("audit-prev")?.addEventListener("click", () => { currentPage -= 1; loadLogs(); });
+        document.getElementById("audit-next")?.addEventListener("click", () => { currentPage += 1; loadLogs(); });
+      };
+
+      const buildFilters = () => {
+        const filters = { page: currentPage, pageSize: PAGE_SIZE };
+        if (searchInput.value.trim()) filters.search = searchInput.value.trim();
+        if (severityFilter.value !== "all") filters.severity = severityFilter.value;
+        if (fromDate.value) filters.from = fromDate.value;
+        if (toDate.value) filters.to = toDate.value;
+        return filters;
+      };
+
+      const loadLogs = async () => {
+        auditInlineError.classList.add("hidden");
+        auditSkeleton.classList.remove("hidden");
+        window.FINEMARK_APP.renderSkeleton(auditSkeleton, "table");
+        try {
+          const response = await window.FINEMARK_APP.AuditService.list(buildFilters());
+          totalLogs = response.meta?.total ?? (response.data || []).length;
+          logs = (response.data || []).map((entry, idx) => ({
+            id: entry.id || String(idx + 1),
+            timestamp: entry.timestamp ? new Date(entry.timestamp).toLocaleString() : "—",
+            user: entry.userEmail || "Unknown / unauthenticated",
+            role: entry.role || "—",
+            action: entry.action || "Action",
+            target: entry.target || "—",
+            severity: entry.severity || "Info",
+            ip: entry.ipAddress || "—",
+            browser: entry.browser || null,
+            os: entry.os || null,
+            deviceType: entry.deviceType || null,
+            city: entry.city || null,
+            region: entry.region || null,
+            country: entry.country || null,
+            userAgent: entry.userAgent || "—",
+            details: entry.details,
+          }));
+          auditSkeleton.classList.add("hidden");
+          renderLogs();
+          renderPagination();
+        } catch (error) {
+          auditSkeleton.classList.add("hidden");
+          auditInlineError.classList.remove("hidden");
+          window.FINEMARK_APP.showInlineError(auditInlineError, error.message || "Failed to load audit logs", {
+            retryText: "Retry",
+            onRetry: loadLogs,
+          });
+          window.FINEMARK_APP.showToast(error.message || "Failed to load audit logs", "error");
+        }
+      };
+
+      // ── Detail drawer ────────────────────────────────────────────────────────
+      const drawerOverlay = document.createElement("div");
+      drawerOverlay.className = "hidden fixed inset-0 bg-black/20 z-30";
+      document.body.appendChild(drawerOverlay);
+
+      const drawer = document.createElement("aside");
+      drawer.className = "fixed top-0 right-0 h-full w-full max-w-lg bg-white border-l border-slate-200 shadow-xl transform translate-x-full transition-transform duration-200 z-40 flex flex-col";
+      drawer.innerHTML = `
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <h2 class="text-base font-semibold text-slate-800">Audit Event</h2>
+          <button id="ad-close" class="rounded-lg border border-slate-200 px-3 py-1 text-sm text-slate-600 hover:bg-slate-50">Close</button>
+        </div>
+        <div id="ad-body" class="flex-1 overflow-y-auto px-6 py-4 space-y-4 text-sm"></div>`;
+      document.body.appendChild(drawer);
+
+      const closeDrawer = () => {
+        drawer.classList.add("translate-x-full");
+        drawerOverlay.classList.add("hidden");
+      };
+      drawer.querySelector("#ad-close").addEventListener("click", closeDrawer);
+      drawerOverlay.addEventListener("click", closeDrawer);
+
+      const detailRow = (label, value) => `
+        <div class="flex items-start justify-between gap-4 py-1.5 border-b border-slate-50">
+          <span class="text-slate-500 shrink-0">${label}</span>
+          <span class="text-slate-800 text-right break-all">${value ?? "—"}</span>
+        </div>`;
+
+      const openDrawer = (log) => {
+        const location = [log.city, log.region, log.country].filter(Boolean).join(", ") || "Unknown (private/local network)";
+        const device = [log.browser, log.os, log.deviceType && log.deviceType !== "desktop" ? log.deviceType : null].filter(Boolean).join(" · ") || "Unknown";
+        let detailsHtml = "—";
+        if (log.details && typeof log.details === "object" && Object.keys(log.details).length) {
+          detailsHtml = `<pre class="mt-1 rounded-lg bg-slate-50 border border-slate-100 p-3 text-xs overflow-x-auto whitespace-pre-wrap">${JSON.stringify(log.details, null, 2)}</pre>`;
+        } else if (log.details) {
+          detailsHtml = String(log.details);
+        }
+        document.getElementById("ad-body").innerHTML = `
+          <div>
+            ${detailRow("Timestamp", log.timestamp)}
+            ${detailRow("User", log.user)}
+            ${detailRow("Role", log.role)}
+            ${detailRow("Action", log.action)}
+            ${detailRow("Target", log.target)}
+            ${detailRow("Severity", severityBadge(log.severity))}
+          </div>
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">Origin</p>
+            ${detailRow("IP address", `<span class="font-mono">${log.ip}</span>`)}
+            ${detailRow("Location", location)}
+            ${detailRow("Device", device)}
+            ${detailRow("User agent", `<span class="font-mono text-xs">${log.userAgent}</span>`)}
+          </div>
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">Details</p>
+            ${detailsHtml}
+          </div>`;
+        drawer.classList.remove("translate-x-full");
+        drawerOverlay.classList.remove("hidden");
+      };
+
+      logsBody.addEventListener("click", (event) => {
+        const row = event.target.closest("tr");
+        if (!row) return;
+        const id = row.dataset.id;
+        const log = logs.find((item) => String(item.id) === String(id));
+        if (!log) return;
+        openDrawer(log);
+      });
+
+      [searchInput, fromDate, toDate, severityFilter].forEach((input) => {
+        const reload = () => { currentPage = 1; loadLogs(); };
+        input.addEventListener("input", reload);
+        input.addEventListener("change", reload);
+      });
+
+      loadLogs();
+    </script>
+</body>
+</html>

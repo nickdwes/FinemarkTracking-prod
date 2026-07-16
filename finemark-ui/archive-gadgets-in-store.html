@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Archive — Gadgets In Store</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-5xl mx-auto space-y-6">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div><h1 class="text-3xl font-semibold tracking-tight text-slate-900">Gadgets In Store</h1>
+              <p class="text-sm text-slate-600">Archived IDTS gadgets never allocated or installed — historical reference only.</p></div>
+            <div id="badge-slot"></div>
+          </div>
+          <section id="summary" class="grid grid-cols-2 md:grid-cols-4 gap-3"></section>
+          <section class="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+            <div class="overflow-x-auto"><table class="w-full text-sm min-w-[500px]">
+              <thead class="text-left text-slate-500 text-xs uppercase border-b border-slate-200 bg-slate-50"><tr><th class="py-2 px-3">S/N</th><th class="py-2 px-3">Batch</th><th class="py-2 px-3">IMEI</th><th class="py-2 px-3">Type</th></tr></thead>
+              <tbody id="rows" class="divide-y divide-slate-100"></tbody>
+            </table></div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+    <script src="assets/contracts.js"></script>
+    <script src="assets/app.js"></script>
+    <script src="assets/layout.js"></script>
+    <script src="assets/archive-common.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", async () => {
+        if ((await ArchiveCommon.gate()) === false) return;
+        document.getElementById("badge-slot").innerHTML = ArchiveCommon.readOnlyBadge;
+        load();
+      });
+      async function load() {
+        try {
+          const res = await window.FINEMARK_APP.apiFetch("/archive/gadgets-in-store");
+          const d = res.data || res;
+          document.getElementById("summary").innerHTML = d.summary.length
+            ? d.summary.map((s) => `<div class="bg-blue-50 border border-blue-100 rounded-lg p-3 text-center"><div class="text-lg font-bold text-blue-700">${s.count}</div><div class="text-xs text-slate-600">Batch ${ArchiveCommon.escapeHtml(s.batch)}</div></div>`).join("")
+            : `<div class="col-span-full text-center text-slate-400 py-4">No unallocated gadgets found.</div>`;
+          document.getElementById("rows").innerHTML = d.gadgets.length
+            ? d.gadgets.map((g, i) => `<tr><td class="py-2 px-3">${i + 1}</td><td class="py-2 px-3">${ArchiveCommon.escapeHtml(g.batch)}</td><td class="py-2 px-3 font-mono">${ArchiveCommon.escapeHtml(g.imei)}</td><td class="py-2 px-3">${ArchiveCommon.escapeHtml(g.gadgetType)}</td></tr>`).join("")
+            : `<tr><td colspan="4" class="text-center text-slate-400 py-8">No unallocated gadgets in the archive.</td></tr>`;
+        } catch (e) {
+          document.getElementById("rows").innerHTML = `<tr><td colspan="4" class="text-center text-rose-600 py-8">${ArchiveCommon.escapeHtml(e.message)}</td></tr>`;
+        }
+      }
+    </script>
+  </body>
+</html>

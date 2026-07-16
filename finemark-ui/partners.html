@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Partners</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-7xl mx-auto space-y-6">
+
+          <!-- Header -->
+          <div class="flex flex-wrap items-center gap-3 justify-between">
+            <div>
+              <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Partners</h1>
+              <p class="text-sm text-slate-600">Manage partner organisations, contracts and portal access.</p>
+            </div>
+            <button id="btn-new" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></svg>
+              New Partner
+            </button>
+          </div>
+          <nav class="text-xs text-slate-500"><span class="font-medium text-slate-600">Sales</span> / Partners</nav>
+
+          <!-- Stats -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm">
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Total Partners</p>
+              <p id="stat-total" class="text-2xl font-bold text-slate-900 mt-1">—</p>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm">
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Active</p>
+              <p id="stat-active" class="text-2xl font-bold text-green-600 mt-1">—</p>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm">
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Gold / Platinum</p>
+              <p id="stat-premium" class="text-2xl font-bold text-amber-600 mt-1">—</p>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm">
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Expiring ≤ 30 days</p>
+              <p id="stat-expiring" class="text-2xl font-bold text-red-600 mt-1">—</p>
+            </div>
+          </div>
+
+          <!-- Filters + Table -->
+          <div class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm space-y-4">
+            <div class="flex flex-wrap items-end gap-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Search</label>
+                <input id="search" type="text" placeholder="Name, reg no, email…" class="w-64 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:border-blue-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Status</label>
+                <select id="filter-status" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500">
+                  <option value="">All</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                  <option value="Suspended">Suspended</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Tier</label>
+                <select id="filter-tier" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500">
+                  <option value="">All</option>
+                  <option>Bronze</option><option>Silver</option><option>Gold</option>
+                  <option>Platinum</option><option>Distributor</option><option>Standard</option>
+                </select>
+              </div>
+              <button id="btn-search" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">Search</button>
+              <button id="btn-clear" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 transition-colors">Clear</button>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="text-left text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                    <th class="pb-3 pr-4">Partner Name</th>
+                    <th class="pb-3 pr-4">Tier</th>
+                    <th class="pb-3 pr-4">Status</th>
+                    <th class="pb-3 pr-4">Regions</th>
+                    <th class="pb-3 pr-4">Contact</th>
+                    <th class="pb-3 pr-4">Contract Expiry</th>
+                    <th class="pb-3 pr-4">KAM</th>
+                    <th class="pb-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="partners-tbody">
+                  <tr><td colspan="8" class="py-8 text-center text-slate-400">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="flex items-center justify-between text-xs text-slate-500">
+              <span id="meta-info">—</span>
+              <div class="flex gap-2">
+                <button id="btn-prev" class="px-3 py-1 rounded border border-slate-200 hover:bg-slate-50 disabled:opacity-40" disabled>← Prev</button>
+                <button id="btn-next" class="px-3 py-1 rounded border border-slate-200 hover:bg-slate-50 disabled:opacity-40" disabled>Next →</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Create / Edit Modal -->
+    <div id="modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between p-6 border-b border-slate-100">
+          <h2 id="modal-title" class="text-lg font-semibold text-slate-900">New Partner</h2>
+          <button id="modal-close" class="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-100 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <form id="partner-form" class="p-6 space-y-5">
+          <input type="hidden" id="edit-id" />
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-medium text-slate-600 mb-1">Partner Name *</label>
+              <input id="f-name" type="text" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" placeholder="e.g. Mombasa Auto Finance Ltd" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Business Reg No</label>
+              <input id="f-reg" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Tier</label>
+              <select id="f-tier" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500">
+                <option>Standard</option><option>Bronze</option><option>Silver</option>
+                <option>Gold</option><option>Platinum</option><option>Distributor</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Primary Contact</label>
+              <input id="f-contact-name" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Contact Email</label>
+              <input id="f-email" type="email" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Contact Phone</label>
+              <input id="f-phone" type="tel" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-medium text-slate-600 mb-1">Key Account Manager</label>
+              <select id="f-kam" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500">
+                <option value="">— Unassigned —</option>
+              </select>
+              <p class="mt-1 text-xs text-slate-400">Business Development &amp; Executive staff only.</p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Contract Ref</label>
+              <input id="f-contract-ref" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Contract Start</label>
+              <input id="f-contract-start" type="date" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Contract Expiry</label>
+              <input id="f-contract-expiry" type="date" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-medium text-slate-600 mb-1">Operational Regions</label>
+              <div id="regions-checkboxes" class="flex flex-wrap gap-2 mt-1 max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50"></div>
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-medium text-slate-600 mb-1">Contract Scope / Notes</label>
+              <textarea id="f-notes" rows="3" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 resize-none" placeholder="Scope, special terms, notes…"></textarea>
+            </div>
+          </div>
+          <div id="form-error" class="hidden rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700"></div>
+          <div class="flex justify-end gap-3 pt-2">
+            <button type="button" id="btn-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 transition">Cancel</button>
+            <button type="submit" id="btn-save" class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition">Save Partner</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="fm-footer"></div>
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+          document.addEventListener("DOMContentLoaded", () => {
+        window.FINEMARK_APP?.requirePageAccess?.();
+        loadKamOptions();
+      });
+
+      async function loadKamOptions() {
+        try {
+          const res = await window.FINEMARK_APP.apiFetch("/users?pageSize=200");
+          const users = res?.data || (Array.isArray(res) ? res : []);
+          const KAM_ROLES = ["Sales", "Admin"];
+          const sel = document.getElementById("f-kam");
+          users
+            .filter(u => KAM_ROLES.includes(u.role))
+            .forEach(u => {
+              const opt = document.createElement("option");
+              opt.value = u.id;
+              opt.textContent = `${u.fullName || u.full_name || u.name || u.email} (${u.role})`;
+              sel.appendChild(opt);
+            });
+        } catch (_) { /* non-critical — dropdown stays with just unassigned */ }
+      }
+
+      const KENYA_COUNTIES = [
+        "All","Baringo","Bomet","Bungoma","Busia","Elgeyo-Marakwet","Embu","Garissa",
+        "Homa Bay","Isiolo","Kajiado","Kakamega","Kericho","Kiambu","Kilifi","Kirinyaga",
+        "Kisii","Kisumu","Kitui","Kwale","Laikipia","Lamu","Machakos","Makueni","Mandera",
+        "Marsabit","Meru","Migori","Mombasa","Murang'a","Nairobi","Nakuru","Nandi","Narok",
+        "Nyamira","Nyandarua","Nyeri","Samburu","Siaya","Taita-Taveta","Tana River",
+        "Tharaka-Nithi","Trans Nzoia","Turkana","Uasin Gishu","Vihiga","Wajir","West Pokot"
+      ];
+
+      const TIER_BADGES = {
+        Platinum: `<span class="inline-flex rounded-full bg-purple-50 px-2 py-0.5 text-xs font-semibold text-purple-700 border border-purple-200">Platinum</span>`,
+        Gold: `<span class="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 border border-amber-200">Gold</span>`,
+        Silver: `<span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 border border-slate-200">Silver</span>`,
+        Bronze: `<span class="inline-flex rounded-full bg-orange-50 px-2 py-0.5 text-xs font-semibold text-orange-700 border border-orange-200">Bronze</span>`,
+        Distributor: `<span class="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200">Distributor</span>`,
+        Standard: `<span class="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600 border border-gray-200">Standard</span>`,
+      };
+
+      const STATUS_BADGES = {
+        Active: `<span class="inline-flex rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700 border border-green-200">Active</span>`,
+        Inactive: `<span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500 border border-slate-200">Inactive</span>`,
+        Suspended: `<span class="inline-flex rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600 border border-red-200">Suspended</span>`,
+      };
+
+      let page = 1;
+      const PS = 25;
+
+      // Build region checkboxes
+      const rcb = document.getElementById("regions-checkboxes");
+      KENYA_COUNTIES.forEach(c => {
+        const lbl = document.createElement("label");
+        lbl.className = "inline-flex items-center gap-1 text-xs cursor-pointer";
+        lbl.innerHTML = `<input type="checkbox" value="${c}" class="region-cb rounded" />${c}`;
+        rcb.appendChild(lbl);
+      });
+
+      function getRegions() {
+        return [...document.querySelectorAll(".region-cb:checked")].map(c => c.value);
+      }
+      function setRegions(arr) {
+        document.querySelectorAll(".region-cb").forEach(cb => {
+          cb.checked = arr.includes(cb.value);
+        });
+      }
+
+      async function loadPartners() {
+        const search = document.getElementById("search").value.trim();
+        const status = document.getElementById("filter-status").value;
+        const tier = document.getElementById("filter-tier").value;
+        const params = new URLSearchParams({ page, pageSize: PS });
+        if (search) params.set("search", search);
+        if (status) params.set("status", status);
+        if (tier) params.set("tier", tier);
+
+        document.getElementById("partners-tbody").innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-400">Loading…</td></tr>`;
+        try {
+          const res = await window.FINEMARK_APP.apiFetch(`/partners?${params}`);
+          const { data, meta } = res;
+
+          if (!data.length) {
+            document.getElementById("partners-tbody").innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-400">No partners found.</td></tr>`;
+          } else {
+            const now = new Date();
+            document.getElementById("partners-tbody").innerHTML = data.map(p => {
+              const regions = (p.regions || ["All"]).join(", ");
+              let expiryCell = p.contractExpiry ? p.contractExpiry.slice(0, 10) : "—";
+              if (p.contractExpiry) {
+                const diff = Math.ceil((new Date(p.contractExpiry) - now) / 86400000);
+                if (diff <= 30 && diff >= 0) expiryCell = `<span class="text-red-600 font-semibold">${expiryCell} ⚠</span>`;
+              }
+              return `
+                <tr class="hover:bg-slate-50/60 transition-colors">
+                  <td class="py-3 pr-4 font-medium text-slate-900">${p.name}</td>
+                  <td class="py-3 pr-4">${TIER_BADGES[p.tier] || p.tier}</td>
+                  <td class="py-3 pr-4">${STATUS_BADGES[p.status] || p.status}</td>
+                  <td class="py-3 pr-4 text-xs text-slate-500 max-w-xs truncate" title="${regions}">${regions.length > 50 ? regions.slice(0,50)+'…' : regions}</td>
+                  <td class="py-3 pr-4 text-xs text-slate-600">${p.contactEmail || "—"}</td>
+                  <td class="py-3 pr-4 text-xs text-slate-600">${expiryCell}</td>
+                  <td class="py-3 pr-4 text-xs text-slate-500">${p.kamEmail || "—"}</td>
+                  <td class="py-3 space-x-2 whitespace-nowrap">
+                    <a href="partner-detail.html?id=${p.id}" class="text-xs font-medium text-blue-600 hover:text-blue-800">360°</a>
+                    <button onclick="openEdit('${p.id}')" class="text-xs font-medium text-slate-600 hover:text-slate-900">Edit</button>
+                  </td>
+                </tr>`;
+            }).join("");
+          }
+
+          const total = meta?.total ?? 0;
+          document.getElementById("meta-info").textContent = `Showing ${(page-1)*PS+1}–${Math.min(page*PS, total)} of ${total}`;
+          document.getElementById("btn-prev").disabled = page <= 1;
+          document.getElementById("btn-next").disabled = page * PS >= total;
+
+          // Update stats from data
+          document.getElementById("stat-total").textContent = total;
+          document.getElementById("stat-active").textContent = data.filter(p => p.status === "Active").length;
+          document.getElementById("stat-premium").textContent = data.filter(p => ["Gold","Platinum"].includes(p.tier)).length;
+          const expSoon = data.filter(p => {
+            if (!p.contractExpiry) return false;
+            const diff = Math.ceil((new Date(p.contractExpiry) - new Date()) / 86400000);
+            return diff >= 0 && diff <= 30;
+          }).length;
+          document.getElementById("stat-expiring").textContent = expSoon;
+        } catch (e) {
+          document.getElementById("partners-tbody").innerHTML = `<tr><td colspan="8" class="py-8 text-center text-red-500">Failed to load partners.</td></tr>`;
+        }
+      }
+
+      async function openEdit(id) {
+        try {
+          const p = await window.FINEMARK_APP.apiFetch(`/partners/${id}`);
+          document.getElementById("edit-id").value = p.id;
+          document.getElementById("f-name").value = p.name || "";
+          document.getElementById("f-reg").value = p.businessRegNo || "";
+          document.getElementById("f-tier").value = p.tier || "Standard";
+          document.getElementById("f-contact-name").value = p.primaryContactName || "";
+          document.getElementById("f-email").value = p.contactEmail || "";
+          document.getElementById("f-phone").value = p.contactPhone || "";
+          document.getElementById("f-contract-ref").value = p.contractRef || "";
+          document.getElementById("f-contract-start").value = p.contractStart ? p.contractStart.slice(0,10) : "";
+          document.getElementById("f-contract-expiry").value = p.contractExpiry ? p.contractExpiry.slice(0,10) : "";
+          document.getElementById("f-notes").value = p.notes || "";
+          document.getElementById("f-kam").value = p.keyAccountManagerId || "";
+          setRegions(p.regions || ["All"]);
+          document.getElementById("modal-title").textContent = "Edit Partner";
+          document.getElementById("modal").classList.remove("hidden");
+        } catch (e) { alert("Failed to load partner details."); }
+      }
+
+      document.getElementById("btn-new").addEventListener("click", () => {
+        document.getElementById("partner-form").reset();
+        document.getElementById("edit-id").value = "";
+        document.getElementById("f-kam").value = "";
+        setRegions(["All"]);
+        document.getElementById("modal-title").textContent = "New Partner";
+        document.getElementById("form-error").classList.add("hidden");
+        document.getElementById("modal").classList.remove("hidden");
+      });
+
+      function closeModal() { document.getElementById("modal").classList.add("hidden"); }
+      document.getElementById("modal-close").addEventListener("click", closeModal);
+      document.getElementById("btn-cancel").addEventListener("click", closeModal);
+
+      document.getElementById("partner-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const errEl = document.getElementById("form-error");
+        errEl.classList.add("hidden");
+        const editId = document.getElementById("edit-id").value;
+        const regions = getRegions();
+        const body = {
+          name: document.getElementById("f-name").value.trim(),
+          businessRegNo: document.getElementById("f-reg").value.trim() || null,
+          tier: document.getElementById("f-tier").value,
+          primaryContactName: document.getElementById("f-contact-name").value.trim() || null,
+          contactEmail: document.getElementById("f-email").value.trim() || null,
+          contactPhone: document.getElementById("f-phone").value.trim() || null,
+          contractRef: document.getElementById("f-contract-ref").value.trim() || null,
+          contractStart: document.getElementById("f-contract-start").value || null,
+          contractExpiry: document.getElementById("f-contract-expiry").value || null,
+          notes: document.getElementById("f-notes").value.trim() || null,
+          regions: regions.length ? regions : ["All"],
+          keyAccountManagerId: document.getElementById("f-kam").value || null,
+        };
+        try {
+          document.getElementById("btn-save").disabled = true;
+          document.getElementById("btn-save").textContent = "Saving…";
+          if (editId) {
+            await window.FINEMARK_APP.apiFetch(`/partners/${editId}`, { method: "PATCH", body });
+          } else {
+            await window.FINEMARK_APP.apiFetch("/partners", { method: "POST", body });
+          }
+          closeModal();
+          loadPartners();
+        } catch (err) {
+          errEl.textContent = err.message || "Failed to save partner.";
+          errEl.classList.remove("hidden");
+        } finally {
+          document.getElementById("btn-save").disabled = false;
+          document.getElementById("btn-save").textContent = "Save Partner";
+        }
+      });
+
+      document.getElementById("btn-search").addEventListener("click", () => { page = 1; loadPartners(); });
+      document.getElementById("btn-clear").addEventListener("click", () => {
+        document.getElementById("search").value = "";
+        document.getElementById("filter-status").value = "";
+        document.getElementById("filter-tier").value = "";
+        page = 1; loadPartners();
+      });
+      document.getElementById("search").addEventListener("keydown", e => { if (e.key === "Enter") { page = 1; loadPartners(); } });
+      document.getElementById("btn-prev").addEventListener("click", () => { if (page > 1) { page--; loadPartners(); } });
+      document.getElementById("btn-next").addEventListener("click", () => { page++; loadPartners(); });
+
+      loadPartners();
+    </script>
+  </body>
+</html>

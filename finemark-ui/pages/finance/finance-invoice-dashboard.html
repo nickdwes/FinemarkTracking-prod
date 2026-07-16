@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invoice Dashboard - FineMark Tracking</title>
+    <link rel="icon" href="../../assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="../../assets/tailwind.css" />
+    <link rel="stylesheet" href="../../assets/font-awesome.min.css" />
+    <style>
+      .status-badge { display:inline-flex;align-items:center;border-radius:9999px;padding:2px 10px;font-size:11px;font-weight:600; }
+      .status-paid { background:#dcfce7;color:#166534; }
+      .status-unpaid,.status-pending { background:#fef3c7;color:#92400e; }
+      .status-overdue { background:#fee2e2;color:#991b1b; }
+      .status-draft { background:#f1f5f9;color:#475569; }
+      .etims-yes { background:#d1fae5;color:#065f46; }
+      .etims-no { background:#f1f5f9;color:#64748b; }
+      #pdf-modal iframe { border:none; }
+    </style>
+  </head>
+  <body class="bg-gray-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-7xl mx-auto space-y-5">
+
+          <!-- Page header -->
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h1 class="text-2xl font-semibold text-slate-900">Invoice Dashboard</h1>
+              <p class="text-sm text-slate-500">All invoices generated from approved proformas. Generate KRA Tax Invoices here.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <a href="finance-dashboard.html" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">← Finance Dashboard</a>
+            </div>
+          </div>
+
+          <!-- KPI Cards -->
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-widest">Total Invoices</p>
+              <p id="kpi-total" class="mt-1 text-2xl font-bold text-slate-900">—</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-widest">Total Value (KES)</p>
+              <p id="kpi-value" class="mt-1 text-2xl font-bold text-slate-900">—</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-widest">eTIMS Signed</p>
+              <p id="kpi-signed" class="mt-1 text-2xl font-bold text-emerald-600">—</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-widest">Awaiting Signing</p>
+              <p id="kpi-unsigned" class="mt-1 text-2xl font-bold text-amber-600">—</p>
+            </div>
+          </div>
+
+          <!-- Filters -->
+          <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+            <div class="flex flex-wrap gap-3 items-end">
+              <div class="flex-1 min-w-[180px]">
+                <label class="block text-xs font-medium text-slate-600 mb-1">Search</label>
+                <input id="f-search" type="text" placeholder="Invoice #, customer…" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Start Date</label>
+                <input id="f-start" type="date" class="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">End Date</label>
+                <input id="f-end" type="date" class="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Status</label>
+                <select id="f-status" class="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500">
+                  <option value="">All Statuses</option>
+                  <option value="draft">Draft</option>
+                  <option value="pending">Pending</option>
+                  <option value="unpaid">Unpaid</option>
+                  <option value="paid">Paid</option>
+                  <option value="overdue">Overdue</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">eTIMS</label>
+                <select id="f-etims" class="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500">
+                  <option value="">All</option>
+                  <option value="signed">Signed</option>
+                  <option value="unsigned">Unsigned</option>
+                </select>
+              </div>
+              <div class="flex gap-2">
+                <button id="btn-filter" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Filter</button>
+                <button id="btn-reset" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">Reset</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Table -->
+          <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <span class="text-sm font-semibold text-slate-700">Invoices</span>
+              <span id="result-count" class="text-xs text-slate-400"></span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="text-left text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                    <th class="px-5 py-3">Invoice #</th>
+                    <th class="px-5 py-3">Customer</th>
+                    <th class="px-5 py-3">Amount</th>
+                    <th class="px-5 py-3">Status</th>
+                    <th class="px-5 py-3">eTIMS</th>
+                    <th class="px-5 py-3">Date</th>
+                    <th class="px-5 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="invoice-tbody">
+                  <tr><td colspan="7" class="px-5 py-10 text-center text-slate-400">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div id="pagination" class="flex items-center justify-between px-5 py-3 border-t border-slate-100 hidden">
+              <button id="btn-prev" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40" disabled>← Prev</button>
+              <span id="page-info" class="text-xs text-slate-500"></span>
+              <button id="btn-next" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40" disabled>Next →</button>
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+
+    <!-- PDF Preview Modal -->
+    <div id="pdf-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl flex flex-col" style="height:90vh">
+        <div class="flex items-center justify-between px-5 py-3 border-b border-slate-100 flex-shrink-0">
+          <div>
+            <p id="pdf-title" class="text-sm font-semibold text-slate-900">Invoice PDF</p>
+            <p id="pdf-subtitle" class="text-xs text-slate-500"></p>
+          </div>
+          <div class="flex items-center gap-2">
+            <a id="pdf-download" href="#" download class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">⬇ Download</a>
+            <button id="pdf-close" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100">Close</button>
+          </div>
+        </div>
+        <iframe id="pdf-iframe" src="" class="flex-1 w-full rounded-b-xl"></iframe>
+      </div>
+    </div>
+
+    <!-- eTIMS Signing confirmation dialog -->
+    <div id="etims-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4">
+        <h2 class="text-lg font-semibold text-slate-900">Generate Tax Invoice</h2>
+        <p class="text-sm text-slate-500">Submit invoice <span id="etims-inv-no" class="font-semibold text-slate-800"></span> to KRA eTIMS and generate a signed tax invoice with QR code.</p>
+        <div id="etims-result" class="hidden rounded-lg border p-3 text-sm"></div>
+        <!-- Manual entry fields — shown when gateway is not configured -->
+        <div id="etims-manual-fields" class="hidden space-y-3 pt-1 border-t border-slate-100">
+          <p class="text-xs text-amber-700 font-medium">eTIMS gateway not configured — enter control numbers manually:</p>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">KRA Control Number <span class="text-red-500">*</span></label>
+            <input id="etims-ctrl-no" type="text" placeholder="e.g. KRA20260001" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">ETR Receipt Number <span class="text-red-500">*</span></label>
+            <input id="etims-rcpt-no" type="text" placeholder="e.g. ETR000001" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+        </div>
+        <div class="flex justify-end gap-3">
+          <button id="etims-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
+          <button id="etims-confirm" class="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700">Sign &amp; Generate</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Process Payment Modal -->
+    <div id="payment-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-900">Process Payment</h2>
+          <p class="text-sm text-slate-500 mt-0.5">Invoice <span id="pay-inv-no" class="font-semibold text-slate-800"></span> &mdash; <span id="pay-customer" class="text-slate-700"></span></p>
+        </div>
+        <div id="pay-result" class="hidden rounded-lg border p-3 text-sm"></div>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Amount (KES) <span class="text-red-500">*</span></label>
+            <input id="pay-amount" type="number" min="1" step="1" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" placeholder="Enter amount paid" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Payment Mode <span class="text-red-500">*</span></label>
+            <select id="pay-mode" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500">
+              <option value="">Select payment mode…</option>
+              <option value="Mobile Money">Mobile Money (M-Pesa)</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Cash">Cash</option>
+              <option value="Card">Card</option>
+            </select>
+          </div>
+          <!-- Bank account selector — visible only for Bank Transfer -->
+          <div id="pay-bank-row" class="hidden">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Bank Account <span class="text-red-500">*</span></label>
+            <select id="pay-bank-account" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500">
+              <option value="">Select bank account…</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Transaction / Reference Code</label>
+            <input id="pay-ref" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" placeholder="e.g. QAB3X7R9 or CHQ-0042" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Processed By</label>
+            <input id="pay-accountant" type="text" readonly class="w-full rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-500 cursor-not-allowed" />
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 pt-1">
+          <button id="pay-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
+          <button id="pay-submit" class="rounded-lg bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700">Record Payment</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="fm-footer"></div>
+    <script src="../../assets/app.js"></script>
+    <script src="../../assets/layout.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        window.FINEMARK_APP?.requirePageAccess?.();
+
+        const PAGE_SIZE = 50;
+        const userRole = (window.FINEMARK_APP?.getSession?.()?.user?.role || "").toLowerCase();
+        const isFinanceAdmin = ["finance", "admin"].includes(userRole);
+        const isBDM = userRole === "bdm";
+        const state = { items: [], page: 1, total: 0, etimsTarget: null, etimsManualMode: false, payTarget: null, bankAccounts: [] };
+        const apiBase = window.FINEMARK_APP?.CONFIG?.API_BASE_URL || "/api";
+
+        const fmtKes = v => `KES ${Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const fmtDate = v => v ? new Date(v).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+
+        function statusBadge(status) {
+          const cls = { paid: "status-paid", unpaid: "status-unpaid", pending: "status-pending", overdue: "status-overdue", draft: "status-draft" };
+          return `<span class="status-badge ${cls[status] || "status-draft"}">${(status || "pending").toUpperCase()}</span>`;
+        }
+
+        async function loadInvoices() {
+          const tbody = document.getElementById("invoice-tbody");
+          tbody.innerHTML = `<tr><td colspan="7" class="px-5 py-10 text-center text-slate-400">Loading…</td></tr>`;
+
+          const params = new URLSearchParams({
+            page: String(state.page),
+            pageSize: String(PAGE_SIZE),
+          });
+          const search = document.getElementById("f-search").value.trim();
+          const startDate = document.getElementById("f-start").value;
+          const endDate = document.getElementById("f-end").value;
+          const status = document.getElementById("f-status").value;
+          if (search) params.set("search", search);
+          if (startDate) params.set("startDate", startDate);
+          if (endDate) params.set("endDate", endDate);
+          if (status) params.set("status", status);
+
+          try {
+            const res = await window.FINEMARK_APP.apiFetch(`/invoices?${params}`);
+            let items = res.data || [];
+
+            const etimsFilter = document.getElementById("f-etims").value;
+            if (etimsFilter === "signed") items = items.filter(i => i.etimsSigned || i.etims_signed);
+            if (etimsFilter === "unsigned") items = items.filter(i => !i.etimsSigned && !i.etims_signed);
+
+            state.items = items;
+            state.total = res.meta?.total || items.length;
+            renderTable();
+            renderKpis(items);
+            renderPagination();
+          } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="7" class="px-5 py-10 text-center text-red-400">Failed to load invoices. ${e.message || ""}</td></tr>`;
+          }
+        }
+
+        function renderTable() {
+          const tbody = document.getElementById("invoice-tbody");
+          const token = window.FINEMARK_APP?.getSession?.()?.accessToken || "";
+
+          if (!state.items.length) {
+            tbody.innerHTML = `<tr><td colspan="7" class="px-5 py-10 text-center text-slate-400">No invoices found.</td></tr>`;
+            document.getElementById("result-count").textContent = "0 results";
+            return;
+          }
+
+          document.getElementById("result-count").textContent = `${state.items.length} of ${state.total} results`;
+
+          tbody.innerHTML = state.items.map(inv => {
+            const etimsSigned = inv.etimsSigned || inv.etims_signed;
+            const etimsBadge = etimsSigned
+              ? `<span class="status-badge etims-yes">✓ SIGNED</span>`
+              : `<span class="status-badge etims-no">UNSIGNED</span>`;
+            const pdfUrl = `${apiBase}/invoices/${inv.id}/pdf?token=${encodeURIComponent(token)}`;
+            const signBtn = etimsSigned
+              ? `<button class="btn-view-pdf text-blue-600 hover:underline text-xs" data-id="${inv.id}" data-no="${inv.invoiceNumber}" data-pdf="${pdfUrl}">View PDF</button>`
+              : `<button class="btn-sign text-emerald-700 font-semibold hover:underline text-xs" data-id="${inv.id}" data-no="${inv.invoiceNumber}">Generate Tax Invoice</button>
+                 <span class="mx-1.5 text-slate-300">|</span>
+                 <button class="btn-view-pdf text-blue-600 hover:underline text-xs" data-id="${inv.id}" data-no="${inv.invoiceNumber}" data-pdf="${pdfUrl}">View PDF</button>`;
+            const invStatus = (inv.status || "").toLowerCase();
+            const payBtn = isFinanceAdmin && ["unpaid", "pending", "overdue", "partiallypaid"].includes(invStatus)
+              ? `<span class="mx-1.5 text-slate-300">|</span><button class="btn-pay rounded bg-green-600 px-2 py-0.5 text-xs font-semibold text-white hover:bg-green-700" data-id="${inv.id}" data-no="${inv.invoiceNumber || ''}" data-customer="${(inv.customer || '').replace(/"/g, '&quot;')}" data-amount="${inv.total ?? inv.amount ?? 0}">Process Payment</button>`
+              : ``;
+            const raiseTicketBtn = (isBDM || isFinanceAdmin)
+              ? `<span class="mx-1.5 text-slate-300">|</span><a href="../../installation-ticket.html?invoiceId=${inv.id}&invoiceNo=${encodeURIComponent(inv.invoiceNumber||'')}&customer=${encodeURIComponent(inv.customer||'')}" class="rounded bg-indigo-600 px-2 py-0.5 text-xs font-semibold text-white hover:bg-indigo-700">Raise Ticket</a>`
+              : ``;
+            return `<tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+              <td class="px-5 py-3 font-medium text-slate-900">
+                <a href="../../invoice-detail.html?id=${inv.id}" class="hover:text-blue-600">${inv.invoiceNumber || "—"}</a>
+              </td>
+              <td class="px-5 py-3 text-slate-600 max-w-[180px] truncate">${inv.customerId
+                ? `<a href="../../crm-customer-360.html?id=${inv.customerId}" class="text-blue-600 hover:underline">${inv.customer || "—"}</a>`
+                : (inv.customer || "—")}</td>
+              <td class="px-5 py-3 font-mono text-xs text-slate-800">${fmtKes(inv.total ?? inv.amount)}</td>
+              <td class="px-5 py-3">${statusBadge(inv.status)}</td>
+              <td class="px-5 py-3">${etimsBadge}</td>
+              <td class="px-5 py-3 text-slate-500 text-xs">${fmtDate(inv.issuedOn || inv.issued_on)}</td>
+              <td class="px-5 py-3 text-right whitespace-nowrap">${isFinanceAdmin ? signBtn : `<button class="btn-view-pdf text-blue-600 hover:underline text-xs" data-id="${inv.id}" data-no="${inv.invoiceNumber}" data-pdf="${pdfUrl}">View PDF</button>`}${payBtn}${raiseTicketBtn}</td>
+            </tr>`;
+          }).join("");
+
+          // View PDF
+          tbody.querySelectorAll(".btn-view-pdf").forEach(btn => {
+            btn.addEventListener("click", () => openPdf(btn.dataset.pdf, btn.dataset.no, btn.dataset.id));
+          });
+
+          // Sign (generate tax invoice)
+          tbody.querySelectorAll(".btn-sign").forEach(btn => {
+            btn.addEventListener("click", () => openEtimsModal(btn.dataset.id, btn.dataset.no));
+          });
+
+          // Process payment
+          tbody.querySelectorAll(".btn-pay").forEach(btn => {
+            btn.addEventListener("click", () => openProcessPayment(btn.dataset.id, btn.dataset.no, btn.dataset.customer, parseFloat(btn.dataset.amount)));
+          });
+        }
+
+        function renderKpis(items) {
+          const total = state.total;
+          const totalValue = items.reduce((s, i) => s + Number(i.total ?? i.amount ?? 0), 0);
+          const signed = items.filter(i => i.etimsSigned || i.etims_signed).length;
+          const unsigned = items.filter(i => !i.etimsSigned && !i.etims_signed).length;
+          document.getElementById("kpi-total").textContent = total;
+          document.getElementById("kpi-value").textContent = fmtKes(totalValue);
+          document.getElementById("kpi-signed").textContent = signed;
+          document.getElementById("kpi-unsigned").textContent = unsigned;
+        }
+
+        function renderPagination() {
+          const pages = Math.ceil(state.total / PAGE_SIZE);
+          const pag = document.getElementById("pagination");
+          if (pages <= 1) { pag.classList.add("hidden"); return; }
+          pag.classList.remove("hidden");
+          document.getElementById("page-info").textContent = `Page ${state.page} of ${pages}`;
+          document.getElementById("btn-prev").disabled = state.page <= 1;
+          document.getElementById("btn-next").disabled = state.page >= pages;
+        }
+
+        // PDF modal
+        function openPdf(pdfUrl, invoiceNo, invoiceId) {
+          document.getElementById("pdf-title").textContent = `Invoice ${invoiceNo || ""}`;
+          document.getElementById("pdf-subtitle").textContent = `ID: ${invoiceId}`;
+          document.getElementById("pdf-iframe").src = pdfUrl;
+          const token = window.FINEMARK_APP?.getSession?.()?.accessToken || "";
+          document.getElementById("pdf-download").href = `${apiBase}/invoices/${invoiceId}/pdf?disposition=attachment&token=${encodeURIComponent(token)}`;
+          document.getElementById("pdf-modal").classList.remove("hidden");
+        }
+
+        document.getElementById("pdf-close").addEventListener("click", () => {
+          document.getElementById("pdf-modal").classList.add("hidden");
+          document.getElementById("pdf-iframe").src = "";
+        });
+
+        // eTIMS modal
+        function openEtimsModal(id, invoiceNo) {
+          state.etimsTarget = id;
+          state.etimsManualMode = false;
+          document.getElementById("etims-inv-no").textContent = invoiceNo;
+          const resultEl = document.getElementById("etims-result");
+          resultEl.classList.add("hidden");
+          resultEl.textContent = "";
+          document.getElementById("etims-manual-fields").classList.add("hidden");
+          document.getElementById("etims-ctrl-no").value = "";
+          document.getElementById("etims-rcpt-no").value = "";
+          document.getElementById("etims-confirm").disabled = false;
+          document.getElementById("etims-confirm").textContent = "Sign & Generate";
+          document.getElementById("etims-modal").classList.remove("hidden");
+        }
+
+        document.getElementById("etims-cancel").addEventListener("click", () => {
+          document.getElementById("etims-modal").classList.add("hidden");
+        });
+
+        // Load bank accounts for the payment modal selector
+        async function loadBankAccounts() {
+          try {
+            const res = await window.FINEMARK_APP.apiFetch("/bank-accounts");
+            state.bankAccounts = (res.data || []).filter(a => a.isActive);
+            const sel = document.getElementById("pay-bank-account");
+            sel.innerHTML = "<option value=\"\">Select bank account\u2026</option>" +
+              state.bankAccounts.map(a => `<option value="${a.bankName}">${a.bankName} — ${a.accountName} (${a.accountNumber})</option>`).join("");
+          } catch (_) { /* non-fatal */ }
+        }
+
+        // Process Payment modal
+        function openProcessPayment(id, invNo, customer, amount) {
+          state.payTarget = { id, amount };
+          document.getElementById("pay-inv-no").textContent = invNo;
+          document.getElementById("pay-customer").textContent = customer;
+          document.getElementById("pay-amount").value = Math.round(amount) || "";
+          document.getElementById("pay-mode").value = "";
+          document.getElementById("pay-bank-account").value = "";
+          document.getElementById("pay-bank-row").classList.add("hidden");
+          document.getElementById("pay-ref").value = "";
+          const user = window.FINEMARK_APP?.getSession?.()?.user;
+          document.getElementById("pay-accountant").value = user?.name || user?.email || "—";
+          const resultEl = document.getElementById("pay-result");
+          resultEl.classList.add("hidden");
+          document.getElementById("pay-submit").disabled = false;
+          document.getElementById("pay-submit").textContent = "Record Payment";
+          document.getElementById("payment-modal").classList.remove("hidden");
+        }
+
+        // Show/hide bank account row based on payment mode
+        document.getElementById("pay-mode").addEventListener("change", function() {
+          const row = document.getElementById("pay-bank-row");
+          if (this.value === "Bank Transfer") {
+            row.classList.remove("hidden");
+          } else {
+            row.classList.add("hidden");
+            document.getElementById("pay-bank-account").value = "";
+          }
+        });
+
+        document.getElementById("pay-cancel").addEventListener("click", () => {
+          document.getElementById("payment-modal").classList.add("hidden");
+        });
+
+        document.getElementById("payment-modal").addEventListener("click", function(e) {
+          if (e.target === this) document.getElementById("payment-modal").classList.add("hidden");
+        });
+
+        document.getElementById("pay-submit").addEventListener("click", async () => {
+          if (!state.payTarget) return;
+          const amountRaw = parseInt(document.getElementById("pay-amount").value, 10);
+          const method = document.getElementById("pay-mode").value;
+          const ref = document.getElementById("pay-ref").value.trim();
+          const resultEl = document.getElementById("pay-result");
+          const btn = document.getElementById("pay-submit");
+
+          if (!amountRaw || amountRaw <= 0) {
+            resultEl.className = "rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700";
+            resultEl.textContent = "Please enter a valid amount.";
+            resultEl.classList.remove("hidden");
+            return;
+          }
+          if (!method) {
+            resultEl.className = "rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700";
+            resultEl.textContent = "Please select a payment mode.";
+            resultEl.classList.remove("hidden");
+            return;
+          }
+
+          btn.disabled = true;
+          btn.textContent = "Recording…";
+          resultEl.classList.add("hidden");
+
+          const bankAccount = document.getElementById("pay-bank-account").value.trim();
+          if (method === "Bank Transfer" && !bankAccount) {
+            resultEl.className = "rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700";
+            resultEl.textContent = "Please select a bank account for Bank Transfer.";
+            resultEl.classList.remove("hidden");
+            return;
+          }
+
+          try {
+            const body = { invoiceId: state.payTarget.id, amount: amountRaw, method, currency: "KES" };
+            if (ref) body.paymentRef = ref;
+            if (bankAccount) body.bank = bankAccount;
+            await window.FINEMARK_APP.apiFetch("/payments", { method: "POST", body });
+            resultEl.className = "rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800";
+            resultEl.textContent = "✓ Payment recorded successfully!";
+            resultEl.classList.remove("hidden");
+            btn.textContent = "Done";
+            setTimeout(() => {
+              document.getElementById("payment-modal").classList.add("hidden");
+              loadInvoices();
+            }, 1500);
+          } catch (err) {
+            resultEl.className = "rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700";
+            resultEl.textContent = `Error: ${err.message || "Failed to record payment. Please try again."}`;
+            resultEl.classList.remove("hidden");
+            btn.disabled = false;
+            btn.textContent = "Record Payment";
+          }
+        });
+
+        document.getElementById("etims-confirm").addEventListener("click", async () => {
+          const id = state.etimsTarget;
+          if (!id) return;
+          const btn = document.getElementById("etims-confirm");
+          const resultEl = document.getElementById("etims-result");
+          const manualFields = document.getElementById("etims-manual-fields");
+          btn.disabled = true;
+          btn.textContent = "Signing…";
+          resultEl.classList.add("hidden");
+
+          // Build request body
+          const body = {};
+          if (state.etimsManualMode) {
+            const ctrl = document.getElementById("etims-ctrl-no").value.trim();
+            const rcpt = document.getElementById("etims-rcpt-no").value.trim();
+            if (!ctrl || !rcpt) {
+              resultEl.className = "rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700";
+              resultEl.textContent = "Please enter both KRA Control Number and ETR Receipt Number.";
+              resultEl.classList.remove("hidden");
+              btn.disabled = false;
+              btn.textContent = "Save Manual Entry";
+              return;
+            }
+            body.manualControlNo = ctrl;
+            body.manualReceiptNo = rcpt;
+          }
+
+          try {
+            const res = await window.FINEMARK_APP.apiFetch(`/invoices/${id}/etims-sign`, { method: "POST", body });
+            resultEl.className = "rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800";
+            resultEl.textContent = `✓ Tax invoice signed! Control No: ${res.data?.etimsControlNo || "—"}`;
+            resultEl.classList.remove("hidden");
+            btn.textContent = "Done";
+            setTimeout(() => {
+              document.getElementById("etims-modal").classList.add("hidden");
+              loadInvoices();
+            }, 1800);
+          } catch (err) {
+            // If gateway not configured, switch to manual entry mode
+            if (!state.etimsManualMode && err.message && err.message.toLowerCase().includes("not configured")) {
+              state.etimsManualMode = true;
+              manualFields.classList.remove("hidden");
+              resultEl.className = "rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700";
+              resultEl.textContent = "eTIMS gateway is not configured. Enter the control and receipt numbers manually below.";
+              resultEl.classList.remove("hidden");
+              btn.disabled = false;
+              btn.textContent = "Save Manual Entry";
+            } else {
+              resultEl.className = "rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700";
+              resultEl.textContent = `Error: ${err.message || "eTIMS signing failed. Please try again."}`;
+              resultEl.classList.remove("hidden");
+              btn.disabled = false;
+              btn.textContent = state.etimsManualMode ? "Save Manual Entry" : "Sign & Generate";
+            }
+          }
+        });
+
+        // Filters
+        document.getElementById("btn-filter").addEventListener("click", () => {
+          state.page = 1;
+          loadInvoices();
+        });
+
+        document.getElementById("btn-reset").addEventListener("click", () => {
+          ["f-search", "f-start", "f-end"].forEach(id => document.getElementById(id).value = "");
+          ["f-status", "f-etims"].forEach(id => document.getElementById(id).value = "");
+          state.page = 1;
+          loadInvoices();
+        });
+
+        document.getElementById("f-search").addEventListener("keydown", e => {
+          if (e.key === "Enter") { state.page = 1; loadInvoices(); }
+        });
+
+        document.getElementById("btn-prev").addEventListener("click", () => { state.page--; loadInvoices(); });
+        document.getElementById("btn-next").addEventListener("click", () => { state.page++; loadInvoices(); });
+
+        // Close PDF modal on backdrop click
+        document.getElementById("pdf-modal").addEventListener("click", function(e) {
+          if (e.target === this) { document.getElementById("pdf-close").click(); }
+        });
+
+        loadInvoices();
+        loadBankAccounts();
+      });
+    </script>
+  </body>
+</html>

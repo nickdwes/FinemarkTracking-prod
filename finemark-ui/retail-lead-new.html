@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | New Retail Lead</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+    <div class="max-w-3xl mx-auto space-y-6">
+
+      <!-- Page header -->
+      <div class="flex items-center gap-3">
+        <a href="retail-leads.html" class="text-slate-400 hover:text-slate-600 text-sm">← Retail Leads</a>
+        <span class="text-slate-300">/</span>
+        <h1 class="text-xl font-semibold text-slate-900">New Retail Lead</h1>
+      </div>
+
+      <!-- Banner -->
+      <div id="banner" class="hidden rounded-xl px-4 py-3 text-sm font-medium"></div>
+
+      <!-- Form -->
+      <form id="lead-form" class="space-y-6" novalidate>
+
+        <!-- Section 1: Customer Type & Lead Source -->
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 space-y-5">
+          <h2 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Lead Information</h2>
+
+          <!-- Customer type -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Customer Type <span class="text-red-500">*</span></label>
+            <div class="flex gap-3">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="customerType" value="new_customer" checked class="accent-blue-600" />
+                <span class="text-sm font-medium text-slate-700">New Customer</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="customerType" value="existing_customer" class="accent-blue-600" />
+                <span class="text-sm font-medium text-slate-700">Existing Customer</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Existing customer lookup (shown when existing_customer selected) -->
+          <div id="existing-customer-lookup" class="hidden space-y-2">
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Select Existing Customer</label>
+            <div class="flex gap-2">
+              <input id="customer-search-input" type="text" placeholder="Search by name or phone…"
+                     class="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <button type="button" id="btn-search-customer"
+                      class="rounded-lg bg-slate-100 border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200">Search</button>
+            </div>
+            <div id="customer-results" class="hidden border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-48 overflow-y-auto bg-white shadow-sm"></div>
+            <input type="hidden" id="customer-id-hidden" />
+          </div>
+
+          <!-- Lead Source -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Lead Source <span class="text-red-500">*</span></label>
+            <select id="lead-source" required
+                    class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">— Select lead source —</option>
+              <option value="Customer Yard">Customer Yard</option>
+              <option value="Bank Partnership">Bank Partnership</option>
+              <option value="Insurance Partnership">Insurance Partnership</option>
+              <option value="Dealer Partnership">Dealer Partnership</option>
+              <option value="Field Sales">Field Sales</option>
+              <option value="Referral">Referral</option>
+              <option value="Social Media">Social Media</option>
+              <option value="Walk-In">Walk-In</option>
+              <option value="Direct">Direct</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <!-- Partner selection (shown when partnership source) -->
+          <div id="partner-section" class="hidden space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Primary Partner</label>
+                <select id="primary-partner"
+                        class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">— Select primary partner (optional) —</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Secondary Partner</label>
+                <select id="secondary-partner"
+                        class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">— Select secondary partner (optional) —</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Installation Financer -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Installation Financer</label>
+            <select id="installation-financer"
+                    class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">— Select financer —</option>
+              <option value="Private">Private</option>
+              <option value="Bank Financed">Bank Financed</option>
+            </select>
+          </div>
+
+          <!-- Referrer -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Referrer Name</label>
+              <input id="referrer-name" type="text" placeholder="Full name of referrer"
+                     class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Referrer Phone</label>
+              <input id="referrer-phone" type="tel" placeholder="+254 7XX XXX XXX"
+                     pattern="^\+?[0-9\s\-]{7,15}$"
+                     class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <p id="referrer-phone-err" class="text-xs text-red-500 mt-1 hidden">Invalid phone number format.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Product / Service of Interest -->
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 space-y-5">
+          <h2 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Product / Service of Interest</h2>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Product Category of Interest</label>
+            <select id="product-category-select"
+                    class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">— Select category (optional) —</option>
+            </select>
+          </div>
+
+          <div id="specific-product-section">
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Specific Product</label>
+            <select id="product-select"
+                    class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">— Select product (optional) —</option>
+            </select>
+          </div>
+
+          <div id="product-other-section" class="hidden">
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Describe Product / Suggestion</label>
+            <input id="product-other" type="text" placeholder="Describe the product you are looking for…"
+                   class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+
+        <!-- Section 3: Customer Details -->
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 space-y-5">
+          <h2 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Customer Details</h2>
+
+          <!-- Individual / Corporate toggle -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Customer Type</label>
+            <div class="flex gap-4">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="customerEntityType" value="individual" checked class="accent-blue-600" />
+                <span class="text-sm font-medium text-slate-700">Individual</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="customerEntityType" value="corporate" class="accent-blue-600" />
+                <span class="text-sm font-medium text-slate-700">Corporate</span>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Full Customer Name / Company <span class="text-red-500">*</span></label>
+            <input id="customer-name" type="text" required placeholder="Full legal name or company name"
+                   class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Phone Number <span class="text-slate-400 font-normal">(recommended)</span></label>
+              <input id="customer-phone" type="tel" placeholder="+254 7XX XXX XXX"
+                     class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <p id="customer-phone-err" class="text-xs text-red-500 mt-1 hidden">Invalid Kenyan phone number — expected e.g. 0712 345678 or +254712345678.</p>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Email Address</label>
+              <input id="customer-email" type="email" placeholder="customer@example.com"
+                     class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <p id="customer-email-err" class="text-xs text-red-500 mt-1 hidden">Invalid email address.</p>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Customer Location (County)</label>
+            <select id="customer-location"
+                    class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">— Select county —</option>
+              <option>Baringo</option><option>Bomet</option><option>Bungoma</option>
+              <option>Busia</option><option>Elgeyo-Marakwet</option><option>Embu</option>
+              <option>Garissa</option><option>Homa Bay</option><option>Isiolo</option>
+              <option>Kajiado</option><option>Kakamega</option><option>Kericho</option>
+              <option>Kiambu</option><option>Kilifi</option><option>Kirinyaga</option>
+              <option>Kisii</option><option>Kisumu</option><option>Kitui</option>
+              <option>Kwale</option><option>Laikipia</option><option>Lamu</option>
+              <option>Machakos</option><option>Makueni</option><option>Mandera</option>
+              <option>Marsabit</option><option>Meru</option><option>Migori</option>
+              <option>Mombasa</option><option>Murang'a</option><option>Nairobi</option>
+              <option>Nakuru</option><option>Nandi</option><option>Narok</option>
+              <option>Nyamira</option><option>Nyandarua</option><option>Nyeri</option>
+              <option>Samburu</option><option>Siaya</option><option>Taita-Taveta</option>
+              <option>Tana River</option><option>Tharaka-Nithi</option><option>Trans Nzoia</option>
+              <option>Turkana</option><option>Uasin Gishu</option><option>Vihiga</option>
+              <option>Wajir</option><option>West Pokot</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Notes</label>
+            <textarea id="customer-notes" rows="3" placeholder="Any additional notes about this customer…"
+                      class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+          </div>
+        </div>
+
+        <!-- Section 4: Vehicle Details -->
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 space-y-5">
+          <h2 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Vehicle Details</h2>
+
+          <!-- Registration toggle -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Vehicle Registration Status</label>
+            <div class="flex gap-4">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="regStatus" value="registered" checked class="accent-blue-600" id="reg-registered" />
+                <span class="text-sm font-medium text-slate-700">Registered</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="regStatus" value="not_registered" class="accent-blue-600" id="reg-not-registered" />
+                <span class="text-sm font-medium text-slate-700">Not Registered</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Registration plate -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+              Vehicle Registration
+              <span id="reg-required-badge" class="text-red-500 font-normal"> *</span>
+              <span id="reg-optional-badge" class="text-slate-400 font-normal hidden"> (optional)</span>
+            </label>
+            <input id="vehicle-reg" type="text" placeholder="e.g. KCA 123A"
+                   class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                   oninput="this.value=this.value.toUpperCase()" />
+            <p id="vehicle-reg-err" class="hidden text-xs text-red-500 mt-1">Invalid format — use e.g. KCA 123A, GK A001B, CD 123A</p>
+          </div>
+
+          <!-- Bank partner badge (shown when Bank Partnership source is chosen) -->
+          <div id="vehicle-bank-partner-wrap" class="hidden">
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Bank Partner</label>
+            <div id="vehicle-bank-partner-badge" class="inline-flex items-center gap-2 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-sm font-medium text-blue-800">
+              <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 10h11M9 21V3m-6 7l6-7 6 7"/></svg>
+              <span id="vehicle-bank-partner-name">—</span>
+            </div>
+          </div>
+
+          <!-- Loan Term -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+              Loan Term: <span id="loan-term-label" class="font-semibold text-blue-700">None</span>
+            </label>
+            <input id="loan-term" type="range" min="0" max="84" step="1" value="0"
+                   class="w-full accent-blue-600 mt-1" />
+            <div class="flex justify-between text-xs text-slate-400 mt-0.5"><span>None</span><span>84 months</span></div>
+          </div>
+
+          <!-- Full vehicle details (shown when registered) -->
+          <div id="vehicle-full-details" class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Category</label>
+                <select id="vehicle-category"
+                        class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Make</label>
+                <select id="vehicle-make"
+                        class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">— Select make —</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Model</label>
+                <select id="vehicle-model" disabled
+                        class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400">
+                  <option value="">— Select make first —</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Year</label>
+                <input id="vehicle-year" type="number" placeholder="e.g. 2020" min="1900" max="2100"
+                       class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Color</label>
+                <select id="vehicle-color"
+                        class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">— Select color —</option>
+                  <option>White</option>
+                  <option>Silver</option>
+                  <option>Black</option>
+                  <option>Grey</option>
+                  <option>Blue</option>
+                  <option>Red</option>
+                  <option>Maroon</option>
+                  <option>Brown</option>
+                  <option>Beige</option>
+                  <option>Gold</option>
+                  <option>Yellow</option>
+                  <option>Orange</option>
+                  <option>Green</option>
+                  <option>Pearl White</option>
+                  <option>Champagne</option>
+                  <option>Other</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Engine Number</label>
+                <input id="vehicle-engine" type="text" placeholder="Engine number"
+                       class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                  VIN / Chassis Number
+                  <span id="chassis-required-badge" class="text-red-500 font-normal hidden"> *</span>
+                </label>
+                <input id="vehicle-chassis" type="text" placeholder="17-digit VIN / chassis number"
+                       class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase" />
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Section 5: Location Details (for Installation Ticket) -->
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 space-y-5">
+          <h2 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Location &amp; Installation Details</h2>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Location / Partner Yard Name <span class="text-red-500 normal-case tracking-normal">*</span></label>
+            <input id="location-name" type="text" required placeholder="e.g. Equity Bank Westlands, ABC Car Yard"
+                   class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+
+          <!-- Installation County -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">County</label>
+            <select id="installation-county"
+                    class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">— Select county —</option>
+              <option>Baringo</option><option>Bomet</option><option>Bungoma</option>
+              <option>Busia</option><option>Elgeyo-Marakwet</option><option>Embu</option>
+              <option>Garissa</option><option>Homa Bay</option><option>Isiolo</option>
+              <option>Kajiado</option><option>Kakamega</option><option>Kericho</option>
+              <option>Kiambu</option><option>Kilifi</option><option>Kirinyaga</option>
+              <option>Kisii</option><option>Kisumu</option><option>Kitui</option>
+              <option>Kwale</option><option>Laikipia</option><option>Lamu</option>
+              <option>Machakos</option><option>Makueni</option><option>Mandera</option>
+              <option>Marsabit</option><option>Meru</option><option>Migori</option>
+              <option>Mombasa</option><option>Murang'a</option><option>Nairobi</option>
+              <option>Nakuru</option><option>Nandi</option><option>Narok</option>
+              <option>Nyamira</option><option>Nyandarua</option><option>Nyeri</option>
+              <option>Samburu</option><option>Siaya</option><option>Taita-Taveta</option>
+              <option>Tana River</option><option>Tharaka-Nithi</option><option>Trans Nzoia</option>
+              <option>Turkana</option><option>Uasin Gishu</option><option>Vihiga</option>
+              <option>Wajir</option><option>West Pokot</option>
+            </select>
+          </div>
+
+          <!-- Installation Contact -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Installation Contact <span class="text-red-500 normal-case tracking-normal">*</span></label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <input id="installation-contact-name" type="text" required placeholder="Contact name on site"
+                     class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input id="installation-contact-phone" type="tel" required placeholder="+254 7XX XXX XXX"
+                     class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <p id="installation-contact-phone-err" class="text-xs text-red-500 mt-1 hidden">Invalid Kenyan phone number — expected e.g. 0712 345678 or +254712345678.</p>
+          </div>
+
+          <!-- Location Description -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Location Description</label>
+            <textarea id="location-description" rows="3" placeholder="Describe the location in more detail (landmarks, directions, etc.)"
+                      class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Instructions / Notes for Technician</label>
+            <textarea id="location-notes" rows="3" placeholder="Special access instructions, customer contact on site, etc."
+                      class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+          </div>
+        </div>
+
+        <!-- Section 6: Supporting Documents -->
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 space-y-4">
+          <div class="border-b border-slate-100 pb-3">
+            <h2 class="text-base font-bold text-slate-900">Supporting Documents</h2>
+            <p class="text-xs text-slate-400 mt-1">Attach or mark each required document as collected. Files are uploaded securely when the lead is saved.</p>
+          </div>
+
+          <div class="space-y-3" id="doc-checklist">
+
+            <!-- Loan Approval Form -->
+            <div class="doc-card rounded-lg border border-slate-100 bg-slate-50/60 p-4 transition-all" data-doc-type="loan_approval_form" data-doc-label="Loan Approval Form">
+              <div class="flex items-start gap-3">
+                <div class="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between gap-2 mb-0.5">
+                    <p class="text-sm font-semibold text-slate-800">Loan Approval Form</p>
+                    <span class="doc-badge text-xs px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-500">Pending</span>
+                  </div>
+                  <p class="text-xs text-slate-400 mb-3">Official letter from the bank confirming loan approval for this customer</p>
+                  <div class="flex flex-wrap items-center gap-3 mb-2">
+                    <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                      <input type="checkbox" class="doc-collected accent-emerald-500 w-3.5 h-3.5" />
+                      <span class="text-xs font-medium text-slate-600">Mark as collected</span>
+                    </label>
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer rounded-md bg-white border border-blue-200 px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                      Attach file
+                      <input type="file" class="doc-file hidden" accept="image/jpeg,image/png,image/webp,application/pdf,.doc,.docx" />
+                    </label>
+                    <span class="doc-filename text-xs text-slate-500 italic hidden"></span>
+                  </div>
+                  <input type="text" class="doc-notes w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-blue-400" placeholder="Notes (e.g. original provided, copy to follow…)" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Log Book -->
+            <div class="doc-card rounded-lg border border-slate-100 bg-slate-50/60 p-4 transition-all" data-doc-type="log_book" data-doc-label="Log Book">
+              <div class="flex items-start gap-3">
+                <div class="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between gap-2 mb-0.5">
+                    <p class="text-sm font-semibold text-slate-800">Log Book</p>
+                    <span class="doc-badge text-xs px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-500">Pending</span>
+                  </div>
+                  <p class="text-xs text-slate-400 mb-3">Vehicle registration certificate — original or certified copy of the log book</p>
+                  <div class="flex flex-wrap items-center gap-3 mb-2">
+                    <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                      <input type="checkbox" class="doc-collected accent-emerald-500 w-3.5 h-3.5" />
+                      <span class="text-xs font-medium text-slate-600">Mark as collected</span>
+                    </label>
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer rounded-md bg-white border border-blue-200 px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                      Attach file
+                      <input type="file" class="doc-file hidden" accept="image/jpeg,image/png,image/webp,application/pdf,.doc,.docx" />
+                    </label>
+                    <span class="doc-filename text-xs text-slate-500 italic hidden"></span>
+                  </div>
+                  <input type="text" class="doc-notes w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-blue-400" placeholder="Notes (e.g. original held at branch, scanned copy attached…)" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Loan Offer Letter -->
+            <div class="doc-card rounded-lg border border-slate-100 bg-slate-50/60 p-4 transition-all" data-doc-type="loan_offer_letter" data-doc-label="Loan Offer Letter">
+              <div class="flex items-start gap-3">
+                <div class="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between gap-2 mb-0.5">
+                    <p class="text-sm font-semibold text-slate-800">Loan Offer Letter</p>
+                    <span class="doc-badge text-xs px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-500">Pending</span>
+                  </div>
+                  <p class="text-xs text-slate-400 mb-3">Formal offer letter from the financing institution detailing loan terms and conditions</p>
+                  <div class="flex flex-wrap items-center gap-3 mb-2">
+                    <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                      <input type="checkbox" class="doc-collected accent-emerald-500 w-3.5 h-3.5" />
+                      <span class="text-xs font-medium text-slate-600">Mark as collected</span>
+                    </label>
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer rounded-md bg-white border border-blue-200 px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                      Attach file
+                      <input type="file" class="doc-file hidden" accept="image/jpeg,image/png,image/webp,application/pdf,.doc,.docx" />
+                    </label>
+                    <span class="doc-filename text-xs text-slate-500 italic hidden"></span>
+                  </div>
+                  <input type="text" class="doc-notes w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-blue-400" placeholder="Notes (e.g. signed copy received, pending customer signature…)" />
+                </div>
+              </div>
+            </div>
+
+            <!-- KRA PIN -->
+            <div class="doc-card rounded-lg border border-slate-100 bg-slate-50/60 p-4 transition-all" data-doc-type="kra_pin" data-doc-label="KRA PIN">
+              <div class="flex items-start gap-3">
+                <div class="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"/></svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between gap-2 mb-0.5">
+                    <p class="text-sm font-semibold text-slate-800">KRA PIN</p>
+                    <span class="doc-badge text-xs px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-500">Pending</span>
+                  </div>
+                  <p class="text-xs text-slate-400 mb-3">Kenya Revenue Authority PIN certificate for the customer (individual or company KRA PIN)</p>
+                  <div class="flex flex-wrap items-center gap-3 mb-2">
+                    <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                      <input type="checkbox" class="doc-collected accent-emerald-500 w-3.5 h-3.5" />
+                      <span class="text-xs font-medium text-slate-600">Mark as collected</span>
+                    </label>
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer rounded-md bg-white border border-blue-200 px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                      Attach file
+                      <input type="file" class="doc-file hidden" accept="image/jpeg,image/png,image/webp,application/pdf,.doc,.docx" />
+                    </label>
+                    <span class="doc-filename text-xs text-slate-500 italic hidden"></span>
+                  </div>
+                  <input type="text" class="doc-notes w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-blue-400" placeholder="Notes (e.g. PIN: AXXXXXXXXX, copy attached…)" />
+                </div>
+              </div>
+            </div>
+
+            <!-- ID / Form A -->
+            <div class="doc-card rounded-lg border border-slate-100 bg-slate-50/60 p-4 transition-all" data-doc-type="id_form_a" data-doc-label="ID / Form A">
+              <div class="flex items-start gap-3">
+                <div class="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"/></svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between gap-2 mb-0.5">
+                    <p class="text-sm font-semibold text-slate-800">ID / Form A</p>
+                    <span class="doc-badge text-xs px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-500">Pending</span>
+                  </div>
+                  <p class="text-xs text-slate-400 mb-3">National ID (individual) or Form A / CR12 (company) — proof of identity or business registration</p>
+                  <div class="flex flex-wrap items-center gap-3 mb-2">
+                    <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                      <input type="checkbox" class="doc-collected accent-emerald-500 w-3.5 h-3.5" />
+                      <span class="text-xs font-medium text-slate-600">Mark as collected</span>
+                    </label>
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer rounded-md bg-white border border-blue-200 px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                      Attach file
+                      <input type="file" class="doc-file hidden" accept="image/jpeg,image/png,image/webp,application/pdf,.doc,.docx" />
+                    </label>
+                    <span class="doc-filename text-xs text-slate-500 italic hidden"></span>
+                  </div>
+                  <input type="text" class="doc-notes w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-blue-400" placeholder="Notes (e.g. ID No: XXXXXXXX, Form A for company name…)" />
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center gap-3 justify-end pb-8">
+          <a href="retail-leads.html" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</a>
+          <button type="button" id="btn-save-draft"
+                  class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">
+            Save as Draft
+          </button>
+          <button type="submit" id="btn-submit"
+                  class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-50">
+            Submit Lead &amp; Create Ticket
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </main>
+</div>
+<div id="fm-footer"></div>
+<script src="assets/validation.js"></script>
+<script src="assets/vehicleCatalog.js"></script>
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+// ── Auth ──────────────────────────────────────────────────────────────────────
+const session = JSON.parse(localStorage.getItem("finemark_session") || "null");
+if (!session?.accessToken) { window.location.href = "login.html"; }
+
+function authHeaders() {
+  return { "Authorization": `Bearer ${session.accessToken}`, "Content-Type": "application/json" };
+}
+function showBanner(msg, isError = false) {
+  const b = document.getElementById("banner");
+  b.textContent = msg;
+  b.className = `rounded-xl px-4 py-3 text-sm font-medium ${isError ? "bg-red-50 text-red-700 border border-red-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`;
+  b.classList.remove("hidden");
+  b.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+// ── Product "Other" text box ─────────────────────────────────────────────────
+document.getElementById("product-select").addEventListener("change", function() {
+  const isOther = this.value === "__other__";
+  document.getElementById("product-other-section").classList.toggle("hidden", !isOther);
+  if (!isOther) document.getElementById("product-other").value = "";
+});
+
+// ── Vehicle Category / Make / Model cascade ──────────────────────────────────
+(function initVehicleCascade() {
+  const categoryEl = document.getElementById("vehicle-category");
+  const makeEl  = document.getElementById("vehicle-make");
+  const modelEl = document.getElementById("vehicle-model");
+
+  categoryEl.innerHTML = window.VEHICLE_CATEGORIES.map(c => `<option value="${c.value}">${c.label}</option>`).join("");
+
+  async function refreshMakes() {
+    makeEl.innerHTML = '<option value="">— Select make —</option>';
+    modelEl.innerHTML = '<option value="">— Select make first —</option>';
+    modelEl.disabled = true;
+    const makes = await vehicleCatalogMakes(categoryEl.value || undefined);
+    makes.forEach(m => {
+      const o = document.createElement("option"); o.value = m; o.textContent = m;
+      makeEl.appendChild(o);
+    });
+  }
+  refreshMakes();
+
+  categoryEl.addEventListener("change", refreshMakes);
+
+  makeEl.addEventListener("change", async () => {
+    const make = makeEl.value;
+    modelEl.innerHTML = make
+      ? '<option value="">— Select model —</option>'
+      : '<option value="">— Select make first —</option>';
+    modelEl.disabled = !make;
+    if (make) {
+      const models = await vehicleCatalogModels(make, categoryEl.value || undefined);
+      models.forEach(({ model: m }) => {
+        const o = document.createElement("option"); o.value = m; o.textContent = m;
+        modelEl.appendChild(o);
+      });
+    }
+  });
+})();
+
+// ── Lead source → show partner picker & update bank partner badge ─────────────
+const PARTNERSHIP_SOURCES = ["Bank Partnership","Insurance Partnership","Dealer Partnership"];
+
+function updateBankPartnerBadge() {
+  const source = document.getElementById("lead-source").value;
+  const isBankPartnership = source === "Bank Partnership";
+  const primarySel = document.getElementById("primary-partner");
+  const wrap = document.getElementById("vehicle-bank-partner-wrap");
+  const nameEl = document.getElementById("vehicle-bank-partner-name");
+  if (isBankPartnership && primarySel.value) {
+    const opt = primarySel.options[primarySel.selectedIndex];
+    nameEl.textContent = opt.dataset.name || opt.text || "—";
+    wrap.classList.remove("hidden");
+  } else {
+    wrap.classList.add("hidden");
+    nameEl.textContent = "—";
+  }
+}
+
+document.getElementById("lead-source").addEventListener("change", function() {
+  const isPartnership = PARTNERSHIP_SOURCES.includes(this.value);
+  document.getElementById("partner-section").classList.toggle("hidden", !isPartnership);
+  updateBankPartnerBadge();
+});
+
+document.getElementById("primary-partner").addEventListener("change", updateBankPartnerBadge);
+
+// ── Loan term slider ──────────────────────────────────────────────────────────
+document.getElementById("loan-term").addEventListener("input", function() {
+  const label = document.getElementById("loan-term-label");
+  label.textContent = this.value === "0" ? "None" : `${this.value} months`;
+});
+
+// ── Customer type → show existing customer lookup ─────────────────────────────
+document.querySelectorAll("input[name=customerType]").forEach(r => {
+  r.addEventListener("change", function() {
+    const isExisting = this.value === "existing_customer";
+    document.getElementById("existing-customer-lookup").classList.toggle("hidden", !isExisting);
+  });
+});
+
+// ── Existing customer search ───────────────────────────────────────────────────
+document.getElementById("btn-search-customer").addEventListener("click", async () => {
+  const q = document.getElementById("customer-search-input").value.trim();
+  if (!q) return;
+  const r = await fetch(`/api/crm/customers?search=${encodeURIComponent(q)}&pageSize=10`, { headers: authHeaders() });
+  const d = await r.json();
+  const results  = document.getElementById("customer-results");
+  const customers = d.data || d.customers || [];
+  if (!customers.length) {
+    results.innerHTML = `<div class="px-4 py-3 text-sm text-slate-400">No customers found.</div>`;
+  } else {
+    results.innerHTML = customers.map(c => {
+      const name = c.displayName || c.fullName || c.companyName || c.customerName || c.name || "—";
+      const acct = c.accountNo ? ` · ${c.accountNo}` : "";
+      return `<button type="button"
+                class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 transition-colors"
+                data-id="${c.id}" data-name="${(name||"").replace(/"/g,'&quot;')}" data-phone="">
+                <span class="font-medium text-slate-900">${name}</span>
+                <span class="ml-2 text-xs text-slate-400">${acct}</span>
+              </button>`;
+    }).join("");
+  }
+  results.classList.remove("hidden");
+
+  results.querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.getElementById("customer-id-hidden").value = btn.dataset.id;
+      document.getElementById("customer-name").value       = btn.dataset.name;
+      document.getElementById("customer-search-input").value = btn.dataset.name;
+      results.classList.add("hidden");
+    });
+  });
+});
+
+// ── Vehicle registration toggle ───────────────────────────────────────────────
+function applyRegToggle() {
+  const isRegistered = document.getElementById("reg-registered").checked;
+  document.getElementById("reg-required-badge").classList.toggle("hidden", !isRegistered);
+  document.getElementById("reg-optional-badge").classList.toggle("hidden", isRegistered);
+  document.getElementById("chassis-required-badge").classList.toggle("hidden", isRegistered);
+  // vehicle-full-details is always shown; chassis field is always visible but mandatory only when not registered
+}
+document.querySelectorAll("input[name=regStatus]").forEach(r => r.addEventListener("change", applyRegToggle));
+applyRegToggle();
+
+// ── Registration validation — shared FinemarkValidation.isValidKeRegistration,
+// category-aware (tractors/tuktuks/special equipment get a looser check
+// since they're often not NTSA-plated the same way as standard vehicles). ──
+document.getElementById("vehicle-reg").addEventListener("blur", function() {
+  const v = this.value.trim();
+  const err = document.getElementById("vehicle-reg-err");
+  err.classList.toggle("hidden", !v || FinemarkValidation.isValidKeRegistration(v, document.getElementById("vehicle-category").value));
+});
+
+// ── Phone / email validation ──────────────────────────────────────────────────
+[
+  ["referrer-phone", "referrer-phone-err"],
+  ["customer-phone", "customer-phone-err"],
+  ["installation-contact-phone", "installation-contact-phone-err"],
+].forEach(([fieldId, errId]) => {
+  document.getElementById(fieldId).addEventListener("blur", function() {
+    const err = document.getElementById(errId);
+    err.classList.toggle("hidden", !this.value.trim() || FinemarkValidation.isValidKePhone(this.value));
+  });
+});
+document.getElementById("customer-email").addEventListener("blur", function() {
+  const err = document.getElementById("customer-email-err");
+  err.classList.toggle("hidden", !this.value.trim() || FinemarkValidation.isValidEmail(this.value));
+});
+
+// ── Load partners ─────────────────────────────────────────────────────────────
+async function loadPartners() {
+  const r = await fetch("/api/partners?pageSize=200", { headers: authHeaders() }).catch(() => null);
+  if (!r?.ok) return;
+  const d = await r.json();
+  const partners = d.data || d.partners || [];
+  [document.getElementById("primary-partner"), document.getElementById("secondary-partner")].forEach(sel => {
+    partners.forEach(p => {
+      const opt = document.createElement("option");
+      opt.value       = p.id;
+      opt.textContent = p.name || p.partnerName || p.id;
+      opt.dataset.name = opt.textContent;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+// ── Load products & categories ────────────────────────────────────────────────
+let _allProducts = [];
+
+async function loadProducts() {
+  // Load categories
+  const catSel = document.getElementById("product-category-select");
+  try {
+    const rc = await fetch("/api/inventory/catalog/categories", { headers: authHeaders() });
+    if (rc.ok) {
+      const dc = await rc.json();
+      (dc.data || []).forEach(cat => {
+        const opt = document.createElement("option");
+        opt.value = cat.id;
+        opt.textContent = cat.name;
+        catSel.appendChild(opt);
+      });
+    }
+  } catch { /* non-critical */ }
+  // Append Other to category dropdown
+  const catOtherOpt = document.createElement("option");
+  catOtherOpt.value = "__other__";
+  catOtherOpt.textContent = "Other";
+  catSel.appendChild(catOtherOpt);
+
+  // Load all products
+  const r = await fetch("/api/inventory/catalog?pageSize=500", { headers: authHeaders() }).catch(() => null);
+  if (!r?.ok) return;
+  const d = await r.json();
+  _allProducts = (d.data || d.items || []).map(p => ({
+    id: p.id,
+    name: p.product_name || p.productName || p.name || "",
+    categoryId: p.category_id || p.categoryId || null,
+  }));
+  renderProductOptions("");
+
+  // Category change: filter products or show Other text box
+  catSel.addEventListener("change", () => {
+    const isOtherCat = catSel.value === "__other__";
+    document.getElementById("specific-product-section").classList.toggle("hidden", isOtherCat);
+    document.getElementById("product-other-section").classList.toggle("hidden", !isOtherCat);
+    if (!isOtherCat) {
+      document.getElementById("product-other").value = "";
+      renderProductOptions(catSel.value);
+    } else {
+      document.getElementById("product-select").value = "";
+    }
+  });
+}
+
+function renderProductOptions(categoryId) {
+  const sel = document.getElementById("product-select");
+  const current = sel.value;
+  sel.innerHTML = '<option value="">— Select product (optional) —</option>';
+  const filtered = categoryId
+    ? _allProducts.filter(p => String(p.categoryId) === String(categoryId))
+    : _allProducts;
+  filtered.forEach(p => {
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = p.name;
+    sel.appendChild(opt);
+  });
+  // Restore selection if still valid
+  if (current && filtered.some(p => p.id === current)) sel.value = current;
+}
+
+// ── Document checklist interactivity ─────────────────────────────────────────
+document.querySelectorAll(".doc-card").forEach(card => {
+  const checkbox   = card.querySelector(".doc-collected");
+  const fileInput  = card.querySelector(".doc-file");
+  const badge      = card.querySelector(".doc-badge");
+  const filenameEl = card.querySelector(".doc-filename");
+
+  function refreshBadge() {
+    const hasFile    = fileInput.files && fileInput.files.length > 0;
+    const collected  = checkbox.checked;
+    card.classList.remove("border-blue-200","bg-blue-50/40","border-emerald-200","bg-emerald-50/40","border-slate-100","bg-slate-50/60");
+    if (hasFile) {
+      badge.className = "doc-badge text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700";
+      badge.textContent = "File Attached";
+      card.classList.add("border-blue-200","bg-blue-50/40");
+    } else if (collected) {
+      badge.className = "doc-badge text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-100 text-emerald-700";
+      badge.textContent = "✓ Collected";
+      card.classList.add("border-emerald-200","bg-emerald-50/40");
+    } else {
+      badge.className = "doc-badge text-xs px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-500";
+      badge.textContent = "Pending";
+      card.classList.add("border-slate-100","bg-slate-50/60");
+    }
+  }
+
+  checkbox.addEventListener("change", refreshBadge);
+
+  fileInput.addEventListener("change", function() {
+    if (this.files && this.files.length > 0) {
+      filenameEl.textContent = this.files[0].name;
+      filenameEl.classList.remove("hidden");
+      checkbox.checked = true;
+    } else {
+      filenameEl.classList.add("hidden");
+    }
+    refreshBadge();
+  });
+});
+
+// ── Upload documents to a saved lead ─────────────────────────────────────────
+async function uploadLeadDocuments(leadId) {
+  const cards = document.querySelectorAll(".doc-card");
+  for (const card of cards) {
+    const docType   = card.dataset.docType;
+    const docLabel  = card.dataset.docLabel;
+    const fileInput = card.querySelector(".doc-file");
+    const checkbox  = card.querySelector(".doc-collected");
+    const notes     = card.querySelector(".doc-notes").value.trim();
+    const hasFile   = fileInput.files && fileInput.files.length > 0;
+    const collected = checkbox.checked;
+    if (!collected && !hasFile) continue;
+    const fd = new FormData();
+    fd.append("docType",  docType);
+    fd.append("label",    docLabel);
+    fd.append("status",   hasFile ? "attached" : "collected");
+    if (notes) fd.append("notes", notes);
+    if (hasFile) fd.append("file", fileInput.files[0]);
+    await fetch(`/api/retail/leads/${leadId}/documents`, {
+      method:  "POST",
+      headers: { "Authorization": `Bearer ${session.accessToken}` },
+      body:    fd,
+    }).catch(e => console.warn("Doc upload failed:", docLabel, e));
+  }
+}
+
+// ── Collect form data ─────────────────────────────────────────────────────────
+function collectFormData() {
+  const isRegistered = document.getElementById("reg-registered").checked;
+  const primarySel   = document.getElementById("primary-partner");
+  const secondarySel = document.getElementById("secondary-partner");
+  const productSel   = document.getElementById("product-select");
+  const loanTermVal  = parseInt(document.getElementById("loan-term").value, 10) || 0;
+
+  const source = document.getElementById("lead-source").value;
+  const isBankPartnership = source === "Bank Partnership";
+  const bankPartnerName = (isBankPartnership && primarySel.value)
+    ? (primarySel.options[primarySel.selectedIndex]?.dataset.name || primarySel.options[primarySel.selectedIndex]?.text || null)
+    : null;
+
+  return {
+    customerType:       document.querySelector("input[name=customerType]:checked")?.value || "new_customer",
+    customerEntityType: document.querySelector("input[name=customerEntityType]:checked")?.value || "individual",
+    leadSource:    source,
+    partnerId:     primarySel.value   || null,
+    partnerName:   primarySel.value   ? primarySel.options[primarySel.selectedIndex]?.dataset.name || primarySel.options[primarySel.selectedIndex]?.text : null,
+    secondaryPartnerId:   secondarySel.value || null,
+    secondaryPartnerName: secondarySel.value ? secondarySel.options[secondarySel.selectedIndex]?.dataset.name || secondarySel.options[secondarySel.selectedIndex]?.text : null,
+    referrerName:  document.getElementById("referrer-name").value.trim()  || null,
+    referrerPhone: document.getElementById("referrer-phone").value.trim() || null,
+    bdmId:         (() => { try { const s = JSON.parse(localStorage.getItem("finemark_session") || "{}"); const u = s.user || s; return u?.id || null; } catch { return null; } })(),
+    bdmName:       (() => { try { const s = JSON.parse(localStorage.getItem("finemark_session") || "{}"); const u = s.user || s; return u?.name || u?.email || null; } catch { return null; } })(),
+    productId:     productSel.value || null,
+    productName:   productSel.value ? productSel.options[productSel.selectedIndex]?.text : null,
+    productOther:  document.getElementById("product-category-select").value === "__other__" ? document.getElementById("product-other").value.trim() || null : null,
+    customerId:    document.getElementById("customer-id-hidden").value    || null,
+    customerName:  document.getElementById("customer-name").value.trim(),
+    customerPhone: document.getElementById("customer-phone").value.trim() || null,
+    customerEmail: document.getElementById("customer-email").value.trim() || null,
+    customerLocation: document.getElementById("customer-location").value || null,
+    customerNotes: document.getElementById("customer-notes").value.trim() || null,
+    installationFinancer:     document.getElementById("installation-financer").value    || null,
+    bankPartnerName,
+    vehicle: {
+      registrationKnown: isRegistered,
+      registration: (document.getElementById("vehicle-reg").value.trim().toUpperCase())   || null,
+      chassisNo:    (document.getElementById("vehicle-chassis").value.trim().toUpperCase()) || null,
+      vehicleCategory: document.getElementById("vehicle-category").value || "motor_vehicle",
+      make:         document.getElementById("vehicle-make").value.trim()   || null,
+      model:        document.getElementById("vehicle-model").value.trim()  || null,
+      year:         document.getElementById("vehicle-year").value.trim()   || null,
+      color:        document.getElementById("vehicle-color").value.trim()  || null,
+      engineNo:     document.getElementById("vehicle-engine").value.trim() || null,
+      loanTermMonths: loanTermVal > 0 ? loanTermVal : null,
+    },
+    locationName:             document.getElementById("location-name").value.trim()              || null,
+    locationNotes:            document.getElementById("location-notes").value.trim()             || null,
+    installationContactName:  document.getElementById("installation-contact-name").value.trim()  || null,
+    installationContactPhone: document.getElementById("installation-contact-phone").value.trim() || null,
+    installationCounty:       document.getElementById("installation-county").value               || null,
+    locationDescription:      document.getElementById("location-description").value.trim()       || null,
+  };
+}
+
+function validate(data) {
+  if (!data.customerName) { showBanner("Customer name is required.", true); return false; }
+  if (!data.leadSource)   { showBanner("Lead source is required.", true);   return false; }
+  if (data.referrerPhone && !FinemarkValidation.isValidKePhone(data.referrerPhone)) {
+    showBanner("Referrer phone number is invalid — expected e.g. 0712 345678 or +254712345678.", true); return false;
+  }
+  if (data.customerPhone && !FinemarkValidation.isValidKePhone(data.customerPhone)) {
+    showBanner("Customer phone number is invalid — expected e.g. 0712 345678 or +254712345678.", true);
+    document.getElementById("customer-phone").focus();
+    return false;
+  }
+  if (data.customerEmail && !FinemarkValidation.isValidEmail(data.customerEmail)) {
+    showBanner("Customer email address is invalid.", true);
+    document.getElementById("customer-email").focus();
+    return false;
+  }
+  const isRegistered = document.getElementById("reg-registered").checked;
+  if (!isRegistered && !data.vehicle.chassisNo) {
+    showBanner("Chassis number is required for unregistered vehicles.", true); return false;
+  }
+  if (isRegistered && !data.vehicle.registration) {
+    showBanner("Vehicle registration is required for registered vehicles.", true); return false;
+  }
+  if (isRegistered && data.vehicle.registration && !FinemarkValidation.isValidKeRegistration(data.vehicle.registration, data.vehicle.vehicleCategory)) {
+    showBanner("Vehicle registration format is invalid — expected e.g. KCA 123A.", true);
+    document.getElementById("vehicle-reg-err").classList.remove("hidden");
+    document.getElementById("vehicle-reg").focus();
+    return false;
+  }
+  if (!data.locationName) {
+    showBanner("Location / Partner Yard Name is required.", true);
+    document.getElementById("location-name").focus();
+    return false;
+  }
+  if (!data.installationContactName) {
+    showBanner("Installation Contact Name is required.", true);
+    document.getElementById("installation-contact-name").focus();
+    return false;
+  }
+  if (!data.installationContactPhone) {
+    showBanner("Installation Contact Phone is required.", true);
+    document.getElementById("installation-contact-phone").focus();
+    return false;
+  }
+  if (!FinemarkValidation.isValidKePhone(data.installationContactPhone)) {
+    showBanner("Installation Contact Phone number is invalid — expected e.g. 0712 345678 or +254712345678.", true);
+    document.getElementById("installation-contact-phone").focus();
+    return false;
+  }
+  return true;
+}
+
+// ── Save draft ────────────────────────────────────────────────────────────────
+document.getElementById("btn-save-draft").addEventListener("click", async () => {
+  const data = collectFormData();
+  if (!data.customerName) { showBanner("Customer name is required to save a draft.", true); return; }
+  if (!data.leadSource)   { showBanner("Lead source is required.", true); return; }
+
+  const btn = document.getElementById("btn-save-draft");
+  btn.disabled = true; btn.textContent = "Saving…";
+
+  const r = await fetch("/api/retail/leads", { method: "POST", headers: authHeaders(), body: JSON.stringify(data) });
+  const d = await r.json();
+  btn.disabled = false; btn.textContent = "Save as Draft";
+  if (!r.ok) { showBanner(d.error?.message || "Failed to save.", true); return; }
+  await uploadLeadDocuments(d.lead.id).catch(() => {});
+  showBanner(`Draft saved — Lead ${d.lead.leadNo}. Redirecting…`);
+  setTimeout(() => { window.location.href = `retail-lead-detail.html?id=${d.lead.id}`; }, 1500);
+});
+
+// ── Submit ────────────────────────────────────────────────────────────────────
+document.getElementById("lead-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const data = collectFormData();
+  if (!validate(data)) return;
+
+  const submitBtn = document.getElementById("btn-submit");
+  submitBtn.disabled = true; submitBtn.textContent = "Submitting…";
+
+  // Step 1: Create lead
+  const createRes = await fetch("/api/retail/leads", { method: "POST", headers: authHeaders(), body: JSON.stringify(data) });
+  const createData = await createRes.json();
+  if (!createRes.ok) {
+    submitBtn.disabled = false; submitBtn.textContent = "Submit Lead & Create Ticket";
+    showBanner(createData.error?.message || "Failed to create lead.", true); return;
+  }
+
+  const leadId = createData.lead.id;
+
+  // Step 2: Submit (creates ticket + notifies)
+  const submitRes = await fetch(`/api/retail/leads/${leadId}/submit`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ locationName: data.locationName, locationNotes: data.locationNotes }),
+  });
+  const submitResData = await submitRes.json();
+  submitBtn.disabled = false; submitBtn.textContent = "Submit Lead & Create Ticket";
+
+  if (!submitRes.ok) {
+    await uploadLeadDocuments(leadId).catch(() => {});
+    showBanner(submitResData.error?.message || "Lead created but submission failed. You can submit from the lead detail page.", true);
+    setTimeout(() => { window.location.href = `retail-lead-detail.html?id=${leadId}`; }, 2500);
+    return;
+  }
+
+  await uploadLeadDocuments(leadId).catch(() => {});
+  showBanner(`Lead submitted! Installation ticket ${submitResData.ticketNo} created. Redirecting…`);
+  setTimeout(() => { window.location.href = `retail-lead-detail.html?id=${leadId}`; }, 1800);
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadPartners();
+loadProducts();
+
+
+</script>
+  </body>
+</html>

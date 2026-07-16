@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Assign Gadgets</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-6xl mx-auto space-y-6">
+          <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h1 class="text-2xl font-semibold text-slate-900">Assign Gadgets</h1>
+                <p class="text-sm text-slate-600">Allocate devices from inventory to requests/users.</p>
+              </div>
+              <a href="admin.html" class="text-sm text-blue-600 hover:underline">Back to Admin</a>
+            </div>
+          </div>
+
+          <form id="assign-form" class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm shadow-slate-200/60 space-y-6" novalidate>
+            <div id="assign-warning" class="hidden rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+              You do not have enough gadgets available.
+            </div>
+
+            <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1" for="assignment-type">Assignment Type</label>
+                <select id="assignment-type" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="" disabled selected>Select Assignment Type</option>
+                  <option value="Installation">Installation</option>
+                  <option value="Speed Governor">Speed Governor</option>
+                  <option value="General">General</option>
+                </select>
+                <p class="fm-error hidden" data-error-for="assignment-type"></p>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1" for="reference-id">Reference ID</label>
+                <input id="reference-id" type="text" placeholder="CRM / Job ID" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                <p class="fm-error hidden" data-error-for="reference-id"></p>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1" for="assign-to">Assign To</label>
+                <select id="assign-to" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="" disabled selected>Select Technician</option>
+                </select>
+                <p class="fm-error hidden" data-error-for="assign-to"></p>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1" for="gadget-type">Gadget Type</label>
+                <select id="gadget-type" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="all">All</option>
+                  <option value="Trackers">Trackers</option>
+                  <option value="Fuel Sensors">Fuel Sensors</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1" for="batch-number">Batch</label>
+                <select id="batch-number" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="all">All</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1" for="requested-count">Number of gadgets</label>
+                <select id="requested-count" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="" disabled selected>Select</option>
+                </select>
+                <p class="fm-error hidden" data-error-for="requested-count"></p>
+              </div>
+            </div>
+
+            <div class="grid gap-4 md:grid-cols-2">
+              <div>
+                <p class="text-xs font-semibold text-slate-600 mb-2">IMEI Selection Mode</p>
+                <div class="space-y-2 text-sm">
+                  <label class="flex items-center gap-2">
+                    <input type="radio" name="imei-mode" value="auto" checked />
+                    Auto-assign from available pool
+                  </label>
+                  <label class="flex items-center gap-2">
+                    <input type="radio" name="imei-mode" value="manual" />
+                    Manual select
+                  </label>
+                </div>
+              </div>
+              <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 space-y-1">
+                <div class="flex items-center justify-between">
+                  <span>Available gadgets</span>
+                  <span id="summary-available">0</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span>Requested</span>
+                  <span id="summary-requested">0</span>
+                </div>
+                <div class="flex items-center justify-between font-semibold text-slate-900">
+                  <span>Remaining after assign</span>
+                  <span id="summary-remaining">0</span>
+                </div>
+              </div>
+            </div>
+
+            <div id="auto-preview" class="hidden rounded-lg border border-slate-200 bg-white p-4">
+              <div class="flex items-center justify-between">
+                <p class="text-sm font-semibold text-slate-700">Auto-assigned IMEIs</p>
+                <span class="text-xs text-slate-500" id="auto-count">0</span>
+              </div>
+              <div id="auto-list" class="mt-3 grid gap-2 text-sm text-slate-700"></div>
+            </div>
+
+            <div id="manual-select" class="hidden rounded-lg border border-slate-200 bg-white p-4 space-y-3">
+              <div class="flex items-center justify-between">
+                <p class="text-sm font-semibold text-slate-700">Select IMEIs</p>
+                <input id="manual-search" type="text" placeholder="Search IMEI" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm" />
+              </div>
+              <div id="manual-list" class="max-h-64 overflow-y-auto space-y-2 text-sm text-slate-700"></div>
+              <p class="text-xs text-slate-500">Selected: <span id="manual-selected">0</span></p>
+            </div>
+
+            <div class="flex items-center justify-end gap-3">
+              <button id="create-assignment" type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800" disabled>
+                Create
+              </button>
+            </div>
+          </form>
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+
+    <script src="assets/contracts.js"></script>
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const { requirePageAccess, requireRole, apiFetch, getSession, setFieldError, clearFormErrors, showToast } = window.FINEMARK_APP || {};
+        requirePageAccess?.();
+        requireRole?.(["Admin"]);
+
+        const form = document.getElementById("assign-form");
+        const assignmentType = document.getElementById("assignment-type");
+        const referenceId = document.getElementById("reference-id");
+        const assignTo = document.getElementById("assign-to");
+        const gadgetType = document.getElementById("gadget-type");
+        const batchNumber = document.getElementById("batch-number");
+        const requestedCount = document.getElementById("requested-count");
+        const warning = document.getElementById("assign-warning");
+        const summaryAvailable = document.getElementById("summary-available");
+        const summaryRequested = document.getElementById("summary-requested");
+        const summaryRemaining = document.getElementById("summary-remaining");
+        const createBtn = document.getElementById("create-assignment");
+        const autoPreview = document.getElementById("auto-preview");
+        const autoList = document.getElementById("auto-list");
+        const autoCount = document.getElementById("auto-count");
+        const manualSelect = document.getElementById("manual-select");
+        const manualList = document.getElementById("manual-list");
+        const manualSearch = document.getElementById("manual-search");
+        const manualSelected = document.getElementById("manual-selected");
+
+        const state = {
+          batches: [],
+          assignments: [],
+          users: [],
+          availableDevices: [],
+          filteredDevices: [],
+          autoImeis: [],
+          manualImeis: new Set(),
+        };
+
+        const normalizeBatches = (data) => {
+          return (Array.isArray(data) ? data : []).map((batch) => ({
+            ...batch,
+            batchNumber: Number(batch.batchNumber || batch.batch || 0),
+            gadgetType: batch.gadgetType || batch.type || "Trackers",
+          }));
+        };
+
+        const normalizeDevices = (batch) => {
+          if (Array.isArray(batch.devices)) {
+            return batch.devices.map((device) => ({
+              imei: device.imei,
+              gadgetType: device.type || batch.gadgetType || "Trackers",
+              batchNumber: batch.batchNumber,
+            }));
+          }
+          if (Array.isArray(batch.imeis)) {
+            return batch.imeis.map((imei) => ({
+              imei,
+              gadgetType: batch.gadgetType || "Trackers",
+              batchNumber: batch.batchNumber,
+            }));
+          }
+          return [];
+        };
+
+        const loadBatches = async () => {
+          try {
+            const res = await apiFetch("/gadgets/batches");
+            return normalizeBatches(res?.data || res || []);
+          } catch (error) {
+            const stored = JSON.parse(localStorage.getItem("finemark_gadget_batches") || "[]");
+            return normalizeBatches(stored);
+          }
+        };
+
+        const loadAssignments = async () => {
+          try {
+            const res = await apiFetch("/gadgets/assignments");
+            return Array.isArray(res?.data) ? res.data : [];
+          } catch (error) {
+            const stored = JSON.parse(localStorage.getItem("finemark_gadget_assignments") || "[]");
+            return Array.isArray(stored) ? stored : [];
+          }
+        };
+
+        const loadTechnicians = async () => {
+          try {
+            const res = await apiFetch("/technical-team/members?role=Technician");
+            return Array.isArray(res?.data) ? res.data : [];
+          } catch (error) {
+            return [];
+          }
+        };
+
+        const buildAssignedSet = () => {
+          const imeis = state.assignments.flatMap((assignment) => assignment.imeis || []);
+          return new Set(imeis);
+        };
+
+        const buildAvailability = () => {
+          const assignedSet = buildAssignedSet();
+          const devices = state.batches.flatMap(normalizeDevices);
+          state.availableDevices = devices.filter((device) => !assignedSet.has(device.imei));
+        };
+
+        const applyFilters = () => {
+          state.filteredDevices = state.availableDevices.filter((device) => {
+            const typeMatch = gadgetType.value === "all" || device.gadgetType === gadgetType.value;
+            const batchMatch = batchNumber.value === "all" || String(device.batchNumber) === batchNumber.value;
+            return typeMatch && batchMatch;
+          });
+        };
+
+        const updateSummary = () => {
+          const available = state.filteredDevices.length;
+          const requested = Number(requestedCount.value || 0);
+          summaryAvailable.textContent = String(available);
+          summaryRequested.textContent = String(requested);
+          summaryRemaining.textContent = String(Math.max(available - requested, 0));
+          const tooMany = requested > available;
+          warning.classList.toggle("hidden", !tooMany);
+          createBtn.disabled = tooMany || !requested || !validateForm(false);
+        };
+
+        const updateAutoAssign = () => {
+          const count = Number(requestedCount.value || 0);
+          state.autoImeis = state.filteredDevices.slice(0, count).map((device) => device.imei);
+          autoList.innerHTML = state.autoImeis.map((imei) => `<div class="rounded-md border border-slate-200 px-3 py-2">${imei}</div>`).join("");
+          autoCount.textContent = `${state.autoImeis.length} selected`;
+        };
+
+        const updateManualList = () => {
+          const search = manualSearch.value.trim();
+          manualList.innerHTML = state.filteredDevices
+            .filter((device) => !search || device.imei.includes(search))
+            .map((device) => {
+              const checked = state.manualImeis.has(device.imei);
+              return `<label class="flex items-center gap-2">
+                <input type="checkbox" data-imei="${device.imei}" ${checked ? "checked" : ""} />
+                <span>${device.imei}</span>
+              </label>`;
+            })
+            .join("");
+          manualSelected.textContent = String(state.manualImeis.size);
+        };
+
+        const setMode = () => {
+          const mode = form.querySelector("input[name='imei-mode']:checked")?.value || "auto";
+          autoPreview.classList.toggle("hidden", mode !== "auto");
+          manualSelect.classList.toggle("hidden", mode !== "manual");
+          if (mode === "auto") {
+            updateAutoAssign();
+          } else {
+            updateManualList();
+          }
+          updateSummary();
+        };
+
+        const validateForm = (showErrors) => {
+          if (showErrors) clearFormErrors(form);
+          const errors = [];
+          if (!assignmentType.value) errors.push({ el: assignmentType, msg: "Assignment type is required." });
+          if (!referenceId.value.trim()) errors.push({ el: referenceId, msg: "Reference ID is required." });
+          if (!assignTo.value) errors.push({ el: assignTo, msg: "Assign To is required." });
+          if (!requestedCount.value) errors.push({ el: requestedCount, msg: "Select number of gadgets." });
+          const mode = form.querySelector("input[name='imei-mode']:checked")?.value || "auto";
+          if (mode === "manual") {
+            const requested = Number(requestedCount.value || 0);
+            if (state.manualImeis.size !== requested) {
+              errors.push({ el: manualList, msg: "Selected IMEIs must match requested count." });
+            }
+          }
+          if (showErrors) errors.forEach((err) => setFieldError(err.el, err.msg));
+          return errors.length === 0;
+        };
+
+        const populateTechnicians = async () => {
+          state.users = await loadTechnicians();
+          assignTo.innerHTML = `<option value="" disabled selected>Select Technician</option>`;
+          state.users.forEach((user) => {
+            const option = document.createElement("option");
+            option.value = user.id;
+            option.textContent = `${user.fullName || user.name} (${user.email})`;
+            option.dataset.email = user.email;
+            option.dataset.name = user.fullName || user.name;
+            assignTo.appendChild(option);
+          });
+        };
+
+        const populateBatches = () => {
+          const unique = Array.from(new Set(state.batches.map((batch) => batch.batchNumber).filter(Boolean))).sort((a, b) => a - b);
+          unique.forEach((value) => {
+            const option = document.createElement("option");
+            option.value = String(value);
+            option.textContent = String(value);
+            batchNumber.appendChild(option);
+          });
+        };
+
+        const populateRequestedCounts = () => {
+          for (let i = 1; i <= 50; i += 1) {
+            const option = document.createElement("option");
+            option.value = String(i);
+            option.textContent = String(i);
+            requestedCount.appendChild(option);
+          }
+        };
+
+        const init = async () => {
+          state.batches = await loadBatches();
+          state.assignments = await loadAssignments();
+          await populateTechnicians();
+          populateBatches();
+          populateRequestedCounts();
+          buildAvailability();
+          applyFilters();
+          setMode();
+        };
+
+        gadgetType.addEventListener("change", () => {
+          applyFilters();
+          setMode();
+        });
+        batchNumber.addEventListener("change", () => {
+          applyFilters();
+          setMode();
+        });
+        requestedCount.addEventListener("change", () => {
+          setMode();
+        });
+        form.addEventListener("change", (event) => {
+          if (event.target.name === "imei-mode") {
+            state.manualImeis = new Set();
+            setMode();
+          }
+        });
+        manualSearch.addEventListener("input", updateManualList);
+        manualList.addEventListener("change", (event) => {
+          const checkbox = event.target.closest("input[data-imei]");
+          if (!checkbox) return;
+          if (checkbox.checked) {
+            state.manualImeis.add(checkbox.dataset.imei);
+          } else {
+            state.manualImeis.delete(checkbox.dataset.imei);
+          }
+          manualSelected.textContent = String(state.manualImeis.size);
+          updateSummary();
+        });
+
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          if (!validateForm(true)) return;
+          const requested = Number(requestedCount.value || 0);
+          if (requested > state.filteredDevices.length) {
+            warning.classList.remove("hidden");
+            return;
+          }
+          const mode = form.querySelector("input[name='imei-mode']:checked")?.value || "auto";
+          const imeis = mode === "auto" ? state.autoImeis : Array.from(state.manualImeis);
+          const selectedUser = state.users.find((user) => user.id === assignTo.value);
+          const session = getSession?.();
+          const assignment = {
+            id: "",
+            createdAt: new Date().toISOString(),
+            createdBy: { id: session?.user?.id, email: session?.user?.email },
+            assignmentType: assignmentType.value,
+            referenceId: referenceId.value.trim(),
+            assignedTo: selectedUser ? { userId: selectedUser.id, name: selectedUser.fullName || selectedUser.name, email: selectedUser.email } : {},
+            gadgetType: gadgetType.value === "all" ? "Trackers" : gadgetType.value,
+            batchNumber: batchNumber.value === "all" ? undefined : Number(batchNumber.value),
+            count: imeis.length,
+            imeis,
+          };
+          const dateKey = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+          const nextIndex = state.assignments.filter((item) => item.id?.includes(dateKey)).length + 1;
+          assignment.id = `GA-${dateKey}-${String(nextIndex).padStart(4, "0")}`;
+
+          try {
+            await apiFetch("/gadgets/assignments", { method: "POST", body: assignment });
+          } catch (error) {
+            const storeKey = "finemark_gadget_assignments";
+            const existing = JSON.parse(localStorage.getItem(storeKey) || "[]");
+            existing.unshift(assignment);
+            localStorage.setItem(storeKey, JSON.stringify(existing));
+          }
+
+          showToast?.("Gadgets assigned", "success");
+          window.location.href = "admin-gadget-inventory.html";
+        });
+
+        init();
+      });
+    </script>
+  </body>
+</html>

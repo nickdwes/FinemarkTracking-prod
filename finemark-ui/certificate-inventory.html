@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Certificate Inventory - Finemark</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-4 md:p-6">
+        <div class="max-w-[1600px] mx-auto space-y-6">
+          <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h1 class="text-2xl font-semibold text-slate-900">Certificate Inventory</h1>
+                <p class="mt-1 text-sm text-slate-600">Preview, download, print, or email saved certificates.</p>
+              </div>
+              <a href="create-certificate.html" class="inline-flex items-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+                Create Certificate
+              </a>
+            </div>
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+            <div class="grid gap-3 md:grid-cols-4">
+              <div class="md:col-span-2">
+                <label class="text-xs font-semibold text-slate-600">Search</label>
+                <input id="filter-search" type="text" placeholder="Search serial, registration, name, phone, IMEI..." class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="text-xs font-semibold text-slate-600">From</label>
+                <input id="filter-from" type="date" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="text-xs font-semibold text-slate-600">To</label>
+                <input id="filter-to" type="date" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <button id="btn-apply" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+                Apply
+              </button>
+              <button id="btn-reset" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                Reset
+              </button>
+              <span id="result-count" class="text-xs text-slate-500"></span>
+            </div>
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full min-w-[960px] text-sm border-collapse">
+                <thead class="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide bg-slate-50">
+                  <tr>
+                    <th class="py-3 px-3 whitespace-nowrap">Created</th>
+                    <th class="py-3 px-3 whitespace-nowrap">Serial No</th>
+                    <th class="py-3 px-3 whitespace-nowrap">Template</th>
+                    <th class="py-3 px-3 whitespace-nowrap">Registration</th>
+                    <th class="py-3 px-3">Name</th>
+                    <th class="py-3 px-3 whitespace-nowrap">Phone</th>
+                    <th class="py-3 px-3 whitespace-nowrap">Start Date</th>
+                    <th class="py-3 px-3 whitespace-nowrap">End Date</th>
+                    <th class="py-3 px-3 whitespace-nowrap">Status</th>
+                    <th class="py-3 px-3 text-right whitespace-nowrap">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="cert-table" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+            <div id="empty-state" class="hidden py-14 text-center text-sm text-slate-400">
+              <svg class="w-8 h-8 mx-auto mb-2 text-slate-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              No certificates found.
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-slate-100 text-xs text-slate-500">
+              <div id="page-info"></div>
+              <div class="flex items-center gap-2">
+                <button id="prev-page" class="rounded-lg border border-slate-200 px-3 py-1.5 font-medium hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent">Prev</button>
+                <button id="next-page" class="rounded-lg border border-slate-200 px-3 py-1.5 font-medium hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent">Next</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+
+    <div id="preview-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 px-4">
+      <div class="w-full max-w-4xl rounded-xl bg-white shadow-lg">
+        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+          <div>
+            <p id="preview-title" class="text-sm font-semibold text-slate-900">Certificate Preview</p>
+            <p id="preview-subtitle" class="text-xs text-slate-500"></p>
+          </div>
+          <button id="preview-close" class="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-700 hover:bg-slate-50">Close</button>
+        </div>
+        <div class="grid gap-4 p-5 md:grid-cols-[1fr_240px]">
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-2">
+            <iframe id="preview-frame" class="h-[520px] w-full rounded-lg bg-white" title="Certificate preview"></iframe>
+          </div>
+          <div class="space-y-3">
+            <button id="preview-download" class="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800">Download</button>
+            <button id="preview-print" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Print</button>
+            <button id="preview-email" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Send Email</button>
+            <hr class="border-slate-200">
+            <button id="preview-regenerate" class="w-full rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100">Regenerate PDF</button>
+            <div class="text-xs text-slate-500">
+              Use the buttons above to download, print, or email the certificate.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="email-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 px-4">
+      <div class="w-full max-w-md rounded-xl bg-white shadow-lg">
+        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+          <p class="text-sm font-semibold text-slate-900">Send Certificate</p>
+          <button id="email-close" class="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-700 hover:bg-slate-50">Close</button>
+        </div>
+        <div class="p-5 space-y-3">
+          <div>
+            <label class="text-xs font-semibold text-slate-600">To Email</label>
+            <input id="email-to" type="email" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Subject</label>
+            <input id="email-subject" type="text" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Message</label>
+            <textarea id="email-message" rows="4" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"></textarea>
+          </div>
+          <div class="flex items-center justify-end gap-2">
+            <button id="email-send" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        window.FINEMARK_APP?.requireAuth?.();
+        window.FINEMARK_APP?.requireRole?.(["Admin"]);
+
+        const state = {
+          page: 1,
+          pageSize: 10,
+          total: 0,
+          items: [],
+          activeId: null,
+          activeItem: null,
+        };
+
+        const tableBody = document.getElementById("cert-table");
+        const emptyState = document.getElementById("empty-state");
+        const resultCount = document.getElementById("result-count");
+        const pageInfo = document.getElementById("page-info");
+        const previewModal = document.getElementById("preview-modal");
+        const previewFrame = document.getElementById("preview-frame");
+        const previewTitle = document.getElementById("preview-title");
+        const previewSubtitle = document.getElementById("preview-subtitle");
+        const emailModal = document.getElementById("email-modal");
+
+        const formatDate = (value) => {
+          if (!value) return "-";
+          const date = new Date(value);
+          if (Number.isNaN(date.getTime())) return value;
+          return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+        };
+
+        // Mirrors the backend's certStatus() thresholds (certificates.ts) so the
+        // badge shown here always matches the dashboard's Active/Nearing/Expired split.
+        const certStatus = (endDate) => {
+          if (!endDate) return "Unknown";
+          const today = new Date().toISOString().slice(0, 10);
+          const in60 = new Date(Date.now() + 60 * 86400000).toISOString().slice(0, 10);
+          if (endDate < today) return "Expired";
+          if (endDate <= in60) return "NearingExpiry";
+          return "Active";
+        };
+
+        const statusBadge = (status) => {
+          const map = {
+            Active: "border-emerald-200 bg-emerald-50 text-emerald-700",
+            NearingExpiry: "border-amber-200 bg-amber-50 text-amber-700",
+            Expired: "border-red-200 bg-red-50 text-red-700",
+            Unknown: "border-slate-200 bg-slate-50 text-slate-500",
+          };
+          const labels = { Active: "Active", NearingExpiry: "Nearing Expiry", Expired: "Expired", Unknown: "Unknown" };
+          return `<span class="inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${map[status] || map.Unknown}">${labels[status] || status}</span>`;
+        };
+
+        const iconBtn = (action, id, title, svg, colorClass) => `
+          <button data-action="${action}" data-id="${id}" title="${title}"
+            class="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 ${colorClass || "hover:text-blue-600"} transition-colors">
+            ${svg}
+          </button>`;
+
+        const ICONS = {
+          preview: '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>',
+          download: '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M7.5 12L12 16.5m0 0L16.5 12M12 16.5V3"/></svg>',
+          print: '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>',
+          email: '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>',
+          regenerate: '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>',
+        };
+
+        const fetchCertificates = async () => {
+          const params = new URLSearchParams();
+          const search = document.getElementById("filter-search").value.trim();
+          const from = document.getElementById("filter-from").value;
+          const to = document.getElementById("filter-to").value;
+          if (search) params.set("search", search);
+          if (from) params.set("from", from);
+          if (to) params.set("to", to);
+          params.set("page", state.page);
+          params.set("pageSize", state.pageSize);
+
+          const response = await window.FINEMARK_APP.apiFetch(`/certificates?${params.toString()}`);
+          state.items = response.data || [];
+          state.total = response.meta?.total || 0;
+          renderTable();
+        };
+
+        const renderTable = () => {
+          tableBody.innerHTML = "";
+          if (!state.items.length) {
+            emptyState.classList.remove("hidden");
+          } else {
+            emptyState.classList.add("hidden");
+          }
+          state.items.forEach((item) => {
+            const row = document.createElement("tr");
+            row.className = "hover:bg-slate-50 transition-colors";
+            row.innerHTML = `
+              <td class="py-2.5 px-3 whitespace-nowrap text-slate-500 text-xs">${formatDate(item.createdAt)}</td>
+              <td class="py-2.5 px-3 whitespace-nowrap font-mono text-xs font-semibold text-slate-700">${item.serialNo}</td>
+              <td class="py-2.5 px-3 whitespace-nowrap">${item.template === "unique"
+                ? '<span class="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">Unique</span>'
+                : '<span class="inline-flex items-center rounded-full border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-800">Finemark</span>'}</td>
+              <td class="py-2.5 px-3 whitespace-nowrap font-mono font-semibold text-slate-800">${item.carRegistration}</td>
+              <td class="py-2.5 px-3 text-slate-700">${item.name}</td>
+              <td class="py-2.5 px-3 whitespace-nowrap text-slate-500">${item.phone}</td>
+              <td class="py-2.5 px-3 whitespace-nowrap text-slate-500 text-xs">${formatDate(item.startDate)}</td>
+              <td class="py-2.5 px-3 whitespace-nowrap text-slate-500 text-xs">${formatDate(item.endDate)}</td>
+              <td class="py-2.5 px-3">${statusBadge(certStatus(item.endDate))}</td>
+              <td class="py-2.5 px-3">
+                <div class="flex items-center justify-end gap-0.5">
+                  ${iconBtn("preview", item.id, "Preview", ICONS.preview)}
+                  ${iconBtn("download", item.id, "Download", ICONS.download)}
+                  ${iconBtn("print", item.id, "Print", ICONS.print)}
+                  ${iconBtn("email", item.id, "Email", ICONS.email)}
+                  ${iconBtn("regenerate", item.id, "Regenerate — reload this certificate and re-save its PDF with the latest template", ICONS.regenerate, "hover:text-amber-700")}
+                </div>
+              </td>
+            `;
+            tableBody.appendChild(row);
+          });
+
+          resultCount.textContent = `Total: ${state.total}`;
+          const start = (state.page - 1) * state.pageSize + 1;
+          const end = Math.min(state.page * state.pageSize, state.total);
+          pageInfo.textContent = state.total ? `Showing ${start}-${end} of ${state.total}` : "";
+          document.getElementById("prev-page").disabled = state.page <= 1;
+          document.getElementById("next-page").disabled = state.page * state.pageSize >= state.total;
+        };
+
+        const getAuthHeaders = () => {
+          const session = window.FINEMARK_APP.getSession?.();
+          return session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {};
+        };
+
+        const openPreview = async (id) => {
+          const item = state.items.find((cert) => cert.id === id);
+          state.activeId = id;
+          state.activeItem = item || null;
+          previewTitle.textContent = item ? `Certificate ${item.serialNo}` : "Certificate Preview";
+          previewSubtitle.textContent = item ? item.carRegistration : "";
+          previewFrame.src = "";
+          previewModal.classList.remove("hidden");
+          previewModal.classList.add("flex");
+          try {
+            const res = await fetch(`${window.FINEMARK_APP.CONFIG.API_BASE_URL}/certificates/${id}/pdf`, {
+              headers: getAuthHeaders(),
+            });
+            if (!res.ok) {
+              throw new Error("Unable to load PDF preview.");
+            }
+            const blob = await res.blob();
+            previewFrame.src = URL.createObjectURL(blob);
+          } catch (error) {
+            window.FINEMARK_APP.showToast("Failed to load preview.", "error");
+            previewFrame.src = "";
+          }
+        };
+
+        const downloadPdf = async (id) => {
+          try {
+            const res = await fetch(`${window.FINEMARK_APP.CONFIG.API_BASE_URL}/certificates/${id}/pdf`, {
+              headers: getAuthHeaders(),
+            });
+            if (!res.ok) {
+              throw new Error("Unable to download PDF.");
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const item = state.items.find((cert) => cert.id === id) || state.activeItem;
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `Certificate_${item?.carRegistration || "vehicle"}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+          } catch (error) {
+            window.FINEMARK_APP.showToast("Failed to download PDF.", "error");
+          }
+        };
+
+        const printPdf = async (id) => {
+          try {
+            const res = await fetch(`${window.FINEMARK_APP.CONFIG.API_BASE_URL}/certificates/${id}/pdf`, {
+              headers: getAuthHeaders(),
+            });
+            if (!res.ok) {
+              throw new Error("Unable to open PDF.");
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const win = window.open(url, "_blank");
+            if (win) {
+              win.addEventListener("load", () => win.print());
+            }
+          } catch (error) {
+            window.FINEMARK_APP.showToast("Failed to open print view.", "error");
+          }
+        };
+
+        // Reload this cert's saved data into the create-certificate form and
+        // re-save its PDF — used to bring older certificates onto the current
+        // template/layout without creating a new certificate record or serial number.
+        const regenerateCertificate = async (id) => {
+          try {
+            const cert = await window.FINEMARK_APP.apiFetch(`/certificates/${id}`);
+            window.location.href = cert.ticketId
+              ? `create-certificate.html?ticketId=${encodeURIComponent(cert.ticketId)}&certId=${encodeURIComponent(id)}`
+              : `create-certificate.html?certId=${encodeURIComponent(id)}`;
+          } catch {
+            window.FINEMARK_APP.showToast("Failed to load certificate.", "error");
+          }
+        };
+
+        const openEmail = (id) => {
+          const item = state.items.find((cert) => cert.id === id);
+          state.activeId = id;
+          state.activeItem = item || null;
+          document.getElementById("email-to").value = "";
+          document.getElementById("email-subject").value = `Certificate Of Installation - ${item?.carRegistration || ""}`;
+          document.getElementById("email-message").value = `Please find attached the Certificate Of Installation for ${item?.carRegistration || ""}.`;
+          emailModal.classList.remove("hidden");
+          emailModal.classList.add("flex");
+        };
+
+        const sendEmail = async () => {
+          const toEmail = document.getElementById("email-to").value.trim();
+          const subject = document.getElementById("email-subject").value.trim();
+          const message = document.getElementById("email-message").value.trim();
+          if (!toEmail) {
+            window.FINEMARK_APP.showToast("Recipient email is required", "error");
+            return;
+          }
+          await window.FINEMARK_APP.apiFetch(`/certificates/${state.activeId}/email`, {
+            method: "POST",
+            body: { toEmail, subject, message },
+          });
+          window.FINEMARK_APP.showToast("Email sent");
+          emailModal.classList.add("hidden");
+          emailModal.classList.remove("flex");
+        };
+
+        document.getElementById("btn-apply").addEventListener("click", () => {
+          state.page = 1;
+          fetchCertificates();
+        });
+        // Pressing Enter in the search box did nothing (no form, no keydown
+        // listener) — the query itself works fine via the Apply button, but
+        // Enter is the natural way most people try to submit a search first.
+        document.getElementById("filter-search").addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            state.page = 1;
+            fetchCertificates();
+          }
+        });
+        document.getElementById("btn-reset").addEventListener("click", () => {
+          document.getElementById("filter-search").value = "";
+          document.getElementById("filter-from").value = "";
+          document.getElementById("filter-to").value = "";
+          state.page = 1;
+          fetchCertificates();
+        });
+        document.getElementById("prev-page").addEventListener("click", () => {
+          if (state.page > 1) {
+            state.page -= 1;
+            fetchCertificates();
+          }
+        });
+        document.getElementById("next-page").addEventListener("click", () => {
+          if (state.page * state.pageSize < state.total) {
+            state.page += 1;
+            fetchCertificates();
+          }
+        });
+
+        tableBody.addEventListener("click", (event) => {
+          const target = event.target instanceof Element ? event.target.closest("[data-action]") : null;
+          if (!target) return;
+          const action = target.getAttribute("data-action");
+          const id = target.getAttribute("data-id");
+          if (!action || !id) return;
+          if (action === "preview") return openPreview(id);
+          if (action === "download") return downloadPdf(id);
+          if (action === "print") return printPdf(id);
+          if (action === "email") return openEmail(id);
+          if (action === "regenerate") return regenerateCertificate(id);
+        });
+
+        document.getElementById("preview-close").addEventListener("click", () => {
+          previewModal.classList.add("hidden");
+          previewModal.classList.remove("flex");
+          previewFrame.src = "";
+        });
+        document.getElementById("preview-download").addEventListener("click", () => {
+          if (state.activeId) downloadPdf(state.activeId);
+        });
+        document.getElementById("preview-print").addEventListener("click", () => {
+          if (state.activeId) printPdf(state.activeId);
+        });
+        document.getElementById("preview-email").addEventListener("click", () => {
+          if (state.activeId) openEmail(state.activeId);
+        });
+        document.getElementById("preview-regenerate").addEventListener("click", () => {
+          if (state.activeId) regenerateCertificate(state.activeId);
+        });
+        document.getElementById("email-close").addEventListener("click", () => {
+          emailModal.classList.add("hidden");
+          emailModal.classList.remove("flex");
+        });
+        document.getElementById("email-send").addEventListener("click", sendEmail);
+
+        fetchCertificates();
+      });
+    </script>
+  </body>
+</html>

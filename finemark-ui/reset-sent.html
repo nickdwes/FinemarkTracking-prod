@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Reset Sent</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<main class="min-h-screen flex items-center justify-center px-6 py-12">
+      <div class="w-full max-w-md">
+        <div class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 border border-slate-200/80 p-8 text-center">
+          <div class="flex items-center gap-4 mb-6 text-left">
+            <img src="assets/finemark-logo.svg" alt="Finemark logo" class="h-12 w-12" />
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Finemark</p>
+              <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Check your email</h1>
+              <p class="text-sm text-slate-600">We sent a reset link if the email exists.</p>
+            </div>
+          </div>
+          <div class="mx-auto h-12 w-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21.75 6.75v10.5A2.25 2.25 0 0119.5 19.5h-15A2.25 2.25 0 012.25 17.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15A2.25 2.25 0 002.25 6.75m19.5 0l-9.75 6.75L2.25 6.75" />
+            </svg>
+          </div>
+          <p class="mt-4 text-sm text-slate-600">
+            If an account exists for <span id="reset-email" class="font-medium text-slate-900">your email</span>, you’ll receive a reset link shortly.
+          </p>
+          <div class="mt-6 space-y-2">
+            <a href="reset-password.html" class="block w-full rounded-lg bg-blue-600 text-white py-2.5 font-medium shadow-sm shadow-blue-600/20 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+              Open reset page
+            </a>
+            <a href="login.html" class="block w-full rounded-lg border border-slate-200 py-2.5 text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+              Back to Sign in
+            </a>
+          </div>
+        </div>
+
+        
+      </div>
+    </main>
+
+    
+  
+<script src="assets/contracts.js"></script>
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+      const storedEmail = localStorage.getItem("resetEmail") || "your email";
+      const resetEmail = document.getElementById("reset-email");
+      resetEmail.textContent = storedEmail;
+    </script>
+</body>
+</html>

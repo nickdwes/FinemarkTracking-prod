@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Mass Email Campaign</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+    .fade-in{animation:fadeIn .2s ease;}
+    .step-card{background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;padding:1.5rem;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+    .step-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#64748b;margin-bottom:.75rem;}
+    .tab-btn{padding:.3rem .85rem;border-radius:.5rem;font-size:.78rem;font-weight:500;color:#475569;cursor:pointer;transition:all .15s;}
+    .tab-btn.active{background:#4f46e5;color:#fff;font-weight:600;}
+    .tab-btn:not(.active):hover{background:#f1f5f9;color:#1e293b;}
+    /* HTML editor toolbar */
+    .toolbar-btn{display:inline-flex;align-items:center;justify-content:center;width:1.8rem;height:1.8rem;border-radius:.35rem;cursor:pointer;font-size:.85rem;color:#475569;border:1px solid transparent;}
+    .toolbar-btn:hover{background:#f1f5f9;border-color:#e2e8f0;}
+    .toolbar-sep{width:1px;background:#e2e8f0;height:1.4rem;margin:0 .25rem;}
+    /* Email preview iframe */
+    #email-preview-iframe{width:100%;border:none;background:#fff;border-radius:.5rem;}
+    /* Template thumbnails */
+    .tmpl-card{cursor:pointer;border:2px solid #e2e8f0;border-radius:.65rem;overflow:hidden;transition:all .15s;}
+    .tmpl-card:hover{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.15);}
+    .tmpl-card.selected{border-color:#4f46e5;box-shadow:0 0 0 3px rgba(79,70,229,.2);}
+    .badge{display:inline-flex;align-items:center;border-radius:9999px;padding:.12rem .55rem;font-size:.68rem;font-weight:600;}
+    .status-pill{display:inline-flex;align-items:center;gap:.3rem;border-radius:9999px;font-size:.7rem;font-weight:600;padding:.2rem .6rem;}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-4 md:p-6">
+    <div class="max-w-5xl mx-auto space-y-5">
+
+      <!-- Page header -->
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-900">Mass Email Campaign</h1>
+          <p class="text-sm text-slate-500 mt-0.5">Design and send HTML email campaigns · Sent from <span class="font-semibold text-indigo-600">customer@finemarktracking.co.ke</span></p>
+        </div>
+        <a href="crm-campaigns.html" class="text-sm text-indigo-600 hover:underline self-center">← Back to Campaigns</a>
+      </div>
+
+      <!-- Step 1 – Campaign -->
+      <div class="step-card">
+        <p class="step-label">Step 1 — Select Campaign</p>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Campaign</label>
+            <select id="sel-campaign" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="">Loading campaigns…</option>
+            </select>
+          </div>
+          <div id="campaign-info" class="hidden rounded-lg bg-slate-50 border border-slate-100 px-4 py-3 text-xs text-slate-600 space-y-1 self-end">
+            <div class="flex flex-wrap gap-4">
+              <span>Name: <span id="ci-name" class="font-semibold text-slate-800">—</span></span>
+              <span>Status: <span id="ci-status" class="font-semibold text-slate-800">—</span></span>
+              <span>Target: <span id="ci-target" class="font-semibold text-slate-800">—</span></span>
+              <span>Already sent: <span id="ci-sent" class="font-semibold text-slate-800">—</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 – Email Design -->
+      <div class="step-card space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+          <p class="step-label mb-0">Step 2 — Design Email</p>
+          <!-- View mode tabs -->
+          <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+            <button class="tab-btn active" onclick="switchEditorTab('design')" id="tab-design">🎨 Design</button>
+            <button class="tab-btn" onclick="switchEditorTab('html')" id="tab-html">&lt;/&gt; HTML</button>
+            <button class="tab-btn" onclick="switchEditorTab('preview')" id="tab-preview">👁 Preview</button>
+          </div>
+        </div>
+
+        <!-- Subject line -->
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Subject Line <span class="text-red-400">*</span></label>
+          <input id="email-subject" type="text" placeholder="e.g. Important update from Finemark Tracking"
+            class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <p class="text-xs text-slate-400 mt-1">Tip: Use {{name}} to personalise with customer name. 50–60 chars ideal for inbox preview.</p>
+        </div>
+
+        <!-- DESIGN TAB -->
+        <div id="panel-design" class="space-y-4">
+          <!-- Template picker -->
+          <div>
+            <p class="text-xs font-semibold text-slate-500 mb-2">Choose a starter template:</p>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="template-grid">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+
+          <!-- Design controls -->
+          <div class="grid sm:grid-cols-2 gap-4 border-t border-slate-100 pt-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Header Background Color</label>
+              <div class="flex items-center gap-2">
+                <input type="color" id="d-header-bg" value="#1e3a5f" class="w-9 h-9 rounded cursor-pointer border border-slate-200" />
+                <span id="d-header-bg-txt" class="text-xs text-slate-500">#1e3a5f</span>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Accent / Button Color</label>
+              <div class="flex items-center gap-2">
+                <input type="color" id="d-accent" value="#2563eb" class="w-9 h-9 rounded cursor-pointer border border-slate-200" />
+                <span id="d-accent-txt" class="text-xs text-slate-500">#2563eb</span>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Logo / Banner Image URL <span class="font-normal text-slate-400">(optional)</span></label>
+              <input id="d-logo-url" type="url" placeholder="https://…/logo.png"
+                class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400/40" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">CTA Button Label</label>
+              <input id="d-cta-label" type="text" value="Learn More" placeholder="e.g. View Offer"
+                class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400/40" />
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-medium text-slate-600 mb-1">CTA Button URL</label>
+              <input id="d-cta-url" type="url" value="https://portal.finemarktracking.co.ke" placeholder="https://…"
+                class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400/40" />
+            </div>
+          </div>
+
+          <!-- Body content blocks -->
+          <div class="border-t border-slate-100 pt-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-semibold text-slate-500">Email Body</p>
+              <div class="flex gap-1">
+                <button onclick="addBlock('text')" class="text-xs rounded-lg border border-slate-200 bg-white px-2.5 py-1 hover:bg-slate-50 font-medium">+ Text</button>
+                <button onclick="addBlock('image')" class="text-xs rounded-lg border border-slate-200 bg-white px-2.5 py-1 hover:bg-slate-50 font-medium">+ Image</button>
+                <button onclick="addBlock('divider')" class="text-xs rounded-lg border border-slate-200 bg-white px-2.5 py-1 hover:bg-slate-50 font-medium">+ Divider</button>
+                <button onclick="addBlock('button')" class="text-xs rounded-lg border border-slate-200 bg-white px-2.5 py-1 hover:bg-slate-50 font-medium">+ Button</button>
+              </div>
+            </div>
+            <div id="blocks-container" class="space-y-2 min-h-[80px] rounded-lg border border-dashed border-slate-200 p-3">
+              <p class="text-xs text-slate-400 text-center py-4" id="blocks-empty">Add blocks above to build your email body</p>
+            </div>
+          </div>
+
+          <button onclick="buildHtmlFromDesign(); switchEditorTab('preview')" class="rounded-lg bg-indigo-600 text-white text-xs font-semibold px-4 py-2 hover:bg-indigo-700 transition">
+            Generate & Preview →
+          </button>
+        </div>
+
+        <!-- HTML TAB -->
+        <div id="panel-html" class="hidden space-y-2">
+          <!-- Toolbar -->
+          <div class="flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+            <button class="toolbar-btn font-bold" title="Bold" onclick="wrapSelection('b')"><b>B</b></button>
+            <button class="toolbar-btn italic" title="Italic" onclick="wrapSelection('i')"><i>I</i></button>
+            <button class="toolbar-btn" title="H1" onclick="wrapSelection('h1')" style="font-size:.7rem;font-weight:700">H1</button>
+            <button class="toolbar-btn" title="H2" onclick="wrapSelection('h2')" style="font-size:.7rem;font-weight:700">H2</button>
+            <button class="toolbar-btn" title="Paragraph" onclick="wrapSelection('p')" style="font-size:.7rem">¶p</button>
+            <div class="toolbar-sep"></div>
+            <button class="toolbar-btn" title="Link" onclick="insertLink()">🔗</button>
+            <button class="toolbar-btn" title="Image" onclick="insertImg()">🖼</button>
+            <button class="toolbar-btn" title="Button" onclick="insertButton()">🔘</button>
+            <div class="toolbar-sep"></div>
+            <button class="toolbar-btn text-xs" title="Insert {{name}} personalisation" onclick="insertAtCursor('{{name}}')">{{name}}</button>
+            <div class="ml-auto flex gap-2">
+              <button onclick="switchEditorTab('preview')" class="text-xs rounded-lg bg-indigo-600 text-white px-3 py-1 font-semibold hover:bg-indigo-700">Preview →</button>
+            </div>
+          </div>
+          <textarea id="html-editor" rows="22" spellcheck="false"
+            placeholder="Paste or write your HTML email here… Use {{name}} to personalise."
+            class="w-full font-mono text-xs rounded-lg border border-slate-200 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 resize-y bg-white"
+            oninput="syncHtmlToPreview()"></textarea>
+        </div>
+
+        <!-- PREVIEW TAB -->
+        <div id="panel-preview" class="hidden">
+          <div class="rounded-xl border border-slate-200 overflow-hidden bg-slate-100 p-3">
+            <div class="flex items-center gap-2 mb-3 text-xs text-slate-500">
+              <span class="font-semibold">From:</span> customer@finemarktracking.co.ke
+              <span class="mx-2">|</span>
+              <span class="font-semibold">Subject:</span>
+              <span id="preview-subject-label" class="text-slate-700">—</span>
+            </div>
+            <iframe id="email-preview-iframe" style="height:550px;border-radius:.5rem;" title="Email Preview" sandbox="allow-same-origin"></iframe>
+          </div>
+          <div class="flex gap-2 mt-3">
+            <button onclick="switchEditorTab('design')" class="text-xs rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium hover:bg-slate-50">← Edit Design</button>
+            <button onclick="switchEditorTab('html')" class="text-xs rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium hover:bg-slate-50">← Edit HTML</button>
+            <button onclick="sendTestEmail()" class="text-xs rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 px-3 py-2 font-semibold hover:bg-indigo-100">📧 Send Test to Myself</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 – Recipients Preview -->
+      <div class="step-card space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <p class="step-label mb-0">Step 3 — Preview Recipients</p>
+          <button id="btn-preview-recip" onclick="loadRecipients()" disabled
+            class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
+            Load Recipients
+          </button>
+        </div>
+        <div id="recip-loading" class="hidden py-6 text-center text-sm text-slate-400">Loading recipients…</div>
+        <div id="recip-summary" class="hidden rounded-lg bg-indigo-50 border border-indigo-100 px-4 py-3 text-sm text-indigo-800">
+          <span id="recip-count" class="font-bold">0</span> recipients with valid email addresses will receive this campaign.
+          <span id="recip-no-email" class="ml-3 text-orange-600 text-xs hidden">⚠ <span id="no-email-count">0</span> members have no email on file.</span>
+        </div>
+        <div id="recip-table-wrap" class="hidden overflow-x-auto rounded-xl border border-slate-200">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="border-b border-slate-100 bg-slate-50">
+                <th class="py-2.5 px-4 text-left font-semibold text-slate-500">#</th>
+                <th class="py-2.5 px-4 text-left font-semibold text-slate-500">Customer Name</th>
+                <th class="py-2.5 px-4 text-left font-semibold text-slate-500">Email</th>
+                <th class="py-2.5 px-4 text-left font-semibold text-slate-500">Status</th>
+              </tr>
+            </thead>
+            <tbody id="recip-tbody" class="divide-y divide-slate-50"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Step 4 – Send -->
+      <div class="step-card space-y-4">
+        <p class="step-label">Step 4 — Send Campaign</p>
+
+        <!-- Dry run option -->
+        <label class="flex items-center gap-3 cursor-pointer select-none">
+          <input type="checkbox" id="chk-dry-run" class="w-4 h-4 accent-indigo-600 rounded" />
+          <span class="text-sm text-slate-700">Dry run <span class="text-slate-400 text-xs">(simulate only — no emails sent, results shown below)</span></span>
+        </label>
+
+        <!-- Send button and progress -->
+        <div class="flex items-center gap-3 flex-wrap">
+          <button id="btn-send" onclick="sendCampaign()" disabled
+            class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            Send Email Campaign
+          </button>
+          <div id="send-progress" class="hidden flex items-center gap-2 text-sm text-indigo-600">
+            <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4l-3 3-3-3h4z"/></svg>
+            Sending…
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div id="send-result" class="hidden rounded-xl border border-slate-200 bg-white p-5 space-y-3 fade-in">
+          <h3 class="font-semibold text-slate-800 text-sm" id="result-title">Results</h3>
+          <div class="grid grid-cols-3 gap-3">
+            <div class="rounded-lg bg-emerald-50 border border-emerald-100 p-3 text-center">
+              <p class="text-xs text-emerald-600 font-medium">Sent</p>
+              <p id="res-sent" class="text-2xl font-bold text-emerald-700">0</p>
+            </div>
+            <div class="rounded-lg bg-red-50 border border-red-100 p-3 text-center">
+              <p class="text-xs text-red-500 font-medium">Failed</p>
+              <p id="res-failed" class="text-2xl font-bold text-red-600">0</p>
+            </div>
+            <div class="rounded-lg bg-slate-50 border border-slate-100 p-3 text-center">
+              <p class="text-xs text-slate-500 font-medium">Total</p>
+              <p id="res-total" class="text-2xl font-bold text-slate-700">0</p>
+            </div>
+          </div>
+          <div id="res-errors" class="hidden rounded-lg bg-red-50 border border-red-100 p-3 text-xs text-red-700 space-y-1 max-h-40 overflow-y-auto"></div>
+          <div id="res-dry-preview" class="hidden">
+            <p class="text-xs font-semibold text-slate-500 mb-2">Would be sent to:</p>
+            <div class="overflow-x-auto rounded-lg border border-slate-200 max-h-64 overflow-y-auto">
+              <table class="w-full text-xs">
+                <thead><tr class="bg-slate-50 border-b border-slate-100">
+                  <th class="py-2 px-3 text-left font-semibold text-slate-500">Name</th>
+                  <th class="py-2 px-3 text-left font-semibold text-slate-500">Email</th>
+                </tr></thead>
+                <tbody id="dry-run-tbody" class="divide-y divide-slate-50"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /max-w -->
+  </main>
+</div>
+
+<div id="fm-footer"></div>
+
+<!-- Toast -->
+<div id="toast" class="fixed top-5 right-5 z-[70] hidden">
+  <div id="toast-inner" class="rounded-xl px-4 py-2.5 text-sm font-medium text-white shadow-lg flex items-center gap-2 min-w-[200px]">
+    <span id="toast-icon"></span><span id="toast-msg"></span>
+  </div>
+</div>
+
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => { window.FINEMARK_APP?.requirePageAccess?.(); });
+</script>
+<script>
+// ─── LOCAL HELPERS ────────────────────────────────────────────────────────────
+const API = "/api";
+async function apiFetch(path, opts={}) {
+  const session=(()=>{try{return JSON.parse(localStorage.getItem("finemark_session")||"{}")}catch{return {};}})();
+  const token=session.accessToken||session.token||null;
+  const r=await fetch(API+path,{...opts,headers:{"Content-Type":"application/json",...(token?{Authorization:`Bearer ${token}`}:{}), ...(opts.headers||{})}});
+  if(r.status===401){window.location.href="login.html";return;}
+  if(!r.ok){const e=await r.json().catch(()=>({message:r.statusText}));throw new Error(e.message||r.statusText);}
+  return r.json();
+}
+function currentUser(){try{return JSON.parse(localStorage.getItem("finemark_session")||"{}")}catch{return {};}}
+
+const $ = id => document.getElementById(id);
+
+function toast(msg, type="success"){
+  const icons={success:"✓",error:"✕",info:"ℹ",warn:"⚠"};
+  const colors={success:"#16a34a",error:"#dc2626",info:"#2563eb",warn:"#d97706"};
+  $("toast-msg").textContent=msg; $("toast-icon").textContent=icons[type]||"ℹ";
+  $("toast-inner").style.background=colors[type]||colors.info;
+  $("toast").classList.remove("hidden");
+  clearTimeout(window._tt);
+  window._tt=setTimeout(()=>$("toast").classList.add("hidden"),4000);
+}
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let _campaigns = [];
+let _recipients = [];   // dry-run or preview recipients
+let _blocks = [];       // design blocks
+let _currentCampaignId = "";
+let _currentEditorTab = "design";
+
+// ─── EMAIL TEMPLATES ──────────────────────────────────────────────────────────
+const TEMPLATES = [
+  {
+    id: "promo",
+    label: "Promotion",
+    desc: "Bold offer email",
+    preview: "bg-gradient-to-br from-indigo-600 to-blue-500",
+    html: `<table width="100%" cellpadding="0" cellspacing="0" style="font-family:Arial,sans-serif;background:#f1f5f9;">
+  <tr><td align="center" style="padding:30px 0;">
+    <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08);">
+      <tr><td style="background:{{headerBg}};padding:32px 40px;text-align:center;">
+        {{logoBlock}}
+        <h1 style="color:#fff;margin:12px 0 6px;font-size:26px;font-weight:800;">Special Offer!</h1>
+        <p style="color:rgba(255,255,255,.85);font-size:15px;margin:0;">An exclusive message for you, {{name}}</p>
+      </td></tr>
+      <tr><td style="padding:36px 40px;">
+        <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 24px;">Dear {{name}},<br><br>We have something special for you. As a valued Finemark Tracking customer, we'd like to let you know about our latest offer.</p>
+        <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 32px;">[Add your offer details here]</p>
+        <div style="text-align:center;">
+          <a href="{{ctaUrl}}" style="display:inline-block;background:{{accent}};color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-size:15px;font-weight:700;">{{ctaLabel}}</a>
+        </div>
+      </td></tr>
+      <tr><td style="background:#f8fafc;padding:20px 40px;text-align:center;border-top:1px solid #e2e8f0;">
+        <p style="color:#94a3b8;font-size:12px;margin:0;">© 2025 Finemark Tracking Ltd · Nairobi, Kenya · <a href="https://portal.finemarktracking.co.ke" style="color:#6366f1;">Portal</a></p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>`
+  },
+  {
+    id: "newsletter",
+    label: "Newsletter",
+    desc: "Clean news update",
+    preview: "bg-gradient-to-br from-slate-700 to-slate-500",
+    html: `<table width="100%" cellpadding="0" cellspacing="0" style="font-family:Arial,sans-serif;background:#f8fafc;">
+  <tr><td align="center" style="padding:30px 0;">
+    <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);">
+      <tr><td style="background:{{headerBg}};padding:28px 40px;">
+        {{logoBlock}}
+        <h2 style="color:#fff;margin:10px 0 0;font-size:22px;font-weight:700;">Finemark Newsletter</h2>
+        <p style="color:rgba(255,255,255,.75);font-size:13px;margin:4px 0 0;">Stay updated · {{date}}</p>
+      </td></tr>
+      <tr><td style="padding:32px 40px;">
+        <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 20px;">Hello {{name}},</p>
+        <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 20px;">[Write your newsletter content here. Share company news, product updates, tips, or reminders.]</p>
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;" />
+        <p style="color:#334155;font-size:14px;line-height:1.7;margin:0 0 24px;"><strong>Quick Link</strong><br>[Add a helpful link or CTA here]</p>
+        <a href="{{ctaUrl}}" style="display:inline-block;background:{{accent}};color:#fff;text-decoration:none;padding:12px 30px;border-radius:6px;font-size:14px;font-weight:600;">{{ctaLabel}}</a>
+      </td></tr>
+      <tr><td style="background:#f8fafc;padding:18px 40px;text-align:center;border-top:1px solid #e2e8f0;">
+        <p style="color:#94a3b8;font-size:12px;margin:0;">© 2025 Finemark Tracking Ltd · <a href="https://portal.finemarktracking.co.ke" style="color:#6366f1;">Customer Portal</a></p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>`
+  },
+  {
+    id: "renewal",
+    label: "Renewal",
+    desc: "Subscription renewal",
+    preview: "bg-gradient-to-br from-amber-500 to-orange-500",
+    html: `<table width="100%" cellpadding="0" cellspacing="0" style="font-family:Arial,sans-serif;background:#fffbeb;">
+  <tr><td align="center" style="padding:30px 0;">
+    <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.07);">
+      <tr><td style="background:{{headerBg}};padding:28px 40px;text-align:center;">
+        {{logoBlock}}
+        <h2 style="color:#fff;margin:10px 0 4px;font-size:22px;font-weight:700;">⚠ Renewal Reminder</h2>
+        <p style="color:rgba(255,255,255,.85);font-size:14px;margin:0;">Your subscription is due soon</p>
+      </td></tr>
+      <tr><td style="padding:32px 40px;">
+        <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 20px;">Dear {{name}},</p>
+        <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 20px;">Your GPS tracking subscription with Finemark is coming up for renewal. To avoid any service interruption, please renew before the expiry date.</p>
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px 20px;margin:0 0 24px;">
+          <p style="color:#92400e;font-size:14px;font-weight:600;margin:0;">Action required: Please renew your subscription to maintain uninterrupted tracking.</p>
+        </div>
+        <div style="text-align:center;">
+          <a href="{{ctaUrl}}" style="display:inline-block;background:{{accent}};color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-size:15px;font-weight:700;">{{ctaLabel}}</a>
+        </div>
+      </td></tr>
+      <tr><td style="background:#f8fafc;padding:18px 40px;text-align:center;border-top:1px solid #e2e8f0;">
+        <p style="color:#94a3b8;font-size:12px;margin:0;">© 2025 Finemark Tracking Ltd · Contact: <a href="mailto:customer@finemarktracking.co.ke" style="color:#6366f1;">customer@finemarktracking.co.ke</a></p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>`
+  },
+  {
+    id: "blank",
+    label: "Blank",
+    desc: "Start from scratch",
+    preview: "bg-white border-2 border-dashed border-slate-300",
+    html: `<table width="100%" cellpadding="0" cellspacing="0" style="font-family:Arial,sans-serif;background:#f1f5f9;">
+  <tr><td align="center" style="padding:30px 0;">
+    <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);">
+      <tr><td style="background:{{headerBg}};padding:28px 40px;text-align:center;">
+        {{logoBlock}}
+        <h2 style="color:#fff;margin:10px 0 0;font-size:22px;font-weight:700;">Your Heading Here</h2>
+      </td></tr>
+      <tr><td style="padding:36px 40px;">
+        <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 24px;">Dear {{name}},<br><br>Write your email content here.</p>
+        <div style="text-align:center;margin-top:32px;">
+          <a href="{{ctaUrl}}" style="display:inline-block;background:{{accent}};color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-size:15px;font-weight:700;">{{ctaLabel}}</a>
+        </div>
+      </td></tr>
+      <tr><td style="background:#f8fafc;padding:18px 40px;text-align:center;border-top:1px solid #e2e8f0;">
+        <p style="color:#94a3b8;font-size:12px;margin:0;">© 2025 Finemark Tracking Ltd</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>`
+  },
+];
+
+let _selectedTemplate = "promo";
+
+function renderTemplates() {
+  $("template-grid").innerHTML = TEMPLATES.map(t => `
+    <div class="tmpl-card ${t.id===_selectedTemplate?'selected':''}" onclick="selectTemplate('${t.id}')">
+      <div class="${t.preview} h-16 flex items-center justify-center text-white text-xs font-bold">${t.label}</div>
+      <div class="p-2">
+        <p class="text-xs font-semibold text-slate-700">${t.label}</p>
+        <p class="text-xs text-slate-400">${t.desc}</p>
+      </div>
+    </div>`).join("");
+}
+
+function selectTemplate(id) {
+  _selectedTemplate = id;
+  renderTemplates();
+  buildHtmlFromDesign();
+}
+
+// ─── BLOCK MANAGEMENT ─────────────────────────────────────────────────────────
+function addBlock(type) {
+  const id = "blk_" + Date.now();
+  _blocks.push({ id, type, content: type==="text"?"Enter your text here…" : type==="image"?"https://…/image.jpg" : type==="divider"?"" : "Click Here" });
+  renderBlocks();
+  $("blocks-empty")?.remove();
+}
+
+function removeBlock(id) {
+  _blocks = _blocks.filter(b => b.id !== id);
+  renderBlocks();
+}
+
+function renderBlocks() {
+  const c = $("blocks-container");
+  c.innerHTML = _blocks.length ? _blocks.map((b, i) => `
+    <div class="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
+      <span class="text-xs text-slate-400 mt-1 w-16 shrink-0 font-medium">${b.type.toUpperCase()}</span>
+      ${b.type === "divider"
+        ? `<div class="flex-1 pt-2"><hr class="border-slate-300" /></div>`
+        : `<${b.type==="text"?"textarea":"input"} data-blk="${b.id}"
+            class="flex-1 rounded border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-300"
+            ${b.type!=="text"?"":"rows=3"}
+            onchange="updateBlock('${b.id}',this.value)"
+            placeholder="${b.type==='image'?'Image URL…':'Button label or text…'}"
+          >${b.type==="text"?b.content:""}</${b.type==="text"?"textarea":"input"}>`
+      }
+      <button onclick="removeBlock('${b.id}')" class="text-slate-400 hover:text-red-500 text-xs mt-1 shrink-0">✕</button>
+    </div>`).join("")
+    : `<p class="text-xs text-slate-400 text-center py-4" id="blocks-empty">Add blocks above to build your email body</p>`;
+  // Set textarea values
+  _blocks.filter(b => b.type === "text").forEach(b => {
+    const el = c.querySelector(`[data-blk="${b.id}"]`);
+    if(el) el.value = b.content;
+  });
+  _blocks.filter(b => b.type !== "text" && b.type !== "divider").forEach(b => {
+    const el = c.querySelector(`[data-blk="${b.id}"]`);
+    if(el) el.value = b.content;
+  });
+}
+
+function updateBlock(id, val) {
+  const b = _blocks.find(b => b.id === id);
+  if(b) b.content = val;
+}
+
+// ─── BUILD HTML FROM DESIGN ───────────────────────────────────────────────────
+function buildHtmlFromDesign() {
+  const headerBg = $("d-header-bg").value;
+  const accent   = $("d-accent").value;
+  const logoUrl  = ($("d-logo-url").value||"").trim();
+  const ctaLabel = $("d-cta-label").value||"Learn More";
+  const ctaUrl   = ($("d-cta-url").value||"https://portal.finemarktracking.co.ke").trim();
+
+  const logoBlock = logoUrl
+    ? `<img src="${logoUrl}" alt="Logo" style="max-height:56px;max-width:200px;object-fit:contain;display:block;margin:0 auto 8px;" />`
+    : `<p style="color:#fff;font-size:18px;font-weight:800;margin:0;">Finemark Tracking</p>`;
+
+  const bodyBlocks = _blocks.map(b => {
+    if(b.type==="text") return `<p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 18px;">${b.content.replace(/\n/g,"<br>")}</p>`;
+    if(b.type==="image") return `<div style="text-align:center;margin:0 0 18px;"><img src="${b.content}" alt="" style="max-width:100%;border-radius:8px;" /></div>`;
+    if(b.type==="divider") return `<hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;" />`;
+    if(b.type==="button") return `<div style="text-align:center;margin:0 0 18px;"><a href="${ctaUrl}" style="display:inline-block;background:${accent};color:#fff;text-decoration:none;padding:12px 30px;border-radius:6px;font-size:14px;font-weight:700;">${b.content}</a></div>`;
+    return "";
+  }).join("\n");
+
+  const tmpl = TEMPLATES.find(t => t.id === _selectedTemplate) || TEMPLATES[0];
+  const date = new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"long",year:"numeric"});
+  let html = tmpl.html
+    .replace(/\{\{headerBg\}\}/g, headerBg)
+    .replace(/\{\{accent\}\}/g, accent)
+    .replace(/\{\{logoBlock\}\}/g, logoBlock)
+    .replace(/\{\{ctaLabel\}\}/g, ctaLabel)
+    .replace(/\{\{ctaUrl\}\}/g, ctaUrl)
+    .replace(/\{\{date\}\}/g, date);
+
+  // If there are body blocks, inject them before the CTA button in the body <td>
+  if(bodyBlocks && html.includes("</td></tr>")) {
+    // Insert extra blocks just before the CTA row if present
+    const insertPoint = html.lastIndexOf("<div style=\"text-align:center;\">");
+    if(insertPoint > -1 && bodyBlocks) {
+      html = html.slice(0, insertPoint) + bodyBlocks + html.slice(insertPoint);
+    }
+  }
+
+  $("html-editor").value = html;
+  syncHtmlToPreview();
+}
+
+// ─── EDITOR TABS ─────────────────────────────────────────────────────────────
+function switchEditorTab(tab) {
+  _currentEditorTab = tab;
+  ["design","html","preview"].forEach(t => {
+    $(`tab-${t}`).classList.toggle("active", t===tab);
+    $(`panel-${t}`).classList.toggle("hidden", t!==tab);
+  });
+  if(tab==="preview") syncHtmlToPreview();
+}
+
+function syncHtmlToPreview() {
+  const html = $("html-editor").value;
+  const subj = $("email-subject").value;
+  $("preview-subject-label").textContent = subj || "(no subject)";
+  const iframe = $("email-preview-iframe");
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open(); doc.write(html); doc.close();
+  // Auto-height
+  setTimeout(() => {
+    try { iframe.style.height = Math.max(400, doc.body.scrollHeight + 20) + "px"; } catch{}
+  }, 80);
+}
+
+// ─── TOOLBAR HELPERS ──────────────────────────────────────────────────────────
+function wrapSelection(tag) {
+  const ta = $("html-editor");
+  const s = ta.selectionStart, e = ta.selectionEnd;
+  const sel = ta.value.substring(s,e);
+  const wrapped = sel ? `<${tag}>${sel}</${tag}>` : `<${tag}></${tag}>`;
+  ta.value = ta.value.substring(0,s) + wrapped + ta.value.substring(e);
+  ta.focus();
+  syncHtmlToPreview();
+}
+
+function insertLink() {
+  const url = prompt("Enter URL:", "https://");
+  if(!url) return;
+  const ta = $("html-editor");
+  const s = ta.selectionStart, e = ta.selectionEnd;
+  const label = ta.value.substring(s,e) || "Click here";
+  const link = `<a href="${url}" style="color:#4f46e5;">${label}</a>`;
+  ta.value = ta.value.substring(0,s) + link + ta.value.substring(e);
+  syncHtmlToPreview();
+}
+
+function insertImg() {
+  const url = prompt("Enter image URL:");
+  if(!url) return;
+  const tag = `<img src="${url}" alt="" style="max-width:100%;border-radius:8px;display:block;margin:12px auto;" />`;
+  insertAtCursor(tag);
+}
+
+function insertButton() {
+  const label = prompt("Button label:", "Click Here") || "Click Here";
+  const url = prompt("Button URL:", "https://portal.finemarktracking.co.ke") || "#";
+  const tag = `<div style="text-align:center;margin:20px 0;"><a href="${url}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 30px;border-radius:6px;font-size:14px;font-weight:700;">${label}</a></div>`;
+  insertAtCursor(tag);
+}
+
+function insertAtCursor(text) {
+  const ta = $("html-editor");
+  const s = ta.selectionStart;
+  ta.value = ta.value.substring(0,s) + text + ta.value.substring(s);
+  ta.focus();
+  syncHtmlToPreview();
+}
+
+// ─── COLOR PICKERS ────────────────────────────────────────────────────────────
+$("d-header-bg").addEventListener("input", e => { $("d-header-bg-txt").textContent = e.target.value; buildHtmlFromDesign(); });
+$("d-accent").addEventListener("input",    e => { $("d-accent-txt").textContent = e.target.value; buildHtmlFromDesign(); });
+["d-logo-url","d-cta-label","d-cta-url"].forEach(id => $( id).addEventListener("input", () => buildHtmlFromDesign()));
+
+// ─── LOAD CAMPAIGNS ───────────────────────────────────────────────────────────
+async function loadCampaigns() {
+  try {
+    const data = await apiFetch("/crm/campaigns?pageSize=200");
+    _campaigns = data?.data || data || [];
+    const sel = $("sel-campaign");
+    sel.innerHTML = `<option value="">— Select a campaign —</option>` +
+      _campaigns.map(c => `<option value="${c.id}">${c.name} (${c.status||"Draft"})</option>`).join("");
+  } catch(e) {
+    toast("Could not load campaigns: " + e.message, "error");
+  }
+}
+
+$("sel-campaign").addEventListener("change", function() {
+  _currentCampaignId = this.value;
+  const c = _campaigns.find(x => x.id === this.value);
+  if(c) {
+    $("ci-name").textContent = c.name;
+    $("ci-status").textContent = c.status||"—";
+    $("ci-target").textContent = c.targetCount||c.target_count||"—";
+    $("ci-sent").textContent = c.sentCount||c.sent_count||0;
+    $("campaign-info").classList.remove("hidden");
+  } else {
+    $("campaign-info").classList.add("hidden");
+  }
+  const hasCampaign = !!this.value;
+  $("btn-preview-recip").disabled = !hasCampaign;
+  $("btn-send").disabled = !hasCampaign;
+  _recipients = [];
+  $("recip-summary").classList.add("hidden");
+  $("recip-table-wrap").classList.add("hidden");
+  $("send-result").classList.add("hidden");
+});
+
+// ─── LOAD RECIPIENTS ──────────────────────────────────────────────────────────
+async function loadRecipients() {
+  if(!_currentCampaignId) return;
+  $("recip-loading").classList.remove("hidden");
+  $("recip-summary").classList.add("hidden");
+  $("recip-table-wrap").classList.add("hidden");
+  try {
+    const data = await apiFetch(`/crm/campaigns/${_currentCampaignId}/send-email`, {
+      method: "POST",
+      body: JSON.stringify({ subject: "preview", htmlBody: "<p>preview</p>", dryRun: true }),
+    });
+    _recipients = data?.recipients || [];
+    const total = data?.total || _recipients.length;
+    $("recip-count").textContent = total;
+    $("recip-summary").classList.remove("hidden");
+
+    if(_recipients.length) {
+      $("recip-tbody").innerHTML = _recipients.map((r,i) => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-2 px-4 text-slate-400">${i+1}</td>
+          <td class="py-2 px-4 font-medium text-slate-700">${r.name||"—"}</td>
+          <td class="py-2 px-4 text-indigo-600">${r.email}</td>
+          <td class="py-2 px-4"><span class="status-pill bg-slate-100 text-slate-600">Pending</span></td>
+        </tr>`).join("");
+      $("recip-table-wrap").classList.remove("hidden");
+    }
+    toast(`${total} recipients found`, "info");
+  } catch(e) {
+    toast("Error loading recipients: " + e.message, "error");
+  } finally {
+    $("recip-loading").classList.add("hidden");
+  }
+}
+
+// ─── SEND TEST EMAIL ──────────────────────────────────────────────────────────
+async function sendTestEmail() {
+  const subject = $("email-subject").value.trim();
+  const html = $("html-editor").value.trim();
+  if(!subject || !html) { toast("Please fill in Subject and design the email first", "warn"); return; }
+  const cu = currentUser();
+  const myEmail = cu.user?.email || cu.email || "";
+  if(!myEmail) { toast("Could not determine your email address", "error"); return; }
+  try {
+    toast("Sending test email to " + myEmail + "…", "info");
+    await apiFetch("/crm/communications/send-email", {
+      method: "POST",
+      body: JSON.stringify({ to: myEmail, subject: "[TEST] " + subject, htmlBody: html }),
+    });
+    toast("Test email sent to " + myEmail, "success");
+  } catch(e) {
+    // Fallback: use campaign send with dry-run false on a test-only internal endpoint
+    toast("Test send: " + e.message, "error");
+  }
+}
+
+// ─── SEND CAMPAIGN ────────────────────────────────────────────────────────────
+async function sendCampaign() {
+  const campaignId = _currentCampaignId;
+  if(!campaignId) { toast("Select a campaign first", "warn"); return; }
+
+  const subject = $("email-subject").value.trim();
+  if(!subject) { toast("Please enter a subject line", "warn"); return; }
+
+  const htmlBody = $("html-editor").value.trim();
+  if(!htmlBody || htmlBody.length < 30) { toast("Please design and generate your email first", "warn"); return; }
+
+  const dryRun = $("chk-dry-run").checked;
+  const confirmed = dryRun || confirm(`Send this email campaign to all recipients with valid email addresses?\n\nFrom: customer@finemarktracking.co.ke\nSubject: ${subject}\n\nThis cannot be undone.`);
+  if(!confirmed) return;
+
+  $("btn-send").disabled = true;
+  $("send-progress").classList.remove("hidden");
+  $("send-result").classList.add("hidden");
+
+  try {
+    const data = await apiFetch(`/crm/campaigns/${campaignId}/send-email`, {
+      method: "POST",
+      body: JSON.stringify({ subject, htmlBody, dryRun }),
+    });
+
+    if(dryRun && data?.recipients) {
+      $("result-title").textContent = "Dry Run — Preview (no emails sent)";
+      $("res-sent").textContent = 0;
+      $("res-failed").textContent = 0;
+      $("res-total").textContent = data.total || data.recipients.length;
+      $("res-dry-preview").classList.remove("hidden");
+      $("dry-run-tbody").innerHTML = data.recipients.map(r =>
+        `<tr><td class="py-1.5 px-3 font-medium text-slate-700">${r.name||"—"}</td><td class="py-1.5 px-3 text-indigo-600">${r.email}</td></tr>`
+      ).join("");
+      toast("Dry run complete — " + (data.total||0) + " would receive this email", "info");
+    } else {
+      $("result-title").textContent = "Campaign Sent";
+      $("res-sent").textContent = data.sent || 0;
+      $("res-failed").textContent = data.failed || 0;
+      $("res-total").textContent = data.total || 0;
+      $("res-dry-preview").classList.add("hidden");
+      if(data.errors?.length) {
+        $("res-errors").classList.remove("hidden");
+        $("res-errors").innerHTML = "<strong>Errors:</strong><br>" + data.errors.join("<br>");
+      }
+      toast(`Campaign sent: ${data.sent} emails dispatched`, "success");
+    }
+    $("send-result").classList.remove("hidden");
+  } catch(e) {
+    toast("Send failed: " + e.message, "error");
+  } finally {
+    $("btn-send").disabled = false;
+    $("send-progress").classList.add("hidden");
+  }
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", () => {
+  loadCampaigns();
+  renderTemplates();
+  buildHtmlFromDesign();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | GPS Uninstall Queue</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+    <style>
+      .badge{display:inline-flex;align-items:center;border-radius:9999px;padding:.15rem .6rem;font-size:.7rem;font-weight:600;border-width:1px;}
+      .badge-scheduled{background:#fffbeb;color:#b45309;border-color:#fde68a;}
+      .badge-ticketraised{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+      .badge-completed{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}
+      .badge-cancelled{background:#f1f5f9;color:#475569;border-color:#e2e8f0;}
+      .trig-loanterm{background:#ecfdf5;color:#065f46;border-color:#a7f3d0;}
+      .trig-early{background:#fef9c3;color:#713f12;border-color:#fde68a;}
+      .row-hover:hover td{background:#f8fafc;}
+      .tab-btn{padding:.3rem .85rem;border-radius:.5rem;font-size:.78rem;font-weight:500;color:#475569;transition:all .15s;white-space:nowrap;}
+      .tab-btn:hover{background:#fff;color:#0f172a;}
+      .tab-btn.active{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);color:#0f172a;font-weight:700;}
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-4 md:p-6 max-w-[1500px] mx-auto space-y-6">
+
+        <!-- Header -->
+        <div class="flex flex-wrap items-center gap-3 justify-between">
+          <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900">GPS Uninstall Queue</h1>
+            <p class="text-sm text-slate-500 mt-0.5">Vehicles eligible for tracker uninstallation — loan term ended, or loan settled early.</p>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+            <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Scheduled</p>
+            <p id="stat-scheduled" class="text-2xl font-bold text-amber-600 mt-1">—</p>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+            <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Ticket Raised</p>
+            <p id="stat-ticket-raised" class="text-2xl font-bold text-blue-600 mt-1">—</p>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+            <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Completed</p>
+            <p id="stat-completed" class="text-2xl font-bold text-green-600 mt-1">—</p>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+            <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Cancelled</p>
+            <p id="stat-cancelled" class="text-2xl font-bold text-slate-500 mt-1">—</p>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-4">
+          <div class="flex flex-wrap items-end gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-500 mb-1">Search</label>
+              <input id="q-search" type="text" placeholder="Registration, customer…" class="w-52 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-500 mb-1">Status</label>
+              <select id="q-status" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400/40">
+                <option value="">All Statuses</option>
+                <option value="Scheduled">Scheduled</option>
+                <option value="TicketRaised">Ticket Raised</option>
+                <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-500 mb-1">Trigger</label>
+              <select id="q-trigger" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400/40">
+                <option value="">All Triggers</option>
+                <option value="LoanTermEnd">Loan Term End</option>
+                <option value="EarlyRepayment">Early Repayment</option>
+              </select>
+            </div>
+            <button id="btn-q-search" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">Search</button>
+            <button id="btn-q-clear" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Clear</button>
+          </div>
+
+          <!-- Status tabs quick filter -->
+          <div class="flex items-center gap-1 overflow-x-auto bg-slate-100 rounded-xl px-2 py-1.5">
+            <button class="tab-btn active" data-status-tab="">All</button>
+            <button class="tab-btn" data-status-tab="Scheduled">Scheduled</button>
+            <button class="tab-btn" data-status-tab="TicketRaised">Ticket Raised</button>
+            <button class="tab-btn" data-status-tab="Completed">Completed</button>
+            <button class="tab-btn" data-status-tab="Cancelled">Cancelled</button>
+          </div>
+
+          <!-- Table -->
+          <div class="overflow-x-auto rounded-xl border border-slate-200">
+            <table class="w-full text-sm min-w-[960px]">
+              <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide border-b border-slate-200">
+                <tr>
+                  <th class="px-4 py-3 text-left">Vehicle</th>
+                  <th class="px-4 py-3 text-left">Customer</th>
+                  <th class="px-4 py-3 text-left">Trigger</th>
+                  <th class="px-4 py-3 text-left">Eligible Date</th>
+                  <th class="px-4 py-3 text-left">Status</th>
+                  <th class="px-4 py-3 text-left">Linked Ticket</th>
+                  <th class="px-4 py-3 text-left">Flagged By</th>
+                  <th class="px-4 py-3 text-left">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="queue-tbody" class="divide-y divide-slate-100 bg-white">
+                <tr><td colspan="8" class="py-10 text-center text-slate-400">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="flex items-center justify-between text-xs text-slate-500">
+            <span id="q-meta">—</span>
+            <div class="flex gap-2">
+              <button id="btn-q-prev" class="px-3 py-1 rounded border border-slate-200 hover:bg-slate-50 disabled:opacity-40" disabled>← Prev</button>
+              <button id="btn-q-next" class="px-3 py-1 rounded border border-slate-200 hover:bg-slate-50 disabled:opacity-40" disabled>Next →</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <div id="fm-footer"></div>
+
+    <script src="assets/app.js?v=202607141000"></script>
+    <script src="assets/layout.js?v=202607141000"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => { window.FINEMARK_APP?.requirePageAccess?.(); init(); });
+
+      const APP = window.FINEMARK_APP;
+      const $ = (id) => document.getElementById(id);
+      const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+      const STATUS_BADGE = {
+        Scheduled:    `<span class="badge badge-scheduled">Scheduled</span>`,
+        TicketRaised: `<span class="badge badge-ticketraised">Ticket Raised</span>`,
+        Completed:    `<span class="badge badge-completed">Completed</span>`,
+        Cancelled:    `<span class="badge badge-cancelled">Cancelled</span>`,
+      };
+      const TRIGGER_BADGE = {
+        LoanTermEnd:     `<span class="badge trig-loanterm">Loan Term End</span>`,
+        EarlyRepayment:  `<span class="badge trig-early">Early Repayment</span>`,
+      };
+
+      let page = 1;
+      const pageSize = 25;
+
+      async function loadStats() {
+        try {
+          const d = await APP.apiFetch("/gps-uninstall-queue/stats/summary");
+          $("stat-scheduled").textContent = d.scheduled ?? "—";
+          $("stat-ticket-raised").textContent = d.ticketRaised ?? "—";
+          $("stat-completed").textContent = d.completed ?? "—";
+          $("stat-cancelled").textContent = d.cancelled ?? "—";
+        } catch {}
+      }
+
+      async function loadQueue() {
+        const search = $("q-search").value.trim();
+        const status = $("q-status").value;
+        const triggerType = $("q-trigger").value;
+        const params = new URLSearchParams({ page, pageSize });
+        if (search) params.set("search", search);
+        if (status) params.set("status", status);
+        if (triggerType) params.set("triggerType", triggerType);
+
+        const tbody = $("queue-tbody");
+        tbody.innerHTML = `<tr><td colspan="8" class="py-10 text-center text-slate-400">Loading…</td></tr>`;
+
+        try {
+          const res = await APP.apiFetch(`/gps-uninstall-queue?${params}`);
+          const { data, meta } = res;
+
+          if (!data.length) {
+            tbody.innerHTML = `<tr><td colspan="8" class="py-10 text-center text-slate-400">No entries found.</td></tr>`;
+          } else {
+            tbody.innerHTML = data.map((q) => {
+              let actions = "—";
+              if (q.status === "Scheduled") {
+                const raiseUrl = `crm-ticket-new.html?categoryName=Uninstallation&customerId=${q.customerId || ""}&customerName=${encodeURIComponent(q.customerName || "")}&vehicleId=${q.vehicleId}&queueId=${q.id}`;
+                actions = `<a href="${raiseUrl}" class="text-blue-600 hover:underline font-medium">Raise Ticket</a>
+                  <button class="ml-2 text-slate-400 hover:text-red-600" onclick="cancelEntry('${q.id}')">Cancel</button>`;
+              } else if (q.status === "TicketRaised" && q.linkedTicketId) {
+                actions = `<a href="crm-ticket-detail.html?id=${q.linkedTicketId}" class="text-blue-600 hover:underline font-medium">View Ticket →</a>`;
+              }
+              return `<tr class="row-hover">
+                <td class="px-4 py-3"><a href="vehicle-360.html?id=${q.vehicleId}" class="font-medium text-blue-700 hover:underline">${escapeHtml(q.vehicleRegistration || "—")}</a></td>
+                <td class="px-4 py-3 text-xs text-slate-700"><a href="crm-customer-360.html?id=${q.customerId || ""}" class="hover:underline">${escapeHtml(q.customerName || "—")}</a></td>
+                <td class="px-4 py-3">${TRIGGER_BADGE[q.triggerType] || escapeHtml(q.triggerType)}</td>
+                <td class="px-4 py-3 text-xs text-slate-600">${escapeHtml((q.eligibleDate || "").slice(0, 10))}</td>
+                <td class="px-4 py-3">${STATUS_BADGE[q.status] || escapeHtml(q.status)}</td>
+                <td class="px-4 py-3 text-xs">${q.linkedTicketNo ? `<a href="crm-ticket-detail.html?id=${q.linkedTicketId}" class="text-blue-600 hover:underline font-mono">${escapeHtml(q.linkedTicketNo)}</a>` : "—"}</td>
+                <td class="px-4 py-3 text-xs text-slate-500">${q.triggerType === "EarlyRepayment" ? escapeHtml(q.flaggedByEmail || "—") : "—"}</td>
+                <td class="px-4 py-3 text-xs">${actions}</td>
+              </tr>`;
+            }).join("");
+          }
+
+          const total = meta?.total ?? 0;
+          $("q-meta").textContent = `Showing ${data.length ? (page - 1) * pageSize + 1 : 0}–${Math.min(page * pageSize, total)} of ${total}`;
+          $("btn-q-prev").disabled = page <= 1;
+          $("btn-q-next").disabled = page * pageSize >= total;
+        } catch {
+          $("queue-tbody").innerHTML = `<tr><td colspan="8" class="py-10 text-center text-red-500">Failed to load queue.</td></tr>`;
+        }
+      }
+
+      async function cancelEntry(id) {
+        const reason = prompt("Reason for cancelling this queue entry:");
+        if (!reason?.trim()) return;
+        try {
+          await APP.apiFetch(`/gps-uninstall-queue/${id}/cancel`, { method: "POST", body: { reason: reason.trim() } });
+          loadQueue();
+          loadStats();
+        } catch (e) { alert(e?.message || "Failed to cancel."); }
+      }
+      window.cancelEntry = cancelEntry;
+
+      $("btn-q-search").addEventListener("click", () => { page = 1; loadQueue(); });
+      $("btn-q-clear").addEventListener("click", () => {
+        ["q-search", "q-status", "q-trigger"].forEach((id) => { $(id).value = ""; });
+        document.querySelectorAll("[data-status-tab]").forEach((b) => b.classList.remove("active"));
+        document.querySelector("[data-status-tab='']").classList.add("active");
+        page = 1; loadQueue();
+      });
+      $("q-search").addEventListener("keydown", (e) => { if (e.key === "Enter") { page = 1; loadQueue(); } });
+      $("btn-q-prev").addEventListener("click", () => { if (page > 1) { page--; loadQueue(); } });
+      $("btn-q-next").addEventListener("click", () => { page++; loadQueue(); });
+
+      document.querySelectorAll("[data-status-tab]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll("[data-status-tab]").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          $("q-status").value = btn.dataset.statusTab;
+          page = 1; loadQueue();
+        });
+      });
+
+      function init() {
+        loadStats();
+        loadQueue();
+      }
+    </script>
+  </body>
+</html>

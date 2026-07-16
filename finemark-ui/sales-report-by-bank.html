@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Sales Report by Bank</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+
+          <div class="max-w-7xl mx-auto space-y-6">
+            <div>
+              <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Sales Report by Bank</h1>
+              <p class="text-sm text-slate-600">Vehicle sales performance and revenue summary</p>
+            </div>
+
+            <section class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm shadow-slate-200/60 space-y-4">
+              <div class="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Start Date</label>
+                  <input id="start-date" type="date" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">End Date</label>
+                  <input id="end-date" type="date" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Sales Person</label>
+                  <select id="sales-person" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                    <option value="all">All</option>
+                  </select>
+                </div>
+                <div class="flex items-end gap-3">
+                  <button id="apply-filters" class="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                    Apply Filters
+                  </button>
+                  <button id="reset-filters" class="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                    Reset
+                  </button>
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-500">
+                <span id="filter-summary">Showing results for: All dates • Salesperson: All</span>
+                <button id="export-csv" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                  Export CSV
+                </button>
+              </div>
+            </section>
+
+            <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm">
+                <p class="text-xs text-slate-500">Total Vehicles Sold</p>
+                <p id="kpi-vehicles" class="mt-2 text-2xl font-semibold text-slate-900">0</p>
+              </div>
+              <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm">
+                <p class="text-xs text-slate-500">Total Revenue (Paid)</p>
+                <p id="kpi-revenue" class="mt-2 text-2xl font-semibold text-emerald-600">KES 0</p>
+              </div>
+              <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm">
+                <p class="text-xs text-slate-500">Pending Amount</p>
+                <p id="kpi-pending" class="mt-2 text-2xl font-semibold text-amber-600">KES 0</p>
+              </div>
+              <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm">
+                <p class="text-xs text-slate-500">Top Bank</p>
+                <p id="kpi-top-bank" class="mt-2 text-2xl font-semibold text-slate-900">--</p>
+              </div>
+            </section>
+
+            <section class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm shadow-slate-200/60 space-y-4">
+              <div class="flex items-center justify-between">
+                <h2 class="text-sm font-semibold text-slate-700">Revenue by Bank</h2>
+                <span class="text-xs text-slate-500">Filtered results</span>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm min-w-[720px]">
+                  <thead class="text-left text-slate-500 text-xs uppercase border-b border-slate-200">
+                    <tr>
+                      <th class="py-2">Bank</th>
+                      <th class="py-2">Vehicles Sold</th>
+                      <th class="py-2">Paid Revenue</th>
+                      <th class="py-2">Pending Amount</th>
+                      <th class="py-2">% of Paid Revenue</th>
+                      <th class="py-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="bank-rows" class="divide-y divide-slate-200"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm shadow-slate-200/60 space-y-4">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <h2 class="text-sm font-semibold text-slate-700">All Vehicles Summary</h2>
+                <button id="sort-date" class="text-xs text-slate-600 hover:text-slate-900">
+                  Sort by Sale Date (Newest)
+                </button>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm min-w-[900px]">
+                  <thead class="text-left text-slate-500 text-xs uppercase border-b border-slate-200">
+                    <tr>
+                      <th class="py-2">Vehicle</th>
+                      <th class="py-2">Bank</th>
+                      <th class="py-2">Sales Person</th>
+                      <th class="py-2">Sale Date</th>
+                      <th class="py-2">Customer</th>
+                      <th class="py-2">Amount</th>
+                      <th class="py-2">Payment Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="vehicle-rows" class="divide-y divide-slate-200"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        
+  </main>
+</div>
+<div id="fm-footer"></div>
+
+    <div id="bank-drawer" class="fixed inset-0 hidden">
+      <div class="absolute inset-0 bg-slate-900/40" id="drawer-overlay" aria-label="Close bank details"></div>
+      
+    </div>
+<script src="assets/contracts.js"></script>
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    window.FINEMARK_APP?.requirePageAccess?.();
+  });
+</script>
+<script>
+      const startDateInput = document.getElementById("start-date");
+      const endDateInput = document.getElementById("end-date");
+      const salesPersonSelect = document.getElementById("sales-person");
+      const applyFiltersBtn = document.getElementById("apply-filters");
+      const resetFiltersBtn = document.getElementById("reset-filters");
+      const filterSummary = document.getElementById("filter-summary");
+      const exportCsvBtn = document.getElementById("export-csv");
+      const bankRows = document.getElementById("bank-rows");
+      const vehicleRows = document.getElementById("vehicle-rows");
+      const sortDateBtn = document.getElementById("sort-date");
+
+      const kpiVehicles = document.getElementById("kpi-vehicles");
+      const kpiRevenue = document.getElementById("kpi-revenue");
+      const kpiPending = document.getElementById("kpi-pending");
+      const kpiTopBank = document.getElementById("kpi-top-bank");
+
+      const bankDrawer = document.getElementById("bank-drawer");
+      const drawerTitle = document.getElementById("drawer-title");
+      const drawerRows = document.getElementById("drawer-rows");
+      const drawerOverlay = document.getElementById("drawer-overlay");
+      const closeDrawer = document.getElementById("close-drawer");
+      const bankExportBtn = document.getElementById("bank-export");
+
+      let rawData = [];
+      let filteredData = [];
+      let currentSort = "desc";
+      let currentBank = null;
+
+      const formatCurrency = (value) => {
+        if (window.FINEMARK_APP?.formatKES) {
+          return window.FINEMARK_APP.formatKES(value);
+        }
+        return `KES ${Number(value || 0).toLocaleString("en-KE")}`;
+      };
+
+      const banks = ["KCB", "Equity", "Co-op", "NCBA", "Absa", "Stanbic"];
+      const salesPeople = ["Jane Wanjiku", "Peter Otieno", "Faith Mwangi", "Kevin Kuria", "Lucy Kahura", "Daniel Mutua", "Grace Njeri", "Sam Kiptoo"];
+      const models = ["Toyota Hiace", "Isuzu NPR", "Toyota Hilux", "Nissan NV350", "Isuzu D-Max", "Ford Ranger", "Mitsubishi Fuso", "Toyota Land Cruiser"];
+
+      const hashCode = (value) => {
+        let hash = 0;
+        for (let i = 0; i < value.length; i += 1) {
+          hash = (hash << 5) - hash + value.charCodeAt(i);
+          hash |= 0;
+        }
+        return Math.abs(hash);
+      };
+
+      const buildReportData = (records) => {
+        return records.map((record, index) => {
+          const hash = hashCode(record.id + record.customer);
+          const bank = record.details?.bank || banks[hash % banks.length];
+          const model = record.details?.vehicleModel || models[hash % models.length];
+          const amount = record.details?.amount || 250000 + (hash % 500000);
+          const status = record.status === "Paid" ? "Paid" : "Pending";
+          return {
+            saleId: record.id,
+            saleDate: record.createdAt.split("T")[0],
+            salesPerson: record.details?.salesPerson || salesPeople[hash % salesPeople.length],
+            bank,
+            vehicleId: record.details?.vehicleId || `VH-${String(index + 1).padStart(3, "0")}`,
+            vehiclePlate: record.details?.vehiclePlate || `KDA ${100 + (hash % 400)}A`,
+            vehicleModel: model,
+            customerName: record.customer,
+            amount,
+            currency: "KES",
+            paymentStatus: status,
+          };
+        });
+      };
+
+      const populateSalesPeople = (data) => {
+        const names = Array.from(new Set(data.map((item) => item.salesPerson))).sort();
+        salesPersonSelect.innerHTML = `<option value="all">All</option>`;
+        names.forEach((name) => {
+          const option = document.createElement("option");
+          option.value = name;
+          option.textContent = name;
+          salesPersonSelect.appendChild(option);
+        });
+      };
+
+      const applyFilters = () => {
+        const startDate = startDateInput.value ? new Date(startDateInput.value) : null;
+        const endDate = endDateInput.value ? new Date(endDateInput.value) : null;
+        const salesPerson = salesPersonSelect.value;
+
+        filteredData = rawData.filter((record) => {
+          const recordDate = new Date(record.saleDate);
+          const matchesStart = startDate ? recordDate >= startDate : true;
+          const matchesEnd = endDate ? recordDate <= endDate : true;
+          const matchesPerson = salesPerson === "all" ? true : record.salesPerson === salesPerson;
+          return matchesStart && matchesEnd && matchesPerson;
+        });
+
+        const dateSummary = startDate || endDate
+          ? `${startDate ? startDate.toISOString().split("T")[0] : "Any"} to ${endDate ? endDate.toISOString().split("T")[0] : "Any"}`
+          : "All dates";
+        const personSummary = salesPerson === "all" ? "All" : salesPerson;
+        filterSummary.textContent = `Showing results for: ${dateSummary} • Salesperson: ${personSummary}`;
+
+        renderKPIs();
+        renderBankTable();
+        renderVehicleTable();
+      };
+
+      const resetFilters = () => {
+        startDateInput.value = "";
+        endDateInput.value = "";
+        salesPersonSelect.value = "all";
+        applyFilters();
+      };
+
+      const renderKPIs = () => {
+        const uniqueVehicles = new Set(filteredData.map((item) => item.vehicleId)).size;
+        const paidTotal = filteredData
+          .filter((item) => item.paymentStatus === "Paid")
+          .reduce((sum, item) => sum + item.amount, 0);
+        const pendingTotal = filteredData
+          .filter((item) => item.paymentStatus === "Pending")
+          .reduce((sum, item) => sum + item.amount, 0);
+        const bankTotals = filteredData.reduce((acc, item) => {
+          if (item.paymentStatus !== "Paid") return acc;
+          acc[item.bank] = (acc[item.bank] || 0) + item.amount;
+          return acc;
+        }, {});
+        const topBank = Object.entries(bankTotals).sort((a, b) => b[1] - a[1])[0]?.[0] || "--";
+
+        kpiVehicles.textContent = uniqueVehicles;
+        kpiRevenue.textContent = formatCurrency(paidTotal);
+        kpiPending.textContent = formatCurrency(pendingTotal);
+        kpiTopBank.textContent = topBank;
+      };
+
+      const renderBankTable = () => {
+        const paidTotal = filteredData
+          .filter((item) => item.paymentStatus === "Paid")
+          .reduce((sum, item) => sum + item.amount, 0);
+
+        const bankMap = filteredData.reduce((acc, item) => {
+          if (!acc[item.bank]) {
+            acc[item.bank] = { bank: item.bank, vehicles: new Set(), paid: 0, pending: 0 };
+          }
+          acc[item.bank].vehicles.add(item.vehicleId);
+          if (item.paymentStatus === "Paid") {
+            acc[item.bank].paid += item.amount;
+          } else {
+            acc[item.bank].pending += item.amount;
+          }
+          return acc;
+        }, {});
+
+        const rows = Object.values(bankMap).sort((a, b) => b.paid - a.paid);
+        bankRows.innerHTML = rows
+          .map((row) => {
+            const percent = paidTotal ? Math.round((row.paid / paidTotal) * 100) : 0;
+            return `
+              <tr>
+                <td class="py-3 font-medium text-slate-900">${row.bank}</td>
+                <td class="py-3">${row.vehicles.size}</td>
+                <td class="py-3 text-emerald-600 font-semibold">${formatCurrency(row.paid)}</td>
+                <td class="py-3 text-amber-600 font-semibold">${formatCurrency(row.pending)}</td>
+                <td class="py-3">${percent}%</td>
+                <td class="py-3">
+                  <button class="view-bank rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50" data-bank="${row.bank}">
+                    View Vehicles
+                  </button>
+                </td>
+              </tr>
+            `;
+          })
+          .join("");
+
+        document.querySelectorAll(".view-bank").forEach((button) => {
+          button.addEventListener("click", () => openDrawer(button.dataset.bank));
+        });
+      };
+
+      const renderVehicleTable = () => {
+        const sorted = [...filteredData].sort((a, b) => {
+          const dateA = new Date(a.saleDate);
+          const dateB = new Date(b.saleDate);
+          return currentSort === "desc" ? dateB - dateA : dateA - dateB;
+        });
+        vehicleRows.innerHTML = sorted
+          .map((item) => {
+            const statusClass = item.paymentStatus === "Paid" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700";
+            return `
+              <tr>
+                <td class="py-3">
+                  <div class="font-medium text-slate-900">${item.vehiclePlate}</div>
+                  <div class="text-xs text-slate-500">${item.vehicleModel}</div>
+                </td>
+                <td class="py-3">${item.bank}</td>
+                <td class="py-3">${item.salesPerson}</td>
+                <td class="py-3 text-slate-500">${item.saleDate}</td>
+                <td class="py-3">${item.customerName}</td>
+                <td class="py-3 font-semibold">${formatCurrency(item.amount)}</td>
+                <td class="py-3">
+                  <span class="inline-flex rounded-full px-2 py-1 text-xs font-semibold ${statusClass}">${item.paymentStatus}</span>
+                </td>
+              </tr>
+            `;
+          })
+          .join("");
+      };
+
+      const openDrawer = (bank) => {
+        currentBank = bank;
+        const bankRowsData = filteredData.filter((item) => item.bank === bank);
+        drawerTitle.textContent = bank;
+        drawerRows.innerHTML = bankRowsData
+          .map((item) => {
+            const statusClass = item.paymentStatus === "Paid" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700";
+            return `
+              <tr>
+                <td class="py-3">
+                  <div class="font-medium text-slate-900">${item.vehiclePlate}</div>
+                  <div class="text-xs text-slate-500">${item.vehicleModel}</div>
+                </td>
+                <td class="py-3">${item.customerName}</td>
+                <td class="py-3 font-semibold">${formatCurrency(item.amount)}</td>
+                <td class="py-3">
+                  <span class="inline-flex rounded-full px-2 py-1 text-xs font-semibold ${statusClass}">${item.paymentStatus}</span>
+                </td>
+                <td class="py-3 text-slate-500">${item.saleDate}</td>
+                <td class="py-3">${item.salesPerson}</td>
+              </tr>
+            `;
+          })
+          .join("");
+        bankDrawer.classList.remove("hidden");
+      };
+
+      const closeDrawerFn = () => {
+        bankDrawer.classList.add("hidden");
+        currentBank = null;
+      };
+
+      const downloadCsv = (rows, filename) => {
+        if (!rows.length) return;
+        const header = [
+          "saleId",
+          "saleDate",
+          "salesPerson",
+          "bank",
+          "vehicleId",
+          "vehiclePlate",
+          "vehicleModel",
+          "customerName",
+          "amount",
+          "currency",
+          "paymentStatus",
+        ];
+        const csvRows = [header, ...rows.map((row) => header.map((key) => row[key]))];
+        const csv = csvRows
+          .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","))
+          .join("\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(url);
+      };
+
+      sortDateBtn.addEventListener("click", () => {
+        currentSort = currentSort === "desc" ? "asc" : "desc";
+        sortDateBtn.textContent = `Sort by Sale Date (${currentSort === "desc" ? "Newest" : "Oldest"})`;
+        renderVehicleTable();
+      });
+
+      applyFiltersBtn.addEventListener("click", applyFilters);
+      resetFiltersBtn.addEventListener("click", resetFilters);
+      exportCsvBtn.addEventListener("click", () => downloadCsv(filteredData, "sales-report-by-bank.csv"));
+      bankExportBtn.addEventListener("click", () => {
+        if (!currentBank) return;
+        const rows = filteredData.filter((item) => item.bank === currentBank);
+        downloadCsv(rows, `${currentBank.toLowerCase()}-bank-sales.csv`);
+      });
+      drawerOverlay.addEventListener("click", closeDrawerFn);
+      closeDrawer.addEventListener("click", closeDrawerFn);
+
+      const initData = async () => {
+        const response = await window.FINEMARK_APP.CRMService.list();
+        rawData = buildReportData(response.data || []);
+        populateSalesPeople(rawData);
+        applyFilters();
+      };
+      initData();
+    </script>
+</body>
+</html>

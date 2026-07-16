@@ -1,0 +1,15 @@
+node_modules/
+vendor/
+dist/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pub
+finemark_key
+id_rsa*
+*.sqlite
+*.mjs
+.claude/
+.DS_Store

@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Settings</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+
+    <div class="max-w-6xl mx-auto space-y-8">
+
+      <!-- Page header -->
+      <div class="flex flex-wrap items-center gap-3 justify-between">
+        <div>
+          <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Settings</h1>
+          <p class="text-sm text-slate-600">Admin configuration &amp; system tools.</p>
+        </div>
+        <span class="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 border border-blue-100">Admin</span>
+      </div>
+
+      <!-- Quick-access cards -->
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm shadow-slate-200/60">
+          <p class="text-sm text-slate-500">Access Control</p>
+          <h2 class="mt-2 text-lg font-semibold text-slate-900">Revoke Rights</h2>
+          <p class="mt-2 text-sm text-slate-600">Disable or limit user access across modules.</p>
+          <a href="admin-users.html" class="mt-4 inline-flex items-center text-sm text-blue-600 hover:underline">Manage users →</a>
+        </div>
+        <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm shadow-slate-200/60">
+          <p class="text-sm text-slate-500">Security</p>
+          <h2 class="mt-2 text-lg font-semibold text-slate-900">Reset Passwords</h2>
+          <p class="mt-2 text-sm text-slate-600">Force reset for compromised accounts.</p>
+          <a href="admin-users.html" class="mt-4 inline-flex items-center text-sm text-blue-600 hover:underline">Go to users →</a>
+        </div>
+        <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm shadow-slate-200/60">
+          <p class="text-sm text-slate-500">Compliance</p>
+          <h2 class="mt-2 text-lg font-semibold text-slate-900">Audit &amp; Reviews</h2>
+          <p class="mt-2 text-sm text-slate-600">Track admin actions and approvals.</p>
+          <a href="admin-audit-logs.html" class="mt-4 inline-flex items-center text-sm text-blue-600 hover:underline">View audit logs →</a>
+        </div>
+      </div>
+
+      <!-- ── Database Backup ───────────────────────────────────────────────── -->
+      <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+
+        <!-- Section header -->
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/60">
+          <div class="flex items-center gap-3">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-600 text-white shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h10"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-3 3 3 3"/>
+              </svg>
+            </span>
+            <div>
+              <h2 class="text-base font-semibold text-slate-900">Database Backup</h2>
+              <p class="text-xs text-slate-500">pg_dump → SharePoint · <a href="https://finemarktracking.sharepoint.com/sites/secops" target="_blank" class="text-emerald-600 hover:underline font-medium">secops site ↗</a></p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <a href="https://finemarktracking.sharepoint.com/sites/secops/Shared%20Documents/Database-Prod" target="_blank"
+               class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:border-slate-300 bg-white transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"/></svg>
+              Prod Folder
+            </a>
+            <a href="https://finemarktracking.sharepoint.com/sites/secops/Shared%20Documents/Database-Dev" target="_blank"
+               class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:border-slate-300 bg-white transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"/></svg>
+              Dev Folder
+            </a>
+            <button id="btn-run-backup"
+              class="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+              <svg id="backup-icon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+              </svg>
+              <span id="backup-btn-label">Run Backup Now</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Backup status banner -->
+        <div id="backup-status" class="hidden px-6 py-3 text-sm font-medium"></div>
+
+        <!-- Two-column: Prod / Dev last backup summary -->
+        <div class="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100">
+          <div class="px-6 py-4">
+            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Production DB</p>
+            <div id="prod-summary" class="text-sm text-slate-500">Loading…</div>
+          </div>
+          <div class="px-6 py-4">
+            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Development DB</p>
+            <div id="dev-summary" class="text-sm text-slate-500">Loading…</div>
+          </div>
+        </div>
+
+        <!-- Backup log table -->
+        <div class="px-6 py-4">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">Backup History</p>
+          <div class="overflow-x-auto rounded-lg border border-slate-100">
+            <table class="min-w-full text-xs">
+              <thead>
+                <tr class="bg-slate-50 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <th class="px-4 py-2.5">Date &amp; Time</th>
+                  <th class="px-4 py-2.5">Environment</th>
+                  <th class="px-4 py-2.5">File</th>
+                  <th class="px-4 py-2.5">Status</th>
+                  <th class="px-4 py-2.5">Triggered By</th>
+                  <th class="px-4 py-2.5">SharePoint</th>
+                </tr>
+              </thead>
+              <tbody id="backup-log-body" class="divide-y divide-slate-50 bg-white">
+                <tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">Loading backup history…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Scheduled Backup -->
+        <div class="border-t border-slate-100 px-6 py-5">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-sm font-semibold text-slate-800">Scheduled Backups</h3>
+              <p class="text-xs text-slate-500 mt-0.5">Automatically run backups on a cron schedule.</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="schedule-enabled" class="sr-only peer">
+              <div class="w-10 h-5 bg-slate-200 rounded-full peer peer-checked:bg-emerald-500 transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5"></div>
+              <span id="schedule-toggle-label" class="ml-2 text-xs font-medium text-slate-600">Disabled</span>
+            </label>
+          </div>
+
+          <div class="grid sm:grid-cols-2 gap-4">
+            <!-- Preset selector -->
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1.5">Frequency preset</label>
+              <select id="schedule-preset" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
+                <option value="0 2 * * *"  data-label="Daily at 2:00 AM">Daily at 2:00 AM</option>
+                <option value="0 2 * * 0"  data-label="Weekly (Sunday 2:00 AM)">Weekly (Sunday 2:00 AM)</option>
+                <option value="0 2 1 * *"  data-label="Monthly (1st at 2:00 AM)">Monthly (1st at 2:00 AM)</option>
+                <option value="0 */6 * * *" data-label="Every 6 hours">Every 6 hours</option>
+                <option value="custom"      data-label="Custom cron">Custom cron expression</option>
+              </select>
+            </div>
+            <!-- Custom cron input -->
+            <div id="custom-cron-wrap" class="hidden">
+              <label class="block text-xs font-medium text-slate-600 mb-1.5">Custom cron expression</label>
+              <input id="custom-cron-input" type="text" placeholder="e.g. 30 1 * * 1-5"
+                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+              <p class="mt-1 text-[10px] text-slate-400">Format: minute hour day-of-month month day-of-week</p>
+            </div>
+          </div>
+
+          <!-- Next run preview -->
+          <div id="schedule-preview" class="mt-3 hidden text-xs text-slate-500 bg-slate-50 rounded-lg px-4 py-2.5 border border-slate-100">
+            <span class="font-medium text-slate-700">Next backup: </span><span id="schedule-next-label">—</span>
+          </div>
+
+          <div class="mt-4 flex items-center gap-3">
+            <button id="btn-save-schedule"
+              class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-slate-800 text-white hover:bg-slate-700 transition shadow-sm disabled:opacity-50">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              Save Schedule
+            </button>
+            <span id="schedule-save-msg" class="text-xs text-slate-500 hidden"></span>
+          </div>
+        </div>
+      </div><!-- /Database Backup card -->
+
+      <!-- ── Session Timeout ───────────────────────────────────────────────── -->
+      <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/60">
+          <div class="flex items-center gap-3">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600 text-white shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </span>
+            <div>
+              <h2 class="text-base font-semibold text-slate-900">Session Timeout</h2>
+              <p class="text-xs text-slate-500">Force sign-out after a period of inactivity, set independently per sign-in method.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-5">
+          <div class="grid gap-4 sm:grid-cols-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1.5" for="timeout-password">Username &amp; Password</label>
+              <div class="flex items-center gap-2">
+                <input id="timeout-password" type="number" min="1" max="1440" step="1"
+                  class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                <span class="text-xs text-slate-400 shrink-0">min</span>
+              </div>
+              <p class="mt-1 text-[10px] text-slate-400" data-error-for="timeout-password"></p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1.5" for="timeout-otp">Email OTP</label>
+              <div class="flex items-center gap-2">
+                <input id="timeout-otp" type="number" min="1" max="1440" step="1"
+                  class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                <span class="text-xs text-slate-400 shrink-0">min</span>
+              </div>
+              <p class="mt-1 text-[10px] text-slate-400" data-error-for="timeout-otp"></p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1.5" for="timeout-azure">Sign in with Microsoft</label>
+              <div class="flex items-center gap-2">
+                <input id="timeout-azure" type="number" min="1" max="1440" step="1"
+                  class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                <span class="text-xs text-slate-400 shrink-0">min</span>
+              </div>
+              <p class="mt-1 text-[10px] text-slate-400" data-error-for="timeout-azure"></p>
+            </div>
+          </div>
+
+          <p class="mt-3 text-[11px] text-slate-400">
+            Each session type (password sign-in, email OTP, Microsoft sign-in) is tracked separately.
+            When a session goes idle past its limit, that user is signed off everywhere and must sign in again.
+          </p>
+
+          <div class="mt-4 flex items-center gap-3">
+            <button id="btn-save-session-timeout"
+              class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-slate-800 text-white hover:bg-slate-700 transition shadow-sm disabled:opacity-50">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              Save Timeout Settings
+            </button>
+            <span id="session-timeout-save-msg" class="text-xs text-slate-500 hidden"></span>
+          </div>
+        </div>
+      </div><!-- /Session Timeout card -->
+
+      <!-- Standard admin actions -->
+      <div class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm shadow-slate-200/60">
+        <h2 class="text-sm font-semibold text-slate-700">Standard Admin Actions</h2>
+        <ul class="mt-4 grid gap-3 sm:grid-cols-2 text-sm text-slate-600">
+          <li class="rounded-lg border border-slate-200/80 bg-slate-50 px-4 py-3">Approve or revoke user access</li>
+          <li class="rounded-lg border border-slate-200/80 bg-slate-50 px-4 py-3">Reset passwords or force MFA</li>
+          <li class="rounded-lg border border-slate-200/80 bg-slate-50 px-4 py-3">Assign or change user roles</li>
+          <li class="rounded-lg border border-slate-200/80 bg-slate-50 px-4 py-3">Review audit trails</li>
+          <li class="rounded-lg border border-slate-200/80 bg-slate-50 px-4 py-3">Update security policies</li>
+          <li class="rounded-lg border border-slate-200/80 bg-slate-50 px-4 py-3">Manage certificate lifecycle</li>
+        </ul>
+      </div>
+
+    </div><!-- /max-w-6xl -->
+  </main>
+</div>
+<div id="fm-footer"></div>
+<script src="assets/contracts.js"></script>
+<script src="assets/app.js"></script>
+<script src="assets/layout.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    window.FINEMARK_APP?.requirePageAccess?.();
+    initBackupSection();
+  });
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  function authHeaders() {
+    const session = JSON.parse(localStorage.getItem("finemark_session") || "null");
+    const token = session?.accessToken ?? "";
+    return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
+  }
+
+  function statusBadge(status) {
+    if (status === "success")
+      return `<span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+        <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3"/></svg>Success</span>`;
+    return `<span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-red-50 text-red-700 border border-red-100">
+        <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3"/></svg>Failed</span>`;
+  }
+
+  function envBadge(env) {
+    const isProd = env === "prod";
+    return `<span class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${isProd ? "bg-violet-50 text-violet-700 border border-violet-100" : "bg-blue-50 text-blue-700 border border-blue-100"}">${isProd ? "Production" : "Development"}</span>`;
+  }
+
+  // ── Load backup logs ──────────────────────────────────────────────────────────
+  async function loadBackupLogs() {
+    try {
+      const r = await fetch("/api/admin/backup/logs", { headers: authHeaders() });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error?.message || d.message || "Request failed");
+
+      renderLogs(d.logs);
+      renderSummaries(d.logs);
+    } catch (e) {
+      document.getElementById("backup-log-body").innerHTML =
+        `<tr><td colspan="6" class="px-4 py-6 text-center text-red-500 text-xs">Failed to load backup history: ${e.message}</td></tr>`;
+    }
+  }
+
+  function renderLogs(logs) {
+    const tbody = document.getElementById("backup-log-body");
+    if (!logs.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">No backups have run yet.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = logs.map(row => `
+      <tr class="hover:bg-slate-50/60 transition">
+        <td class="px-4 py-2.5 text-slate-600 whitespace-nowrap">${fmtDate(row.created_at)}</td>
+        <td class="px-4 py-2.5">${envBadge(row.env)}</td>
+        <td class="px-4 py-2.5 font-mono text-slate-500 text-[11px] whitespace-nowrap">${row.filename}</td>
+        <td class="px-4 py-2.5">${statusBadge(row.status)}
+          ${row.status === "failed" && row.error_message
+            ? `<p class="text-[10px] text-red-500 mt-0.5 max-w-xs truncate" title="${row.error_message}">${row.error_message}</p>`
+            : ""}</td>
+        <td class="px-4 py-2.5 text-slate-500 whitespace-nowrap">${row.triggered_by ?? "—"}</td>
+        <td class="px-4 py-2.5">
+          ${row.sharepoint_url
+            ? `<a href="${row.sharepoint_url}" target="_blank" class="inline-flex items-center gap-1 text-emerald-600 hover:underline font-medium">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                Open folder</a>`
+            : '<span class="text-slate-300">—</span>'}
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  function renderSummaries(logs) {
+    const last = (env) => logs.find(l => l.env === env);
+    const summaryHtml = (log) => {
+      if (!log) return `<span class="text-slate-400">No backup recorded yet.</span>`;
+      const ok = log.status === "success";
+      return `
+        <div class="flex items-center gap-1.5 mb-1">${statusBadge(log.status)}
+          <span class="text-slate-500">${fmtDate(log.created_at)}</span>
+        </div>
+        <p class="text-[11px] font-mono text-slate-400">${log.filename}</p>
+        ${log.sharepoint_url
+          ? `<a href="${log.sharepoint_url}" target="_blank" class="mt-1 inline-flex items-center gap-1 text-[11px] text-emerald-600 hover:underline">
+              <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2h-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+              View in SharePoint</a>`
+          : ""}
+        ${!ok ? `<p class="mt-1 text-[11px] text-red-500 truncate" title="${log.error_message}">${log.error_message}</p>` : ""}
+      `;
+    };
+    document.getElementById("prod-summary").innerHTML = summaryHtml(last("prod"));
+    document.getElementById("dev-summary").innerHTML  = summaryHtml(last("dev"));
+  }
+
+  // ── Run backup now ────────────────────────────────────────────────────────────
+  document.getElementById("btn-run-backup").addEventListener("click", async () => {
+    const btn    = document.getElementById("btn-run-backup");
+    const lbl    = document.getElementById("backup-btn-label");
+    const icon   = document.getElementById("backup-icon");
+    const banner = document.getElementById("backup-status");
+
+    btn.disabled = true;
+    lbl.textContent = "Running backup…";
+    icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>`;
+    banner.className = "px-6 py-3 text-sm font-medium bg-amber-50 text-amber-700 border-b border-amber-100";
+    banner.textContent = "Backup in progress — this may take 30–60 seconds…";
+
+    try {
+      const r = await fetch("/api/admin/backup/run", {
+        method: "POST",
+        headers: authHeaders(),
+      });
+      const d = await r.json();
+
+      if (d.ok) {
+        banner.className = "px-6 py-3 text-sm font-medium bg-emerald-50 text-emerald-700 border-b border-emerald-100";
+        banner.textContent = "✓ Both databases backed up successfully to SharePoint.";
+      } else {
+        const msgs = [];
+        if (d.results?.prod?.status === "failed") msgs.push(`Prod: ${d.results.prod.error_message}`);
+        if (d.results?.dev?.status  === "failed") msgs.push(`Dev: ${d.results.dev.error_message}`);
+        banner.className = "px-6 py-3 text-sm font-medium bg-red-50 text-red-700 border-b border-red-100";
+        banner.textContent = "⚠ " + (msgs.join(" | ") || d.error?.message || d.message || "Backup failed");
+      }
+    } catch (e) {
+      banner.className = "px-6 py-3 text-sm font-medium bg-red-50 text-red-700 border-b border-red-100";
+      banner.textContent = "✗ Backup failed: " + e.message;
+    } finally {
+      btn.disabled = false;
+      lbl.textContent = "Run Backup Now";
+      icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>`;
+      await loadBackupLogs(); // Refresh log table
+    }
+  });
+
+  // ── Schedule UI ───────────────────────────────────────────────────────────────
+  async function loadSchedule() {
+    try {
+      const r = await fetch("/api/admin/backup/schedule", { headers: authHeaders() });
+      const d = await r.json();
+      const s = d.schedule;
+      document.getElementById("schedule-enabled").checked = !!s.enabled;
+      updateToggleLabel(!!s.enabled);
+      // Select matching preset or "custom"
+      const select = document.getElementById("schedule-preset");
+      let found = false;
+      for (const opt of select.options) {
+        if (opt.value === s.cron_expr) { opt.selected = true; found = true; break; }
+      }
+      if (!found) {
+        select.value = "custom";
+        document.getElementById("custom-cron-input").value = s.cron_expr;
+        document.getElementById("custom-cron-wrap").classList.remove("hidden");
+      }
+      updateSchedulePreview(s.cron_expr, s.label);
+    } catch (_) {}
+  }
+
+  function updateToggleLabel(enabled) {
+    const lbl = document.getElementById("schedule-toggle-label");
+    lbl.textContent = enabled ? "Enabled" : "Disabled";
+    lbl.className = `ml-2 text-xs font-medium ${enabled ? "text-emerald-600" : "text-slate-500"}`;
+  }
+
+  function updateSchedulePreview(expr, label) {
+    const preview = document.getElementById("schedule-preview");
+    const nextLbl  = document.getElementById("schedule-next-label");
+    if (!expr || expr === "custom") { preview.classList.add("hidden"); return; }
+    preview.classList.remove("hidden");
+    const opt = [...document.getElementById("schedule-preset").options].find(o => o.value === expr);
+    nextLbl.textContent = label || opt?.dataset?.label || expr;
+  }
+
+  document.getElementById("schedule-enabled").addEventListener("change", function() {
+    updateToggleLabel(this.checked);
+  });
+
+  document.getElementById("schedule-preset").addEventListener("change", function() {
+    const isCustom = this.value === "custom";
+    document.getElementById("custom-cron-wrap").classList.toggle("hidden", !isCustom);
+    if (!isCustom) updateSchedulePreview(this.value, this.options[this.selectedIndex].dataset.label);
+    else document.getElementById("schedule-preview").classList.add("hidden");
+  });
+
+  document.getElementById("btn-save-schedule").addEventListener("click", async () => {
+    const btn     = document.getElementById("btn-save-schedule");
+    const msg     = document.getElementById("schedule-save-msg");
+    const enabled = document.getElementById("schedule-enabled").checked;
+    const preset  = document.getElementById("schedule-preset").value;
+    const cron_expr = preset === "custom"
+      ? document.getElementById("custom-cron-input").value.trim()
+      : preset;
+    const label = preset === "custom"
+      ? cron_expr
+      : document.getElementById("schedule-preset").options[document.getElementById("schedule-preset").selectedIndex].dataset.label;
+
+    btn.disabled = true;
+    msg.className = "text-xs text-slate-400";
+    msg.textContent = "Saving…";
+    msg.classList.remove("hidden");
+
+    try {
+      const r = await fetch("/api/admin/backup/schedule", {
+        method:  "POST",
+        headers: authHeaders(),
+        body:    JSON.stringify({ enabled, cron_expr, label }),
+      });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error?.message || d.message || "Request failed");
+      msg.className = "text-xs text-emerald-600 font-medium";
+      msg.textContent = "✓ Schedule saved.";
+      updateSchedulePreview(cron_expr, label);
+    } catch (e) {
+      msg.className = "text-xs text-red-500";
+      msg.textContent = "✗ " + e.message;
+    } finally {
+      btn.disabled = false;
+      setTimeout(() => msg.classList.add("hidden"), 4000);
+    }
+  });
+
+  // ── Init ──────────────────────────────────────────────────────────────────────
+  async function initBackupSection() {
+    await Promise.all([loadBackupLogs(), loadSchedule()]);
+  }
+</script>
+<script>
+  // ── Session Timeout section ─────────────────────────────────────────────────
+  document.addEventListener("DOMContentLoaded", loadSessionTimeoutSettings);
+
+  async function loadSessionTimeoutSettings() {
+    try {
+      const r = await fetch("/api/admin/session-settings", { headers: authHeaders() });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error?.message || d.message || "Request failed");
+      const s = d.settings;
+      document.getElementById("timeout-password").value = s.password_idle_minutes ?? 30;
+      document.getElementById("timeout-otp").value = s.otp_idle_minutes ?? 30;
+      document.getElementById("timeout-azure").value = s.azure_idle_minutes ?? 30;
+    } catch (e) {
+      const msg = document.getElementById("session-timeout-save-msg");
+      msg.className = "text-xs text-red-500";
+      msg.textContent = "Failed to load timeout settings: " + e.message;
+      msg.classList.remove("hidden");
+    }
+  }
+
+  document.getElementById("btn-save-session-timeout").addEventListener("click", async () => {
+    const btn = document.getElementById("btn-save-session-timeout");
+    const msg = document.getElementById("session-timeout-save-msg");
+    ["timeout-password", "timeout-otp", "timeout-azure"].forEach((id) => {
+      document.querySelector(`[data-error-for="${id}"]`).textContent = "";
+    });
+
+    const readMinutes = (id) => {
+      const el = document.getElementById(id);
+      const value = Number(el.value);
+      if (!Number.isInteger(value) || value < 1 || value > 1440) {
+        document.querySelector(`[data-error-for="${id}"]`).textContent = "Enter 1–1440 minutes.";
+        return null;
+      }
+      return value;
+    };
+
+    const passwordIdleMinutes = readMinutes("timeout-password");
+    const otpIdleMinutes = readMinutes("timeout-otp");
+    const azureIdleMinutes = readMinutes("timeout-azure");
+    if (passwordIdleMinutes === null || otpIdleMinutes === null || azureIdleMinutes === null) return;
+
+    btn.disabled = true;
+    msg.className = "text-xs text-slate-400";
+    msg.textContent = "Saving…";
+    msg.classList.remove("hidden");
+
+    try {
+      const r = await fetch("/api/admin/session-settings", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ passwordIdleMinutes, otpIdleMinutes, azureIdleMinutes }),
+      });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error?.message || d.message || "Request failed");
+      msg.className = "text-xs text-emerald-600 font-medium";
+      msg.textContent = "✓ Session timeout settings saved.";
+    } catch (e) {
+      msg.className = "text-xs text-red-500";
+      msg.textContent = "✗ " + e.message;
+    } finally {
+      btn.disabled = false;
+      setTimeout(() => msg.classList.add("hidden"), 4000);
+    }
+  });
+</script>
+<script>
+  const storedUser = localStorage.getItem("finemarkUser");
+  let userData = null;
+  try { userData = storedUser ? JSON.parse(storedUser) : null; } catch (_) {}
+  if (!userData || userData.role?.toLowerCase() !== "admin") {
+    window.location.href = "login.html";
+  }
+</script>
+</body>

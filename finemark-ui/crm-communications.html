@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Communications Log</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+    <style>
+      .badge { display: inline-flex; align-items: center; border-radius: 9999px; padding: 0.125rem 0.625rem; font-size: 0.75rem; font-weight: 500; }
+      .fm-error { font-size: 0.75rem; color: #dc2626; margin-top: 0.25rem; }
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+    <div class="max-w-6xl mx-auto space-y-6">
+
+      <!-- Page header -->
+      <div class="flex flex-wrap items-center gap-3 justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-900">Communications Log</h1>
+          <p class="text-sm text-slate-500 mt-0.5">All customer communication history across Email, SMS, and WhatsApp.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <a href="campaigns-mass-sms.html"
+            class="rounded-lg border border-green-200 bg-green-50 text-green-700 px-3 py-2 text-xs font-semibold hover:bg-green-100 transition-colors">
+            📢 Mass SMS / WhatsApp
+          </a>
+          <button id="btn-send-email"
+            class="rounded-lg border border-blue-200 bg-blue-50 text-blue-700 px-3 py-2 text-xs font-semibold hover:bg-blue-100 transition-colors">
+            ✉ Send Email
+          </button>
+          <button id="btn-send-sms"
+            class="rounded-lg border border-amber-200 bg-amber-50 text-amber-700 px-3 py-2 text-xs font-semibold hover:bg-amber-100 transition-colors">
+            💬 Send SMS
+          </button>
+          <button id="btn-send-whatsapp"
+            class="rounded-lg border border-teal-200 bg-teal-50 text-teal-700 px-3 py-2 text-xs font-semibold hover:bg-teal-100 transition-colors">
+            📱 WhatsApp
+          </button>
+          <button id="log-comm-btn"
+            class="rounded-lg bg-blue-600 text-white px-4 py-2 text-xs font-semibold shadow-sm hover:bg-blue-700 transition-colors">
+            + Log Communication
+          </button>
+        </div>
+      </div>
+
+      <!-- Email sync status bar -->
+      <div id="sync-bar" class="hidden rounded-xl border border-slate-200/80 bg-white shadow-sm px-5 py-3 flex flex-wrap items-center justify-between gap-3 text-sm">
+        <div class="flex items-center gap-2 text-slate-600">
+          <span class="w-2 h-2 rounded-full bg-green-400 inline-block"></span>
+          <span class="font-medium">Office 365 Email Sync</span>
+          <span id="sync-mailboxes" class="text-xs text-slate-400"></span>
+        </div>
+        <div class="flex items-center gap-3">
+          <span id="sync-last" class="text-xs text-slate-400"></span>
+          <button id="btn-sync-now" class="text-xs text-blue-600 hover:underline font-medium">Sync Now</button>
+        </div>
+      </div>
+      <div id="sync-bar-unconfigured" class="hidden rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-700">
+        <strong>Email sync not configured.</strong> Set <code class="bg-amber-100 px-1 rounded text-xs">GRAPH_TENANT_ID</code>, <code class="bg-amber-100 px-1 rounded text-xs">GRAPH_CLIENT_ID</code>, <code class="bg-amber-100 px-1 rounded text-xs">GRAPH_CLIENT_SECRET</code> in your backend <code class="bg-amber-100 px-1 rounded text-xs">.env</code> to enable Office 365 email sync.
+      </div>
+
+      <!-- Filters -->
+      <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+          <input id="filter-customer" type="text" placeholder="Customer name or Account No…"
+            class="lg:col-span-2 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <select id="filter-channel" class="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">All Channels</option>
+            <option>Email</option><option>Phone</option><option>SMS</option>
+            <option>WhatsApp</option><option>In-Person</option><option>Portal</option>
+          </select>
+          <select id="filter-direction" class="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">All Directions</option>
+            <option value="Inbound">Inbound</option>
+            <option value="Outbound">Outbound</option>
+          </select>
+          <select id="filter-mailbox" class="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">All Mailboxes</option>
+            <option value="support@finemarktracking.co.ke">Support</option>
+            <option value="notification@finemarktracking.co.ke">Notification</option>
+            <option value="customer@finemarktracking.co.ke">Customer Care</option>
+          </select>
+          <button id="filter-btn" class="rounded-lg bg-slate-800 text-white px-4 py-2 text-sm font-medium hover:bg-slate-700 transition-colors">Search</button>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 font-medium">
+                <th class="text-left px-4 py-3">Customer / Contact</th>
+                <th class="text-left px-4 py-3">Channel</th>
+                <th class="text-left px-4 py-3">Direction</th>
+                <th class="text-left px-4 py-3">Subject</th>
+                <th class="text-left px-4 py-3">Staff / Mailbox</th>
+                <th class="text-left px-4 py-3">Date &amp; Time</th>
+                <th class="text-left px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody id="comms-tbody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+        <!-- Pagination -->
+        <div class="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm text-slate-500">
+          <span id="page-info">—</span>
+          <div class="flex gap-2">
+            <button id="prev-btn" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs hover:bg-slate-50 disabled:opacity-40" disabled>← Prev</button>
+            <button id="next-btn" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs hover:bg-slate-50 disabled:opacity-40" disabled>Next →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<div id="fm-footer"></div>
+
+    <!-- Send Email Modal -->
+    <div id="email-modal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/40 px-4 z-50">
+      <div class="bg-white w-full max-w-xl rounded-2xl shadow-xl border border-slate-200 p-6 max-h-screen overflow-y-auto">
+        <div class="flex items-center justify-between mb-5">
+          <h3 class="text-base font-semibold text-slate-900">📧 Send Email</h3>
+          <button class="modal-close text-slate-400 hover:text-slate-600 rounded" data-modal="email-modal">✕</button>
+        </div>
+        <form id="email-form" class="space-y-4" novalidate>
+          <div class="relative">
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Link to Customer (optional)</label>
+            <input id="em-customer-search" type="text" autocomplete="off" placeholder="Search customer name or account…"
+              class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm placeholder:text-slate-400 focus:outline-none focus:border-blue-500" />
+            <div id="em-customer-dropdown" class="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-10 hidden max-h-48 overflow-y-auto text-sm"></div>
+            <input type="hidden" id="em-customer-id" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">From Mailbox *</label>
+            <select id="em-from" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500">
+              <option value="support">support@finemarktracking.co.ke</option>
+              <option value="customer">customer@finemarktracking.co.ke</option>
+              <option value="notification">notification@finemarktracking.co.ke</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">To (comma-separated) *</label>
+            <input id="em-to" type="text" placeholder="alice@example.com, bob@example.com"
+              class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm placeholder:text-slate-400 focus:outline-none focus:border-blue-500" required />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Subject *</label>
+            <input id="em-subject" type="text" placeholder="Email subject line"
+              class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm placeholder:text-slate-400 focus:outline-none focus:border-blue-500" required />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Body (HTML allowed)</label>
+            <textarea id="em-body" rows="6" placeholder="<p>Dear customer,</p><p>…</p>"
+              class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-mono placeholder:text-slate-400 focus:outline-none focus:border-blue-500 resize-none"></textarea>
+          </div>
+          <div id="email-error" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5"></div>
+          <div class="flex justify-end gap-3 pt-1">
+            <button type="button" class="modal-close rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50" data-modal="email-modal">Cancel</button>
+            <button id="submit-email-btn" type="submit" class="rounded-lg bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-60">Send Email</button>
+          </div>
+        </form>
+        <div id="email-success" class="hidden mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2.5"></div>
+      </div>
+    </div>
+
+    <!-- Send SMS Modal -->
+    <div id="sms-modal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/40 px-4 z-50">
+      <div class="bg-white w-full max-w-lg rounded-2xl shadow-xl border border-slate-200 p-6 max-h-screen overflow-y-auto">
+        <div class="flex items-center justify-between mb-5">
+          <h3 class="text-base font-semibold text-slate-900">💬 Send SMS</h3>
+          <button class="modal-close text-slate-400 hover:text-slate-600 rounded" data-modal="sms-modal">✕</button>
+        </div>
+        <form id="sms-form" class="space-y-4" novalidate>
+          <div class="relative">
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Link to Customer (optional)</label>
+            <input id="sm-customer-search" type="text" autocomplete="off" placeholder="Search customer…"
+              class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm placeholder:text-slate-400 focus:outline-none focus:border-blue-500" />
+            <div id="sm-customer-dropdown" class="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-10 hidden max-h-48 overflow-y-auto text-sm"></div>
+            <input type="hidden" id="sm-customer-id" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Phone Numbers * <span class="text-xs text-slate-400 font-normal">(comma-separated, include country code e.g. +254…)</span></label>
+            <input id="sm-phones" type="text" placeholder="+254712345678, +254798765432"
+              class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm placeholder:text-slate-400 focus:outline-none focus:border-blue-500" required />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Message *</label>
+            <textarea id="sm-body" rows="4" placeholder="Your SMS message…"
+              class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm placeholder:text-slate-400 focus:outline-none focus:border-blue-500 resize-none" required></textarea>
+            <p id="sm-char-count" class="mt-1 text-xs text-slate-400">0 / 160</p>
+          </div>
+          <div id="sms-error" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5"></div>
+          <div class="flex justify-end gap-3 pt-1">
+            <button type="button" class="modal-close rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50" data-modal="sms-modal">Cancel</button>
+            <button id="submit-sms-btn" type="submit" class="rounded-lg bg-amber-500 text-white px-4 py-2 text-sm font-medium hover:bg-amber-600 disabled:opacity-60">Send SMS</button>
+          </div>
+        </form>
+        <div id="sms-success" class="hidden mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2.5"></div>
+      </div>
+    </div>
+
+    <!-- Send WhatsApp Modal -->
+    <div id="wa-modal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/40 px-4 z-50">
+      <div class="bg-white w-full max-w-lg rounded-2xl shadow-xl border border-slate-200 p-6 max-h-screen overflow-y-auto">
+        <div class="flex items-center justify-between mb-5">
+          <h3 class="text-base font-semibold text-slate-900">💚 Send WhatsApp</h3>
+          <button class="modal-close text-slate-400 hover:text-slate-600 rounded" data-modal="wa-modal">✕</button>
+        </div>
+        <form id="wa-form" class="space-y-4" novalidate>
+          <div class="relative">
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Link to Customer (optional)</label>
+            <input id="wa-customer-search" type="text" autocomplete="off" placeholder="Search customer…"
+              class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm placeholder:text-slate-400 focus:outline-none focus:border-blue-500" />
+            <div id="wa-customer-dropdown" class="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-10 hidden max-h-48 overflow-y-auto text-sm"></div>
+            <input type="hidden" id="wa-customer-id" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Phone Number * <span class="text-xs text-slate-400 font-normal">(with country code, no spaces)</span></label>
+            <input id="wa-phone" type="text" placeholder="+254712345678"
+              class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm placeholder:text-slate-400 focus:outline-none focus:border-blue-500" required />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Message *</label>
+            <textarea id="wa-body" rows="4" placeholder="Your WhatsApp message…"
+              class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm placeholder:text-slate-400 focus:outline-none focus:border-blue-500 resize-none" required></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Media URL <span class="text-xs text-slate-400 font-normal">(optional image/PDF link)</span></label>
+            <input id="wa-media" type="url" placeholder="https://example.com/image.jpg"
+              class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm placeholder:text-slate-400 focus:outline-none focus:border-blue-500" />
+          </div>
+          <div id="wa-error" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5"></div>
+          <div class="flex justify-end gap-3 pt-1">
+            <button type="button" class="modal-close rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50" data-modal="wa-modal">Cancel</button>
+            <button id="submit-wa-btn" type="submit" class="rounded-lg bg-teal-600 text-white px-4 py-2 text-sm font-medium hover:bg-teal-700 disabled:opacity-60">Send WhatsApp</button>
+          </div>
+        </form>
+        <div id="wa-success" class="hidden mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2.5"></div>
+      </div>
+    </div>
+
+    <!-- Log Communication Modal -->
+    <div id="log-modal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/40 px-4 z-50">
+      <div class="bg-white w-full max-w-xl rounded-2xl shadow-xl border border-slate-200 p-6 max-h-screen overflow-y-auto">
+        <div class="flex items-center justify-between mb-5">
+          <h3 class="text-base font-semibold text-slate-900">Log Communication</h3>
+          <button id="close-log-modal" class="text-slate-400 hover:text-slate-600 focus-visible:outline-none rounded">✕</button>
+        </div>
+
+        <form id="log-form" class="space-y-4" novalidate>
+          <!-- Customer search -->
+          <div class="relative">
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Customer *</label>
+            <input id="lg-customer-search" type="text" autocomplete="off" placeholder="Search customer name or account no…"
+              class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-500" />
+            <div id="lg-customer-dropdown" class="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-10 hidden max-h-48 overflow-y-auto text-sm"></div>
+            <input type="hidden" id="lg-customer-id" />
+            <p id="lg-customer-selected" class="mt-1 text-xs text-blue-600 hidden"></p>
+            <p class="fm-error hidden" id="lg-customer-error">Please select a customer.</p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium mb-1.5 text-slate-700">Channel *</label>
+              <select id="lg-channel" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500">
+                <option value="">Select…</option>
+                <option>Email</option>
+                <option>Phone</option>
+                <option>SMS</option>
+                <option>WhatsApp</option>
+                <option>In-Person</option>
+                <option>Portal</option>
+              </select>
+              <p class="fm-error hidden" id="lg-channel-error">Please select a channel.</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1.5 text-slate-700">Direction *</label>
+              <select id="lg-direction" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500">
+                <option value="">Select…</option>
+                <option value="Outbound">Outbound (we contacted them)</option>
+                <option value="Inbound">Inbound (they contacted us)</option>
+              </select>
+              <p class="fm-error hidden" id="lg-direction-error">Please select a direction.</p>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Subject</label>
+            <input id="lg-subject" type="text" placeholder="Brief subject line"
+              class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm placeholder:text-slate-400 focus:outline-none focus:border-blue-500" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Message / Notes <span class="text-xs text-slate-400 font-normal">(encrypted at rest)</span></label>
+            <textarea id="lg-body" rows="4" placeholder="Full message or conversation summary…"
+              class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm placeholder:text-slate-400 focus:outline-none focus:border-blue-500 resize-none"></textarea>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Date &amp; Time</label>
+            <input id="lg-sent-at" type="datetime-local"
+              class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+
+          <div id="log-error" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5"></div>
+
+          <div class="flex justify-end gap-3 pt-1">
+            <button type="button" id="cancel-log-btn" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
+            <button id="submit-log-btn" type="submit"
+              class="rounded-lg bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 focus-visible:outline-none disabled:opacity-60">
+              Save Log
+            </button>
+          </div>
+        </form>
+        <div id="log-success" class="hidden mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2.5"></div>
+      </div>
+    </div>
+
+    <!-- View Detail Modal -->
+    <div id="detail-modal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/40 px-4 z-50">
+      <div class="bg-white w-full max-w-lg rounded-2xl shadow-xl border border-slate-200 p-6 max-h-screen overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-base font-semibold text-slate-900">Communication Detail</h3>
+          <button id="close-detail" class="text-slate-400 hover:text-slate-600 rounded">✕</button>
+        </div>
+        <div id="detail-content" class="space-y-3 text-sm"></div>
+      </div>
+    </div>
+
+<script src="assets/contracts.js"></script>
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => window.FINEMARK_APP?.requirePageAccess?.());
+
+      const api = (path, opts) => window.FINEMARK_APP.apiFetch(path, opts);
+      let currentPage = 1;
+      const PAGE_SIZE = 50;
+      let totalRecords = 0;
+      let pendingSearchTimers = {};
+
+      const CHANNEL_COLORS = {
+        Email: "bg-blue-100 text-blue-700", Phone: "bg-green-100 text-green-700",
+        SMS: "bg-amber-100 text-amber-700", WhatsApp: "bg-teal-100 text-teal-700",
+        "In-Person": "bg-purple-100 text-purple-700", Portal: "bg-slate-100 text-slate-600",
+      };
+      const DIR_COLORS = { Inbound: "bg-indigo-100 text-indigo-700", Outbound: "bg-orange-100 text-orange-700" };
+
+      // ── Load communications ──────────────────────────────────────────────
+      async function loadComms(page = 1) {
+        currentPage = page;
+        const custFilter = document.getElementById("filter-customer").value.trim();
+        const channel = document.getElementById("filter-channel").value;
+        const direction = document.getElementById("filter-direction").value;
+        const mailbox = document.getElementById("filter-mailbox").value;
+
+        const tbody = document.getElementById("comms-tbody");
+        tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-slate-400 text-xs animate-pulse">Loading…</td></tr>`;
+
+        try {
+          const params = new URLSearchParams({ page, pageSize: PAGE_SIZE });
+          if (channel) params.set("channel", channel);
+          if (direction) params.set("direction", direction);
+          if (mailbox) params.set("mailbox", mailbox);
+
+          let rows, total;
+          if (custFilter) {
+            const custData = await api(`/crm/customers?search=${encodeURIComponent(custFilter)}&pageSize=1`);
+            const customerId = custData?.data?.[0]?.id;
+            if (!customerId) {
+              tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-slate-400 text-xs">No customer found matching "${custFilter}".</td></tr>`;
+              document.getElementById("page-info").textContent = "0 results";
+              document.getElementById("prev-btn").disabled = true;
+              document.getElementById("next-btn").disabled = true;
+              return;
+            }
+            const data = await api(`/crm/communications/customer/${customerId}?${params}`);
+            rows = data?.data ?? data ?? [];
+            total = data?.meta?.total ?? rows.length;
+          } else {
+            const data = await api(`/crm/communications?${params}`);
+            rows = data?.data ?? [];
+            total = data?.meta?.total ?? rows.length;
+          }
+          renderTable(rows, total);
+        } catch (err) {
+          tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-red-400 text-xs">${err?.message || "Failed to load."}</td></tr>`;
+        }
+      }
+
+      function renderTable(rows, total) {
+        totalRecords = total;
+        const tbody = document.getElementById("comms-tbody");
+        if (!rows.length) {
+          tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-slate-400 text-xs">No communications found.</td></tr>`;
+          document.getElementById("page-info").textContent = "0 results";
+          document.getElementById("prev-btn").disabled = true;
+          document.getElementById("next-btn").disabled = true;
+          return;
+        }
+        tbody.innerHTML = rows.map(r => {
+          const chClass = CHANNEL_COLORS[r.channel] || "bg-slate-100 text-slate-500";
+          const dirClass = DIR_COLORS[r.direction] || "bg-slate-100 text-slate-500";
+          const dt = r.contactedAt
+            ? new Date(r.contactedAt).toLocaleString("en-KE", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+            : "—";
+          const staffOrMailbox = r.mailbox
+            ? `<span class="text-teal-700">${r.mailbox.split("@")[0]}</span>`
+            : (r.byUserEmail || "—");
+          return `<tr class="hover:bg-slate-50/50 transition-colors cursor-pointer" onclick='viewComm(${JSON.stringify(r).replace(/'/g,"&#39;")})'>
+            <td class="px-4 py-3 font-medium text-slate-900 max-w-[160px] truncate">${r.contactName || "—"}</td>
+            <td class="px-4 py-3"><span class="badge ${chClass}">${r.channel || "—"}</span></td>
+            <td class="px-4 py-3"><span class="badge ${dirClass}">${r.direction || "—"}</span></td>
+            <td class="px-4 py-3 text-slate-600 max-w-[220px] truncate">${r.subject || "—"}</td>
+            <td class="px-4 py-3 text-xs text-slate-500">${staffOrMailbox}</td>
+            <td class="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">${dt}</td>
+            <td class="px-4 py-3">
+              ${r.customerId && r.customerId !== "00000000-0000-0000-0000-000000000000"
+                ? `<a href="crm-customer-360.html?id=${r.customerId}" class="text-blue-600 hover:underline text-xs" onclick="event.stopPropagation()">360°</a>`
+                : ""}
+            </td>
+          </tr>`;
+        }).join("");
+        const start = (currentPage - 1) * PAGE_SIZE + 1;
+        const end = Math.min(currentPage * PAGE_SIZE, totalRecords);
+        document.getElementById("page-info").textContent = `${start}–${end} of ${totalRecords}`;
+        document.getElementById("prev-btn").disabled = currentPage <= 1;
+        document.getElementById("next-btn").disabled = end >= totalRecords;
+      }
+
+      // ── View detail ────────────────────────────────────────────────────────
+      function viewComm(r) {
+        document.getElementById("detail-modal").classList.remove("hidden");
+        document.getElementById("detail-modal").style.display = "flex";
+        const dt = r.contactedAt ? new Date(r.contactedAt).toLocaleString("en-KE", { dateStyle: "long", timeStyle: "short" }) : "—";
+        document.getElementById("detail-content").innerHTML = `
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-slate-50 rounded-lg p-3"><p class="text-xs text-slate-400 mb-0.5">Contact</p><p class="font-medium">${r.contactName || "—"}</p></div>
+            <div class="bg-slate-50 rounded-lg p-3"><p class="text-xs text-slate-400 mb-0.5">Channel</p><p class="font-medium">${r.channel || "—"}</p></div>
+            <div class="bg-slate-50 rounded-lg p-3"><p class="text-xs text-slate-400 mb-0.5">Direction</p><p class="font-medium">${r.direction || "—"}</p></div>
+            <div class="bg-slate-50 rounded-lg p-3"><p class="text-xs text-slate-400 mb-0.5">Date &amp; Time</p><p class="font-medium text-sm">${dt}</p></div>
+            ${r.mailbox ? `<div class="bg-slate-50 rounded-lg p-3"><p class="text-xs text-slate-400 mb-0.5">Mailbox</p><p class="font-medium text-teal-700">${r.mailbox}</p></div>` : ""}
+            ${r.byUserEmail && r.byUserEmail !== "system@finemark" ? `<div class="bg-slate-50 rounded-lg p-3"><p class="text-xs text-slate-400 mb-0.5">Logged By</p><p class="font-medium">${r.byUserEmail}</p></div>` : ""}
+          </div>
+          ${r.subject ? `<div class="bg-slate-50 rounded-lg p-3"><p class="text-xs text-slate-400 mb-0.5">Subject</p><p class="font-medium">${r.subject}</p></div>` : ""}
+          <div class="bg-slate-50 rounded-lg p-3">
+            <p class="text-xs text-slate-400 mb-1">Body / Notes</p>
+            <p class="text-slate-700 whitespace-pre-wrap text-sm">${r.body || "[No body — restricted or empty]"}</p>
+          </div>`;
+      }
+
+      // ── Modal helpers ──────────────────────────────────────────────────────
+      function openModal(id) { const m = document.getElementById(id); m.classList.remove("hidden"); m.style.display = "flex"; }
+      function closeModal(id) { const m = document.getElementById(id); m.style.display = ""; m.classList.add("hidden"); }
+      document.querySelectorAll(".modal-close").forEach(btn => btn.addEventListener("click", () => closeModal(btn.dataset.modal)));
+      ["detail-modal","email-modal","sms-modal","wa-modal","log-modal"].forEach(id => {
+        document.getElementById(id).addEventListener("click", e => { if (e.target === e.currentTarget) closeModal(id); });
+      });
+      document.getElementById("close-detail").addEventListener("click", () => closeModal("detail-modal"));
+      document.getElementById("close-log-modal").addEventListener("click", () => closeModal("log-modal"));
+      document.getElementById("cancel-log-btn").addEventListener("click", () => closeModal("log-modal"));
+
+      // ── Customer autocomplete ──────────────────────────────────────────────
+      function setupSearch(inputId, dropdownId, hiddenId, key) {
+        document.getElementById(inputId).addEventListener("input", () => {
+          clearTimeout(pendingSearchTimers[key]);
+          const q = document.getElementById(inputId).value.trim();
+          document.getElementById(hiddenId).value = "";
+          const dd = document.getElementById(dropdownId);
+          if (q.length < 2) { dd.classList.add("hidden"); return; }
+          pendingSearchTimers[key] = setTimeout(async () => {
+            try {
+              const d = await api(`/crm/customers?search=${encodeURIComponent(q)}&pageSize=8`);
+              const r = d?.data || [];
+              if (!r.length) { dd.classList.add("hidden"); return; }
+              dd.innerHTML = r.map(c => `<div class="px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm border-b border-slate-100 last:border-0" data-id="${c.id}" data-name="${(c.displayName||c.accountNo||"").replace(/"/g,"&quot;")}"><span class="font-medium">${c.displayName||"—"}</span> <span class="text-slate-400 text-xs ml-1">${c.accountNo||""}</span></div>`).join("");
+              dd.querySelectorAll("[data-id]").forEach(el => el.addEventListener("click", () => {
+                document.getElementById(hiddenId).value = el.dataset.id;
+                document.getElementById(inputId).value = el.dataset.name;
+                dd.classList.add("hidden");
+              }));
+              dd.classList.remove("hidden");
+            } catch { dd.classList.add("hidden"); }
+          }, 300);
+        });
+      }
+      setupSearch("lg-customer-search","lg-customer-dropdown","lg-customer-id","lg");
+      setupSearch("em-customer-search","em-customer-dropdown","em-customer-id","em");
+      setupSearch("sm-customer-search","sm-customer-dropdown","sm-customer-id","sm");
+      setupSearch("wa-customer-search","wa-customer-dropdown","wa-customer-id","wa");
+
+      // ── Log Communication modal ────────────────────────────────────────────
+      document.getElementById("log-comm-btn").addEventListener("click", () => {
+        document.getElementById("log-form").reset();
+        ["log-error","log-success"].forEach(id => document.getElementById(id).classList.add("hidden"));
+        const now = new Date(), pad = n => String(n).padStart(2,"0");
+        document.getElementById("lg-sent-at").value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        openModal("log-modal");
+      });
+      document.getElementById("log-form").addEventListener("submit", async e => {
+        e.preventDefault();
+        const customerId = document.getElementById("lg-customer-id").value;
+        const channel = document.getElementById("lg-channel").value;
+        const direction = document.getElementById("lg-direction").value;
+        document.querySelectorAll(".fm-error").forEach(el => el.classList.add("hidden"));
+        document.getElementById("log-error").classList.add("hidden");
+        let valid = true;
+        if (!customerId) { document.getElementById("lg-customer-error").classList.remove("hidden"); valid = false; }
+        if (!channel)    { document.getElementById("lg-channel-error").classList.remove("hidden"); valid = false; }
+        if (!direction)  { document.getElementById("lg-direction-error").classList.remove("hidden"); valid = false; }
+        if (!valid) return;
+        const btn = document.getElementById("submit-log-btn");
+        btn.disabled = true; btn.textContent = "Saving…";
+        try {
+          await api("/crm/communications", { method: "POST", body: {
+            customerId, channel, direction,
+            subject: document.getElementById("lg-subject").value.trim() || null,
+            body: document.getElementById("lg-body").value.trim() || null,
+            contactedAt: document.getElementById("lg-sent-at").value || new Date().toISOString(),
+          }});
+          document.getElementById("log-success").textContent = "Communication logged successfully.";
+          document.getElementById("log-success").classList.remove("hidden");
+          setTimeout(() => { closeModal("log-modal"); loadComms(1); }, 1500);
+        } catch (err) {
+          const el = document.getElementById("log-error"); el.textContent = err?.message || "Failed to save."; el.classList.remove("hidden");
+        } finally { btn.disabled = false; btn.textContent = "Save Log"; }
+      });
+
+      // ── Send Email ─────────────────────────────────────────────────────────
+      document.getElementById("btn-send-email").addEventListener("click", () => {
+        document.getElementById("email-form").reset();
+        ["email-error","email-success"].forEach(id => document.getElementById(id).classList.add("hidden"));
+        openModal("email-modal");
+      });
+      document.getElementById("email-form").addEventListener("submit", async e => {
+        e.preventDefault();
+        const errEl = document.getElementById("email-error"), sucEl = document.getElementById("email-success");
+        errEl.classList.add("hidden"); sucEl.classList.add("hidden");
+        const btn = document.getElementById("submit-email-btn"); btn.disabled = true; btn.textContent = "Sending…";
+        try {
+          await api("/crm/communications/send-email", { method: "POST", body: {
+            customerId: document.getElementById("em-customer-id").value || null,
+            fromMailboxKey: document.getElementById("em-from").value,
+            toAddresses: document.getElementById("em-to").value.split(",").map(s => s.trim()).filter(Boolean),
+            subject: document.getElementById("em-subject").value.trim(),
+            htmlBody: document.getElementById("em-body").value.trim(),
+          }});
+          sucEl.textContent = "Email sent and logged."; sucEl.classList.remove("hidden");
+          setTimeout(() => { closeModal("email-modal"); loadComms(1); }, 1500);
+        } catch (err) {
+          errEl.textContent = err?.message || "Failed to send. Check GRAPH credentials in .env."; errEl.classList.remove("hidden");
+        } finally { btn.disabled = false; btn.textContent = "Send Email"; }
+      });
+
+      // ── Send SMS ───────────────────────────────────────────────────────────
+      const smBody = document.getElementById("sm-body"), smCC = document.getElementById("sm-char-count");
+      smBody.addEventListener("input", () => {
+        const l = smBody.value.length, p = l <= 160 ? 1 : Math.ceil(l/153);
+        smCC.textContent = `${l} / 160 (${p} part${p>1?"s":""})`;
+        smCC.className = `text-xs ${l > 160 ? "text-amber-600 font-medium" : "text-slate-400"}`;
+      });
+      document.getElementById("btn-send-sms").addEventListener("click", () => {
+        document.getElementById("sms-form").reset();
+        ["sms-error","sms-success"].forEach(id => document.getElementById(id).classList.add("hidden"));
+        smCC.textContent = "0 / 160"; openModal("sms-modal");
+      });
+      document.getElementById("sms-form").addEventListener("submit", async e => {
+        e.preventDefault();
+        const errEl = document.getElementById("sms-error"), sucEl = document.getElementById("sms-success");
+        errEl.classList.add("hidden"); sucEl.classList.add("hidden");
+        const btn = document.getElementById("submit-sms-btn"); btn.disabled = true; btn.textContent = "Sending…";
+        try {
+          const data = await api("/crm/communications/send-sms", { method: "POST", body: {
+            customerId: document.getElementById("sm-customer-id").value || null,
+            phoneNumbers: document.getElementById("sm-phones").value.split(",").map(s => s.trim()).filter(Boolean),
+            message: document.getElementById("sm-body").value.trim(),
+          }});
+          sucEl.textContent = `SMS sent: ${data.sent}/${data.total} delivered.`; sucEl.classList.remove("hidden");
+          setTimeout(() => { closeModal("sms-modal"); loadComms(1); }, 1500);
+        } catch (err) {
+          errEl.textContent = err?.message || "Failed to send. Check AT_API_KEY in .env."; errEl.classList.remove("hidden");
+        } finally { btn.disabled = false; btn.textContent = "Send SMS"; }
+      });
+
+      // ── Send WhatsApp ──────────────────────────────────────────────────────
+      document.getElementById("btn-send-whatsapp").addEventListener("click", () => {
+        document.getElementById("wa-form").reset();
+        ["wa-error","wa-success"].forEach(id => document.getElementById(id).classList.add("hidden"));
+        openModal("wa-modal");
+      });
+      document.getElementById("wa-form").addEventListener("submit", async e => {
+        e.preventDefault();
+        const errEl = document.getElementById("wa-error"), sucEl = document.getElementById("wa-success");
+        errEl.classList.add("hidden"); sucEl.classList.add("hidden");
+        const btn = document.getElementById("submit-wa-btn"); btn.disabled = true; btn.textContent = "Sending…";
+        try {
+          const body = {
+            customerId: document.getElementById("wa-customer-id").value || null,
+            phoneNumber: document.getElementById("wa-phone").value.trim(),
+            message: document.getElementById("wa-body").value.trim(),
+          };
+          const mu = document.getElementById("wa-media").value.trim();
+          if (mu) body.mediaUrl = mu;
+          await api("/crm/communications/send-whatsapp", { method: "POST", body });
+          sucEl.textContent = "WhatsApp message sent and logged."; sucEl.classList.remove("hidden");
+          setTimeout(() => { closeModal("wa-modal"); loadComms(1); }, 1500);
+        } catch (err) {
+          errEl.textContent = err?.message || "Failed to send. Check TWILIO_* in .env."; errEl.classList.remove("hidden");
+        } finally { btn.disabled = false; btn.textContent = "Send WhatsApp"; }
+      });
+
+      // ── Email sync status ──────────────────────────────────────────────────
+      async function loadSyncStatus() {
+        try {
+          const data = await api("/crm/communications/email-sync/status");
+          if (data.configured) {
+            document.getElementById("sync-bar").classList.remove("hidden");
+            document.getElementById("sync-mailboxes").textContent = "(" + Object.values(data.mailboxes||{}).map(m=>m.split("@")[0]).join(", ") + ")";
+            const latest = (data.syncState||[]).reduce((acc,s) => !acc||s.last_synced_at>acc?s.last_synced_at:acc, null);
+            document.getElementById("sync-last").textContent = latest
+              ? "Last synced: " + new Date(latest).toLocaleString("en-KE",{timeStyle:"short",dateStyle:"medium"})
+              : "Not yet synced";
+          } else {
+            document.getElementById("sync-bar-unconfigured").classList.remove("hidden");
+          }
+        } catch { /* non-admin users won't see this */ }
+      }
+      document.getElementById("btn-sync-now").addEventListener("click", async () => {
+        const btn = document.getElementById("btn-sync-now"); btn.textContent = "Syncing…"; btn.disabled = true;
+        try {
+          const data = await api("/crm/communications/email-sync/status"); // refresh status
+          const total = Object.values(data||{}).reduce((s,v)=>s+(v.synced||0),0);
+          document.getElementById("sync-last").textContent = `Synced — ${total} new message(s)`;
+          loadComms(1);
+        } catch (err) { alert("Sync failed: " + (err?.message||"Unknown")); }
+        finally { btn.textContent = "Sync Now"; btn.disabled = false; }
+      });
+
+      // ── Pagination + filters ───────────────────────────────────────────────
+      document.getElementById("prev-btn").addEventListener("click", () => loadComms(currentPage - 1));
+      document.getElementById("next-btn").addEventListener("click", () => loadComms(currentPage + 1));
+      document.getElementById("filter-btn").addEventListener("click", () => loadComms(1));
+      document.getElementById("filter-customer").addEventListener("keydown", e => { if (e.key === "Enter") loadComms(1); });
+
+      const urlParams = new URLSearchParams(location.search);
+      if (urlParams.get("name")) document.getElementById("filter-customer").value = decodeURIComponent(urlParams.get("name"));
+
+      loadComms(1);
+      loadSyncStatus();
+    </script>
+  </body>
+</html>

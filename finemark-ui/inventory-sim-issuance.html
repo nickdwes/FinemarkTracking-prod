@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | SIM Card Issuance</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+    <div class="max-w-7xl mx-auto space-y-6">
+
+      <!-- Page header -->
+      <div class="flex flex-wrap items-center gap-3 justify-between">
+        <div>
+          <h1 class="text-3xl font-semibold tracking-tight text-slate-900">SIM Card Issuance</h1>
+          <p class="text-sm text-slate-500">Issue available SIMs to technicians and track returns.</p>
+        </div>
+        <div class="flex gap-2 flex-wrap items-center">
+          <a href="inventory-sims.html" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-slate-50">SIM Inventory</a>
+          <button id="btn-issue-selected" class="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-teal-700">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"/></svg>
+            Issue to Technician
+            <span id="issue-count-wrap" class="hidden inline-flex items-center justify-center w-5 h-5 rounded-full bg-white text-teal-700 text-xs font-bold">
+              <span id="issue-count">0</span>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats bar -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wide">Available</p>
+          <p id="stat-available" class="text-2xl font-bold text-green-600 mt-1">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wide">Transferred</p>
+          <p id="stat-transferred" class="text-2xl font-bold text-blue-600 mt-1">—</p>
+          <p class="text-[10px] text-slate-400 mt-0.5">Awaiting tech ack.</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wide">Issued</p>
+          <p id="stat-issued" class="text-2xl font-bold text-indigo-600 mt-1">—</p>
+          <p class="text-[10px] text-slate-400 mt-0.5">In tech custody</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wide">Total</p>
+          <p id="stat-total" class="text-2xl font-bold text-slate-700 mt-1">—</p>
+        </div>
+      </div>
+
+      <!-- Tabs + table -->
+      <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm">
+
+        <!-- Tabs -->
+        <div class="flex items-center gap-1 px-4 pt-4 border-b border-slate-100 overflow-x-auto">
+          <button id="tab-available" class="sim-tab whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-teal-600 text-teal-700 bg-teal-50" data-tab="available">Available SIMs</button>
+          <button id="tab-issued" class="sim-tab whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-slate-600 hover:bg-slate-50" data-tab="issued">Transferred / Issued SIMs</button>
+        </div>
+
+        <!-- Filters -->
+        <div class="p-4 flex flex-wrap gap-3 items-end border-b border-slate-100">
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Search ICCID / IMSI / MSISDN</label>
+            <input id="search-input" type="text" placeholder="Search…" class="w-64 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:border-teal-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Operator</label>
+            <select id="filter-operator" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+              <option value="">All</option>
+              <option>Safaricom</option>
+              <option>Airtel</option>
+              <option>Telkom</option>
+            </select>
+          </div>
+          <div id="filter-tech-wrap">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Issued To</label>
+            <select id="filter-issued-to" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+              <option value="">All</option>
+            </select>
+          </div>
+          <p id="select-hint" class="hidden ml-auto text-xs text-slate-400 self-center italic">Check rows to select for issuance</p>
+        </div>
+
+        <!-- Table — Available -->
+        <div id="table-available" class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th class="px-4 py-3 w-8"><input type="checkbox" id="chk-all" class="rounded border-slate-300 accent-teal-600" /></th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">ICCID</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">IMSI</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">MSISDN</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Operator</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Plan</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Expiry</th>
+              </tr>
+            </thead>
+            <tbody id="available-body" class="divide-y divide-slate-100">
+              <tr><td colspan="7" class="text-center py-8 text-slate-400">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Table — Issued -->
+        <div id="table-issued" class="hidden overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">ICCID</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">IMSI</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">MSISDN</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Operator</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Status</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Issued To</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Date Issued</th>
+                <th class="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody id="issued-body" class="divide-y divide-slate-100">
+              <tr><td colspan="8" class="text-center py-8 text-slate-400">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="flex items-center justify-between px-4 py-3 border-t border-slate-100">
+          <span id="pagination-info" class="text-xs text-slate-400"></span>
+          <div class="flex gap-2">
+            <button id="btn-prev" class="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium hover:bg-slate-50 disabled:opacity-40">Prev</button>
+            <button id="btn-next" class="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium hover:bg-slate-50 disabled:opacity-40">Next</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- Issue to Technician Modal -->
+<div id="modal-issue" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl">
+    <div class="flex items-center justify-between px-6 py-4 border-b">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-900">Issue SIMs to Technician</h2>
+        <p class="text-xs text-slate-500 mt-0.5">Scan or type ICCID / IMSI / MSISDN to add SIMs. They will be marked <em>Transferred</em> until the technician acknowledges receipt.</p>
+      </div>
+      <button id="btn-close-issue" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">×</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Technician *</label>
+        <select id="issue-tech-select" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+          <option value="">Loading technicians…</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Scan / Type ICCID, IMSI or MSISDN, then press Enter</label>
+        <input id="issue-scan-input" type="text" inputmode="numeric" autocomplete="off"
+          placeholder="→ Scan SIM barcode here…"
+          class="w-full rounded-lg border-2 border-teal-300 bg-teal-50/40 px-4 py-3 text-base font-mono focus:outline-none focus:border-teal-500" />
+        <p id="issue-scan-feedback" class="text-xs mt-1 min-h-[1rem] text-slate-400"></p>
+      </div>
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <label class="block text-xs font-medium text-slate-600">SIMs to Issue (<span id="issue-modal-count">0</span>)</label>
+          <button type="button" id="btn-clear-scanned" class="hidden text-xs text-slate-400 hover:text-red-500">Clear all</button>
+        </div>
+        <div id="issue-sim-list" class="max-h-56 overflow-y-auto space-y-1.5 rounded-lg border border-slate-200 p-2 bg-slate-50">
+          <p id="issue-empty-state" class="text-xs text-slate-400 text-center py-6 italic">No SIMs scanned yet. Use the field above to add SIMs.</p>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Notes</label>
+        <input id="issue-notes" type="text" placeholder="Optional notes…" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-teal-500" />
+      </div>
+      <div id="issue-error" class="hidden rounded bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-600"></div>
+      <div class="flex justify-end gap-3">
+        <button type="button" id="btn-cancel-issue" class="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50">Cancel</button>
+        <button type="button" id="btn-confirm-issue" class="rounded-lg bg-teal-600 px-5 py-2 text-sm font-semibold text-white hover:bg-teal-700">Issue SIMs</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Return Confirm Modal -->
+<div id="modal-return" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md">
+    <div class="flex items-center justify-between px-6 py-4 border-b">
+      <h2 class="text-lg font-semibold text-slate-900">Return SIM Card</h2>
+      <button id="btn-close-return" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">×</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <p class="text-sm text-slate-700">Return <span id="return-iccid" class="font-mono font-semibold text-blue-700"></span> from <span id="return-tech-name" class="font-semibold text-slate-800"></span> back to available stock?</p>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Notes</label>
+        <input id="return-notes" type="text" placeholder="Optional notes…" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-teal-500" />
+      </div>
+      <div id="return-error" class="hidden rounded bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-600"></div>
+      <div class="flex justify-end gap-3">
+        <button type="button" id="btn-cancel-return" class="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50">Cancel</button>
+        <button type="button" id="btn-confirm-return" class="rounded-lg bg-amber-600 px-5 py-2 text-sm font-semibold text-white hover:bg-amber-700">Confirm Return</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="fm-footer"></div>
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+(() => {
+  const APP = window.FINEMARK_APP;
+  const apiFetch = (...a) => APP.apiFetch(...a);
+  const base = APP?.CONFIG?.API_BASE_URL ?? "/api";
+
+  let activeTab = "available";
+  let page = 1, total = 0;
+  const PAGE_SIZE = 50;
+  let selectedIds = new Set();   // sim IDs
+  let selectedMap = {};          // id → { id, iccid, imsi }
+  let technicians = [];
+  let currentSims = [];
+  let returnTarget = null;       // { id, iccid, issued_to_name }
+
+  function fmtDate(d) {
+    if (!d) return "—";
+    return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  }
+
+  // ── Stats ─────────────────────────────────────────────────────────────────
+  async function loadStats() {
+    try {
+      const r = await apiFetch("/inventory/sims/stats");
+      const s = r.data ?? r;
+      document.getElementById("stat-available").textContent   = s.available    ?? 0;
+      document.getElementById("stat-transferred").textContent = s.transferred  ?? 0;
+      document.getElementById("stat-issued").textContent      = s.acknowledged ?? 0;
+      document.getElementById("stat-total").textContent       = s.total        ?? 0;
+    } catch {}
+  }
+
+  // ── Technicians ───────────────────────────────────────────────────────────
+  async function loadTechnicians() {
+    try {
+      const r = await apiFetch("/technical-team/members?role=Technician");
+      technicians = r?.data ?? [];
+      document.getElementById("issue-tech-select").innerHTML =
+        `<option value="">— Select technician —</option>` +
+        technicians.map(t => {
+          const name = t.fullName || t.email || "Technician";
+          const badge = t.employeeNo ? ` (${t.employeeNo})` : "";
+          return `<option value="${t.id}" data-name="${name}">${name}${badge}</option>`;
+        }).join("");
+      document.getElementById("filter-issued-to").innerHTML =
+        `<option value="">All</option>` +
+        technicians.map(t => `<option value="${t.id}">${t.fullName || t.email || "Technician"}</option>`).join("");
+    } catch {}
+  }
+
+  // ── Load SIMs ─────────────────────────────────────────────────────────────
+  async function loadSims() {
+    const status   = activeTab;   // "available" or "issued"
+    const q        = document.getElementById("search-input").value.trim();
+    const operator = document.getElementById("filter-operator").value;
+    let url = `/inventory/sims?page=${page}&pageSize=${PAGE_SIZE}&status=${status}`;
+    if (q)        url += `&q=${encodeURIComponent(q)}`;
+    if (operator) url += `&operator=${encodeURIComponent(operator)}`;
+
+    try {
+      const r = await apiFetch(url);
+      currentSims = r.data ?? [];
+      total = r.total ?? currentSims.length;
+
+      if (activeTab === "available") {
+        renderAvailable(currentSims);
+      } else {
+        const techFilter = document.getElementById("filter-issued-to").value;
+        const filtered = techFilter
+          ? currentSims.filter(s => s.issued_to_id === techFilter)
+          : currentSims;
+        renderIssued(filtered);
+      }
+    } catch (e) {
+      if (activeTab === "available") {
+        document.getElementById("available-body").innerHTML = `<tr><td colspan="7" class="text-center py-8 text-red-400">Failed to load.</td></tr>`;
+      } else {
+        document.getElementById("issued-body").innerHTML = `<tr><td colspan="8" class="text-center py-8 text-red-400">Failed to load.</td></tr>`;
+      }
+    }
+
+    document.getElementById("pagination-info").textContent =
+      `${Math.min((page-1)*PAGE_SIZE+1, total)}–${Math.min(page*PAGE_SIZE, total)} of ${total}`;
+    document.getElementById("btn-prev").disabled = page <= 1;
+    document.getElementById("btn-next").disabled = page * PAGE_SIZE >= total;
+  }
+
+  // ── Render Available ──────────────────────────────────────────────────────
+  function renderAvailable(sims) {
+    const tbody = document.getElementById("available-body");
+    if (!sims.length) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-400">No available SIMs found.</td></tr>`;
+      updateSelectionUI();
+      return;
+    }
+    tbody.innerHTML = sims.map(s => {
+      const checked = selectedIds.has(s.id) ? "checked" : "";
+      const rowBg   = selectedIds.has(s.id) ? " bg-teal-50" : "";
+      const exp = s.expiry_date ? new Date(s.expiry_date) : null;
+      const expDisplay = !exp ? "—"
+        : exp > new Date()
+          ? `<span class="text-green-600">${s.expiry_date}</span>`
+          : `<span class="text-red-500">${s.expiry_date}</span>`;
+      return `<tr class="hover:bg-slate-50 cursor-default${rowBg}" data-id="${s.id}">
+        <td class="px-4 py-3 w-8">
+          <input type="checkbox" class="row-chk rounded border-slate-300 accent-teal-600" data-id="${s.id}" data-iccid="${s.iccid}" data-imsi="${s.imsi}" ${checked} />
+        </td>
+        <td class="px-4 py-3 font-mono text-xs text-blue-700">${s.iccid}</td>
+        <td class="px-4 py-3 font-mono text-xs">${s.imsi}</td>
+        <td class="px-4 py-3 text-xs">${s.msisdn || "—"}</td>
+        <td class="px-4 py-3 text-xs">${s.operator || "—"}</td>
+        <td class="px-4 py-3 text-xs">${s.plan || "—"}</td>
+        <td class="px-4 py-3 text-xs">${expDisplay}</td>
+      </tr>`;
+    }).join("");
+
+    tbody.querySelectorAll(".row-chk").forEach(chk => {
+      chk.addEventListener("click", e => {
+        e.stopPropagation();
+        const id    = chk.dataset.id;
+        const iccid = chk.dataset.iccid;
+        const imsi  = chk.dataset.imsi;
+        if (chk.checked) {
+          selectedIds.add(id);
+          selectedMap[id] = { id, iccid, imsi };
+        } else {
+          selectedIds.delete(id);
+          delete selectedMap[id];
+        }
+        chk.closest("tr").classList.toggle("bg-teal-50", chk.checked);
+        updateSelectionUI();
+      });
+    });
+
+    updateSelectionUI();
+    const hint = document.getElementById("select-hint");
+    sims.length ? hint.classList.remove("hidden") : hint.classList.add("hidden");
+  }
+
+  // ── Render Issued ─────────────────────────────────────────────────────────
+  function renderIssued(sims) {
+    const tbody = document.getElementById("issued-body");
+    if (!sims.length) {
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">No issued SIMs found.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = sims.map(s => {
+      const ack = !!s.acknowledged_at;
+      const badge = ack
+        ? `<span class="text-xs px-2 py-0.5 rounded-full font-semibold bg-indigo-100 text-indigo-700">Issued</span>`
+        : `<span class="text-xs px-2 py-0.5 rounded-full font-semibold bg-blue-100 text-blue-700">Transferred</span>`;
+      return `
+      <tr class="hover:bg-slate-50" data-id="${s.id}">
+        <td class="px-4 py-3 font-mono text-xs text-blue-700">${s.iccid}</td>
+        <td class="px-4 py-3 font-mono text-xs">${s.imsi}</td>
+        <td class="px-4 py-3 text-xs">${s.msisdn || "—"}</td>
+        <td class="px-4 py-3 text-xs">${s.operator || "—"}</td>
+        <td class="px-4 py-3">${badge}</td>
+        <td class="px-4 py-3 text-xs font-medium text-teal-700">${s.issued_to_name || "—"}</td>
+        <td class="px-4 py-3 text-xs text-slate-500">${fmtDate(s.issued_at)}</td>
+        <td class="px-4 py-3 text-right">
+          <button class="btn-return text-xs px-2 py-1 rounded border border-amber-300 text-amber-700 hover:bg-amber-50"
+            data-id="${s.id}" data-iccid="${s.iccid}" data-tech="${s.issued_to_name || ''}">Return</button>
+        </td>
+      </tr>`;
+    }).join("");
+
+    tbody.querySelectorAll(".btn-return").forEach(btn => {
+      btn.addEventListener("click", () => {
+        returnTarget = { id: btn.dataset.id, iccid: btn.dataset.iccid, issued_to_name: btn.dataset.tech };
+        document.getElementById("return-iccid").textContent = returnTarget.iccid;
+        document.getElementById("return-tech-name").textContent = returnTarget.issued_to_name || "technician";
+        document.getElementById("return-notes").value = "";
+        document.getElementById("return-error").classList.add("hidden");
+        document.getElementById("modal-return").classList.remove("hidden");
+      });
+    });
+  }
+
+  // ── Selection UI ──────────────────────────────────────────────────────────
+  function updateSelectionUI() {
+    const n = selectedIds.size;
+    document.getElementById("issue-count").textContent = n;
+    document.getElementById("issue-count-wrap").classList.toggle("hidden", n === 0);
+
+    const chkAll = document.getElementById("chk-all");
+    if (!currentSims.length) { chkAll.checked = false; chkAll.indeterminate = false; return; }
+    const allChecked  = currentSims.every(s => selectedIds.has(s.id));
+    const someChecked = currentSims.some(s => selectedIds.has(s.id));
+    chkAll.checked = allChecked;
+    chkAll.indeterminate = !allChecked && someChecked;
+  }
+
+  // ── Tabs ──────────────────────────────────────────────────────────────────
+  document.querySelectorAll(".sim-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      activeTab = btn.dataset.tab;
+      document.querySelectorAll(".sim-tab").forEach(b => {
+        b.classList.remove("border-teal-600","text-teal-700","bg-teal-50");
+        b.classList.add("border-transparent","text-slate-600");
+      });
+      btn.classList.add("border-teal-600","text-teal-700","bg-teal-50");
+      btn.classList.remove("border-transparent","text-slate-600");
+
+      const showAvail = activeTab === "available";
+      document.getElementById("table-available").classList.toggle("hidden", !showAvail);
+      document.getElementById("table-issued").classList.toggle("hidden",    showAvail);
+      document.getElementById("chk-all").parentElement.closest("th").classList.toggle("hidden", !showAvail);
+      document.getElementById("filter-tech-wrap").classList.toggle("hidden", showAvail);
+      document.getElementById("select-hint").classList.toggle("hidden", !showAvail);
+
+      page = 1;
+      loadSims();
+    });
+  });
+
+  // ── Filters ───────────────────────────────────────────────────────────────
+  let searchTimeout;
+  document.getElementById("search-input").addEventListener("input", () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => { page = 1; loadSims(); }, 350);
+  });
+  document.getElementById("filter-operator").addEventListener("change", () => { page = 1; loadSims(); });
+  document.getElementById("filter-issued-to").addEventListener("change", () => { page = 1; loadSims(); });
+
+  // ── Pagination ────────────────────────────────────────────────────────────
+  document.getElementById("btn-prev").addEventListener("click", () => { if (page > 1) { page--; loadSims(); } });
+  document.getElementById("btn-next").addEventListener("click", () => { if (page * PAGE_SIZE < total) { page++; loadSims(); } });
+
+  // ── Select all checkbox ───────────────────────────────────────────────────
+  document.getElementById("chk-all").addEventListener("change", e => {
+    const checked = e.target.checked;
+    currentSims.forEach(s => {
+      if (checked) {
+        selectedIds.add(s.id);
+        selectedMap[s.id] = { id: s.id, iccid: s.iccid, imsi: s.imsi };
+      } else {
+        selectedIds.delete(s.id);
+        delete selectedMap[s.id];
+      }
+    });
+    document.querySelectorAll(".row-chk").forEach(chk => {
+      chk.checked = checked;
+      chk.closest("tr").classList.toggle("bg-teal-50", checked);
+    });
+    updateSelectionUI();
+  });
+
+  // ── Issue Modal (scan-to-add) ───────────────────────────────────────
+  let _scannedSims = [];        // [{id, iccid, imsi, msisdn, operator, plan}]
+  let _scanLookupBusy = false;
+
+  function _renderScannedList() {
+    const listEl = document.getElementById("issue-sim-list");
+    const clear  = document.getElementById("btn-clear-scanned");
+    document.getElementById("issue-modal-count").textContent = _scannedSims.length;
+    clear.classList.toggle("hidden", _scannedSims.length === 0);
+    if (!_scannedSims.length) {
+      listEl.innerHTML = `<p id="issue-empty-state" class="text-xs text-slate-400 text-center py-6 italic">No SIMs scanned yet. Use the field above to add SIMs.</p>`;
+      return;
+    }
+    listEl.innerHTML = _scannedSims.map((s, idx) => `
+      <div class="flex items-center gap-2 text-xs px-2 py-1.5 bg-white rounded border border-slate-200">
+        <svg class="w-3.5 h-3.5 text-teal-500 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span class="font-mono font-semibold text-blue-700">${s.iccid}</span>
+        <span class="text-slate-300">·</span>
+        <span class="text-slate-500 truncate flex-1">${s.msisdn || s.imsi}${s.operator ? ' • ' + s.operator : ''}</span>
+        <button type="button" data-idx="${idx}" class="btn-remove-scanned text-slate-300 hover:text-red-500 text-base leading-none">×</button>
+      </div>
+    `).join("");
+    listEl.querySelectorAll(".btn-remove-scanned").forEach(b => {
+      b.addEventListener("click", () => {
+        const i = parseInt(b.dataset.idx, 10);
+        _scannedSims.splice(i, 1);
+        _renderScannedList();
+      });
+    });
+  }
+
+  function _setScanFeedback(msg, kind) {
+    const el = document.getElementById("issue-scan-feedback");
+    el.textContent = msg || "";
+    el.className = "text-xs mt-1 min-h-[1rem] " + (
+      kind === "ok"  ? "text-teal-600" :
+      kind === "err" ? "text-red-600"  : "text-slate-400"
+    );
+  }
+
+  async function _onScanEnter(rawCode) {
+    const code = (rawCode || "").trim().replace(/\s+/g, "");
+    if (!code) return;
+    if (_scanLookupBusy) return;
+    const dup = _scannedSims.find(s =>
+      s.iccid === code || s.imsi === code || (s.msisdn && s.msisdn === code));
+    if (dup) {
+      _setScanFeedback(`Already added: ${code}`, "err");
+      return;
+    }
+    _scanLookupBusy = true;
+    _setScanFeedback("Looking up…", "info");
+    try {
+      const r = await apiFetch(`/inventory/sims?q=${encodeURIComponent(code)}&pageSize=10`);
+      const rows = r?.data ?? [];
+      const match = rows.find(s => s.iccid === code || s.imsi === code || s.msisdn === code);
+      if (!match) {
+        _setScanFeedback(`Not found in SIM ledger: ${code}`, "err");
+        return;
+      }
+      if (match.status !== "available") {
+        _setScanFeedback(`Cannot issue ${match.iccid} — status is "${match.status}".`, "err");
+        return;
+      }
+      _scannedSims.push({
+        id: match.id, iccid: match.iccid, imsi: match.imsi,
+        msisdn: match.msisdn, operator: match.operator, plan: match.plan,
+      });
+      _renderScannedList();
+      _setScanFeedback(`Added: ${match.iccid}${match.operator ? ' (' + match.operator + ')' : ''}`, "ok");
+    } catch (e) {
+      _setScanFeedback(e?.message || "Lookup failed.", "err");
+    } finally {
+      _scanLookupBusy = false;
+    }
+  }
+
+  function openIssueModal() {
+    // Pre-load any rows the user has checkbox-selected from the Available tab
+    _scannedSims = [];
+    if (selectedIds.size) {
+      [...selectedIds].forEach(id => {
+        const m = selectedMap[id];
+        const full = currentSims.find(s => s.id === id) || {};
+        if (m) _scannedSims.push({
+          id: m.id, iccid: m.iccid, imsi: m.imsi,
+          msisdn: full.msisdn, operator: full.operator, plan: full.plan,
+        });
+      });
+    }
+    _renderScannedList();
+    _setScanFeedback("", "info");
+    document.getElementById("issue-error").classList.add("hidden");
+    document.getElementById("issue-notes").value = "";
+    const tech = document.getElementById("issue-tech-select");
+    if (tech) tech.value = "";
+    document.getElementById("modal-issue").classList.remove("hidden");
+    setTimeout(() => {
+      const inp = document.getElementById("issue-scan-input");
+      if (inp) { inp.value = ""; inp.focus(); }
+    }, 50);
+  }
+
+  document.getElementById("btn-issue-selected").addEventListener("click", openIssueModal);
+
+  // Wire scan input + clear button
+  document.addEventListener("DOMContentLoaded", () => {
+    const inp = document.getElementById("issue-scan-input");
+    if (inp) {
+      inp.addEventListener("keydown", e => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          const v = inp.value;
+          inp.value = "";
+          _onScanEnter(v).then(() => inp.focus());
+        }
+      });
+    }
+    const clear = document.getElementById("btn-clear-scanned");
+    if (clear) clear.addEventListener("click", () => { _scannedSims = []; _renderScannedList(); });
+  });
+
+  document.getElementById("btn-close-issue").addEventListener("click", () =>
+    document.getElementById("modal-issue").classList.add("hidden"));
+  document.getElementById("btn-cancel-issue").addEventListener("click", () =>
+    document.getElementById("modal-issue").classList.add("hidden"));
+
+  document.getElementById("btn-confirm-issue").addEventListener("click", async () => {
+    const sel   = document.getElementById("issue-tech-select");
+    const techId   = sel.value;
+    const techName = sel.options[sel.selectedIndex]?.dataset?.name || sel.options[sel.selectedIndex]?.text || "";
+    const notes    = document.getElementById("issue-notes").value.trim();
+    const errEl    = document.getElementById("issue-error");
+
+    if (!techId) { errEl.textContent = "Please select a technician."; errEl.classList.remove("hidden"); return; }
+
+    const simIds = _scannedSims.map(s => s.id);
+    if (!simIds.length) {
+      errEl.textContent = "No SIMs scanned. Scan or type at least one ICCID/IMSI/MSISDN.";
+      errEl.classList.remove("hidden");
+      return;
+    }
+    const btn = document.getElementById("btn-confirm-issue");
+    btn.disabled = true; btn.textContent = "Issuing…";
+
+    try {
+      const r = await apiFetch("/inventory/sims/issue", {
+        method: "POST",
+        body: { sim_ids: simIds, technician_id: techId, technician_name: techName, notes }
+      });
+      const d = r.data ?? r;
+      document.getElementById("modal-issue").classList.add("hidden");
+      _scannedSims = [];
+      selectedIds.clear();
+      selectedMap = {};
+      updateSelectionUI();
+      loadStats();
+      loadSims();
+      APP.showToast?.(`${d.issued ?? simIds.length} SIM(s) transferred to ${techName}. Awaiting acknowledgement.`, "success");
+      if (d.errors?.length) {
+        alert(`${d.issued} SIM(s) issued. ${d.errors.length} skipped:\n` + d.errors.map(e => `• ${e.reason}`).join("\n"));
+      }
+    } catch (err) {
+      errEl.textContent = err?.message || "Failed to issue SIMs.";
+      errEl.classList.remove("hidden");
+    } finally {
+      btn.disabled = false; btn.textContent = "Issue SIMs";
+    }
+  });
+
+  // ── Return Modal ──────────────────────────────────────────────────────────
+  document.getElementById("btn-close-return").addEventListener("click", () =>
+    document.getElementById("modal-return").classList.add("hidden"));
+  document.getElementById("btn-cancel-return").addEventListener("click", () =>
+    document.getElementById("modal-return").classList.add("hidden"));
+
+  document.getElementById("btn-confirm-return").addEventListener("click", async () => {
+    if (!returnTarget) return;
+    const notes = document.getElementById("return-notes").value.trim();
+    const errEl = document.getElementById("return-error");
+    const btn   = document.getElementById("btn-confirm-return");
+    btn.disabled = true; btn.textContent = "Returning…";
+
+    try {
+      await apiFetch(`/inventory/sims/${returnTarget.id}/return`, { method: "POST", body: { notes } });
+      document.getElementById("modal-return").classList.add("hidden");
+      returnTarget = null;
+      loadStats();
+      loadSims();
+    } catch (err) {
+      errEl.textContent = err?.message || "Failed to return SIM.";
+      errEl.classList.remove("hidden");
+    } finally {
+      btn.disabled = false; btn.textContent = "Confirm Return";
+    }
+  });
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  loadStats();
+  loadTechnicians();
+  loadSims();
+})();
+</script>
+</body>
+</html>

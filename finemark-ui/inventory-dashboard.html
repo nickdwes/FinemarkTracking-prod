@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Inventory Dashboard</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+    <script src="assets/chart.umd.min.js"></script>
+    <style>
+      .tab-btn{padding:.35rem 1rem;border-radius:.5rem;font-size:.8rem;font-weight:500;color:#475569;transition:all .15s;white-space:nowrap;cursor:pointer;}
+      .tab-btn:hover{background:#fff;color:#0f172a;}
+      .tab-btn.active{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);color:#0f172a;font-weight:700;}
+      .stat-card{background:#fff;border-radius:.75rem;padding:1.1rem 1.25rem;border:1px solid #e2e8f0;transition:box-shadow .15s, transform .15s;}
+      .stat-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.07);transform:translateY(-1px);}
+      .stat-icon{width:2rem;height:2rem;border-radius:.5rem;display:flex;align-items:center;justify-content:center;}
+      .chart-card{background:#fff;border-radius:.75rem;padding:1.25rem 1.5rem;border:1px solid #e2e8f0;}
+      .bar-track{background:#e2e8f0;border-radius:9999px;height:.55rem;overflow:hidden;}
+      .bar-fill{height:100%;border-radius:9999px;transition:width .6s ease;}
+      .subtab-btn{padding:.3rem .85rem;border-radius:.5rem;font-size:.78rem;font-weight:600;color:#64748b;cursor:pointer;border:1px solid transparent;}
+      .subtab-btn.active{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+    <div class="max-w-7xl mx-auto space-y-6">
+
+      <!-- Page header -->
+      <div class="flex flex-wrap items-center gap-3 justify-between">
+        <div>
+          <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Inventory Dashboard</h1>
+          <p class="text-sm text-slate-500">Real-time overview of device stock, movements, and alerts.</p>
+        </div>
+        <div class="flex gap-2">
+          <a href="inventory-items.html" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-slate-50">All Devices</a>
+          <a href="inventory-procurement.html" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700">+ New Requisition</a>
+        </div>
+      </div>
+
+      <!-- Page-level tabs: Dashboard | Reports -->
+      <div class="flex items-center gap-1 rounded-xl bg-slate-100 p-1 w-fit">
+        <button class="tab-btn active" data-page-tab="dashboard">Dashboard</button>
+        <button class="tab-btn" data-page-tab="reports">Reports</button>
+        <button class="tab-btn" data-page-tab="device-reports">Device Reports</button>
+      </div>
+
+      <!-- ═══════════════════════════════════════════
+           PAGE TAB: DASHBOARD
+      ════════════════════════════════════════════ -->
+      <section id="page-dashboard" class="space-y-6">
+
+      <!-- Device Pipeline — where gadgets are in the process right now -->
+      <div class="chart-card space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="font-semibold text-slate-900 text-sm">Device Pipeline</h2>
+          <span class="text-xs text-slate-400">In Stock → Issued → Installed</span>
+        </div>
+        <div class="space-y-2.5" id="pipeline-rows">
+          <div class="flex items-center gap-3">
+            <span class="text-xs w-40 text-slate-500 shrink-0">In Stock</span>
+            <div class="flex-1 bar-track"><div id="pipe-stock" class="bar-fill bg-green-500" style="width:0%"></div></div>
+            <span id="pipe-stock-n" class="text-xs font-semibold w-10 text-right text-green-600">—</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs w-40 text-slate-500 shrink-0">Issued</span>
+            <div class="flex-1 bar-track"><div id="pipe-issued" class="bar-fill bg-blue-500" style="width:0%"></div></div>
+            <span id="pipe-issued-n" class="text-xs font-semibold w-10 text-right text-blue-600">—</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs w-40 text-slate-500 shrink-0">Installed</span>
+            <div class="flex-1 bar-track"><div id="pipe-installed" class="bar-fill bg-emerald-600" style="width:0%"></div></div>
+            <span id="pipe-installed-n" class="text-xs font-semibold w-10 text-right text-emerald-700">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status stat cards (clickable — open ledger filtered by status) -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3" id="stat-cards">
+        <a href="inventory-items.html?status=In+Stock" class="stat-card group bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm col-span-1 hover:border-green-400 hover:shadow-md transition cursor-pointer">
+          <p class="text-xs text-slate-500 group-hover:text-green-600">In Stock</p><p id="cnt-in-stock" class="text-2xl font-bold text-green-600">—</p>
+        </a>
+        <a href="inventory-items.html?status=Issued+for+Installation" class="stat-card group bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm col-span-1 hover:border-blue-400 hover:shadow-md transition cursor-pointer">
+          <p class="text-xs text-slate-500 group-hover:text-blue-600">Issued</p><p id="cnt-issued" class="text-2xl font-bold text-blue-600">—</p>
+        </a>
+        <a href="inventory-items.html?status=Issued+for+Installation" class="stat-card group bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm col-span-1 hover:border-sky-400 hover:shadow-md transition cursor-pointer">
+          <p class="text-xs text-slate-500 group-hover:text-sky-600">Assigned to Job Card</p><p id="cnt-assigned-jobcard" class="text-2xl font-bold text-sky-600">—</p>
+        </a>
+        <a href="inventory-items.html?status=Installed" class="stat-card group bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm col-span-1 hover:border-slate-400 hover:shadow-md transition cursor-pointer">
+          <p class="text-xs text-slate-500 group-hover:text-slate-700">Installed</p><p id="cnt-installed" class="text-2xl font-bold text-slate-700">—</p>
+        </a>
+        <a href="inventory-items.html?status=Returned" class="stat-card group bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm col-span-1 hover:border-slate-400 hover:shadow-md transition cursor-pointer">
+          <p class="text-xs text-slate-500 group-hover:text-slate-700">Returned</p><p id="cnt-returned" class="text-2xl font-bold text-slate-500">—</p>
+        </a>
+        <a href="inventory-items.html?status=Defective" class="stat-card group bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm col-span-1 hover:border-red-400 hover:shadow-md transition cursor-pointer">
+          <p class="text-xs text-slate-500 group-hover:text-red-600">Defective</p><p id="cnt-defective" class="text-2xl font-bold text-red-500">—</p>
+        </a>
+        <a href="inventory-items.html?status=Sent+to+Supplier" class="stat-card group bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm col-span-1 hover:border-purple-400 hover:shadow-md transition cursor-pointer">
+          <p class="text-xs text-slate-500 group-hover:text-purple-600">To Supplier</p><p id="cnt-supplier" class="text-2xl font-bold text-purple-600">—</p>
+        </a>
+        <a href="#certs-panel" class="stat-card group bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm col-span-1 hover:border-violet-400 hover:shadow-md transition cursor-pointer">
+          <p class="text-xs text-slate-500 group-hover:text-violet-600">Devices on Certs</p><p id="cnt-certs" class="text-2xl font-bold text-violet-600">—</p>
+        </a>
+      </div>
+
+      <!-- Status Distribution + Movement Volume Trend -->
+      <div class="grid lg:grid-cols-2 gap-6">
+        <div class="chart-card">
+          <h2 class="font-semibold text-slate-800 text-sm mb-3">Status Distribution</h2>
+          <div class="relative h-56"><canvas id="chart-status-dist"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h2 class="font-semibold text-slate-800 text-sm mb-3">Movement Volume — Last 30 Days</h2>
+          <div class="relative h-56"><canvas id="chart-movement-trend"></canvas></div>
+        </div>
+      </div>
+
+      <!-- SIM Card metrics — same treatment as Devices: pipeline, stat cards, status distribution, movement trend -->
+      <div class="flex items-center justify-between">
+        <h2 class="font-bold text-slate-900 text-lg">SIM Cards</h2>
+        <a href="inventory-sims.html" class="text-xs font-medium text-blue-600 hover:underline">Manage SIMs →</a>
+      </div>
+
+      <!-- SIM Pipeline -->
+      <div class="chart-card space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="font-semibold text-slate-900 text-sm">SIM Pipeline</h2>
+          <span class="text-xs text-slate-400">Available → Issued → Installed</span>
+        </div>
+        <div class="space-y-2.5">
+          <div class="flex items-center gap-3">
+            <span class="text-xs w-40 text-slate-500 shrink-0">Available</span>
+            <div class="flex-1 bar-track"><div id="dsim-pipe-available" class="bar-fill bg-green-500" style="width:0%"></div></div>
+            <span id="dsim-pipe-available-n" class="text-xs font-semibold w-10 text-right text-green-600">—</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs w-40 text-slate-500 shrink-0">Issued</span>
+            <div class="flex-1 bar-track"><div id="dsim-pipe-issued" class="bar-fill bg-blue-500" style="width:0%"></div></div>
+            <span id="dsim-pipe-issued-n" class="text-xs font-semibold w-10 text-right text-blue-600">—</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs w-40 text-slate-500 shrink-0">Installed</span>
+            <div class="flex-1 bar-track"><div id="dsim-pipe-installed" class="bar-fill bg-emerald-600" style="width:0%"></div></div>
+            <span id="dsim-pipe-installed-n" class="text-xs font-semibold w-10 text-right text-emerald-700">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SIM stat cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <a href="inventory-sims.html" class="stat-card group bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm hover:border-slate-400 hover:shadow-md transition cursor-pointer">
+          <p class="text-xs text-slate-500">Total SIMs</p>
+          <p id="sim-cnt-total" class="text-2xl font-bold text-slate-700">—</p>
+        </a>
+        <a href="inventory-sims.html" class="stat-card group bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm hover:border-green-400 hover:shadow-md transition cursor-pointer">
+          <p class="text-xs text-slate-500 group-hover:text-green-600">Available</p>
+          <p id="sim-cnt-available" class="text-2xl font-bold text-green-600">—</p>
+        </a>
+        <a href="inventory-sims.html" class="stat-card group bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm hover:border-blue-400 hover:shadow-md transition cursor-pointer">
+          <p class="text-xs text-slate-500">Issued</p>
+          <p id="sim-cnt-issued" class="text-2xl font-bold text-blue-600">—</p>
+        </a>
+        <a href="inventory-sims.html" class="stat-card group bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm hover:border-emerald-400 hover:shadow-md transition cursor-pointer">
+          <p class="text-xs text-slate-500 group-hover:text-emerald-700">Installed</p>
+          <p id="sim-cnt-installed" class="text-2xl font-bold text-emerald-700">—</p>
+        </a>
+        <a href="inventory-sims.html" class="stat-card group bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm hover:border-amber-400 hover:shadow-md transition cursor-pointer">
+          <p class="text-xs text-slate-500">Suspended</p>
+          <p id="sim-cnt-suspended" class="text-2xl font-bold text-amber-600">—</p>
+        </a>
+        <a href="inventory-sims.html" class="stat-card group bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm hover:border-slate-400 hover:shadow-md transition cursor-pointer">
+          <p class="text-xs text-slate-500">Retired</p>
+          <p id="sim-cnt-retired" class="text-2xl font-bold text-slate-500">—</p>
+        </a>
+      </div>
+
+      <!-- SIM Status Distribution + Movement Volume Trend -->
+      <div class="grid lg:grid-cols-2 gap-6">
+        <div class="chart-card">
+          <h2 class="font-semibold text-slate-800 text-sm mb-3">SIM Status Distribution</h2>
+          <div class="relative h-56"><canvas id="chart-sim-status"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h2 class="font-semibold text-slate-800 text-sm mb-3">SIM Movement Volume — Last 30 Days</h2>
+          <div class="relative h-56"><canvas id="chart-sim-trend"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Low-stock alerts + Recent movements -->
+      <div class="grid lg:grid-cols-2 gap-6">
+
+        <!-- Low-stock alerts -->
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+            <h2 class="font-semibold text-slate-800">Low-Stock Alerts</h2>
+            <a href="inventory-catalog.html" class="text-xs text-blue-600 hover:underline">View catalog →</a>
+          </div>
+          <div id="low-stock-list" class="divide-y divide-slate-100">
+            <div class="p-6 text-sm text-slate-400 text-center">Loading…</div>
+          </div>
+        </div>
+
+        <!-- Recent movements -->
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+            <h2 class="font-semibold text-slate-800">Recent Movements</h2>
+            <a href="inventory-items.html" class="text-xs text-blue-600 hover:underline">All devices →</a>
+          </div>
+          <div id="movements-list" class="divide-y divide-slate-100">
+            <div class="p-6 text-sm text-slate-400 text-center">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Defective Device Reports -->
+      <div class="bg-white rounded-xl border border-red-200 shadow-sm">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-red-100">
+          <h2 class="font-semibold text-slate-800 flex items-center gap-2">
+            <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+            Defective Device Reports
+          </h2>
+          <a href="inventory-warranty.html" class="text-xs text-red-600 hover:underline">Manage all →</a>
+        </div>
+        <div id="defective-reports-panel" class="divide-y divide-slate-100">
+          <div class="p-6 text-sm text-slate-400 text-center">Loading…</div>
+        </div>
+      </div>
+
+      <!-- Inventory by Category & Product -->
+      <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm">
+        <div class="flex flex-wrap items-center gap-3 justify-between px-6 py-4 border-b border-slate-100">
+          <div>
+            <h2 class="font-semibold text-slate-800">Inventory by Category &amp; Product</h2>
+            <p class="text-xs text-slate-500">Stock health per SKU, grouped by category.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <input id="cat-product-filter" type="text" placeholder="Filter products…" class="text-sm rounded-lg border border-slate-200 bg-white px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+              <tr>
+                <th class="px-6 py-3 text-left">Product</th>
+                <th class="px-3 py-3 text-right">In Stock</th>
+                <th class="px-3 py-3 text-right">Reserved</th>
+                <th class="px-3 py-3 text-right">Issued</th>
+                <th class="px-3 py-3 text-right">Installed</th>
+                <th class="px-3 py-3 text-right">Returned</th>
+                <th class="px-3 py-3 text-right">Defective</th>
+                <th class="px-6 py-3 text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody id="cat-product-tbody" class="divide-y divide-slate-100">
+              <tr><td colspan="8" class="px-6 py-6 text-center text-slate-400">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Devices Linked to Certificates -->
+      <div id="certs-panel" class="bg-white rounded-xl border border-slate-200/80 shadow-sm">
+        <div class="px-6 py-4 border-b border-slate-100">
+          <div class="flex items-center justify-between">
+            <h2 class="font-semibold text-slate-800">Devices Linked to Certificates</h2>
+            <span id="certs-count-label" class="text-xs text-slate-400">—</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">Matched via vehicle registration → installation ticket → issued device. Certificates whose vehicle isn't found in the installation pipeline won't appear here.</p>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+              <tr>
+                <th class="px-6 py-3 text-left">Certificate</th>
+                <th class="px-3 py-3 text-left">Registration</th>
+                <th class="px-3 py-3 text-left">Customer</th>
+                <th class="px-3 py-3 text-left">Device</th>
+                <th class="px-3 py-3 text-left">IMEI / Serial</th>
+                <th class="px-6 py-3 text-right">Cert Date</th>
+              </tr>
+            </thead>
+            <tbody id="certs-tbody">
+              <tr><td colspan="6" class="px-6 py-6 text-center text-slate-400">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Fastest Moving + Top Technicians -->
+      <div class="grid lg:grid-cols-2 gap-6">
+
+        <!-- Fastest Moving Inventory -->
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+            <div>
+              <h2 class="font-semibold text-slate-800">Fastest-Moving Inventory</h2>
+              <p class="text-xs text-slate-500">Top 10 SKUs by movements over last 30 days.</p>
+            </div>
+            <span class="text-xs text-slate-400">Last 30d</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+              <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+                <tr>
+                  <th class="px-6 py-3 text-left">#</th>
+                  <th class="px-3 py-3 text-left">Product</th>
+                  <th class="px-3 py-3 text-right">Issued</th>
+                  <th class="px-3 py-3 text-right">Installed</th>
+                  <th class="px-6 py-3 text-right">Total Moves</th>
+                </tr>
+              </thead>
+              <tbody id="fastest-moving-tbody" class="divide-y divide-slate-100">
+                <tr><td colspan="5" class="px-6 py-6 text-center text-slate-400">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Top Technicians -->
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm">
+          <div class="px-6 py-4 border-b border-slate-100 space-y-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="font-semibold text-slate-800">Top Technicians by Custody</h2>
+                <p class="text-xs text-slate-500">Custody is live · installed count for the window below.</p>
+              </div>
+              <span class="text-xs text-slate-400">Live</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-xs text-slate-500 shrink-0">Installed window:</span>
+              <input id="tech-days-slider" type="range" min="0" max="7" step="1" value="7" class="flex-1 accent-blue-600" />
+              <span id="tech-days-label" class="text-xs font-semibold text-blue-700 w-16 text-right shrink-0">90 days</span>
+            </div>
+          </div>
+          <div id="top-technicians-list" class="divide-y divide-slate-100">
+            <div class="p-6 text-sm text-slate-400 text-center">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick links -->
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <a href="inventory-catalog.html" class="flex flex-col gap-2 rounded-xl border border-blue-100 bg-blue-50 p-5 hover:border-blue-300 transition">
+          <span class="text-lg font-semibold text-blue-700">Product Catalog</span>
+          <span class="text-xs text-blue-500">Browse products, pricing &amp; stock levels</span>
+        </a>
+        <a href="inventory-procurement.html" class="flex flex-col gap-2 rounded-xl border border-green-100 bg-green-50 p-5 hover:border-green-300 transition">
+          <span class="text-lg font-semibold text-green-700">Procurement</span>
+          <span class="text-xs text-green-500">Requisitions, POs &amp; goods receiving</span>
+        </a>
+        <a href="inventory-items.html" class="flex flex-col gap-2 rounded-xl border border-amber-100 bg-amber-50 p-5 hover:border-amber-300 transition">
+          <span class="text-lg font-semibold text-amber-700">Device Ledger</span>
+          <span class="text-xs text-amber-500">Track every device by IMEI / serial</span>
+        </a>
+        <a href="inventory-warranty.html" class="flex flex-col gap-2 rounded-xl border border-red-100 bg-red-50 p-5 hover:border-red-300 transition">
+          <span class="text-lg font-semibold text-red-700">Warranty &amp; Defects</span>
+          <span class="text-xs text-red-500">Inbound claims &amp; supplier warranty tickets</span>
+        </a>
+      </div>
+
+      </section>
+
+      <!-- ═══════════════════════════════════════════
+           PAGE TAB: REPORTS
+      ════════════════════════════════════════════ -->
+      <section id="page-reports" class="hidden space-y-6">
+
+        <p class="text-sm text-slate-500 -mt-2">Full-page pipeline &amp; stock view for devices and SIMs.</p>
+
+        <!-- ── SECTION: PIPELINE & STOCK ── -->
+        <section id="sec-pipeline" class="space-y-8">
+
+          <!-- ── DEVICES ── -->
+          <div class="space-y-4">
+            <h2 class="font-bold text-slate-900 text-lg">Devices</h2>
+
+            <div class="chart-card space-y-3">
+              <div class="flex items-center justify-between">
+                <h3 class="font-semibold text-slate-900 text-sm">Device Pipeline</h3>
+                <span class="text-xs text-slate-400">In Stock → Issued → Installed</span>
+              </div>
+              <div class="space-y-2.5">
+                <div class="flex items-center gap-3">
+                  <span class="text-xs w-32 text-slate-500 shrink-0">In Stock</span>
+                  <div class="flex-1 bar-track"><div id="dev-pipe-stock" class="bar-fill bg-green-500" style="width:0%"></div></div>
+                  <span id="dev-pipe-stock-n" class="text-xs font-semibold w-10 text-right text-green-600">—</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span class="text-xs w-32 text-slate-500 shrink-0">Issued</span>
+                  <div class="flex-1 bar-track"><div id="dev-pipe-issued" class="bar-fill bg-blue-500" style="width:0%"></div></div>
+                  <span id="dev-pipe-issued-n" class="text-xs font-semibold w-10 text-right text-blue-600">—</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span class="text-xs w-32 text-slate-500 shrink-0">Installed</span>
+                  <div class="flex-1 bar-track"><div id="dev-pipe-installed" class="bar-fill bg-emerald-600" style="width:0%"></div></div>
+                  <span id="dev-pipe-installed-n" class="text-xs font-semibold w-10 text-right text-emerald-700">—</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+              <div class="stat-card"><p class="text-xs text-slate-500">In Stock</p><p id="dev-cnt-stock" class="text-2xl font-bold text-green-600">—</p></div>
+              <div class="stat-card"><p class="text-xs text-slate-500">Issued</p><p id="dev-cnt-issued" class="text-2xl font-bold text-blue-600">—</p></div>
+              <div class="stat-card"><p class="text-xs text-slate-500">Assigned to Job Card</p><p id="dev-cnt-jobcard" class="text-2xl font-bold text-sky-600">—</p></div>
+              <div class="stat-card"><p class="text-xs text-slate-500">Installed</p><p id="dev-cnt-installed" class="text-2xl font-bold text-slate-700">—</p></div>
+              <div class="stat-card"><p class="text-xs text-slate-500">Returned</p><p id="dev-cnt-returned" class="text-2xl font-bold text-slate-500">—</p></div>
+              <div class="stat-card"><p class="text-xs text-slate-500">Defective</p><p id="dev-cnt-defective" class="text-2xl font-bold text-red-500">—</p></div>
+              <div class="stat-card"><p class="text-xs text-slate-500">To Supplier</p><p id="dev-cnt-supplier" class="text-2xl font-bold text-purple-600">—</p></div>
+              <div class="stat-card"><p class="text-xs text-slate-500">Devices on Certs</p><p id="dev-cnt-certs" class="text-2xl font-bold text-violet-600">—</p></div>
+            </div>
+
+            <div class="grid lg:grid-cols-2 gap-6">
+              <div class="chart-card">
+                <h3 class="font-semibold text-slate-800 text-sm mb-3">Status Distribution</h3>
+                <div class="relative h-56"><canvas id="dev-chart-status"></canvas></div>
+              </div>
+              <div class="chart-card">
+                <div class="flex items-center justify-between mb-1">
+                  <h3 class="font-semibold text-slate-800 text-sm">Movement Volume</h3>
+                </div>
+                <div class="flex items-center gap-3 mb-2">
+                  <span class="text-xs text-slate-500 shrink-0">Window:</span>
+                  <input id="dev-trend-slider" type="range" min="0" max="4" step="1" value="2" class="flex-1 accent-blue-600" />
+                  <span id="dev-trend-label" class="text-xs font-semibold text-blue-700 w-16 text-right shrink-0">30 days</span>
+                </div>
+                <div class="relative h-48"><canvas id="dev-chart-trend"></canvas></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── SIM CARDS ── -->
+          <div class="space-y-4">
+            <h2 class="font-bold text-slate-900 text-lg">SIM Cards</h2>
+
+            <div class="chart-card space-y-3">
+              <div class="flex items-center justify-between">
+                <h3 class="font-semibold text-slate-900 text-sm">SIM Pipeline</h3>
+                <span class="text-xs text-slate-400">Available → Issued → Installed</span>
+              </div>
+              <div class="space-y-2.5">
+                <div class="flex items-center gap-3">
+                  <span class="text-xs w-32 text-slate-500 shrink-0">Available</span>
+                  <div class="flex-1 bar-track"><div id="sim-pipe-available" class="bar-fill bg-green-500" style="width:0%"></div></div>
+                  <span id="sim-pipe-available-n" class="text-xs font-semibold w-10 text-right text-green-600">—</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span class="text-xs w-32 text-slate-500 shrink-0">Issued</span>
+                  <div class="flex-1 bar-track"><div id="sim-pipe-issued" class="bar-fill bg-blue-500" style="width:0%"></div></div>
+                  <span id="sim-pipe-issued-n" class="text-xs font-semibold w-10 text-right text-blue-600">—</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span class="text-xs w-32 text-slate-500 shrink-0">Installed</span>
+                  <div class="flex-1 bar-track"><div id="sim-pipe-installed" class="bar-fill bg-emerald-600" style="width:0%"></div></div>
+                  <span id="sim-pipe-installed-n" class="text-xs font-semibold w-10 text-right text-emerald-700">—</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div class="stat-card"><p class="text-xs text-slate-500">Total SIMs</p><p id="sim2-cnt-total" class="text-2xl font-bold text-slate-700">—</p></div>
+              <div class="stat-card"><p class="text-xs text-slate-500">Available</p><p id="sim2-cnt-available" class="text-2xl font-bold text-green-600">—</p></div>
+              <div class="stat-card"><p class="text-xs text-slate-500">Issued</p><p id="sim2-cnt-issued" class="text-2xl font-bold text-blue-600">—</p></div>
+              <div class="stat-card"><p class="text-xs text-slate-500">Installed</p><p id="sim2-cnt-installed" class="text-2xl font-bold text-emerald-700">—</p></div>
+              <div class="stat-card"><p class="text-xs text-slate-500">Suspended</p><p id="sim2-cnt-suspended" class="text-2xl font-bold text-amber-600">—</p></div>
+              <div class="stat-card"><p class="text-xs text-slate-500">Retired</p><p id="sim2-cnt-retired" class="text-2xl font-bold text-slate-500">—</p></div>
+            </div>
+
+            <div class="chart-card">
+              <div class="flex items-center justify-between mb-1">
+                <h3 class="font-semibold text-slate-800 text-sm">Movement Volume</h3>
+              </div>
+              <div class="flex items-center gap-3 mb-2">
+                <span class="text-xs text-slate-500 shrink-0">Window:</span>
+                <input id="sim-trend-slider" type="range" min="0" max="4" step="1" value="2" class="flex-1 accent-blue-600" />
+                <span id="sim-trend-label" class="text-xs font-semibold text-blue-700 w-16 text-right shrink-0">30 days</span>
+              </div>
+              <div class="relative h-48"><canvas id="sim-chart-trend"></canvas></div>
+            </div>
+          </div>
+        </section>
+
+      </section>
+
+      <!-- ═══════════════════════════════════════════
+           PAGE TAB: DEVICE REPORTS
+      ════════════════════════════════════════════ -->
+      <section id="page-device-reports" class="hidden space-y-4">
+        <p class="text-sm text-slate-500 -mt-2">Device installation record — customer, vehicle, sales rep, technician, ISO, and the paired SIM — plus the same for SIM cards. Configure columns, search across every field, and export.</p>
+
+        <div class="flex flex-wrap items-center gap-3 justify-between">
+          <div class="flex items-center gap-1 rounded-xl bg-slate-100 p-1 w-fit">
+            <button class="subtab-btn active" data-subtab="devices">Devices</button>
+            <button class="subtab-btn" data-subtab="sims">SIMs</button>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <input id="inst-search" type="search" placeholder="Search all columns…" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+            <select id="inst-status" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none">
+              <option value="">All Statuses</option>
+            </select>
+
+            <!-- Columns configurator -->
+            <div class="relative">
+              <button id="inst-columns-btn" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-1.5">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/></svg>
+                Columns
+              </button>
+              <div id="inst-columns-panel" class="hidden absolute right-0 z-30 mt-2 w-60 max-h-96 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg p-3 space-y-1">
+                <div class="flex items-center justify-between pb-2 mb-1 border-b border-slate-100">
+                  <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Show columns</span>
+                  <button id="inst-cols-all" class="text-xs font-medium text-blue-600 hover:text-blue-800">All</button>
+                </div>
+                <div id="inst-columns-list" class="space-y-1"></div>
+              </div>
+            </div>
+
+            <!-- Export menu -->
+            <div class="relative">
+              <button id="inst-export-btn" class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 flex items-center gap-1.5">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+                Export
+              </button>
+              <div id="inst-export-menu" class="hidden absolute right-0 z-30 mt-2 w-44 rounded-xl border border-slate-200 bg-white shadow-lg py-1">
+                <button data-export="csv"   class="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">CSV (.csv)</button>
+                <button data-export="excel" class="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Excel (.xls)</button>
+                <button data-export="pdf"   class="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">PDF (print)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+          <table class="w-full text-xs min-w-[720px]">
+            <thead id="inst-thead" class="bg-slate-50 text-slate-500 uppercase tracking-wide">
+            </thead>
+            <tbody id="inst-tbody" class="divide-y divide-slate-100">
+              <tr><td colspan="12" class="text-center py-10 text-slate-400">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="flex items-center justify-between text-xs text-slate-500">
+          <span id="inst-count"></span>
+          <div class="flex items-center gap-2">
+            <button id="inst-prev" class="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40">Prev</button>
+            <span id="inst-page-label" class="px-1"></span>
+            <button id="inst-next" class="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40">Next</button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<div id="fm-footer"></div>
+<script src="assets/app.js?v=202607151400"></script>
+<script src="assets/layout.js?v=202607151400"></script>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// PAGE-LEVEL TABS: Dashboard | Reports — Reports data is lazy-loaded
+// on first visit so a normal dashboard page-load doesn't also fire
+// every Reports API call up front.
+// ─────────────────────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", () => {
+  window.FINEMARK_APP?.requirePageAccess?.();
+});
+
+let _reportsTabLoaded = false;
+let _deviceReportsTabLoaded = false;
+document.querySelectorAll("[data-page-tab]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("[data-page-tab]").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("page-dashboard").classList.toggle("hidden", btn.dataset.pageTab !== "dashboard");
+    document.getElementById("page-reports").classList.toggle("hidden", btn.dataset.pageTab !== "reports");
+    document.getElementById("page-device-reports").classList.toggle("hidden", btn.dataset.pageTab !== "device-reports");
+    if (btn.dataset.pageTab === "reports" && !_reportsTabLoaded) {
+      _reportsTabLoaded = true;
+      if (typeof initReports === "function") initReports();
+    }
+    if (btn.dataset.pageTab === "device-reports" && !_deviceReportsTabLoaded) {
+      _deviceReportsTabLoaded = true;
+      if (typeof initDeviceReports === "function") initDeviceReports();
+    }
+  });
+});
+</script>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// DASHBOARD TAB — unchanged logic, runs immediately on page load
+// ─────────────────────────────────────────────────────────────
+(async () => {
+  const APP = window.FINEMARK_APP;
+  if (!APP || typeof APP.apiFetch !== "function") return;
+  const api = APP.apiFetch;
+
+  const charts = {};
+  function mkChart(id, config) {
+    if (charts[id]) charts[id].destroy();
+    const el = document.getElementById(id);
+    if (!el) return;
+    charts[id] = new Chart(el, config);
+  }
+
+  // Top Technicians panel — custody is always a live snapshot; only the
+  // "installed" count is windowed by the day slider.
+  const TECH_DAY_STEPS = [1, 3, 7, 14, 21, 30, 60, 90];
+  function renderTopTechnicians(tt, days) {
+    const ttList = document.getElementById("top-technicians-list");
+    if (!ttList) return;
+    tt = Array.isArray(tt) ? tt : [];
+    if (!tt.length) {
+      ttList.innerHTML = `<div class="p-6 text-sm text-slate-400 text-center">No devices currently in technician custody.</div>`;
+      return;
+    }
+    const max = Math.max(...tt.map(r => Number(r.in_custody) || 0), 1);
+    const medal = i => i === 0 ? "bg-amber-100 text-amber-700"
+                  : i === 1 ? "bg-slate-200 text-slate-700"
+                  : i === 2 ? "bg-orange-100 text-orange-700"
+                            : "bg-slate-100 text-slate-500";
+    ttList.innerHTML = tt.map((r, idx) => {
+      const pct = Math.round((Number(r.in_custody) / max) * 100);
+      const installedN = Number(r.installed ?? r.installed_90d ?? 0);
+      return `
+        <div class="flex items-center gap-4 px-6 py-3">
+          <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${medal(idx)}">${idx + 1}</span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-slate-800 truncate">${r.technician_name || "Unknown"}</p>
+            <p class="text-xs text-slate-400 truncate">${r.technician_email || ""} · ${installedN} installed (${days}d)</p>
+            <div class="mt-1.5 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-full bg-blue-500 rounded-full" style="width:${pct}%"></div>
+            </div>
+          </div>
+          <div class="text-right shrink-0">
+            <p class="text-xl font-bold text-slate-900 tabular-nums">${Number(r.in_custody)}</p>
+            <p class="text-[10px] uppercase tracking-wide text-slate-400">in custody</p>
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  let techLeaderboardReqId = 0;
+  async function loadTechLeaderboard(days) {
+    document.getElementById("tech-days-label").textContent = `${days} day${days === 1 ? "" : "s"}`;
+    const reqId = ++techLeaderboardReqId;
+    try {
+      const r = await api(`/inventory/items/technician-leaderboard?days=${days}`);
+      if (reqId !== techLeaderboardReqId) return; // a newer slider move superseded this request
+      renderTopTechnicians(r?.data, days);
+    } catch (e) {
+      console.error("Technician leaderboard:", e);
+      if (reqId !== techLeaderboardReqId) return;
+      const ttList = document.getElementById("top-technicians-list");
+      if (ttList) ttList.innerHTML = `<div class="p-6 text-sm text-rose-500 text-center">Unable to load technician ranking.</div>`;
+    }
+  }
+
+  const techSlider = document.getElementById("tech-days-slider");
+  if (techSlider) {
+    let sliderT;
+    techSlider.addEventListener("input", () => {
+      const days = TECH_DAY_STEPS[Number(techSlider.value)] ?? 90;
+      document.getElementById("tech-days-label").textContent = `${days} day${days === 1 ? "" : "s"}`;
+      clearTimeout(sliderT);
+      sliderT = setTimeout(() => loadTechLeaderboard(days), 250);
+    });
+  }
+
+  // Stats
+  try {
+    const s = await api("/inventory/items/stats");
+    const summary = s?.data?.summary || {};
+
+    document.getElementById("cnt-in-stock").textContent  = summary["In Stock"] ?? 0;
+    document.getElementById("cnt-issued").textContent    = summary["Issued for Installation"] ?? 0;
+    document.getElementById("cnt-assigned-jobcard").textContent = summary["Assigned to Job Card"] ?? 0;
+    document.getElementById("cnt-installed").textContent = summary["Installed"] ?? 0;
+    document.getElementById("cnt-returned").textContent  = summary["Returned"] ?? 0;
+    document.getElementById("cnt-defective").textContent = summary["Defective"] ?? 0;
+    document.getElementById("cnt-supplier").textContent  = summary["Sent to Supplier"] ?? 0;
+
+    // Device Pipeline — In Stock / Issued / Installed, bar widths relative to
+    // the largest of the three (these are mutually-exclusive statuses, not a
+    // strict subset funnel, so "largest stage = 100%" is the honest baseline).
+    const stockN = Number(summary["In Stock"] || 0);
+    const issuedN = Number(summary["Issued for Installation"] || 0);
+    const installedN = Number(summary["Installed"] || 0);
+    const pipeMax = Math.max(stockN, issuedN, installedN, 1);
+    document.getElementById("pipe-stock").style.width = Math.round(stockN / pipeMax * 100) + "%";
+    document.getElementById("pipe-stock-n").textContent = stockN;
+    document.getElementById("pipe-issued").style.width = Math.round(issuedN / pipeMax * 100) + "%";
+    document.getElementById("pipe-issued-n").textContent = issuedN;
+    document.getElementById("pipe-installed").style.width = Math.round(installedN / pipeMax * 100) + "%";
+    document.getElementById("pipe-installed-n").textContent = installedN;
+
+    // Status Distribution donut
+    const statusColors = {
+      "In Stock": "#22c55e", "Reserved": "#f59e0b", "Issued for Installation": "#3b82f6",
+      "Installed": "#10b981", "Returned": "#64748b", "Defective": "#ef4444", "Sent to Supplier": "#a855f7",
+    };
+    const statusLabels = Object.keys(statusColors).filter(k => Number(summary[k] || 0) > 0);
+    mkChart("chart-status-dist", {
+      type: "doughnut",
+      data: {
+        labels: statusLabels,
+        datasets: [{ data: statusLabels.map(k => Number(summary[k] || 0)), backgroundColor: statusLabels.map(k => statusColors[k]) }],
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { boxWidth: 10, font: { size: 11 } } } } },
+    });
+
+    const lowStockList = document.getElementById("low-stock-list");
+    const alerts = s?.data?.lowStock ?? [];
+    if (!alerts.length) {
+      lowStockList.innerHTML = `<div class="p-6 text-sm text-slate-400 text-center">No low-stock products.</div>`;
+    } else {
+      lowStockList.innerHTML = alerts.map(p => `
+        <div class="flex items-center justify-between px-6 py-3">
+          <div>
+            <p class="text-sm font-medium text-slate-800">${p.product_code} — ${p.product_name}</p>
+            <p class="text-xs text-slate-400">${p.device_model ?? ""}</p>
+          </div>
+          <div class="text-right">
+            <span class="text-sm font-semibold text-red-500">${p.in_stock ?? 0} in stock</span>
+            <p class="text-xs text-slate-400">Reorder at ${p.reorder_level}</p>
+          </div>
+        </div>`).join("");
+    }
+  } catch(e) {
+    console.error(e);
+    ["cnt-in-stock","cnt-issued","cnt-assigned-jobcard","cnt-installed","cnt-returned","cnt-defective","cnt-supplier"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = "0";
+    });
+    ["pipe-stock-n","pipe-issued-n","pipe-installed-n"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = "0";
+    });
+    const lowStockList = document.getElementById("low-stock-list");
+    if (lowStockList) lowStockList.innerHTML = `<div class="p-6 text-sm text-rose-500 text-center">Unable to load low-stock alerts.</div>`;
+  }
+
+  // SIM Card stats — same treatment as devices: pipeline, stat cards
+  // (including "Installed", previously fetched but never shown), status
+  // distribution donut, and a movement trend chart.
+  try {
+    const sim = await api("/inventory/sims/stats");
+    const d   = sim?.data || {};
+    document.getElementById("sim-cnt-total").textContent     = d.total     ?? 0;
+    document.getElementById("sim-cnt-available").textContent = d.available ?? 0;
+    document.getElementById("sim-cnt-issued").textContent    = d.issued    ?? 0;
+    document.getElementById("sim-cnt-installed").textContent = d.installed ?? 0;
+    document.getElementById("sim-cnt-suspended").textContent = d.suspended ?? 0;
+    document.getElementById("sim-cnt-retired").textContent   = d.retired   ?? 0;
+
+    const availN = Number(d.available || 0);
+    const issuedN = Number(d.issued || 0);
+    const simInstalledN = Number(d.installed || 0);
+    const simPipeMax = Math.max(availN, issuedN, simInstalledN, 1);
+    document.getElementById("dsim-pipe-available").style.width = Math.round(availN / simPipeMax * 100) + "%";
+    document.getElementById("dsim-pipe-available-n").textContent = availN;
+    document.getElementById("dsim-pipe-issued").style.width = Math.round(issuedN / simPipeMax * 100) + "%";
+    document.getElementById("dsim-pipe-issued-n").textContent = issuedN;
+    document.getElementById("dsim-pipe-installed").style.width = Math.round(simInstalledN / simPipeMax * 100) + "%";
+    document.getElementById("dsim-pipe-installed-n").textContent = simInstalledN;
+
+    const simStatusColors = { "Available": "#22c55e", "Issued": "#3b82f6", "Installed": "#10b981", "Suspended": "#f59e0b", "Retired": "#64748b" };
+    const simStatusVals = { "Available": availN, "Issued": issuedN, "Installed": simInstalledN, "Suspended": Number(d.suspended || 0), "Retired": Number(d.retired || 0) };
+    const simLabels = Object.keys(simStatusColors).filter(k => simStatusVals[k] > 0);
+    mkChart("chart-sim-status", {
+      type: "doughnut",
+      data: { labels: simLabels, datasets: [{ data: simLabels.map(k => simStatusVals[k]), backgroundColor: simLabels.map(k => simStatusColors[k]) }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { boxWidth: 10, font: { size: 11 } } } } },
+    });
+  } catch (e) {
+    console.error("SIM stats:", e);
+    ["sim-cnt-total","sim-cnt-available","sim-cnt-issued","sim-cnt-installed","sim-cnt-suspended","sim-cnt-retired"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = "0";
+    });
+    ["dsim-pipe-available-n","dsim-pipe-issued-n","dsim-pipe-installed-n"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = "0";
+    });
+  }
+
+  // SIM Movement Volume Trend (last 30 days, zero-filled — same pattern as
+  // the device movement trend chart, endpoint already built for the Reports tab).
+  try {
+    const st = await api("/inventory/sims/movement-trend?days=30");
+    const simTrendRows = Array.isArray(st?.data) ? st.data : [];
+    const simByDay = Object.fromEntries(simTrendRows.map(r => [r.day, Number(r.cnt)]));
+    const simDays = [];
+    for (let i = 29; i >= 0; i--) simDays.push(new Date(Date.now() - i * 86400000).toISOString().slice(0, 10));
+    mkChart("chart-sim-trend", {
+      type: "line",
+      data: {
+        labels: simDays.map(d => d.slice(5)),
+        datasets: [{ label: "Movements", data: simDays.map(d => simByDay[d] || 0),
+          borderColor: "#7c3aed", backgroundColor: "rgba(124,58,237,0.08)", fill: true, tension: 0.3, pointRadius: 2 }],
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: "#f1f5f9" } }, x: { grid: { display: false } } } },
+    });
+  } catch (e) {
+    console.error("SIM movement trend:", e);
+  }
+
+  // Defective Device Reports
+  try {
+    const dr = await api("/device-custody/defect-reports?status=Reported");
+    const panel = document.getElementById("defective-reports-panel");
+    const reports = dr?.data || dr || [];
+    if (!Array.isArray(reports) || reports.length === 0) {
+      panel.innerHTML = `<div class="p-6 text-sm text-slate-400 text-center">No pending defective device reports.</div>`;
+    } else {
+      const fmtDate = d => d ? new Date(d).toLocaleDateString("en-KE", { day:"2-digit", month:"short", year:"numeric" }) : "—";
+      panel.innerHTML = reports.slice(0, 6).map(r => `
+        <div class="flex items-center justify-between px-6 py-3">
+          <div>
+            <p class="text-sm font-medium text-slate-800 font-mono">${r.deviceSerial || "—"}</p>
+            <p class="text-xs text-slate-500">Reported by ${r.reportedByEmail || "—"} · ${fmtDate(r.createdAt)}</p>
+            <p class="text-xs text-slate-400 mt-0.5 line-clamp-1">${r.description}</p>
+          </div>
+          <a href="inventory-warranty.html" class="ml-4 shrink-0 text-xs px-3 py-1.5 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition whitespace-nowrap">
+            Review
+          </a>
+        </div>`).join("") +
+        (reports.length > 6 ? `<div class="px-6 py-3 text-xs text-slate-400 text-center">+${reports.length - 6} more — <a href="inventory-warranty.html" class="text-red-600 hover:underline">view all</a></div>` : "");
+    }
+  } catch(e) {
+    console.error(e);
+    const panel = document.getElementById("defective-reports-panel");
+    if (panel) panel.innerHTML = `<div class="p-6 text-sm text-rose-500 text-center">Unable to load defective reports.</div>`;
+  }
+
+  // Detailed dashboard: by category/product, fastest moving, top technicians
+  try {
+    const d = await api("/inventory/items/dashboard-detail");
+    const data = d?.data || {};
+
+    // ── By category & product ────────────────────────────────────────────
+    const tbody = document.getElementById("cat-product-tbody");
+    const filterInput = document.getElementById("cat-product-filter");
+    const rows = Array.isArray(data.byCategoryProduct) ? data.byCategoryProduct : [];
+
+    const renderCatTable = (term = "") => {
+      const t = term.trim().toLowerCase();
+      const filtered = !t ? rows : rows.filter(r =>
+        (r.product_code || "").toLowerCase().includes(t) ||
+        (r.product_name || "").toLowerCase().includes(t) ||
+        (r.device_model || "").toLowerCase().includes(t) ||
+        (r.category_name || "").toLowerCase().includes(t)
+      );
+
+      if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-6 text-center text-slate-400">No matching products.</td></tr>`;
+        return;
+      }
+
+      // Group by category
+      const grouped = filtered.reduce((acc, r) => {
+        const k = r.category_id || "_";
+        (acc[k] = acc[k] || { name: r.category_name || "Uncategorised", rows: [] }).rows.push(r);
+        return acc;
+      }, {});
+
+      const num = v => Number(v ?? 0);
+      const cell = (v, cls = "text-slate-700") => `<td class="px-3 py-3 text-right tabular-nums ${cls}">${num(v)}</td>`;
+
+      let html = "";
+      for (const k of Object.keys(grouped)) {
+        const g = grouped[k];
+        const sub = g.rows.reduce((a, r) => ({
+          in_stock:  a.in_stock  + num(r.in_stock),
+          reserved:  a.reserved  + num(r.reserved),
+          issued:    a.issued    + num(r.issued),
+          installed: a.installed + num(r.installed),
+          returned:  a.returned  + num(r.returned),
+          defective: a.defective + num(r.defective),
+          total:     a.total     + num(r.total),
+        }), { in_stock:0, reserved:0, issued:0, installed:0, returned:0, defective:0, total:0 });
+
+        html += `
+          <tr class="bg-slate-50/70">
+            <td class="px-6 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">${g.name}</td>
+            ${cell(sub.in_stock,  "text-green-700 font-semibold")}
+            ${cell(sub.reserved,  "text-amber-700 font-semibold")}
+            ${cell(sub.issued,    "text-blue-700 font-semibold")}
+            ${cell(sub.installed, "text-emerald-700 font-semibold")}
+            ${cell(sub.returned,  "text-slate-700 font-semibold")}
+            ${cell(sub.defective, "text-red-700 font-semibold")}
+            <td class="px-6 py-2 text-right tabular-nums font-semibold text-slate-900">${sub.total}</td>
+          </tr>`;
+        for (const r of g.rows) {
+          html += `
+            <tr class="hover:bg-slate-50">
+              <td class="px-6 py-3">
+                <p class="text-sm font-medium text-slate-800">${r.product_code} — ${r.product_name}</p>
+                <p class="text-xs text-slate-400">${r.device_model || ""}</p>
+              </td>
+              ${cell(r.in_stock,  "text-green-600")}
+              ${cell(r.reserved,  "text-amber-600")}
+              ${cell(r.issued,    "text-blue-600")}
+              ${cell(r.installed, "text-emerald-600")}
+              ${cell(r.returned,  "text-slate-600")}
+              ${cell(r.defective, "text-red-600")}
+              <td class="px-6 py-3 text-right tabular-nums font-semibold">${num(r.total)}</td>
+            </tr>`;
+        }
+      }
+      tbody.innerHTML = html;
+    };
+
+    renderCatTable();
+    if (filterInput) filterInput.addEventListener("input", e => renderCatTable(e.target.value));
+
+    // ── Fastest moving ───────────────────────────────────────────────────
+    const fmBody = document.getElementById("fastest-moving-tbody");
+    const fm = Array.isArray(data.fastestMoving) ? data.fastestMoving : [];
+    if (!fm.length) {
+      fmBody.innerHTML = `<tr><td colspan="5" class="px-6 py-6 text-center text-slate-400">No movement activity in the last 30 days.</td></tr>`;
+    } else {
+      fmBody.innerHTML = fm.map((r, idx) => `
+        <tr class="hover:bg-slate-50">
+          <td class="px-6 py-3 text-slate-400 font-mono text-xs">${idx + 1}</td>
+          <td class="px-3 py-3">
+            <p class="text-sm font-medium text-slate-800">${r.product_code} — ${r.product_name}</p>
+            <p class="text-xs text-slate-400">${r.category_name || ""} · ${r.device_model || ""}</p>
+          </td>
+          <td class="px-3 py-3 text-right tabular-nums text-blue-600">${Number(r.issued_30d ?? 0)}</td>
+          <td class="px-3 py-3 text-right tabular-nums text-emerald-600">${Number(r.installed_30d ?? 0)}</td>
+          <td class="px-6 py-3 text-right tabular-nums font-semibold text-slate-900">${Number(r.movements_30d ?? 0)}</td>
+        </tr>`).join("");
+    }
+
+    // ── Top technicians ──────────────────────────────────────────────────
+    renderTopTechnicians(data.topTechnicians, 90);
+
+    // ── Movement Volume Trend (last 30 days, zero-filled) ─────────────────
+    const trendRows = Array.isArray(data.movementTrend) ? data.movementTrend : [];
+    const byDay = Object.fromEntries(trendRows.map(r => [r.day, Number(r.cnt)]));
+    const days = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+      days.push(d);
+    }
+    mkChart("chart-movement-trend", {
+      type: "line",
+      data: {
+        labels: days.map(d => d.slice(5)),
+        datasets: [{ label: "Movements", data: days.map(d => byDay[d] || 0),
+          borderColor: "#2563eb", backgroundColor: "rgba(37,99,235,0.08)", fill: true, tension: 0.3, pointRadius: 2 }],
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: "#f1f5f9" } }, x: { grid: { display: false } } } },
+    });
+
+    // ── Recent Movements — real inv_movements feed (not just latest-touched items) ──
+    const movList = document.getElementById("movements-list");
+    const moves = Array.isArray(data.recentMovements) ? data.recentMovements : [];
+    const actionLabel = (m) => {
+      const dev = m.device_model || m.product_name || "Device";
+      if (m.action === "ISSUED_TO_TECHNICIAN") return `${dev} issued to technician`;
+      if (m.action === "INSTALLED") return `${dev} installed`;
+      if (m.action === "RETURNED" || m.action === "RETURNED_DEFECTIVE") return `${dev} returned${m.action === "RETURNED_DEFECTIVE" ? " (defective)" : ""}`;
+      if (m.action === "RESTORED") return `${dev} restored to stock`;
+      return `${dev} — ${(m.action || "").replace(/_/g, " ").toLowerCase()}`;
+    };
+    const actionBadge = (a) => {
+      if (a === "INSTALLED") return "bg-emerald-100 text-emerald-700";
+      if (a === "ISSUED_TO_TECHNICIAN") return "bg-blue-100 text-blue-700";
+      if (a === "RETURNED" || a === "RETURNED_DEFECTIVE") return "bg-red-100 text-red-700";
+      return "bg-slate-100 text-slate-600";
+    };
+    if (!moves.length) {
+      movList.innerHTML = `<div class="p-6 text-sm text-slate-400 text-center">No device movements yet.</div>`;
+    } else {
+      const fmtWhen = (d) => d ? new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
+      movList.innerHTML = moves.map(m => `
+        <div class="flex items-center justify-between px-6 py-3">
+          <div>
+            <p class="text-sm font-medium text-slate-800">${actionLabel(m)} ${m.imei ? `· ${m.imei}` : ""}</p>
+            <p class="text-xs text-slate-400">${m.performed_by_email || "—"} · ${fmtWhen(m.created_at)}</p>
+          </div>
+          <span class="text-xs px-2 py-0.5 rounded-full font-semibold ${actionBadge(m.action)}">${(m.action || "").replace(/_/g, " ")}</span>
+        </div>`).join("");
+    }
+
+    // ── Devices Linked to Certificates ─────────────────────────────────────
+    const cert = data.certLinkage || { count: 0, rows: [] };
+    document.getElementById("cnt-certs").textContent = Number(cert.count || 0);
+    document.getElementById("certs-count-label").textContent = `${Number(cert.count || 0)} certificate${Number(cert.count) === 1 ? "" : "s"} matched`;
+    const certsTbody = document.getElementById("certs-tbody");
+    const certRows = Array.isArray(cert.rows) ? cert.rows : [];
+    if (!certRows.length) {
+      certsTbody.innerHTML = `<tr><td colspan="6" class="px-6 py-6 text-center text-slate-400">No certificates matched to inventory devices yet.</td></tr>`;
+    } else {
+      const fmtDate = d => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+      certsTbody.innerHTML = certRows.map(r => `
+        <tr class="hover:bg-slate-50">
+          <td class="px-6 py-3 font-mono text-xs font-semibold text-blue-700">${r.serial_no || "—"}</td>
+          <td class="px-3 py-3 font-mono text-xs">${r.car_registration || "—"}</td>
+          <td class="px-3 py-3 text-slate-700">${r.customer_name || "—"}</td>
+          <td class="px-3 py-3 text-slate-700">${r.device_model || r.product_name || "—"}</td>
+          <td class="px-3 py-3 font-mono text-xs text-slate-500">${r.imei || r.serial_number || "—"}</td>
+          <td class="px-6 py-3 text-right text-xs text-slate-400">${fmtDate(r.cert_created_at)}</td>
+        </tr>`).join("");
+    }
+  } catch(e) {
+    console.error(e);
+    const tbody = document.getElementById("cat-product-tbody");
+    if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-6 text-center text-rose-500">Unable to load detailed dashboard.</td></tr>`;
+    const fmBody = document.getElementById("fastest-moving-tbody");
+    if (fmBody) fmBody.innerHTML = `<tr><td colspan="5" class="px-6 py-6 text-center text-rose-500">Unable to load fastest-moving inventory.</td></tr>`;
+    const ttList = document.getElementById("top-technicians-list");
+    if (ttList) ttList.innerHTML = `<div class="p-6 text-sm text-rose-500 text-center">Unable to load technician ranking.</div>`;
+    const movList = document.getElementById("movements-list");
+    if (movList) movList.innerHTML = `<div class="p-6 text-sm text-rose-500 text-center">Unable to load recent movements.</div>`;
+    const certsTbody = document.getElementById("certs-tbody");
+    if (certsTbody) certsTbody.innerHTML = `<tr><td colspan="6" class="px-6 py-6 text-center text-rose-500">Unable to load certificate linkage.</td></tr>`;
+    const certsCnt = document.getElementById("cnt-certs");
+    if (certsCnt) certsCnt.textContent = "0";
+  }
+})();
+</script>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// REPORTS TAB — from the standalone inventory-reports.html, now
+// merged in and lazy-initialized (initReports(), called once on
+// first click into the Reports page-tab — see the tab-switch
+// script above). All IDs here are dev-*/sim-*/sim2-*/inst-*
+// prefixed and don't collide with the Dashboard tab's IDs.
+// ─────────────────────────────────────────────────────────────
+const APP = window.FINEMARK_APP;
+const $ = (id) => document.getElementById(id);
+const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtDT = (d) => d ? new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+
+const DAY_STEPS = [7, 14, 30, 60, 90];
+
+const reportsCharts = {};
+function mkReportsChart(id, config) {
+  if (reportsCharts[id]) reportsCharts[id].destroy();
+  const el = $(id);
+  if (!el) return;
+  reportsCharts[id] = new Chart(el, config);
+}
+
+// ── DEVICE REPORTS — client-side data table state (see full implementation
+//    lower in this script). The full dataset per sub-tab is fetched once and
+//    cached; column config, multi-column search, paging & export all run
+//    in-browser off that cache. ──
+let _instTab = "devices";
+let _instPage = 1;
+const _instAll = { devices: null, sims: null };
+document.querySelectorAll("[data-subtab]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("[data-subtab]").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    _instTab = btn.dataset.subtab;
+    _instPage = 1;
+    $("inst-search").value = "";
+    loadInstallations();
+  });
+});
+
+// ── DEVICES — pipeline, stats, charts ───────────────────────────────────────
+async function loadDeviceStats() {
+  try {
+    const s = await APP.apiFetch("/inventory/items/stats");
+    const summary = s?.data?.summary || {};
+    $("dev-cnt-stock").textContent     = summary["In Stock"] ?? 0;
+    $("dev-cnt-issued").textContent    = summary["Issued for Installation"] ?? 0;
+    $("dev-cnt-jobcard").textContent   = summary["Assigned to Job Card"] ?? 0;
+    $("dev-cnt-installed").textContent = summary["Installed"] ?? 0;
+    $("dev-cnt-returned").textContent  = summary["Returned"] ?? 0;
+    $("dev-cnt-defective").textContent = summary["Defective"] ?? 0;
+    $("dev-cnt-supplier").textContent  = summary["Sent to Supplier"] ?? 0;
+
+    const stockN = Number(summary["In Stock"] || 0);
+    const issuedN = Number(summary["Issued for Installation"] || 0);
+    const installedN = Number(summary["Installed"] || 0);
+    const max = Math.max(stockN, issuedN, installedN, 1);
+    $("dev-pipe-stock").style.width = Math.round(stockN / max * 100) + "%";
+    $("dev-pipe-stock-n").textContent = stockN;
+    $("dev-pipe-issued").style.width = Math.round(issuedN / max * 100) + "%";
+    $("dev-pipe-issued-n").textContent = issuedN;
+    $("dev-pipe-installed").style.width = Math.round(installedN / max * 100) + "%";
+    $("dev-pipe-installed-n").textContent = installedN;
+
+    const statusColors = {
+      "In Stock": "#22c55e", "Reserved": "#f59e0b", "Issued for Installation": "#3b82f6",
+      "Installed": "#10b981", "Returned": "#64748b", "Defective": "#ef4444", "Sent to Supplier": "#a855f7",
+    };
+    const labels = Object.keys(statusColors).filter((k) => Number(summary[k] || 0) > 0);
+    mkReportsChart("dev-chart-status", {
+      type: "doughnut",
+      data: { labels, datasets: [{ data: labels.map((k) => Number(summary[k] || 0)), backgroundColor: labels.map((k) => statusColors[k]) }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { boxWidth: 10, font: { size: 11 } } } } },
+    });
+  } catch (e) {
+    console.error("Device stats:", e);
+  }
+}
+
+async function loadDeviceTrend(days) {
+  $("dev-trend-label").textContent = `${days} days`;
+  try {
+    const r = await APP.apiFetch(`/inventory/items/dashboard-detail?days=${days}`);
+    const data = r?.data || {};
+    $("dev-cnt-certs").textContent = Number(data.certLinkage?.count || 0);
+    const trendRows = Array.isArray(data.movementTrend) ? data.movementTrend : [];
+    renderReportsTrendChart("dev-chart-trend", trendRows, days, "#2563eb");
+  } catch (e) {
+    console.error("Device trend:", e);
+  }
+}
+
+function renderReportsTrendChart(canvasId, rows, days, color) {
+  const byDay = Object.fromEntries(rows.map((r) => [r.day, Number(r.cnt)]));
+  const labels = [];
+  for (let i = days - 1; i >= 0; i--) labels.push(new Date(Date.now() - i * 86400000).toISOString().slice(0, 10));
+  mkReportsChart(canvasId, {
+    type: "line",
+    data: { labels: labels.map((d) => d.slice(5)), datasets: [{ label: "Movements", data: labels.map((d) => byDay[d] || 0),
+      borderColor: color, backgroundColor: color + "1a", fill: true, tension: 0.3, pointRadius: days > 45 ? 0 : 2 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: "#f1f5f9" } }, x: { grid: { display: false } } } },
+  });
+}
+
+const devSlider = $("dev-trend-slider");
+let devSliderT;
+devSlider.addEventListener("input", () => {
+  const days = DAY_STEPS[Number(devSlider.value)] ?? 30;
+  $("dev-trend-label").textContent = `${days} days`;
+  clearTimeout(devSliderT);
+  devSliderT = setTimeout(() => loadDeviceTrend(days), 250);
+});
+
+// ── SIMS — pipeline, stats, chart ───────────────────────────────────────────
+async function loadReportsSimStats() {
+  try {
+    const s = await APP.apiFetch("/inventory/sims/stats");
+    const d = s?.data || {};
+    $("sim2-cnt-total").textContent     = d.total ?? 0;
+    $("sim2-cnt-available").textContent = d.available ?? 0;
+    $("sim2-cnt-issued").textContent    = d.issued ?? 0;
+    $("sim2-cnt-installed").textContent = d.installed ?? 0;
+    $("sim2-cnt-suspended").textContent = d.suspended ?? 0;
+    $("sim2-cnt-retired").textContent   = d.retired ?? 0;
+
+    const availN = Number(d.available || 0);
+    const issuedN = Number(d.issued || 0);
+    const installedN = Number(d.installed || 0);
+    const max = Math.max(availN, issuedN, installedN, 1);
+    $("sim-pipe-available").style.width = Math.round(availN / max * 100) + "%";
+    $("sim-pipe-available-n").textContent = availN;
+    $("sim-pipe-issued").style.width = Math.round(issuedN / max * 100) + "%";
+    $("sim-pipe-issued-n").textContent = issuedN;
+    $("sim-pipe-installed").style.width = Math.round(installedN / max * 100) + "%";
+    $("sim-pipe-installed-n").textContent = installedN;
+  } catch (e) {
+    console.error("SIM stats:", e);
+  }
+}
+
+async function loadSimTrend(days) {
+  $("sim-trend-label").textContent = `${days} days`;
+  try {
+    const r = await APP.apiFetch(`/inventory/sims/movement-trend?days=${days}`);
+    renderReportsTrendChart("sim-chart-trend", r?.data || [], days, "#7c3aed");
+  } catch (e) {
+    console.error("SIM trend:", e);
+  }
+}
+
+const simSlider = $("sim-trend-slider");
+let simSliderT;
+simSlider.addEventListener("input", () => {
+  const days = DAY_STEPS[Number(simSlider.value)] ?? 30;
+  $("sim-trend-label").textContent = `${days} days`;
+  clearTimeout(simSliderT);
+  simSliderT = setTimeout(() => loadSimTrend(days), 250);
+});
+
+// ── DEVICE REPORTS — client-side data table ─────────────────────────────────
+const DEVICE_STATUSES = ["In Stock", "Reserved", "Issued for Installation", "Installed", "Returned", "Defective", "Sent to Supplier"];
+const SIM_STATUSES = ["available", "issued", "installed", "suspended", "retired"];
+const INST_PAGE_SIZE = 25;
+
+// Column catalogs per sub-tab. text(r) → plain string used for search, filter
+// and export; cell(r) → optional richer HTML for the on-screen table.
+const INST_COLUMNS = {
+  devices: [
+    { key: "product",    label: "Product / Model",
+      text: r => `${r.product_code || ""} — ${r.product_name || ""}${r.device_model ? " · " + r.device_model : ""}`,
+      cell: r => `<p class="font-medium text-slate-800">${escapeHtml(r.product_code)} — ${escapeHtml(r.product_name)}</p><p class="text-slate-400">${escapeHtml(r.device_model || "")}</p>` },
+    { key: "imei",       label: "IMEI / Serial", mono: true, text: r => r.imei || r.serial_number || "" },
+    { key: "status",     label: "Status",     text: r => r.status || "" },
+    { key: "customer",   label: "Customer",   text: r => r.job_customer_name || "" },
+    { key: "vehicle",    label: "Vehicle", mono: true, text: r => r.job_vehicle_reg || "" },
+    { key: "salesRep",   label: "Sales Rep",  text: r => r.sales_rep_name || "" },
+    { key: "technician", label: "Technician", text: r => r.technician_name || r.technician_email || "" },
+    { key: "iso",        label: "ISO",        text: r => r.iso_name || r.iso_email || "" },
+    { key: "pairedSim",  label: "Paired SIM", mono: true, text: r => r.paired_sim_iccid || r.paired_sim_msisdn || "" },
+    { key: "issued",     label: "Issued", align: "right", text: r => fmtDT(r.issued_at) },
+  ],
+  sims: [
+    { key: "iccid",       label: "ICCID / MSISDN",
+      text: r => `${r.iccid || ""}${r.msisdn ? " · " + r.msisdn : ""}`,
+      cell: r => `<p class="font-mono text-slate-800">${escapeHtml(r.iccid || "")}</p><p class="text-slate-400">${escapeHtml(r.msisdn || "—")}</p>` },
+    { key: "deviceModel", label: "Device Model", text: r => r.device_model || "" },
+    { key: "status",      label: "Status",     text: r => r.status || "" },
+    { key: "customer",    label: "Customer",   text: r => r.job_customer_name || "" },
+    { key: "vehicle",     label: "Vehicle", mono: true, text: r => r.job_vehicle_reg || "" },
+    { key: "technician",  label: "Technician", text: r => r.technician_email || "" },
+    { key: "iso",         label: "ISO",        text: r => r.iso_name || r.iso_email || "" },
+    { key: "installed",   label: "Installed", align: "right", text: r => fmtDT(r.installed_at) },
+  ],
+};
+
+const cellText = (c, r) => { try { return c.text(r) || ""; } catch { return ""; } };
+const cellHtml = (c, r) => c.cell ? c.cell(r) : (escapeHtml(cellText(c, r)) || "—");
+
+// ── configurable columns (persisted per sub-tab) ──
+const colsKey = tab => `fm_devrep_cols_${tab}`;
+function visibleColKeys(tab) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(colsKey(tab)) || "null");
+    if (Array.isArray(saved) && saved.length) {
+      const valid = new Set(INST_COLUMNS[tab].map(c => c.key));
+      const f = saved.filter(k => valid.has(k));
+      if (f.length) return f;
+    }
+  } catch {}
+  return INST_COLUMNS[tab].map(c => c.key); // default: all visible
+}
+function setVisibleColKeys(tab, keys) { try { localStorage.setItem(colsKey(tab), JSON.stringify(keys)); } catch {} }
+function activeColumns() {
+  const vis = new Set(visibleColKeys(_instTab));
+  return INST_COLUMNS[_instTab].filter(c => vis.has(c.key));
+}
+
+function renderInstStatusOptions() {
+  const sel = $("inst-status");
+  const opts = _instTab === "devices" ? DEVICE_STATUSES : SIM_STATUSES;
+  sel.innerHTML = `<option value="">All Statuses</option>` + opts.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
+}
+
+function renderColumnsPanel() {
+  const list = $("inst-columns-list");
+  const vis = new Set(visibleColKeys(_instTab));
+  list.innerHTML = INST_COLUMNS[_instTab].map(c => `
+    <label class="flex items-center gap-2 px-1.5 py-1 rounded-lg hover:bg-slate-50 text-sm text-slate-700 cursor-pointer">
+      <input type="checkbox" data-col="${c.key}" ${vis.has(c.key) ? "checked" : ""} class="rounded border-slate-300 text-slate-900" />
+      ${escapeHtml(c.label)}
+    </label>`).join("");
+  list.querySelectorAll("input[type=checkbox]").forEach(cb => {
+    cb.addEventListener("change", () => {
+      const checked = [...list.querySelectorAll("input:checked")].map(x => x.dataset.col);
+      if (!checked.length) { cb.checked = true; return; } // always keep ≥1 column
+      const ordered = INST_COLUMNS[_instTab].map(c => c.key).filter(k => checked.includes(k));
+      setVisibleColKeys(_instTab, ordered);
+      renderInstTable();
+    });
+  });
+}
+
+// ── filtering: status dropdown + multi-term search across ALL columns ──
+function filteredInstRows() {
+  const all = _instAll[_instTab] || [];
+  const q = ($("inst-search").value || "").trim().toLowerCase();
+  const status = $("inst-status").value;
+  const terms = q ? q.split(/\s+/).filter(Boolean) : [];
+  const cols = INST_COLUMNS[_instTab];
+  return all.filter(r => {
+    if (status && (r.status || "") !== status) return false;
+    if (terms.length) {
+      const hay = cols.map(c => cellText(c, r)).join(" ").toLowerCase();
+      if (!terms.every(t => hay.includes(t))) return false;
+    }
+    return true;
+  });
+}
+
+function renderInstTable() {
+  const cols = activeColumns();
+  $("inst-thead").innerHTML = `<tr>${cols.map(c => `<th class="px-3 py-3 ${c.align === "right" ? "text-right" : "text-left"}">${escapeHtml(c.label)}</th>`).join("")}</tr>`;
+  const tbody = $("inst-tbody");
+  const rows = filteredInstRows();
+  const total = rows.length;
+  const pages = Math.max(1, Math.ceil(total / INST_PAGE_SIZE));
+  if (_instPage > pages) _instPage = pages;
+  const pageRows = rows.slice((_instPage - 1) * INST_PAGE_SIZE, (_instPage - 1) * INST_PAGE_SIZE + INST_PAGE_SIZE);
+  tbody.innerHTML = pageRows.length
+    ? pageRows.map(r => `<tr class="hover:bg-slate-50">${cols.map(c => `<td class="px-3 py-2.5 ${c.mono ? "font-mono " : ""}${c.align === "right" ? "text-right text-slate-400" : "text-slate-600"}">${cellHtml(c, r)}</td>`).join("")}</tr>`).join("")
+    : `<tr><td colspan="${cols.length}" class="text-center py-10 text-slate-400">No ${_instTab === "devices" ? "devices" : "SIMs"} matched.</td></tr>`;
+  $("inst-count").textContent = `${total} ${_instTab === "devices" ? "device" : "SIM"}${total === 1 ? "" : "s"}`;
+  $("inst-page-label").textContent = `Page ${_instPage} / ${pages}`;
+  $("inst-prev").disabled = _instPage <= 1;
+  $("inst-next").disabled = _instPage >= pages;
+}
+
+// ── fetch the FULL dataset for a sub-tab (paginate the server, cache it) ──
+async function fetchAllInst(tab) {
+  const rows = [];
+  const cfg = tab === "devices"
+    ? { path: "/inventory/items", pageSize: 500, total: r => r?.meta?.total, maxPages: 20 }
+    : { path: "/inventory/sims",  pageSize: 200, total: r => r?.total,       maxPages: 40 };
+  const first = await APP.apiFetch(`${cfg.path}?page=1&pageSize=${cfg.pageSize}`);
+  rows.push(...(first?.data || []));
+  const total = Number(cfg.total(first) || rows.length);
+  const pages = Math.min(Math.ceil(total / cfg.pageSize), cfg.maxPages);
+  for (let p = 2; p <= pages; p++) {
+    const r = await APP.apiFetch(`${cfg.path}?page=${p}&pageSize=${cfg.pageSize}`);
+    rows.push(...(r?.data || []));
+  }
+  return rows;
+}
+
+async function loadInstallations() {
+  renderInstStatusOptions();
+  renderColumnsPanel();
+  const cols = activeColumns();
+  $("inst-thead").innerHTML = "";
+  $("inst-tbody").innerHTML = `<tr><td colspan="${cols.length}" class="text-center py-10 text-slate-400">Loading…</td></tr>`;
+  if (!_instAll[_instTab]) {
+    try {
+      _instAll[_instTab] = await fetchAllInst(_instTab);
+    } catch (e) {
+      console.error("Device Reports load:", e);
+      $("inst-tbody").innerHTML = `<tr><td colspan="${cols.length}" class="text-center py-10 text-rose-500">Unable to load report.</td></tr>`;
+      return;
+    }
+  }
+  renderInstTable();
+}
+
+// ── export: CSV / Excel(.xls HTML) / PDF(print) — exports the FILTERED rows
+//    with the currently VISIBLE columns ──
+function exportName(ext) {
+  return `${_instTab === "devices" ? "device" : "sim"}-installations-${new Date().toISOString().slice(0, 10)}.${ext}`;
+}
+function downloadBlob(content, type, filename) {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+function exportCsv() {
+  const cols = activeColumns(), rows = filteredInstRows();
+  const esc = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const lines = [cols.map(c => esc(c.label)).join(",")];
+  for (const r of rows) lines.push(cols.map(c => esc(cellText(c, r))).join(","));
+  downloadBlob("﻿" + lines.join("\r\n"), "text/csv;charset=utf-8", exportName("csv"));
+}
+function exportExcel() {
+  const cols = activeColumns(), rows = filteredInstRows();
+  const th = cols.map(c => `<th style="background:#f1f5f9;border:1px solid #cbd5e1;padding:4px 8px;text-align:left">${escapeHtml(c.label)}</th>`).join("");
+  // mso-number-format '\@' forces text so long IMEIs/ICCIDs aren't mangled into scientific notation.
+  const trs = rows.map(r => `<tr>${cols.map(c => `<td style="border:1px solid #e2e8f0;padding:4px 8px;mso-number-format:'\\@'">${escapeHtml(cellText(c, r))}</td>`).join("")}</tr>`).join("");
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Installations</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table>${th ? `<thead><tr>${th}</tr></thead>` : ""}<tbody>${trs}</tbody></table></body></html>`;
+  downloadBlob(html, "application/vnd.ms-excel", exportName("xls"));
+}
+function exportPdf() {
+  const cols = activeColumns(), rows = filteredInstRows();
+  const title = `${_instTab === "devices" ? "Device" : "SIM"} Installations Report`;
+  const th = cols.map(c => `<th>${escapeHtml(c.label)}</th>`).join("");
+  const trs = rows.map(r => `<tr>${cols.map(c => `<td>${escapeHtml(cellText(c, r))}</td>`).join("")}</tr>`).join("");
+  const w = window.open("", "_blank");
+  if (!w) { alert("Please allow pop-ups to export as PDF."); return; }
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title><style>
+      body{font-family:system-ui,Arial,sans-serif;margin:24px;color:#0f172a;}
+      h1{font-size:18px;margin:0 0 4px;} p.meta{color:#64748b;font-size:12px;margin:0 0 16px;}
+      table{width:100%;border-collapse:collapse;font-size:10px;}
+      th,td{border:1px solid #cbd5e1;padding:4px 6px;text-align:left;vertical-align:top;}
+      th{background:#f1f5f9;} @media print{@page{size:landscape;margin:12mm;}}
+    </style></head><body>
+    <h1>${title}</h1>
+    <p class="meta">${rows.length} record${rows.length === 1 ? "" : "s"} · generated ${new Date().toLocaleString("en-GB")}</p>
+    <table><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table>
+    <script>window.onload=function(){window.focus();window.print();}<\/script>
+    </body></html>`);
+  w.document.close();
+}
+
+// ── event wiring (elements exist at parse time inside the hidden tab) ──
+let _instSearchT;
+$("inst-search").addEventListener("input", () => { clearTimeout(_instSearchT); _instSearchT = setTimeout(() => { _instPage = 1; renderInstTable(); }, 200); });
+$("inst-status").addEventListener("change", () => { _instPage = 1; renderInstTable(); });
+$("inst-prev").addEventListener("click", () => { if (_instPage > 1) { _instPage--; renderInstTable(); } });
+$("inst-next").addEventListener("click", () => { _instPage++; renderInstTable(); });
+
+$("inst-columns-btn").addEventListener("click", (e) => { e.stopPropagation(); $("inst-export-menu").classList.add("hidden"); $("inst-columns-panel").classList.toggle("hidden"); });
+$("inst-columns-panel").addEventListener("click", (e) => e.stopPropagation());
+$("inst-cols-all").addEventListener("click", () => { setVisibleColKeys(_instTab, INST_COLUMNS[_instTab].map(c => c.key)); renderColumnsPanel(); renderInstTable(); });
+
+$("inst-export-btn").addEventListener("click", (e) => { e.stopPropagation(); $("inst-columns-panel").classList.add("hidden"); $("inst-export-menu").classList.toggle("hidden"); });
+$("inst-export-menu").addEventListener("click", (e) => e.stopPropagation());
+document.querySelectorAll("#inst-export-menu [data-export]").forEach(b => {
+  b.addEventListener("click", () => {
+    $("inst-export-menu").classList.add("hidden");
+    const f = b.dataset.export;
+    if (f === "csv") exportCsv(); else if (f === "excel") exportExcel(); else if (f === "pdf") exportPdf();
+  });
+});
+document.addEventListener("click", () => { $("inst-columns-panel")?.classList.add("hidden"); $("inst-export-menu")?.classList.add("hidden"); });
+
+// ── INIT (called lazily on first visit to the Reports page-tab) ────────────
+function initReports() {
+  loadDeviceStats();
+  loadDeviceTrend(30);
+  loadReportsSimStats();
+  loadSimTrend(30);
+}
+
+// ── INIT (called lazily on first visit to the Device Reports page-tab) ─────
+function initDeviceReports() {
+  loadInstallations();
+}
+</script>
+  </body>
+</html>

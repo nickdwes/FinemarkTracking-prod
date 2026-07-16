@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Add New Speed Governor</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-4xl mx-auto space-y-6">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Add New Speed Governor</h1>
+              <p class="text-sm text-slate-600">Capture customer and device details.</p>
+            </div>
+            <a href="admin.html" class="text-sm text-blue-600 hover:underline">Back to Admin</a>
+          </div>
+
+          <form id="speedGovernorForm" class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm shadow-slate-200/60 space-y-5" novalidate>
+            <div id="speed-error" class="hidden rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"></div>
+            <div class="grid gap-4 md:grid-cols-2">
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5" for="customer-name">Customer name</label>
+                <input id="customer-name" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                <p class="fm-error hidden" data-error-for="customer-name"></p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5" for="phone-number">Phone number</label>
+                <input id="phone-number" type="text" placeholder="+254700000000" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                <p class="fm-error hidden" data-error-for="phone-number"></p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5" for="registration-number">Registration Number</label>
+                <input id="registration-number" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                <p class="fm-error hidden" data-error-for="registration-number"></p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5" for="vehicle-model">Model</label>
+                <input id="vehicle-model" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                <p class="fm-error hidden" data-error-for="vehicle-model"></p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5" for="device-type">Device type</label>
+                <select id="device-type" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="" disabled selected>Select device type</option>
+                  <option value="Speed Governor">Speed Governor</option>
+                  <option value="Speed Limiter">Speed Limiter</option>
+                  <option value="Other">Other</option>
+                </select>
+                <p class="fm-error hidden" data-error-for="device-type"></p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5" for="technician">Technician</label>
+                <select id="technician" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="" disabled selected>Select Technician</option>
+                </select>
+                <p class="fm-error hidden" data-error-for="technician"></p>
+                <p id="technician-lock-note" class="mt-1 text-xs text-slate-500 hidden">Technician is locked to your profile.</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5" for="sales-person">Sales person</label>
+                <select id="sales-person" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="" disabled selected>Select Sales Person</option>
+                </select>
+                <p class="fm-error hidden" data-error-for="sales-person"></p>
+                <p id="sales-lock-note" class="mt-1 text-xs text-slate-500 hidden">Sales person is locked to your profile.</p>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5" for="comments">Comments</label>
+              <textarea id="comments" rows="4" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"></textarea>
+            </div>
+            <div class="flex items-center justify-end gap-3 pt-2">
+              <a href="admin.html" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                Cancel
+              </a>
+              <button id="btnCreate" type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800" disabled>
+                Create
+              </button>
+            </div>
+          </form>
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+    <script src="assets/contracts.js"></script>
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", async () => {
+        const {
+          requirePageAccess,
+          requireRole,
+          getSession,
+          apiFetch,
+          setFieldError,
+          clearFormErrors,
+          setLoading,
+          showToast,
+        } = window.FINEMARK_APP || {};
+
+        requirePageAccess?.();
+        requireRole?.(["Admin"]);
+
+        const session = getSession?.();
+        const form = document.getElementById("speedGovernorForm");
+        const createBtn = document.getElementById("btnCreate");
+        const errorBox = document.getElementById("speed-error");
+        const technicianSelect = document.getElementById("technician");
+        const salesSelect = document.getElementById("sales-person");
+        const technicianNote = document.getElementById("technician-lock-note");
+        const salesNote = document.getElementById("sales-lock-note");
+
+        const techMap = new Map();
+        const salesMap = new Map();
+
+        const normalizeUsers = (response) => {
+          if (!response) return [];
+          if (Array.isArray(response)) return response;
+          if (Array.isArray(response.data)) return response.data;
+          if (Array.isArray(response.users)) return response.users;
+          if (Array.isArray(response.user)) return response.user;
+          if (Array.isArray(response.data?.data)) return response.data.data;
+          return [];
+        };
+
+        const populateSelect = (selectEl, users, label) => {
+          selectEl.innerHTML = `<option value="" disabled selected>Select ${label}</option>`;
+          users.forEach((user) => {
+            const option = document.createElement("option");
+            option.value = user.id;
+            option.textContent = `${user.fullName || user.name} (${user.email})`;
+            selectEl.appendChild(option);
+          });
+        };
+
+        const lockSelect = (selectEl, noteEl, id, hiddenId) => {
+          selectEl.value = id;
+          selectEl.disabled = true;
+          selectEl.classList.add("bg-slate-100", "text-slate-500");
+          noteEl.classList.remove("hidden");
+          let hidden = document.getElementById(hiddenId);
+          if (!hidden) {
+            hidden = document.createElement("input");
+            hidden.type = "hidden";
+            hidden.id = hiddenId;
+            selectEl.parentElement?.appendChild(hidden);
+          }
+          hidden.value = id;
+        };
+
+        const getLockedValue = (selectEl, hiddenId) => {
+          if (!selectEl.disabled) return selectEl.value;
+          return document.getElementById(hiddenId)?.value || selectEl.value;
+        };
+
+        const matchUser = (users, current) => {
+          if (!current) return null;
+          return users.find((user) => user.id === current.id) || users.find((user) => user.email === current.email) || null;
+        };
+
+        if (session?.user?.role === "Admin") {
+          const [techRes, salesRes] = await Promise.all([
+            apiFetch("/technical-team/members?role=Technician"),
+            apiFetch("/users?role=Sales&page=1&pageSize=200"),
+          ]);
+          const techUsers = normalizeUsers(techRes);
+          const salesUsers = normalizeUsers(salesRes);
+          techUsers.forEach((user) => techMap.set(user.id, user));
+          salesUsers.forEach((user) => salesMap.set(user.id, user));
+          populateSelect(technicianSelect, techUsers, "Technician");
+          populateSelect(salesSelect, salesUsers, "Sales Person");
+        } else if (session?.user?.role === "Technician") {
+          const user = session.user;
+          techMap.set(user.id, user);
+          populateSelect(technicianSelect, [user], "Technician");
+          lockSelect(technicianSelect, technicianNote, user.id, "technician-locked");
+          const salesRes = await apiFetch("/users?role=Sales&page=1&pageSize=200");
+          const salesUsers = normalizeUsers(salesRes);
+          salesUsers.forEach((entry) => salesMap.set(entry.id, entry));
+          populateSelect(salesSelect, salesUsers, "Sales Person");
+        } else if (session?.user?.role === "Sales") {
+          const user = session.user;
+          salesMap.set(user.id, user);
+          populateSelect(salesSelect, [user], "Sales Person");
+          lockSelect(salesSelect, salesNote, user.id, "sales-locked");
+          const techRes = await apiFetch("/technical-team/members?role=Technician");
+          const techUsers = normalizeUsers(techRes);
+          techUsers.forEach((entry) => techMap.set(entry.id, entry));
+          populateSelect(technicianSelect, techUsers, "Technician");
+        }
+
+        const validateForm = (showErrors) => {
+          if (showErrors) clearFormErrors(form);
+          if (errorBox) errorBox.classList.add("hidden");
+          const customerName = document.getElementById("customer-name");
+          const phoneNumber = document.getElementById("phone-number");
+          const registrationNumber = document.getElementById("registration-number");
+          const model = document.getElementById("vehicle-model");
+          const deviceType = document.getElementById("device-type");
+          const technicianId = getLockedValue(technicianSelect, "technician-locked");
+          const salesId = getLockedValue(salesSelect, "sales-locked");
+
+          const errors = [];
+          if (!customerName.value.trim()) errors.push({ el: customerName, msg: "Customer name is required." });
+          if (!phoneNumber.value.trim() || !/^[+0-9\\s-]{10,}$/.test(phoneNumber.value.trim())) {
+            errors.push({ el: phoneNumber, msg: "Enter a valid phone number." });
+          }
+          if (!registrationNumber.value.trim()) errors.push({ el: registrationNumber, msg: "Registration number is required." });
+          if (!model.value.trim()) errors.push({ el: model, msg: "Model is required." });
+          if (!deviceType.value) errors.push({ el: deviceType, msg: "Device type is required." });
+          if (!technicianId) errors.push({ el: technicianSelect, msg: "Technician is required." });
+          if (!salesId) errors.push({ el: salesSelect, msg: "Sales person is required." });
+
+          if (showErrors) {
+            errors.forEach((error) => setFieldError(error.el, error.msg));
+          }
+          return errors.length === 0;
+        };
+
+        const updateButtonState = () => {
+          const valid = validateForm(false);
+          createBtn.disabled = !valid;
+          createBtn.classList.toggle("opacity-70", !valid);
+          createBtn.classList.toggle("cursor-not-allowed", !valid);
+        };
+
+        form.addEventListener("input", updateButtonState);
+        form.addEventListener("change", updateButtonState);
+
+        const isApiUnavailable = (error) => {
+          const status = error?.status;
+          return status === 0 || status === 404 || status === 502 || status === 503 || status === 504;
+        };
+
+        const renderErrorBox = (error) => {
+          if (!errorBox) return;
+          const status = error?.status ?? "Unknown";
+          const message = error?.message || "Request failed.";
+          errorBox.innerHTML = `
+            <div class="font-semibold">Unable to create speed governor</div>
+            <div class="mt-1">Status: ${status}</div>
+            <div class="mt-1">${message}</div>
+            <div class="mt-2 text-xs text-rose-600">Are you logged in? Is the backend running? Is CORS origin correct?</div>
+          `;
+          errorBox.classList.remove("hidden");
+        };
+
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          if (!validateForm(true)) return;
+
+          const technicianId = getLockedValue(technicianSelect, "technician-locked");
+          const salesId = getLockedValue(salesSelect, "sales-locked");
+          const technician = techMap.get(technicianId);
+          const salesPerson = salesMap.get(salesId);
+
+          const payload = {
+            customerName: document.getElementById("customer-name").value.trim(),
+            phoneNumber: document.getElementById("phone-number").value.trim(),
+            registrationNumber: document.getElementById("registration-number").value.trim().toUpperCase(),
+            model: document.getElementById("vehicle-model").value.trim(),
+            deviceType: document.getElementById("device-type").value,
+            technician: technician ? { id: technician.id, name: technician.name, email: technician.email } : null,
+            salesPerson: salesPerson ? { id: salesPerson.id, name: salesPerson.name, email: salesPerson.email } : null,
+            comments: document.getElementById("comments").value.trim(),
+          };
+
+          setLoading?.(createBtn, true, "Creating...");
+          try {
+            const apiPayload = {
+              customerName: payload.customerName,
+              phoneNumber: payload.phoneNumber,
+              registrationNumber: payload.registrationNumber,
+              model: payload.model,
+              deviceType: payload.deviceType,
+              technicianId: payload.technician?.id,
+              salesPersonId: payload.salesPerson?.id,
+              comments: payload.comments,
+            };
+            console.log("Speed governor payload", apiPayload);
+            await apiFetch("/speed-governors", { method: "POST", body: apiPayload });
+            showToast?.("Speed governor created", "success");
+            window.location.href = "admin-speed-governor-reports.html";
+          } catch (error) {
+            if (isApiUnavailable(error)) {
+              const storeKey = "finemark_speed_governors";
+              const existing = JSON.parse(localStorage.getItem(storeKey) || "[]");
+              const dateKey = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+              const nextIndex = existing.filter((item) => item.id?.includes(dateKey)).length + 1;
+              const record = {
+                id: `SG-${dateKey}-${String(nextIndex).padStart(4, "0")}`,
+                createdAt: new Date().toISOString(),
+                ...payload,
+              };
+              existing.unshift(record);
+              localStorage.setItem(storeKey, JSON.stringify(existing));
+              showToast?.("Speed governor created", "success");
+              window.location.href = "admin-speed-governor-reports.html";
+            } else {
+              showToast?.(error?.message || "Failed to create speed governor.", "error");
+              renderErrorBox(error);
+            }
+          } finally {
+            setLoading?.(createBtn, false);
+          }
+        });
+
+        updateButtonState();
+      });
+    </script>
+  </body>
+</html>

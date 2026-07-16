@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Leave Reports</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-7xl mx-auto space-y-6">
+
+          <div>
+            <nav class="text-xs text-slate-400 mb-1">
+              <a href="hr-dashboard.html" class="hover:text-teal-600">HR</a> / Leave / Reports
+            </nav>
+            <h1 class="text-2xl font-semibold text-slate-900">Leave Reports</h1>
+          </div>
+
+          <!-- Tabs -->
+          <div class="flex gap-1 border-b border-slate-200">
+            <button data-tab="balances" class="tab-btn px-4 py-2 text-sm font-medium text-teal-600 border-b-2 border-teal-500">Balance Summary</button>
+            <button data-tab="utilization" class="tab-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent">Utilization</button>
+            <button data-tab="excess" class="tab-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent">Excess Balances</button>
+          </div>
+
+          <!-- Shared year filter -->
+          <div class="flex flex-wrap gap-3 items-end">
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Year</label>
+              <select id="report-year" class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"></select>
+            </div>
+            <button onclick="loadActiveTab()" class="px-4 py-2 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700">Generate</button>
+            <button onclick="exportActive()" class="px-4 py-2 text-sm bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 ml-auto">Export CSV</button>
+          </div>
+
+          <!-- BALANCE SUMMARY TAB -->
+          <div id="tab-balances" class="tab-panel">
+            <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-slate-100">
+                    <th class="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Employee</th>
+                    <th class="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Leave Type</th>
+                    <th class="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Entitled</th>
+                    <th class="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">C/F</th>
+                    <th class="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Used</th>
+                    <th class="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Pending</th>
+                    <th class="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Remaining</th>
+                  </tr>
+                </thead>
+                <tbody id="bal-tbody" class="divide-y divide-slate-50"></tbody>
+              </table>
+              <p id="bal-empty" class="hidden py-10 text-center text-sm text-slate-400">No data. Click Generate.</p>
+            </div>
+          </div>
+
+          <!-- UTILIZATION TAB -->
+          <div id="tab-utilization" class="tab-panel hidden">
+            <div id="util-cards" class="space-y-3"></div>
+            <p id="util-empty" class="hidden py-10 text-center text-sm text-slate-400">No data. Click Generate.</p>
+          </div>
+
+          <!-- EXCESS BALANCES TAB -->
+          <div id="tab-excess" class="tab-panel hidden space-y-4">
+            <div class="flex items-center gap-3">
+              <label class="text-xs text-slate-500">Threshold (days ≥)</label>
+              <input id="excess-threshold" type="number" value="10" min="1" class="border border-slate-200 rounded-lg px-3 py-2 text-sm w-20 focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+              <p class="text-xs text-slate-400">Employees with remaining leave above this value after year-end.</p>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-slate-100">
+                    <th class="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Employee</th>
+                    <th class="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Leave Type</th>
+                    <th class="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Entitled</th>
+                    <th class="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Used</th>
+                    <th class="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Remaining</th>
+                    <th class="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Org Unit</th>
+                  </tr>
+                </thead>
+                <tbody id="excess-tbody" class="divide-y divide-slate-50"></tbody>
+              </table>
+              <p id="excess-empty" class="hidden py-10 text-center text-sm text-slate-400">No employees above threshold.</p>
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      let activeTab = "balances";
+      let reportData = { balances: [], utilization: [], excess: [] };
+
+      const buildYears = () => {
+        const sel = document.getElementById("report-year");
+        const y = new Date().getFullYear();
+        for (let i = y + 1; i >= y - 3; i--) {
+          const o = document.createElement("option"); o.value = i; o.textContent = i;
+          if (i === y) o.selected = true; sel.appendChild(o);
+        }
+      };
+
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".tab-btn").forEach(b => { b.classList.remove("text-teal-600","border-teal-500"); b.classList.add("text-slate-500","border-transparent"); });
+          btn.classList.add("text-teal-600","border-teal-500"); btn.classList.remove("text-slate-500","border-transparent");
+          document.querySelectorAll(".tab-panel").forEach(p => p.classList.add("hidden"));
+          document.getElementById("tab-"+btn.dataset.tab).classList.remove("hidden");
+          activeTab = btn.dataset.tab;
+        });
+      });
+
+      const loadActiveTab = () => {
+        if (activeTab === "balances") loadBalances();
+        else if (activeTab === "utilization") loadUtilization();
+        else loadExcess();
+      };
+
+      const loadBalances = async () => {
+        const year = document.getElementById("report-year").value;
+        const { data } = await window.FINEMARK_APP.apiFetch(`/hr/leave/reports/balances?year=${year}`);
+        reportData.balances = data || [];
+        const tbody = document.getElementById("bal-tbody");
+        const empty = document.getElementById("bal-empty");
+        if (!reportData.balances.length) { tbody.innerHTML=""; empty.classList.remove("hidden"); return; }
+        empty.classList.add("hidden");
+        tbody.innerHTML = reportData.balances.map(r => {
+          const remaining = (r.entitled_days||0)+(r.carried_forward||0)-(r.used_days||0)-(r.pending_days||0);
+          const rc = remaining <= 0 ? "text-rose-600 font-semibold" : remaining <= 3 ? "text-amber-600 font-medium" : "text-emerald-700 font-medium";
+          return `<tr class="hover:bg-slate-50">
+            <td class="px-4 py-3"><p class="font-medium text-slate-800">${r.employee_name}</p><p class="text-xs text-slate-400">${r.employee_no}</p></td>
+            <td class="px-4 py-3 text-slate-600">${r.leave_type_name}</td>
+            <td class="px-4 py-3 text-center">${r.entitled_days}</td>
+            <td class="px-4 py-3 text-center">${r.carried_forward||0}</td>
+            <td class="px-4 py-3 text-center">${r.used_days||0}</td>
+            <td class="px-4 py-3 text-center text-amber-600">${r.pending_days||0}</td>
+            <td class="px-4 py-3 text-center"><span class="${rc}">${remaining}</span></td>
+          </tr>`;
+        }).join("");
+      };
+
+      const loadUtilization = async () => {
+        const year = document.getElementById("report-year").value;
+        const { data } = await window.FINEMARK_APP.apiFetch(`/hr/leave/reports/utilization?year=${year}`);
+        reportData.utilization = data || [];
+        const el = document.getElementById("util-cards");
+        const empty = document.getElementById("util-empty");
+        if (!reportData.utilization.length) { el.innerHTML=""; empty.classList.remove("hidden"); return; }
+        empty.classList.add("hidden");
+        // Group by org unit
+        const byUnit = {};
+        reportData.utilization.forEach(r => {
+          if (!byUnit[r.org_unit_name||"General"]) byUnit[r.org_unit_name||"General"] = [];
+          byUnit[r.org_unit_name||"General"].push(r);
+        });
+        el.innerHTML = Object.entries(byUnit).map(([unit, rows]) => `
+          <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-100 bg-slate-50">
+              <p class="text-sm font-semibold text-slate-700">${unit}</p>
+            </div>
+            <div class="divide-y divide-slate-50">
+              ${rows.map(r => {
+                const pct = r.utilization_pct ? Math.min(Math.round(r.utilization_pct), 100) : 0;
+                const barColor = pct >= 90 ? "bg-rose-500" : pct >= 60 ? "bg-amber-500" : "bg-teal-500";
+                return `<div class="px-5 py-3 flex items-center gap-4">
+                  <span class="text-sm text-slate-600 w-36 truncate">${r.leave_type_name}</span>
+                  <div class="flex-1 flex items-center gap-3">
+                    <div class="flex-1 bg-slate-100 rounded-full h-2">
+                      <div class="h-2 rounded-full ${barColor}" style="width:${pct}%"></div>
+                    </div>
+                    <span class="text-xs font-medium text-slate-600 w-12 text-right">${pct}%</span>
+                  </div>
+                  <div class="text-xs text-slate-400 w-40 text-right">${r.total_used||0} used / ${r.total_entitled||0} entitled · ${r.employee_count||0} employees</div>
+                </div>`;
+              }).join("")}
+            </div>
+          </div>`).join("");
+      };
+
+      const loadExcess = async () => {
+        const year = document.getElementById("report-year").value;
+        const threshold = document.getElementById("excess-threshold").value || 10;
+        const { data } = await window.FINEMARK_APP.apiFetch(`/hr/leave/reports/excess-balances?year=${year}&threshold=${threshold}`);
+        reportData.excess = data || [];
+        const tbody = document.getElementById("excess-tbody");
+        const empty = document.getElementById("excess-empty");
+        if (!reportData.excess.length) { tbody.innerHTML=""; empty.classList.remove("hidden"); return; }
+        empty.classList.add("hidden");
+        tbody.innerHTML = reportData.excess.map(r => {
+          const remaining = (r.entitled_days||0)+(r.carried_forward||0)-(r.used_days||0)-(r.pending_days||0);
+          return `<tr class="hover:bg-slate-50">
+            <td class="px-4 py-3"><p class="font-medium text-slate-800">${r.employee_name}</p><p class="text-xs text-slate-400">${r.employee_no}</p></td>
+            <td class="px-4 py-3 text-slate-600">${r.leave_type_name}</td>
+            <td class="px-4 py-3 text-center">${r.entitled_days||0}</td>
+            <td class="px-4 py-3 text-center">${r.used_days||0}</td>
+            <td class="px-4 py-3 text-center"><span class="text-amber-700 font-semibold">${remaining}</span></td>
+            <td class="px-4 py-3 text-slate-500">${r.org_unit_name||"—"}</td>
+          </tr>`;
+        }).join("");
+      };
+
+      const exportActive = () => {
+        const year = document.getElementById("report-year").value;
+        let csv = "", filename = "";
+        if (activeTab === "balances") {
+          filename = `leave-balance-report-${year}.csv`;
+          csv = ["Employee,Emp No,Leave Type,Entitled,C/F,Used,Pending,Remaining",
+            ...reportData.balances.map(r => {
+              const rem = (r.entitled_days||0)+(r.carried_forward||0)-(r.used_days||0)-(r.pending_days||0);
+              return [r.employee_name,r.employee_no,r.leave_type_name,r.entitled_days,r.carried_forward||0,r.used_days||0,r.pending_days||0,rem].join(",");
+            })].join("\n");
+        } else if (activeTab === "utilization") {
+          filename = `leave-utilization-${year}.csv`;
+          csv = ["Org Unit,Leave Type,Employees,Total Entitled,Total Used,Utilization %",
+            ...reportData.utilization.map(r => [r.org_unit_name||"General",r.leave_type_name,r.employee_count||0,r.total_entitled||0,r.total_used||0,r.utilization_pct!=null?Math.round(r.utilization_pct):0].join(","))].join("\n");
+        } else {
+          filename = `excess-balances-${year}.csv`;
+          csv = ["Employee,Emp No,Leave Type,Entitled,Used,Remaining,Org Unit",
+            ...reportData.excess.map(r => { const rem=(r.entitled_days||0)+(r.carried_forward||0)-(r.used_days||0)-(r.pending_days||0); return [r.employee_name,r.employee_no,r.leave_type_name,r.entitled_days||0,r.used_days||0,rem,r.org_unit_name||""].join(","); })].join("\n");
+        }
+        const a = document.createElement("a"); a.href = "data:text/csv;charset=utf-8,"+encodeURIComponent(csv);
+        a.download = filename; a.click();
+      };
+
+      (async () => {
+        await window.FINEMARK_APP.requirePageAccess();
+        buildYears();
+        await loadBalances();
+      })();
+    </script>
+  </body>
+</html>

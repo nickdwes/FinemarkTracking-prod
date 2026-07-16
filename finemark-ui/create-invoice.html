@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Create Invoice - Finemark</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-4xl mx-auto space-y-6">
+          <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <h1 class="text-2xl font-semibold text-slate-900">Create Invoice</h1>
+            <p class="mt-1 text-sm text-slate-600">Capture invoice details and generate invoice number automatically</p>
+          </div>
+
+          <form id="invoice-form" class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-5" novalidate>
+            <div id="invoice-inline-error" class="hidden rounded-lg border px-4 py-3 text-sm"></div>
+            <div class="grid gap-4 md:grid-cols-2">
+              <div>
+                <label for="vat-mode" class="text-sm font-medium text-slate-700">VAT Calculation *</label>
+                <select id="vat-mode" name="vatMode" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                  <option value="" disabled selected>Select VAT Calculation</option>
+                  <option value="exclusive">VAT exclusive</option>
+                  <option value="inclusive">VAT inclusive</option>
+                </select>
+                <p class="fm-error hidden" data-error-for="vat-mode"></p>
+              </div>
+              <div>
+                <label for="invoice-number" class="text-sm font-medium text-slate-700">Invoice Number</label>
+                <input id="invoice-number" name="invoiceNumber" type="text" readonly placeholder="Auto-generated on create" class="mt-2 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600" />
+              </div>
+              <div>
+                <label for="customer-name" class="text-sm font-medium text-slate-700">Name of Customer *</label>
+                <input id="customer-name" name="customerName" type="text" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+                <p class="fm-error hidden" data-error-for="customer-name"></p>
+              </div>
+              <div>
+                <label for="representative" class="text-sm font-medium text-slate-700">Representative *</label>
+                <input id="representative" name="representative" type="text" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+                <p class="fm-error hidden" data-error-for="representative"></p>
+              </div>
+              <div>
+                <label for="amount" class="text-sm font-medium text-slate-700">Amount (KES) *</label>
+                <input id="amount" name="amount" type="number" min="0" step="1" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+                <p class="fm-error hidden" data-error-for="amount"></p>
+              </div>
+              <div>
+                <label for="issued-on" class="text-sm font-medium text-slate-700">Issued On *</label>
+                <input id="issued-on" name="issuedOn" type="date" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+                <p class="fm-error hidden" data-error-for="issued-on"></p>
+              </div>
+              <div>
+                <label for="due-on" class="text-sm font-medium text-slate-700">Due On *</label>
+                <input id="due-on" name="dueOn" type="date" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+                <p class="fm-error hidden" data-error-for="due-on"></p>
+              </div>
+              <div>
+                <label for="bank" class="text-sm font-medium text-slate-700">Bank (optional)</label>
+                <input id="bank" name="bank" type="text" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
+              <button id="btn-preview" type="button" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50" disabled>Generate Preview</button>
+              <a href="sales.html" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</a>
+              <button id="btn-submit" type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Create Invoice</button>
+            </div>
+          </form>
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        window.FINEMARK_APP?.requirePageAccess?.();
+        window.FINEMARK_APP?.requireRole?.(["Sales", "Admin"]);
+
+        const form = document.getElementById("invoice-form");
+        const submitBtn = document.getElementById("btn-submit");
+        const previewBtn = document.getElementById("btn-preview");
+        const inlineError = document.getElementById("invoice-inline-error");
+        const invoiceNumberInput = document.getElementById("invoice-number");
+        let createdInvoiceId = null;
+
+        const openPreview = () => {
+          if (!createdInvoiceId) return;
+          const token = window.FINEMARK_APP.getSession?.()?.accessToken || "";
+          const base = `${window.FINEMARK_APP.CONFIG.API_BASE_URL}/invoices/${createdInvoiceId}/pdf`;
+          const params = new URLSearchParams();
+          if (token) params.set("token", token);
+          const url = `${base}${params.toString() ? `?${params.toString()}` : ""}`;
+          window.open(url, "_blank");
+        };
+
+        previewBtn.addEventListener("click", openPreview);
+
+        const today = new Date();
+        const todayIso = today.toISOString().slice(0, 10);
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 14);
+        document.getElementById("issued-on").value = todayIso;
+        document.getElementById("due-on").value = dueDate.toISOString().slice(0, 10);
+
+        const validate = () => {
+          window.FINEMARK_APP.clearFormErrors(form);
+          inlineError.classList.add("hidden");
+
+          const vatMode = document.getElementById("vat-mode");
+          const customerName = document.getElementById("customer-name");
+          const representative = document.getElementById("representative");
+          const amount = document.getElementById("amount");
+          const issuedOn = document.getElementById("issued-on");
+          const dueOn = document.getElementById("due-on");
+
+          const vatError = window.FINEMARK_APP.Validators.required(vatMode.value);
+          const nameError = window.FINEMARK_APP.Validators.required(customerName.value.trim());
+          const repError = window.FINEMARK_APP.Validators.required(representative.value.trim());
+          const issuedError = window.FINEMARK_APP.Validators.required(issuedOn.value);
+          const dueError = window.FINEMARK_APP.Validators.required(dueOn.value);
+
+          const amountValue = Number(amount.value);
+          const amountError = Number.isFinite(amountValue) && amountValue > 0 ? null : "Amount must be greater than 0.";
+
+          if (vatError) window.FINEMARK_APP.setFieldError(vatMode, vatError);
+          if (nameError) window.FINEMARK_APP.setFieldError(customerName, nameError);
+          if (repError) window.FINEMARK_APP.setFieldError(representative, repError);
+          if (issuedError) window.FINEMARK_APP.setFieldError(issuedOn, issuedError);
+          if (dueError) window.FINEMARK_APP.setFieldError(dueOn, dueError);
+          if (amountError) window.FINEMARK_APP.setFieldError(amount, amountError);
+
+          return !(vatError || nameError || repError || issuedError || dueError || amountError);
+        };
+
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          if (!validate()) return;
+
+          window.FINEMARK_APP.setLoading(submitBtn, true, "Creating...");
+          try {
+            const sessionUser = window.FINEMARK_APP.getSession()?.user;
+            const amountValue = Number(document.getElementById("amount").value);
+            if (!Number.isFinite(amountValue) || amountValue <= 0) {
+              window.FINEMARK_APP.setFieldError(document.getElementById("amount"), "Amount must be greater than 0.");
+              return;
+            }
+            const payload = {
+              vatMode: document.getElementById("vat-mode").value,
+              customerName: document.getElementById("customer-name").value.trim(),
+              customer: document.getElementById("customer-name").value.trim(),
+              representative: document.getElementById("representative").value.trim(),
+              amount: Math.round(amountValue),
+              issuedOn: document.getElementById("issued-on").value,
+              dueOn: document.getElementById("due-on").value,
+              bank: document.getElementById("bank").value.trim() || undefined,
+              salesPerson: sessionUser?.email,
+            };
+            const response = await window.FINEMARK_APP.apiFetch("/invoices", { method: "POST", body: payload, formEl: form });
+            const invoiceNumber = response?.data?.invoiceNumber;
+            createdInvoiceId = response?.data?.id || null;
+            if (invoiceNumber) {
+              invoiceNumberInput.value = invoiceNumber;
+            }
+            if (createdInvoiceId) {
+              previewBtn.disabled = false;
+            }
+            window.FINEMARK_APP.showToast("Invoice created", "success");
+          } catch (error) {
+            inlineError.classList.remove("hidden");
+            const message = error?.message || "Failed to create invoice.";
+            window.FINEMARK_APP.showInlineError(inlineError, message);
+            window.FINEMARK_APP.showToast(message, "error");
+          } finally {
+            window.FINEMARK_APP.setLoading(submitBtn, false);
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

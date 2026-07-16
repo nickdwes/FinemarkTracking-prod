@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Archive — Tickets Dashboard</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-7xl mx-auto space-y-6">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div><h1 class="text-3xl font-semibold tracking-tight text-slate-900">Tickets Dashboard</h1>
+              <p class="text-sm text-slate-600">Archived IDTS support tickets — historical reference only.</p></div>
+            <div id="badge-slot"></div>
+          </div>
+          <section class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm space-y-4">
+            <h2 class="text-sm font-semibold text-slate-700">Summary by Staff Member</h2>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm min-w-[640px]">
+                <thead class="text-left text-slate-500 text-xs uppercase border-b border-slate-200">
+                  <tr><th class="py-2">User</th><th class="py-2">Created</th><th class="py-2">Closed (by self)</th><th class="py-2">Open</th><th class="py-2">Closed (total)</th></tr>
+                </thead>
+                <tbody id="summary-rows" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm space-y-4">
+            <h2 class="text-sm font-semibold text-slate-700">All Tickets</h2>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm min-w-[1100px]">
+                <thead class="text-left text-slate-500 text-xs uppercase border-b border-slate-200">
+                  <tr><th class="py-2 px-2">Ticket #</th><th class="py-2 px-2">Type</th><th class="py-2 px-2">Vehicle</th><th class="py-2 px-2">Client Phone</th>
+                    <th class="py-2 px-2">Reason</th><th class="py-2 px-2">Status</th><th class="py-2 px-2">Created By</th><th class="py-2 px-2">Created</th>
+                    <th class="py-2 px-2">Closed By</th><th class="py-2 px-2">Action Taken</th></tr>
+                </thead>
+                <tbody id="ticket-rows" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+    <script src="assets/contracts.js"></script>
+    <script src="assets/app.js"></script>
+    <script src="assets/layout.js"></script>
+    <script src="assets/archive-common.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", async () => {
+        if ((await ArchiveCommon.gate()) === false) return;
+        document.getElementById("badge-slot").innerHTML = ArchiveCommon.readOnlyBadge;
+        load();
+      });
+      async function load() {
+        try {
+          const res = await window.FINEMARK_APP.apiFetch("/archive/tickets");
+          const d = res.data || res;
+          document.getElementById("summary-rows").innerHTML = d.summary.map((s) => `
+            <tr><td class="py-2 font-medium">${ArchiveCommon.escapeHtml(s.user)}</td><td class="py-2">${s.createdCount}</td>
+            <td class="py-2">${s.closedBySelfCount}</td><td class="py-2 text-amber-600 font-semibold">${s.openCount}</td><td class="py-2">${s.closedCount}</td></tr>`).join("");
+          document.getElementById("ticket-rows").innerHTML = d.tickets.map((t) => `
+            <tr>
+              <td class="py-2 px-2 font-mono">${ArchiveCommon.escapeHtml(t.ticketNumber)}</td>
+              <td class="py-2 px-2">${ArchiveCommon.escapeHtml(t.ticketType)}</td>
+              <td class="py-2 px-2 font-mono">${ArchiveCommon.escapeHtml(t.vehicleReg)}</td>
+              <td class="py-2 px-2">${ArchiveCommon.escapeHtml(t.clientPhone)}</td>
+              <td class="py-2 px-2 max-w-xs truncate" title="${ArchiveCommon.escapeHtml(t.ticketReason)}">${ArchiveCommon.escapeHtml(t.ticketReason)}</td>
+              <td class="py-2 px-2"><span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${t.status === 'OPEN' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}">${t.status}</span></td>
+              <td class="py-2 px-2">${ArchiveCommon.escapeHtml(t.createdBy)}</td>
+              <td class="py-2 px-2">${ArchiveCommon.fmtDate(t.createdDate)}</td>
+              <td class="py-2 px-2">${ArchiveCommon.escapeHtml(t.closedBy)}</td>
+              <td class="py-2 px-2 max-w-xs truncate" title="${ArchiveCommon.escapeHtml(t.actionTaken)}">${ArchiveCommon.escapeHtml(t.actionTaken)}</td>
+            </tr>`).join("");
+        } catch (e) {
+          window.FINEMARK_APP?.showToast?.(e.message, "error");
+        }
+      }
+    </script>
+  </body>
+</html>

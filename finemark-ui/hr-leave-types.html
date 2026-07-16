@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Leave Configuration</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-6xl mx-auto space-y-6">
+
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <nav class="text-xs text-slate-400 mb-1">
+                <a href="hr-dashboard.html" class="hover:text-teal-600">HR</a> / Leave / Configuration
+              </nav>
+              <h1 class="text-2xl font-semibold text-slate-900">Leave Configuration</h1>
+            </div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="flex gap-1 border-b border-slate-200">
+            <button data-tab="types" class="tab-btn px-4 py-2 text-sm font-medium text-teal-600 border-b-2 border-teal-500">Leave Types</button>
+            <button data-tab="entitlements" class="tab-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent">Entitlements</button>
+          </div>
+
+          <!-- LEAVE TYPES -->
+          <div id="tab-types" class="tab-panel space-y-4">
+            <div class="flex justify-end">
+              <button onclick="openTypeModal()" class="px-4 py-2 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700">+ Add Leave Type</button>
+            </div>
+            <div class="bg-amber-50 border border-amber-200/60 rounded-xl p-4 text-sm text-amber-800">
+              <strong>Kenya Employment Act 2007:</strong> Minimum annual leave is 21 working days. Maternity leave is 3 months. Sick leave: 7 days full pay + 7 days half pay per 12 months. Mark statutory types accordingly.
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-slate-100">
+                    <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Name</th>
+                    <th class="text-center px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Statutory</th>
+                    <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Model</th>
+                    <th class="text-center px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Max Days/Year</th>
+                    <th class="text-center px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Carry Fwd</th>
+                    <th class="text-center px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Status</th>
+                    <th class="px-5 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody id="types-tbody" class="divide-y divide-slate-50"></tbody>
+              </table>
+              <p id="types-empty" class="hidden py-10 text-center text-sm text-slate-400">No leave types configured.</p>
+            </div>
+          </div>
+
+          <!-- ENTITLEMENTS -->
+          <div id="tab-entitlements" class="tab-panel hidden space-y-4">
+            <div class="flex justify-end">
+              <button onclick="openEntModal()" class="px-4 py-2 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700">+ Add Entitlement Rule</button>
+            </div>
+            <p class="text-sm text-slate-500">Configure how many days per year each cadre is entitled to per leave type. A rule with no cadre applies to all employees.</p>
+            <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-slate-100">
+                    <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Leave Type</th>
+                    <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Cadre</th>
+                    <th class="text-center px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Days/Year</th>
+                    <th class="text-center px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Accrual Rate/Mo</th>
+                    <th class="text-center px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Min Service Days</th>
+                    <th class="px-5 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody id="ents-tbody" class="divide-y divide-slate-50"></tbody>
+              </table>
+              <p id="ents-empty" class="hidden py-10 text-center text-sm text-slate-400">No entitlement rules configured.</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+
+    <!-- Leave Type Modal -->
+    <div id="type-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <h3 id="type-modal-title" class="text-base font-semibold text-slate-800">Add Leave Type</h3>
+          <button onclick="closeTypeModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+        <form id="type-form" class="px-6 py-5 space-y-4">
+          <input type="hidden" id="type-id" />
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Name *</label>
+            <input id="t-name" type="text" required maxlength="100" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="e.g. Annual Leave" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Description</label>
+            <textarea id="t-desc" rows="2" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm resize-none"></textarea>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Entitlement Model *</label>
+              <select id="t-model" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                <option value="fixed">Fixed (allocated once)</option>
+                <option value="accrual">Accrual (earned monthly)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Max Days / Year</label>
+              <input id="t-max" type="number" min="0" step="0.5" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="e.g. 21" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Gender Restriction</label>
+            <select id="t-gender" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+              <option value="">None</option>
+              <option value="F">Female only (e.g. Maternity)</option>
+              <option value="M">Male only (e.g. Paternity)</option>
+            </select>
+          </div>
+          <div class="flex flex-wrap gap-5">
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+              <input id="t-statutory" type="checkbox" class="rounded" />
+              <span>Statutory (legally required)</span>
+            </label>
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+              <input id="t-cf-allowed" type="checkbox" class="rounded" onchange="toggleCfCap()" />
+              <span>Allow Carry Forward</span>
+            </label>
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+              <input id="t-active" type="checkbox" class="rounded" checked />
+              <span>Active</span>
+            </label>
+          </div>
+          <div id="cf-cap-row" class="hidden">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Carry Forward Cap (days)</label>
+            <input id="t-cf-cap" type="number" min="0" step="0.5" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="Leave blank for unlimited" />
+          </div>
+          <div id="type-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2"></div>
+          <div class="flex justify-end gap-3 pt-1">
+            <button type="button" onclick="closeTypeModal()" class="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600">Cancel</button>
+            <button type="submit" class="px-4 py-2 text-sm rounded-lg bg-teal-600 text-white hover:bg-teal-700">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Entitlement Modal -->
+    <div id="ent-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <h3 id="ent-modal-title" class="text-base font-semibold text-slate-800">Add Entitlement Rule</h3>
+          <button onclick="closeEntModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+        <form id="ent-form" class="px-6 py-5 space-y-4">
+          <input type="hidden" id="ent-id" />
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Leave Type *</label>
+            <select id="e-type" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+              <option value="">Select…</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Cadre (leave blank for all)</label>
+            <select id="e-cadre" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+              <option value="">All Cadres</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Days Per Year *</label>
+              <input id="e-days" type="number" required min="0.5" step="0.5" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="21" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Accrual Rate (days/month)</label>
+              <input id="e-accrual" type="number" min="0" step="0.01" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="1.75" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Min Service Days</label>
+            <input id="e-min-service" type="number" min="0" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" value="0" />
+          </div>
+          <div id="ent-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2"></div>
+          <div class="flex justify-end gap-3 pt-1">
+            <button type="button" onclick="closeEntModal()" class="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600">Cancel</button>
+            <button type="submit" class="px-4 py-2 text-sm rounded-lg bg-teal-600 text-white hover:bg-teal-700">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      let leaveTypes = [], entitlements = [], cadres = [];
+
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".tab-btn").forEach(b => { b.classList.remove("text-teal-600","border-teal-500"); b.classList.add("text-slate-500","border-transparent"); });
+          btn.classList.add("text-teal-600","border-teal-500"); btn.classList.remove("text-slate-500","border-transparent");
+          document.querySelectorAll(".tab-panel").forEach(p => p.classList.add("hidden"));
+          document.getElementById("tab-" + btn.dataset.tab).classList.remove("hidden");
+        });
+      });
+
+      const loadAll = async () => {
+        const [tr, er, cr] = await Promise.all([
+          window.FINEMARK_APP.apiFetch("/hr/leave/types"),
+          window.FINEMARK_APP.apiFetch("/hr/leave/entitlements"),
+          window.FINEMARK_APP.apiFetch("/hr/org/cadres"),
+        ]);
+        leaveTypes = tr?.data || [];
+        entitlements = er?.data || [];
+        cadres = cr?.data || [];
+        renderTypes();
+        renderEntitlements();
+      };
+
+      const renderTypes = () => {
+        const tbody = document.getElementById("types-tbody");
+        const empty = document.getElementById("types-empty");
+        if (!leaveTypes.length) { tbody.innerHTML=""; empty.classList.remove("hidden"); return; }
+        empty.classList.add("hidden");
+        tbody.innerHTML = leaveTypes.map(t => `
+          <tr class="hover:bg-slate-50">
+            <td class="px-5 py-3 font-medium text-slate-800">
+              ${t.name}
+              ${t.gender_restricted ? `<span class="ml-1 text-xs px-1.5 py-0.5 rounded-full ${t.gender_restricted==="F"?"bg-pink-50 text-pink-600":"bg-blue-50 text-blue-600"}">${t.gender_restricted==="F"?"Female":"Male"}</span>` : ""}
+            </td>
+            <td class="px-5 py-3 text-center">${t.statutory ? "<span class='text-emerald-500 font-medium text-xs'>✓ Yes</span>" : "<span class='text-slate-300 text-xs'>—</span>"}</td>
+            <td class="px-5 py-3 text-slate-600 capitalize">${t.entitlement_model}</td>
+            <td class="px-5 py-3 text-center text-slate-700">${t.max_days_per_year ?? "—"}</td>
+            <td class="px-5 py-3 text-center">${t.carry_forward_allowed ? `<span class='text-teal-600 text-xs'>Yes${t.carry_forward_cap!=null?" (max "+t.carry_forward_cap+"d)":""}</span>` : "<span class='text-slate-300 text-xs'>No</span>"}</td>
+            <td class="px-5 py-3 text-center"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${t.is_active?"bg-emerald-50 text-emerald-700 border-emerald-100":"bg-slate-100 text-slate-500"}">${t.is_active?"Active":"Inactive"}</span></td>
+            <td class="px-5 py-3 text-right flex justify-end gap-3">
+              <button onclick="editType('${t.id}')" class="text-xs text-teal-600 hover:underline">Edit</button>
+              <button onclick="deleteType('${t.id}')" class="text-xs text-rose-500 hover:underline">Delete</button>
+            </td>
+          </tr>`).join("");
+      };
+
+      const renderEntitlements = () => {
+        const tbody = document.getElementById("ents-tbody");
+        const empty = document.getElementById("ents-empty");
+        if (!entitlements.length) { tbody.innerHTML=""; empty.classList.remove("hidden"); return; }
+        empty.classList.add("hidden");
+        tbody.innerHTML = entitlements.map(e => `
+          <tr class="hover:bg-slate-50">
+            <td class="px-5 py-3 font-medium text-slate-800">${e.leave_type_name}</td>
+            <td class="px-5 py-3 text-slate-600">${e.cadre_name || "<span class='text-xs text-slate-400'>All Cadres</span>"}</td>
+            <td class="px-5 py-3 text-center font-medium">${e.days_per_year}</td>
+            <td class="px-5 py-3 text-center text-slate-500">${e.accrual_rate ?? "—"}</td>
+            <td class="px-5 py-3 text-center text-slate-500">${e.min_service_days || 0}</td>
+            <td class="px-5 py-3 text-right flex justify-end gap-3">
+              <button onclick="editEnt('${e.id}')" class="text-xs text-teal-600 hover:underline">Edit</button>
+              <button onclick="deleteEnt('${e.id}')" class="text-xs text-rose-500 hover:underline">Delete</button>
+            </td>
+          </tr>`).join("");
+      };
+
+      // ── TYPE MODAL ──────────────────────────────────────────────────────────
+      const openTypeModal = () => {
+        document.getElementById("type-modal-title").textContent = "Add Leave Type";
+        document.getElementById("type-id").value = "";
+        document.getElementById("type-form").reset();
+        document.getElementById("t-active").checked = true;
+        document.getElementById("cf-cap-row").classList.add("hidden");
+        document.getElementById("type-error").classList.add("hidden");
+        document.getElementById("type-modal").classList.remove("hidden");
+      };
+      const closeTypeModal = () => document.getElementById("type-modal").classList.add("hidden");
+      const toggleCfCap = () => document.getElementById("cf-cap-row").classList.toggle("hidden", !document.getElementById("t-cf-allowed").checked);
+      const editType = id => {
+        const t = leaveTypes.find(x => x.id === id); if (!t) return;
+        document.getElementById("type-modal-title").textContent = "Edit Leave Type";
+        document.getElementById("type-id").value = t.id;
+        document.getElementById("t-name").value = t.name;
+        document.getElementById("t-desc").value = t.description || "";
+        document.getElementById("t-model").value = t.entitlement_model;
+        document.getElementById("t-max").value = t.max_days_per_year ?? "";
+        document.getElementById("t-gender").value = t.gender_restricted || "";
+        document.getElementById("t-statutory").checked = Boolean(t.statutory);
+        document.getElementById("t-cf-allowed").checked = Boolean(t.carry_forward_allowed);
+        document.getElementById("t-active").checked = Boolean(t.is_active);
+        document.getElementById("t-cf-cap").value = t.carry_forward_cap ?? "";
+        document.getElementById("cf-cap-row").classList.toggle("hidden", !t.carry_forward_allowed);
+        document.getElementById("type-error").classList.add("hidden");
+        document.getElementById("type-modal").classList.remove("hidden");
+      };
+      document.getElementById("type-form").onsubmit = async e => {
+        e.preventDefault();
+        const errEl = document.getElementById("type-error"); errEl.classList.add("hidden");
+        const id = document.getElementById("type-id").value;
+        const cfAllowed = document.getElementById("t-cf-allowed").checked;
+        const body = {
+          name: document.getElementById("t-name").value.trim(),
+          description: document.getElementById("t-desc").value.trim() || undefined,
+          entitlementModel: document.getElementById("t-model").value,
+          maxDaysPerYear: document.getElementById("t-max").value ? parseFloat(document.getElementById("t-max").value) : undefined,
+          genderRestricted: document.getElementById("t-gender").value || undefined,
+          statutory: document.getElementById("t-statutory").checked,
+          carryForwardAllowed: cfAllowed,
+          carryForwardCap: cfAllowed && document.getElementById("t-cf-cap").value ? parseFloat(document.getElementById("t-cf-cap").value) : undefined,
+          isActive: document.getElementById("t-active").checked,
+        };
+        try {
+          if (id) { await window.FINEMARK_APP.apiFetch(`/hr/leave/types/${id}`, { method: "PATCH", body }); }
+          else { await window.FINEMARK_APP.apiFetch("/hr/leave/types", { method: "POST", body }); }
+          closeTypeModal(); await loadAll();
+        } catch (err) { errEl.textContent = err?.message || "Failed"; errEl.classList.remove("hidden"); }
+      };
+      const deleteType = async id => {
+        if (!confirm("Delete this leave type? This cannot be undone.")) return;
+        try { await window.FINEMARK_APP.apiFetch(`/hr/leave/types/${id}`, { method: "DELETE" }); await loadAll(); }
+        catch (err) { alert(err?.message || "Delete failed"); }
+      };
+
+      // ── ENTITLEMENT MODAL ───────────────────────────────────────────────────
+      const populateEntSelects = () => {
+        document.getElementById("e-type").innerHTML = `<option value="">Select…</option>` + leaveTypes.map(t => `<option value="${t.id}">${t.name}</option>`).join("");
+        document.getElementById("e-cadre").innerHTML = `<option value="">All Cadres</option>` + cadres.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+      };
+      const openEntModal = () => {
+        document.getElementById("ent-modal-title").textContent = "Add Entitlement Rule";
+        document.getElementById("ent-id").value = "";
+        document.getElementById("ent-form").reset();
+        document.getElementById("ent-error").classList.add("hidden");
+        populateEntSelects();
+        document.getElementById("ent-modal").classList.remove("hidden");
+      };
+      const closeEntModal = () => document.getElementById("ent-modal").classList.add("hidden");
+      const editEnt = id => {
+        const e = entitlements.find(x => x.id === id); if (!e) return;
+        document.getElementById("ent-modal-title").textContent = "Edit Entitlement Rule";
+        document.getElementById("ent-id").value = e.id;
+        populateEntSelects();
+        document.getElementById("e-type").value = e.leave_type_id;
+        document.getElementById("e-cadre").value = e.cadre_id || "";
+        document.getElementById("e-days").value = e.days_per_year;
+        document.getElementById("e-accrual").value = e.accrual_rate ?? "";
+        document.getElementById("e-min-service").value = e.min_service_days || 0;
+        document.getElementById("ent-error").classList.add("hidden");
+        document.getElementById("ent-modal").classList.remove("hidden");
+      };
+      document.getElementById("ent-form").onsubmit = async e => {
+        e.preventDefault();
+        const errEl = document.getElementById("ent-error"); errEl.classList.add("hidden");
+        const id = document.getElementById("ent-id").value;
+        const body = {
+          leaveTypeId: document.getElementById("e-type").value,
+          cadreId: document.getElementById("e-cadre").value || undefined,
+          daysPerYear: parseFloat(document.getElementById("e-days").value),
+          accrualRate: document.getElementById("e-accrual").value ? parseFloat(document.getElementById("e-accrual").value) : undefined,
+          minServiceDays: parseInt(document.getElementById("e-min-service").value) || 0,
+        };
+        try {
+          if (id) { await window.FINEMARK_APP.apiFetch(`/hr/leave/entitlements/${id}`, { method: "PATCH", body }); }
+          else { await window.FINEMARK_APP.apiFetch("/hr/leave/entitlements", { method: "POST", body }); }
+          closeEntModal(); await loadAll();
+        } catch (err) { errEl.textContent = err?.message || "Failed"; errEl.classList.remove("hidden"); }
+      };
+      const deleteEnt = async id => {
+        if (!confirm("Delete this entitlement rule?")) return;
+        try { await window.FINEMARK_APP.apiFetch(`/hr/leave/entitlements/${id}`, { method: "DELETE" }); await loadAll(); }
+        catch (err) { alert(err?.message || "Delete failed"); }
+      };
+
+      (async () => {
+        await window.FINEMARK_APP.requirePageAccess();
+        await loadAll();
+      })();
+    </script>
+  </body>
+</html>

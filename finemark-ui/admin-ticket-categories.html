@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Ticket Categories</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    .badge{display:inline-flex;align-items:center;border-radius:9999px;padding:.15rem .6rem;font-size:.7rem;font-weight:600;border-width:1px;}
+    .team-technical{background:#ecfdf5;color:#065f46;border-color:#a7f3d0;}
+    .team-finance{background:#fef9c3;color:#713f12;border-color:#fde68a;}
+    .team-support{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+    .modal{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:60;padding:1rem;}
+    .modal.show{display:flex;}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-3 sm:p-6 min-w-0 space-y-5">
+
+    <div class="flex flex-wrap items-center gap-3 justify-between">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Ticket Categories</h1>
+        <p class="text-sm text-slate-500 mt-0.5">Configure which team each support-ticket category routes to.</p>
+      </div>
+      <button id="btn-add" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">+ Add Category</button>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead>
+            <tr class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-200">
+              <th class="px-4 py-3">Category</th>
+              <th class="px-4 py-3">Routes To</th>
+              <th class="px-4 py-3">Requires Customer</th>
+              <th class="px-4 py-3">Status</th>
+              <th class="px-4 py-3">Sort</th>
+              <th class="px-4 py-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tbody" class="divide-y divide-slate-100"><tr><td colspan="6" class="text-center py-10 text-slate-400">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Add/Edit Modal -->
+<div id="modal-form" class="modal">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md space-y-4">
+    <div class="flex items-center justify-between">
+      <h2 id="modal-title" class="font-semibold text-slate-900">Add Category</h2>
+      <button id="modal-close" class="text-slate-400 hover:text-slate-600 text-xl leading-none">✕</button>
+    </div>
+    <div id="modal-error" class="hidden rounded-lg bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-700"></div>
+    <input type="hidden" id="f-id" />
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Category Name <span class="text-red-500">*</span></label>
+      <input id="f-name" type="text" placeholder="e.g. Gadget Issue" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40" />
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Routes To Team <span class="text-red-500">*</span></label>
+      <select id="f-team" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40">
+        <option value="Technical">Technical</option>
+        <option value="Finance">Finance</option>
+        <option value="Support">Support</option>
+      </select>
+    </div>
+    <div class="flex items-center gap-2">
+      <input id="f-requires-customer" type="checkbox" checked class="rounded border-slate-300" />
+      <label for="f-requires-customer" class="text-sm text-slate-700">Requires a customer to be selected</label>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Sort Order</label>
+      <input id="f-sort-order" type="number" value="0" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40" />
+    </div>
+    <div id="f-active-wrap" class="hidden items-center gap-2">
+      <input id="f-active" type="checkbox" checked class="rounded border-slate-300" />
+      <label for="f-active" class="text-sm text-slate-700">Active</label>
+    </div>
+    <div class="flex justify-end gap-2 pt-2">
+      <button id="modal-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
+      <button id="btn-save" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="fm-footer"></div>
+
+<script src="assets/app.js?v=202607141000"></script>
+<script src="assets/layout.js?v=202607141000"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  window.FINEMARK_APP?.requirePageAccess?.();
+  init();
+});
+
+const APP = window.FINEMARK_APP;
+const $ = (id) => document.getElementById(id);
+const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const TEAM_CLASS = { Technical: "team-technical", Finance: "team-finance", Support: "team-support" };
+
+async function loadCategories() {
+  const res = await APP.apiFetch("/admin/ticket-categories?includeInactive=true");
+  const rows = res?.data || [];
+  $("tbody").innerHTML = rows.length ? rows.map((c) => `
+    <tr class="hover:bg-slate-50/60 ${c.isActive ? "" : "opacity-50"}">
+      <td class="px-4 py-3 font-medium text-slate-900">${escapeHtml(c.name)}</td>
+      <td class="px-4 py-3"><span class="badge ${TEAM_CLASS[c.team] || ""}">${escapeHtml(c.team)}</span></td>
+      <td class="px-4 py-3 text-xs text-slate-500">${c.requiresCustomer ? "Yes" : "No"}</td>
+      <td class="px-4 py-3 text-xs">${c.isActive ? '<span class="text-emerald-600 font-semibold">Active</span>' : '<span class="text-slate-400">Inactive</span>'}</td>
+      <td class="px-4 py-3 text-xs text-slate-500">${c.sortOrder}</td>
+      <td class="px-4 py-3 text-xs">
+        <button class="text-blue-600 hover:text-blue-800 font-medium mr-3" onclick="openEdit('${c.id}')">Edit</button>
+        ${c.isActive ? `<button class="text-red-600 hover:text-red-800 font-medium" onclick="deactivate('${c.id}')">Deactivate</button>` : ""}
+      </td>
+    </tr>`).join("") : `<tr><td colspan="6" class="text-center py-10 text-slate-400">No categories yet.</td></tr>`;
+  window._categories = rows;
+}
+
+function openAdd() {
+  $("modal-title").textContent = "Add Category";
+  $("f-id").value = ""; $("f-name").value = ""; $("f-team").value = "Technical";
+  $("f-requires-customer").checked = true; $("f-sort-order").value = "0";
+  $("f-active-wrap").classList.add("hidden");
+  $("modal-error").classList.add("hidden");
+  $("modal-form").classList.add("show");
+}
+
+function openEdit(id) {
+  const c = (window._categories || []).find((x) => x.id === id);
+  if (!c) return;
+  $("modal-title").textContent = "Edit Category";
+  $("f-id").value = c.id; $("f-name").value = c.name; $("f-team").value = c.team;
+  $("f-requires-customer").checked = c.requiresCustomer; $("f-sort-order").value = c.sortOrder;
+  $("f-active-wrap").classList.remove("hidden"); $("f-active").checked = c.isActive;
+  $("modal-error").classList.add("hidden");
+  $("modal-form").classList.add("show");
+}
+window.openEdit = openEdit;
+
+async function deactivate(id) {
+  if (!confirm("Deactivate this category? It will no longer appear in the ticket-creation dropdown.")) return;
+  try {
+    await APP.apiFetch(`/admin/ticket-categories/${id}`, { method: "DELETE" });
+    loadCategories();
+  } catch (e) { alert(e?.message || "Failed to deactivate."); }
+}
+window.deactivate = deactivate;
+
+$("btn-add").addEventListener("click", openAdd);
+$("modal-close").addEventListener("click", () => $("modal-form").classList.remove("show"));
+$("modal-cancel").addEventListener("click", () => $("modal-form").classList.remove("show"));
+
+$("btn-save").addEventListener("click", async () => {
+  const errEl = $("modal-error");
+  errEl.classList.add("hidden");
+  const id = $("f-id").value;
+  const name = $("f-name").value.trim();
+  if (!name) { errEl.textContent = "Category name is required."; errEl.classList.remove("hidden"); return; }
+
+  const payload = {
+    name, team: $("f-team").value,
+    requiresCustomer: $("f-requires-customer").checked,
+    sortOrder: Number($("f-sort-order").value) || 0,
+  };
+  if (id) payload.isActive = $("f-active").checked;
+
+  try {
+    if (id) await APP.apiFetch(`/admin/ticket-categories/${id}`, { method: "PATCH", body: payload });
+    else await APP.apiFetch("/admin/ticket-categories", { method: "POST", body: payload });
+    $("modal-form").classList.remove("show");
+    loadCategories();
+  } catch (e) {
+    errEl.textContent = e?.message || "Failed to save."; errEl.classList.remove("hidden");
+  }
+});
+
+function init() { loadCategories(); }
+</script>
+</body>
+</html>

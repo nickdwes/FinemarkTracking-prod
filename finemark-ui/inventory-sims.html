@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | SIM Card Management</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+    <div class="max-w-7xl mx-auto space-y-6">
+
+      <!-- Page header -->
+      <div class="flex flex-wrap items-center gap-3 justify-between">
+        <div>
+          <h1 class="text-3xl font-semibold tracking-tight text-slate-900">SIM Card Management</h1>
+          <p class="text-sm text-slate-500">Register, track and manage SIM cards across the fleet.</p>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <button id="btn-import-csv" class="inline-flex items-center gap-2 rounded-lg border border-blue-300 bg-white px-4 py-2 text-sm font-semibold text-blue-700 shadow-sm hover:bg-blue-50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M8 12l4 4m0 0l4-4m-4 4V4"/></svg>
+            Bulk CSV
+          </button>
+          <button id="btn-receive-sims" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700">
+            + Receive SIMs
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all stat-card" data-filter="available">
+          <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Available</p>
+          <p class="text-3xl font-bold text-green-600 mt-1" id="stat-available">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all stat-card" data-filter="issued">
+          <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Issued</p>
+          <p class="text-3xl font-bold text-blue-600 mt-1" id="stat-issued">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all stat-card" data-filter="suspended">
+          <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Suspended</p>
+          <p class="text-3xl font-bold text-amber-600 mt-1" id="stat-suspended">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all stat-card" data-filter="retired">
+          <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Retired</p>
+          <p class="text-3xl font-bold text-slate-500 mt-1" id="stat-retired">—</p>
+        </div>
+      </div>
+
+      <!-- SIM List -->
+      <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm">
+
+        <!-- Filters -->
+        <div class="p-4 space-y-3 border-b border-slate-100">
+          <div class="grid gap-3 md:grid-cols-5">
+            <div class="md:col-span-2">
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Search ICCID / IMSI / MSISDN</label>
+              <input id="search-input" type="text" placeholder="Search…" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Status</label>
+              <select id="filter-status" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                <option value="">All</option>
+                <option value="available">Available</option>
+                <option value="issued">Issued</option>
+                <option value="suspended">Suspended</option>
+                <option value="retired">Retired</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Provider</label>
+              <select id="filter-operator" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                <option value="">All Providers</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Batch</label>
+              <select id="filter-batch" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                <option value="">All Batches</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-end gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Expiry From</label>
+              <input id="filter-expiry-from" type="date" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Expiry To</label>
+              <input id="filter-expiry-to" type="date" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            </div>
+            <button id="btn-apply" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Apply</button>
+            <button id="btn-reset" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Reset</button>
+            <span id="total-label" class="text-xs text-slate-500"></span>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">ICCID</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">IMSI</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">MSISDN</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Operator</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Plan</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Issued To</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Expiry</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Batch</th>
+                <th class="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody id="sims-tbody" class="divide-y divide-slate-50"></tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="p-4 flex items-center justify-between border-t border-slate-100">
+          <button id="btn-prev" class="px-3 py-1.5 rounded border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40" disabled>← Prev</button>
+          <span id="page-label" class="text-xs text-slate-400"></span>
+          <button id="btn-next" class="px-3 py-1.5 rounded border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40" disabled>Next →</button>
+        </div>
+      </div>
+
+    </div><!-- /max-w -->
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     CSV IMPORT MODAL
+═══════════════════════════════════════════════════════════════════════════ -->
+<div id="modal-csv" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between p-5 border-b border-slate-100 flex-shrink-0">
+      <h2 class="text-lg font-semibold text-slate-900">Bulk CSV Import</h2>
+      <button class="modal-close text-slate-400 hover:text-slate-600" data-modal="modal-csv">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="p-5 overflow-y-auto flex-1 space-y-4">
+      <!-- Step 1: Upload -->
+      <div id="csv-step-upload">
+        <p class="text-sm text-slate-600 mb-3">
+          Upload a CSV file. Required columns: <code class="bg-slate-100 px-1 rounded">iccid</code>, <code class="bg-slate-100 px-1 rounded">imsi</code>.
+          Optional: <code class="bg-slate-100 px-1 rounded">msisdn</code>, <code class="bg-slate-100 px-1 rounded">operator</code>,
+          <code class="bg-slate-100 px-1 rounded">plan</code>, <code class="bg-slate-100 px-1 rounded">activation_date</code>,
+          <code class="bg-slate-100 px-1 rounded">expiry_date</code>.
+        </p>
+        <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+          <svg class="w-8 h-8 text-slate-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M8 12l4 4m0 0l4-4m-4 4V4"/></svg>
+          <span class="text-sm text-slate-500">Click to select CSV file</span>
+          <input id="csv-file-input" type="file" accept=".csv,text/csv" class="hidden" />
+        </label>
+        <div id="csv-error" class="hidden mt-3 text-sm text-red-600 bg-red-50 rounded-lg p-3"></div>
+      </div>
+
+      <!-- Step 2: Preview -->
+      <div id="csv-step-preview" class="hidden space-y-3">
+        <div class="flex items-center gap-4 text-sm">
+          <span class="text-green-700 font-semibold" id="csv-valid-count"></span>
+          <span class="text-red-600 font-semibold" id="csv-error-count"></span>
+        </div>
+
+        <!-- Valid rows preview table -->
+        <div id="csv-valid-section">
+          <h3 class="text-sm font-semibold text-slate-700 mb-2">Valid rows (preview — first 20)</h3>
+          <div class="overflow-x-auto border border-slate-200 rounded-lg">
+            <table class="w-full text-xs">
+              <thead class="bg-slate-50 text-slate-500 uppercase">
+                <tr>
+                  <th class="px-3 py-2 text-left">ICCID</th>
+                  <th class="px-3 py-2 text-left">IMSI</th>
+                  <th class="px-3 py-2 text-left">MSISDN</th>
+                  <th class="px-3 py-2 text-left">Operator</th>
+                  <th class="px-3 py-2 text-left">Plan</th>
+                  <th class="px-3 py-2 text-left">Expiry</th>
+                </tr>
+              </thead>
+              <tbody id="csv-preview-tbody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Error rows -->
+        <div id="csv-error-section" class="hidden">
+          <h3 class="text-sm font-semibold text-red-700 mb-2">Validation errors</h3>
+          <div class="overflow-x-auto border border-red-200 rounded-lg bg-red-50">
+            <table class="w-full text-xs">
+              <thead class="text-red-600 uppercase">
+                <tr>
+                  <th class="px-3 py-2 text-left">Row</th>
+                  <th class="px-3 py-2 text-left">Data</th>
+                  <th class="px-3 py-2 text-left">Reason</th>
+                </tr>
+              </thead>
+              <tbody id="csv-errors-tbody" class="divide-y divide-red-100"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="csv-commit-error" class="hidden text-sm text-red-600 bg-red-50 rounded-lg p-3"></div>
+      </div>
+
+      <!-- Step 3: Result -->
+      <div id="csv-step-result" class="hidden text-center py-6">
+        <svg class="w-12 h-12 text-green-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <p class="text-lg font-semibold text-slate-900" id="csv-result-text"></p>
+        <p class="text-sm text-slate-500 mt-1" id="csv-result-sub"></p>
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-3 p-5 border-t border-slate-100 flex-shrink-0">
+      <button class="modal-close px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50" data-modal="modal-csv" id="csv-btn-cancel">Cancel</button>
+      <button id="csv-btn-preview" class="hidden px-4 py-2 rounded-lg bg-slate-600 text-sm font-semibold text-white hover:bg-slate-700">Preview</button>
+      <button id="csv-btn-commit" class="hidden px-4 py-2 rounded-lg bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700">Import <span id="csv-btn-count"></span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     RECEIVE SIMs MODAL (2-step, mirrors Receive Devices)
+═══════════════════════════════════════════════════════════════════════════ -->
+<div id="modal-receive-sims" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[92vh]">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b shrink-0">
+      <div>
+        <h2 class="text-lg font-semibold">Receive SIM Cards</h2>
+        <div class="flex items-center gap-2 mt-1">
+          <span id="rs-step-dot-1" class="h-2 w-2 rounded-full bg-blue-600"></span>
+          <span id="rs-step-lbl-1" class="text-xs font-medium text-blue-700">1. Entry</span>
+          <span class="text-slate-300 text-xs">›</span>
+          <span id="rs-step-dot-2" class="h-2 w-2 rounded-full bg-slate-300"></span>
+          <span id="rs-step-lbl-2" class="text-xs font-medium text-slate-400">2. Review</span>
+        </div>
+      </div>
+      <button id="btn-close-receive-sims" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">×</button>
+    </div>
+
+    <!-- ── STEP 1: Entry ──────────────────────────────────────────────── -->
+    <div id="rs-step1" class="p-6 space-y-4 overflow-y-auto flex-1">
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Service Provider <span class="text-red-500">*</span></label>
+          <select id="rs-operator" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" required>
+            <option value="">Select provider…</option>
+            <option value="Safaricom">Safaricom</option>
+            <option value="Airtel">Airtel</option>
+            <option value="Telkom">Telkom</option>
+            <option value="Faiba">Faiba</option>
+            <option value="Equitel">Equitel</option>
+            <option value="__other__">Other…</option>
+          </select>
+          <input id="rs-operator-other" type="text" placeholder="Provider name"
+            class="hidden mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">SIM Type <span class="text-red-500">*</span></label>
+          <select id="rs-sim-type" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" required>
+            <option value="">Select type…</option>
+            <option value="Global">Global (standard/roaming)</option>
+            <option value="IoT">IoT (M2M / data-only)</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Plan <span class="text-slate-400 font-normal">(optional, applies to whole batch)</span></label>
+        <input id="rs-plan" type="text" placeholder="e.g. M2M Data Bundle 1GB"
+          class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+      </div>
+
+      <div class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs text-slate-500">
+        Batch reference is generated automatically from today's date when you save, e.g. <span class="font-mono" id="rs-batch-preview">SIM-BATCH-YYYYMMDDhhmm</span> — no need to type one.
+      </div>
+
+      <!-- ICCID bulk entry -->
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <label class="text-xs font-semibold text-slate-600">
+            ICCID Numbers
+            <span class="ml-1 font-normal text-slate-400">(one per line, or comma / space separated)</span>
+          </label>
+          <button id="btn-scan-iccid" type="button"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M3 17v2a2 2 0 002 2h2m10 0h2a2 2 0 002-2v-2
+                   M7 8h1M12 8h1M17 8h1M7 12h1M12 12h1M17 12h1M7 16h1M12 16h1M17 16h1"/>
+            </svg>
+            Scan Barcode
+          </button>
+        </div>
+        <div class="relative">
+          <textarea id="rs-iccid-bulk" rows="6" spellcheck="false"
+            placeholder="8925401234567890123&#10;8925401234567890124&#10;or paste: 8925401234567890123, 8925401234567890124"
+            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono focus:outline-none focus:border-blue-500 resize-y"></textarea>
+          <span id="rs-iccid-count" class="absolute bottom-2 right-3 text-xs text-slate-400 pointer-events-none">0 entries</span>
+        </div>
+        <input id="rs-scan-input" type="text" autocomplete="off"
+          class="hidden w-full mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-mono focus:outline-none focus:border-amber-500"
+          placeholder="Scan barcode — press Enter after each scan" />
+        <p id="rs-scan-hint" class="hidden mt-1 text-xs text-amber-700">
+          Scanner active — scan SIM packs one by one. Each scan appends to the ICCID list above. Click <strong>Stop Scanning</strong> when done.
+        </p>
+      </div>
+
+      <div id="rs-step1-error" class="hidden rounded-lg bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-700"></div>
+    </div>
+
+    <!-- ── STEP 2: Review ─────────────────────────────────────────────── -->
+    <div id="rs-step2" class="hidden p-6 overflow-y-auto flex-1">
+      <div class="mb-3 flex items-center justify-between">
+        <p class="text-sm text-slate-600">
+          Review entries before saving.
+          <span id="rs-review-summary" class="font-semibold text-slate-800"></span>
+        </p>
+        <span id="rs-review-badge" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700"></span>
+      </div>
+      <div class="overflow-x-auto rounded-xl border border-slate-200">
+        <table class="w-full text-xs">
+          <thead class="bg-slate-50 text-slate-500 uppercase text-[10px]">
+            <tr>
+              <th class="px-3 py-2 text-left w-8">#</th>
+              <th class="px-3 py-2 text-left">ICCID</th>
+              <th class="px-3 py-2 text-left w-28">Status</th>
+              <th class="px-3 py-2 text-left w-8"></th>
+            </tr>
+          </thead>
+          <tbody id="rs-review-tbody"></tbody>
+        </table>
+      </div>
+      <div id="rs-step2-error" class="hidden mt-3 rounded-lg bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-700"></div>
+    </div>
+
+    <!-- Footer buttons -->
+    <div class="flex items-center justify-between px-6 py-4 border-t shrink-0 bg-slate-50 rounded-b-2xl">
+      <button id="btn-cancel-receive-sims" type="button"
+        class="rounded-lg border border-slate-200 px-4 py-2 text-sm hover:bg-slate-100 transition">Cancel</button>
+      <div class="flex gap-3">
+        <button id="btn-rs-back" type="button"
+          class="hidden rounded-lg border border-slate-200 px-4 py-2 text-sm hover:bg-slate-100 transition">← Back</button>
+        <button id="btn-rs-next" type="button"
+          class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition">
+          Review →
+        </button>
+        <button id="btn-rs-save" type="button"
+          class="hidden rounded-lg bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition">
+          Save All
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SIM DETAIL DRAWER
+═══════════════════════════════════════════════════════════════════════════ -->
+<div id="drawer-overlay" class="hidden fixed inset-0 bg-black/30 z-40" id="drawer-overlay"></div>
+<aside id="sim-drawer" class="fixed right-0 top-0 bottom-0 w-full max-w-xl bg-white border-l border-slate-200 shadow-2xl z-50 flex flex-col translate-x-full transition-transform duration-300">
+  <div class="flex items-center justify-between p-5 border-b border-slate-100 flex-shrink-0">
+    <h2 class="text-lg font-semibold text-slate-900" id="drawer-title">SIM Details</h2>
+    <button id="drawer-close-btn" class="text-slate-400 hover:text-slate-600">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="flex-1 overflow-y-auto p-5 space-y-5">
+    <!-- Fields -->
+    <div class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm" id="drawer-fields"></div>
+
+    <!-- Status change -->
+    <div class="bg-slate-50 rounded-xl p-4 space-y-3">
+      <h3 class="text-sm font-semibold text-slate-700">Change Status</h3>
+      <div class="flex flex-wrap gap-2" id="drawer-status-btns"></div>
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">Reason / Notes</label>
+        <input id="drawer-status-notes" type="text" placeholder="Optional reason…"
+               class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+      </div>
+      <div id="drawer-status-error" class="hidden text-sm text-red-600"></div>
+    </div>
+
+    <!-- Ledger -->
+    <div>
+      <h3 class="text-sm font-semibold text-slate-700 mb-3">Audit History</h3>
+      <div class="space-y-2" id="drawer-ledger"></div>
+    </div>
+  </div>
+</aside>
+
+<div id="fm-footer"></div>
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+const api = (path, opts = {}) => window.FINEMARK_APP.apiFetch(path, opts);
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let page = 1, total = 0;
+let activeStatus = "", activeOperator = "", activeQ = "";
+let activeExpiryFrom = "", activeExpiryTo = "", activeBatch = "";
+const PAGE_SIZE = 50;
+
+// ── Cache & request sequencing ────────────────────────────────────────────────
+const LIST_TTL  = 30_000;   // 30 s per URL entry
+const STATS_TTL = 60_000;   // 60 s for stats
+const listCache = new Map(); // url → { rows, total, ts }
+let   statsCache = null;     // { data, ts }
+let   reqSeq     = 0;        // bump on each fetch; stale responses are discarded
+
+function cacheGet(url) {
+  const e = listCache.get(url);
+  if (e && Date.now() - e.ts < LIST_TTL) return e;
+  listCache.delete(url);
+  return null;
+}
+function cachePut(url, rows, tot) {
+  listCache.set(url, { rows, total: tot, ts: Date.now() });
+  if (listCache.size > 30) listCache.delete(listCache.keys().next().value);
+}
+function invalidateCache() {
+  listCache.clear();
+  statsCache = null;
+}
+
+// ── Stat card active highlight ─────────────────────────────────────────────────
+function syncStatCards(status) {
+  document.querySelectorAll(".stat-card").forEach(card => {
+    const active = status !== "" && card.dataset.filter === status;
+    card.classList.toggle("ring-2",          active);
+    card.classList.toggle("ring-blue-400",   active);
+    card.classList.toggle("border-blue-300", active);
+    card.classList.toggle("shadow-md",       active);
+  });
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+async function loadStats() {
+  if (statsCache && Date.now() - statsCache.ts < STATS_TTL) { applyStats(statsCache.data); return; }
+  try {
+    const r = await api("/inventory/sims/stats");
+    statsCache = { data: r.data, ts: Date.now() };
+    applyStats(r.data);
+  } catch {}
+}
+function applyStats(d) {
+  document.getElementById("stat-available").textContent  = d.available  ?? 0;
+  document.getElementById("stat-issued").textContent     = d.issued     ?? 0;
+  document.getElementById("stat-suspended").textContent  = d.suspended  ?? 0;
+  document.getElementById("stat-retired").textContent    = d.retired    ?? 0;
+}
+
+document.querySelectorAll(".stat-card").forEach(el => {
+  el.addEventListener("click", () => {
+    const f = el.dataset.filter;
+    activeStatus = activeStatus === f ? "" : f;
+    document.getElementById("filter-status").value = activeStatus;
+    syncStatCards(activeStatus);
+    page = 1;
+    loadSims();
+  });
+});
+
+// ── Operators dropdown ─────────────────────────────────────────────────────────
+async function loadOperators() {
+  try {
+    const r = await api("/inventory/sims/operators");
+    const sel = document.getElementById("filter-operator");
+    sel.innerHTML = `<option value="">All Providers</option>` +
+      (r.data ?? []).map(o => `<option value="${o}">${o}</option>`).join("");
+  } catch {}
+}
+
+// ── Batches dropdown ────────────────────────────────────────────────
+async function loadBatches() {
+  try {
+    const r = await api("/inventory/sims/batches");
+    const sel = document.getElementById("filter-batch");
+    sel.innerHTML = `<option value="">All Batches</option>` +
+      (r.data ?? []).map(b => `<option value="${b.batch_ref}">${b.batch_ref} (${b.sim_count} SIMs)</option>`).join("");
+  } catch {}
+}
+
+// ── Load SIMs ─────────────────────────────────────────────────────────────────
+async function loadSims() {
+  const mySeq = ++reqSeq;
+  const tbody = document.getElementById("sims-tbody");
+tbody.innerHTML = `<tr><td colspan="10" class="px-4 py-10 text-center text-sm text-slate-400">Loading…</td></tr>`;
+
+  const params = new URLSearchParams();
+  if (activeStatus)     params.set("status",      activeStatus);
+  if (activeOperator)   params.set("operator",    activeOperator);
+  if (activeExpiryFrom) params.set("expiry_from", activeExpiryFrom);
+  if (activeExpiryTo)   params.set("expiry_to",   activeExpiryTo);
+  if (activeBatch)      params.set("batch_ref",   activeBatch);
+  if (activeQ)          params.set("q",           activeQ);
+  params.set("page",     String(page));
+  params.set("pageSize", String(PAGE_SIZE));
+
+  const url = `/inventory/sims?${params}`;
+  const cached = cacheGet(url);
+  if (cached) {
+    if (reqSeq !== mySeq) return;
+    total = cached.total;
+    renderTable(cached.rows);
+    updatePagination();
+    return;
+  }
+
+  try {
+    const r = await api(url);
+    if (reqSeq !== mySeq) return;  // a newer call already responded
+    total = r.total ?? 0;
+    cachePut(url, r.data ?? [], total);
+    renderTable(r.data ?? []);
+    updatePagination();
+  } catch (e) {
+    if (reqSeq !== mySeq) return;
+    tbody.innerHTML = `<tr><td colspan="10" class="px-4 py-10 text-center text-sm text-red-400">Failed to load SIMs.</td></tr>`;
+  }
+}
+
+function renderTable(rows) {
+  const tbody = document.getElementById("sims-tbody");
+  document.getElementById("total-label").textContent = `${total} SIM${total !== 1 ? "s" : ""}`;
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="10" class="px-4 py-10 text-center text-sm text-slate-400">No SIM cards found.</td></tr>`;
+    return;
+  }
+  const statusColor = { available:"text-green-700 bg-green-50", issued:"text-blue-700 bg-blue-50", suspended:"text-amber-700 bg-amber-50", retired:"text-slate-600 bg-slate-100" };
+  tbody.innerHTML = rows.map(r => `
+    <tr class="hover:bg-slate-50 cursor-pointer sim-row" data-id="${r.id}">
+      <td class="px-4 py-3 font-mono text-xs text-slate-700">${r.iccid}</td>
+      <td class="px-4 py-3 font-mono text-xs text-slate-500">${r.imsi}</td>
+      <td class="px-4 py-3 text-sm text-slate-600">${r.msisdn || "—"}</td>
+      <td class="px-4 py-3 text-sm text-slate-600">${r.operator || "—"}</td>
+      <td class="px-4 py-3 text-sm text-slate-600">${r.plan || "—"}</td>
+      <td class="px-4 py-3">
+        <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColor[r.status] || "text-slate-600 bg-slate-100"}">${r.status}</span>
+      </td>
+      <td class="px-4 py-3 text-sm text-slate-600">${(r.status === "issued" || r.status === "installed") && r.issued_to_name ? escHtmlRs(r.issued_to_name) : "—"}</td>
+      <td class="px-4 py-3 text-sm text-slate-500">${r.expiry_date ? fmtDate(r.expiry_date) : "—"}</td>      <td class="px-4 py-3 text-xs text-slate-400 font-mono">${r.batch_ref || "\u2014"}</td>      <td class="px-4 py-3 text-right">
+        <button class="text-xs text-blue-600 hover:underline view-btn" data-id="${r.id}">View</button>
+      </td>
+    </tr>
+  `).join("");
+
+  tbody.querySelectorAll(".sim-row, .view-btn").forEach(el => {
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openDrawer(el.dataset.id || el.closest("[data-id]")?.dataset.id);
+    });
+  });
+}
+
+function updatePagination() {
+  const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  document.getElementById("page-label").textContent = `Page ${page} of ${lastPage}`;
+  document.getElementById("btn-prev").disabled = page <= 1;
+  document.getElementById("btn-next").disabled = page >= lastPage;
+}
+
+document.getElementById("btn-prev").addEventListener("click", () => { page--; loadSims(); });
+document.getElementById("btn-next").addEventListener("click", () => { page++; loadSims(); });
+
+// ── Filters ───────────────────────────────────────────────────────────────────
+let searchTimer;
+document.getElementById("search-input").addEventListener("input", e => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { activeQ = e.target.value.trim(); page = 1; loadSims(); }, 350);
+});
+document.getElementById("filter-status").addEventListener("change", e => {
+  activeStatus = e.target.value;
+  syncStatCards(activeStatus);
+  page = 1;
+  loadSims();
+});
+document.getElementById("filter-operator").addEventListener("change", e => {
+  activeOperator = e.target.value;
+  page = 1;
+  loadSims();
+});
+let expiryTimer;
+document.getElementById("filter-expiry-from").addEventListener("change", e => {
+  clearTimeout(expiryTimer);
+  expiryTimer = setTimeout(() => { activeExpiryFrom = e.target.value; page = 1; loadSims(); }, 200);
+});
+document.getElementById("filter-expiry-to").addEventListener("change", e => {
+  clearTimeout(expiryTimer);
+  expiryTimer = setTimeout(() => { activeExpiryTo = e.target.value; page = 1; loadSims(); }, 200);
+});
+document.getElementById("filter-batch").addEventListener("change", e => {
+  activeBatch = e.target.value;
+  page = 1;
+  loadSims();
+});
+document.getElementById("btn-apply")?.addEventListener("click", () => { page = 1; loadSims(); });
+document.getElementById("btn-reset").addEventListener("click", () => {
+  activeQ = ""; activeStatus = ""; activeOperator = "";
+  activeExpiryFrom = ""; activeExpiryTo = ""; activeBatch = "";
+  document.getElementById("search-input").value = "";
+  document.getElementById("filter-status").value = "";
+  document.getElementById("filter-operator").value = "";
+  document.getElementById("filter-expiry-from").value = "";
+  document.getElementById("filter-expiry-to").value = "";
+  document.getElementById("filter-batch").value = "";
+  syncStatCards("");
+  page = 1;
+  loadSims();
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadStats();
+loadOperators();
+loadBatches();
+loadSims();
+
+// ── Modal helpers ─────────────────────────────────────────────────────────────
+document.querySelectorAll(".modal-close").forEach(btn => {
+  btn.addEventListener("click", () => closeModal(btn.dataset.modal));
+});
+function openModal(id) {
+  document.getElementById(id).classList.remove("hidden");
+}
+function closeModal(id) {
+  document.getElementById(id).classList.add("hidden");
+}
+
+// ── CSV Import ────────────────────────────────────────────────────────────────
+let csvPreviewData = null;
+
+document.getElementById("btn-import-csv").addEventListener("click", () => {
+  resetCsvModal();
+  openModal("modal-csv");
+});
+
+function resetCsvModal() {
+  csvPreviewData = null;
+  document.getElementById("csv-file-input").value = "";
+  document.getElementById("csv-step-upload").classList.remove("hidden");
+  document.getElementById("csv-step-preview").classList.add("hidden");
+  document.getElementById("csv-step-result").classList.add("hidden");
+  document.getElementById("csv-btn-preview").classList.add("hidden");
+  document.getElementById("csv-btn-commit").classList.add("hidden");
+  document.getElementById("csv-error").classList.add("hidden");
+  document.getElementById("csv-commit-error").classList.add("hidden");
+}
+
+document.getElementById("csv-file-input").addEventListener("change", async e => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  document.getElementById("csv-btn-preview").classList.remove("hidden");
+  document.getElementById("csv-btn-preview").textContent = `Preview "${file.name}"`;
+});
+
+document.getElementById("csv-btn-preview").addEventListener("click", async () => {
+  const file = document.getElementById("csv-file-input").files?.[0];
+  if (!file) return;
+  const errEl = document.getElementById("csv-error");
+  errEl.classList.add("hidden");
+
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    const token = window.FINEMARK_APP?.getSession?.()?.accessToken;
+    const base = window.FINEMARK_APP?.CONFIG?.API_BASE_URL ?? "/api";
+    const r = await fetch(`${base}/inventory/sims/import-csv`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+    });
+    const json = await r.json();
+    if (!r.ok) throw new Error(json?.message || "Preview failed");
+    csvPreviewData = json.data;
+    renderCsvPreview(csvPreviewData);
+  } catch (err) {
+    errEl.textContent = err?.message || "Preview failed.";
+    errEl.classList.remove("hidden");
+  }
+});
+
+function renderCsvPreview(data) {
+  const { valid, errors } = data;
+  document.getElementById("csv-step-upload").classList.add("hidden");
+  document.getElementById("csv-step-preview").classList.remove("hidden");
+  document.getElementById("csv-btn-preview").classList.add("hidden");
+
+  document.getElementById("csv-valid-count").textContent = `✓ ${valid.length} valid row${valid.length !== 1 ? "s" : ""}`;
+  document.getElementById("csv-error-count").textContent = errors.length ? `✗ ${errors.length} error${errors.length !== 1 ? "s" : ""}` : "";
+
+  const previewRows = valid.slice(0, 20);
+  document.getElementById("csv-preview-tbody").innerHTML = previewRows.map(r => `
+    <tr class="hover:bg-slate-50">
+      <td class="px-3 py-1.5 font-mono">${r.iccid}</td>
+      <td class="px-3 py-1.5 font-mono">${r.imsi}</td>
+      <td class="px-3 py-1.5">${r.msisdn || "—"}</td>
+      <td class="px-3 py-1.5">${r.operator || "—"}</td>
+      <td class="px-3 py-1.5">${r.plan || "—"}</td>
+      <td class="px-3 py-1.5">${r.expiry_date || "—"}</td>
+    </tr>
+  `).join("");
+
+  if (errors.length) {
+    document.getElementById("csv-error-section").classList.remove("hidden");
+    document.getElementById("csv-errors-tbody").innerHTML = errors.map(e => `
+      <tr><td class="px-3 py-1.5">${e.row}</td><td class="px-3 py-1.5 font-mono">${e.data}</td><td class="px-3 py-1.5">${e.reason}</td></tr>
+    `).join("");
+  } else {
+    document.getElementById("csv-error-section").classList.add("hidden");
+  }
+
+  if (valid.length) {
+    document.getElementById("csv-btn-commit").classList.remove("hidden");
+    document.getElementById("csv-btn-count").textContent = `(${valid.length})`;
+  }
+}
+
+document.getElementById("csv-btn-commit").addEventListener("click", async () => {
+  const file = document.getElementById("csv-file-input").files?.[0];
+  if (!file) return;
+  const errEl = document.getElementById("csv-commit-error");
+  errEl.classList.add("hidden");
+
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    const token = window.FINEMARK_APP?.getSession?.()?.accessToken;
+    const base = window.FINEMARK_APP?.CONFIG?.API_BASE_URL ?? "/api";
+    const r = await fetch(`${base}/inventory/sims/import-csv?commit=true`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+    });
+    const json = await r.json();
+    if (!r.ok) throw new Error(json?.message || "Import failed");
+    const d = json.data;
+    document.getElementById("csv-step-preview").classList.add("hidden");
+    document.getElementById("csv-step-result").classList.remove("hidden");
+    document.getElementById("csv-result-text").textContent = `${d.inserted} SIM${d.inserted !== 1 ? "s" : ""} imported successfully`;
+    document.getElementById("csv-result-sub").textContent = d.errors?.length ? `${d.errors.length} row(s) skipped (duplicates or errors)` : "All valid rows imported.";
+    document.getElementById("csv-btn-commit").classList.add("hidden");
+    document.getElementById("csv-btn-cancel").textContent = "Close";
+    invalidateCache();
+    loadStats();
+    loadBatches();
+    loadSims();
+  } catch (err) {
+    errEl.textContent = err?.message || "Import failed.";
+    errEl.classList.remove("hidden");
+  }
+});
+
+// ── Receive SIMs (bulk, 2-step wizard) ──────────────────────────────────────────
+const ICCID_RE = /^\d{19,20}$/;
+
+let _rsEntries = [];   // [{raw, valid, validationNote, dupInBatch, dupInDb, removed}]
+let _rsStep = 1;
+let _rsScanActive = false;
+let _rsScanBuffer = "";
+let _rsScanTimer = null;
+
+function rsShowStep(n) {
+  _rsStep = n;
+  document.getElementById("rs-step1").classList.toggle("hidden", n !== 1);
+  document.getElementById("rs-step2").classList.toggle("hidden", n !== 2);
+  document.getElementById("btn-rs-next").classList.toggle("hidden", n !== 1);
+  document.getElementById("btn-rs-back").classList.toggle("hidden", n !== 2);
+  document.getElementById("btn-rs-save").classList.toggle("hidden", n !== 2);
+  ["1","2"].forEach(s => {
+    document.getElementById(`rs-step-dot-${s}`).className =
+      `h-2 w-2 rounded-full ${s == n ? "bg-blue-600" : "bg-slate-300"}`;
+    document.getElementById(`rs-step-lbl-${s}`).className =
+      `text-xs font-medium ${s == n ? "text-blue-700" : "text-slate-400"}`;
+  });
+}
+
+function rsBatchPreview() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, "0");
+  return `SIM-BATCH-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+}
+
+function openReceiveSimsModal() {
+  _rsEntries = [];
+  _rsStep = 1;
+  _rsScanActive = false;
+  document.getElementById("rs-operator").value = "";
+  document.getElementById("rs-operator-other").value = "";
+  document.getElementById("rs-operator-other").classList.add("hidden");
+  document.getElementById("rs-sim-type").value = "";
+  document.getElementById("rs-plan").value = "";
+  document.getElementById("rs-iccid-bulk").value = "";
+  document.getElementById("rs-iccid-count").textContent = "0 entries";
+  document.getElementById("rs-batch-preview").textContent = rsBatchPreview();
+  document.getElementById("rs-step1-error").classList.add("hidden");
+  document.getElementById("rs-step2-error").classList.add("hidden");
+  document.getElementById("rs-scan-input").classList.add("hidden");
+  document.getElementById("rs-scan-hint").classList.add("hidden");
+  document.getElementById("btn-scan-iccid").textContent = "Scan Barcode";
+  rsShowStep(1);
+  openModal("modal-receive-sims");
+}
+
+function closeReceiveSimsModal() {
+  rsStopScanner();
+  closeModal("modal-receive-sims");
+}
+
+document.getElementById("rs-operator").addEventListener("change", e => {
+  document.getElementById("rs-operator-other").classList.toggle("hidden", e.target.value !== "__other__");
+});
+
+function rsSelectedOperator() {
+  const sel = document.getElementById("rs-operator").value;
+  return sel === "__other__" ? document.getElementById("rs-operator-other").value.trim() : sel;
+}
+
+function parseIccidField() {
+  const raw = document.getElementById("rs-iccid-bulk").value;
+  return raw.split(/[\n,; \t]+/).map(s => s.trim()).filter(Boolean);
+}
+
+document.getElementById("rs-iccid-bulk").addEventListener("input", () => {
+  const tokens = parseIccidField();
+  document.getElementById("rs-iccid-count").textContent = tokens.length === 1 ? "1 entry" : `${tokens.length} entries`;
+});
+
+// ── Barcode scanner (keyboard-wedge — same mechanism as Receive Devices) ───────
+function rsAppendIccid(iccid) {
+  const ta = document.getElementById("rs-iccid-bulk");
+  const existing = ta.value.trim();
+  ta.value = existing ? existing + "\n" + iccid : iccid;
+  const tokens = parseIccidField();
+  document.getElementById("rs-iccid-count").textContent = tokens.length === 1 ? "1 entry" : `${tokens.length} entries`;
+}
+
+function onKeyForRsScanner(e) {
+  if (!_rsScanActive) return;
+  if (e.key === "Enter") {
+    if (_rsScanBuffer.trim()) {
+      rsAppendIccid(_rsScanBuffer.trim());
+      _rsScanBuffer = "";
+      document.getElementById("rs-scan-input").value = "";
+    }
+    return;
+  }
+  if (e.key.length === 1) _rsScanBuffer += e.key;
+  clearTimeout(_rsScanTimer);
+  _rsScanTimer = setTimeout(() => {
+    if (_rsScanBuffer.length >= 19) {
+      rsAppendIccid(_rsScanBuffer.trim());
+      _rsScanBuffer = "";
+      document.getElementById("rs-scan-input").value = "";
+    }
+  }, 80);
+}
+
+function rsStartScanner() {
+  _rsScanActive = true;
+  _rsScanBuffer = "";
+  document.getElementById("rs-scan-input").classList.remove("hidden");
+  document.getElementById("rs-scan-hint").classList.remove("hidden");
+  document.getElementById("btn-scan-iccid").innerHTML =
+    `<svg class="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg> Stop Scanning`;
+  document.getElementById("rs-scan-input").focus();
+  document.addEventListener("keydown", onKeyForRsScanner, true);
+}
+
+function rsStopScanner() {
+  _rsScanActive = false;
+  _rsScanBuffer = "";
+  clearTimeout(_rsScanTimer);
+  document.removeEventListener("keydown", onKeyForRsScanner, true);
+  document.getElementById("rs-scan-input").classList.add("hidden");
+  document.getElementById("rs-scan-hint").classList.add("hidden");
+  document.getElementById("btn-scan-iccid").innerHTML =
+    `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M3 17v2a2 2 0 002 2h2m10 0h2a2 2 0 002-2v-2M7 8h1M12 8h1M17 8h1M7 12h1M12 12h1M17 12h1M7 16h1M12 16h1M17 16h1"/></svg> Scan Barcode`;
+}
+
+document.getElementById("btn-scan-iccid").addEventListener("click", () => {
+  _rsScanActive ? rsStopScanner() : rsStartScanner();
+});
+
+document.getElementById("rs-scan-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    const v = e.target.value.trim();
+    if (v) { rsAppendIccid(v); e.target.value = ""; _rsScanBuffer = ""; }
+  }
+});
+
+// ── Step 1 → Step 2 ──────────────────────────────────────────────────────────
+async function rsGoToReview() {
+  const errEl = document.getElementById("rs-step1-error");
+  errEl.classList.add("hidden");
+
+  const operator = rsSelectedOperator();
+  if (!operator) {
+    errEl.textContent = "Please select (or enter) a service provider.";
+    errEl.classList.remove("hidden");
+    return;
+  }
+  const simType = document.getElementById("rs-sim-type").value;
+  if (!simType) {
+    errEl.textContent = "Please select a SIM type.";
+    errEl.classList.remove("hidden");
+    return;
+  }
+  const tokens = parseIccidField();
+  if (!tokens.length) {
+    errEl.textContent = "Enter at least one ICCID.";
+    errEl.classList.remove("hidden");
+    return;
+  }
+
+  const seenInBatch = new Set();
+  _rsEntries = tokens.map(raw => {
+    const valid = ICCID_RE.test(raw);
+    const dupInBatch = seenInBatch.has(raw);
+    seenInBatch.add(raw);
+    return { raw, valid, validationNote: valid ? "" : "ICCID must be 19–20 digits", dupInBatch, dupInDb: false, removed: false };
+  });
+
+  const toCheck = _rsEntries.filter(e => e.valid && !e.dupInBatch).map(e => e.raw);
+  if (toCheck.length) {
+    try {
+      const checkRes = await api("/inventory/sims/check-duplicates", { method: "POST", body: { iccids: toCheck } });
+      const dupsSet = new Set(checkRes?.duplicates || []);
+      _rsEntries.forEach(e => { if (dupsSet.has(e.raw)) e.dupInDb = true; });
+    } catch (_) { /* non-fatal — show warning in review */ }
+  }
+
+  rsStopScanner();
+  rsRenderReviewTable();
+  rsShowStep(2);
+}
+
+function rsRowStatusBadge(entry) {
+  if (entry.removed)    return `<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 text-[10px] font-medium">Removed</span>`;
+  if (entry.dupInDb)    return `<span class="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-semibold">Already in DB</span>`;
+  if (entry.dupInBatch) return `<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-semibold">Duplicate</span>`;
+  if (!entry.valid)     return `<span class="px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-semibold" title="${escHtmlRs(entry.validationNote)}">${escHtmlRs(entry.validationNote)}</span>`;
+  return `<span class="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-semibold">✓ Valid</span>`;
+}
+
+function rsRenderReviewTable() {
+  const tbody = document.getElementById("rs-review-tbody");
+  const total   = _rsEntries.length;
+  const invalid = _rsEntries.filter(e => !e.removed && (!e.valid || e.dupInBatch || e.dupInDb)).length;
+  const good    = _rsEntries.filter(e => !e.removed && e.valid && !e.dupInBatch && !e.dupInDb).length;
+
+  document.getElementById("rs-review-summary").textContent =
+    `${good} will be saved${invalid ? `, ${invalid} issue(s) found` : ""} of ${total} total.`;
+
+  const badge = document.getElementById("rs-review-badge");
+  if (invalid) { badge.textContent = `${invalid} issue(s)`; badge.classList.remove("hidden"); }
+  else badge.classList.add("hidden");
+
+  document.getElementById("btn-rs-save").disabled = good === 0;
+
+  tbody.innerHTML = _rsEntries.map((e, i) => {
+    const rowClass = e.removed ? "opacity-40" : (!e.valid || e.dupInBatch || e.dupInDb) ? "bg-red-50" : "";
+    return `<tr class="${rowClass} border-t border-slate-100">
+      <td class="px-3 py-2 text-slate-400">${i + 1}</td>
+      <td class="px-3 py-2 font-mono text-slate-800">${escHtmlRs(e.raw)}</td>
+      <td class="px-3 py-2">${rsRowStatusBadge(e)}</td>
+      <td class="px-3 py-2">
+        <button onclick="rsToggleRow(${i})" class="text-xs ${e.removed ? "text-blue-600 hover:underline" : "text-red-500 hover:underline"}">
+          ${e.removed ? "Restore" : "Remove"}
+        </button>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+function escHtmlRs(s) { return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+window.rsToggleRow = function(i) {
+  _rsEntries[i].removed = !_rsEntries[i].removed;
+  rsRenderReviewTable();
+};
+
+async function rsSaveReceive() {
+  const saveBtn = document.getElementById("btn-rs-save");
+  const errEl = document.getElementById("rs-step2-error");
+  errEl.classList.add("hidden");
+  saveBtn.disabled = true;
+  saveBtn.textContent = "Saving…";
+
+  const toSave = _rsEntries.filter(e => !e.removed && e.valid && !e.dupInBatch && !e.dupInDb);
+  if (!toSave.length) {
+    errEl.textContent = "No valid entries to save after removing issues.";
+    errEl.classList.remove("hidden");
+    saveBtn.disabled = false;
+    saveBtn.textContent = "Save All";
+    return;
+  }
+
+  const body = {
+    operator: rsSelectedOperator(),
+    plan: document.getElementById("rs-plan").value.trim() || null,
+    simType: document.getElementById("rs-sim-type").value,
+    items: toSave.map(e => ({ iccid: e.raw })),
+  };
+
+  try {
+    const res = await api("/inventory/sims/bulk", { method: "POST", body });
+    const received = res?.data?.received?.length ?? 0;
+    const errors = res?.data?.errors ?? [];
+    const batchRef = res?.data?.batchRef;
+    closeReceiveSimsModal();
+    invalidateCache();
+    loadStats();
+    loadBatches();
+    loadSims();
+    window.FINEMARK_APP?.showToast?.(
+      `${received} SIM(s) received into batch ${batchRef}.` + (errors.length ? ` ${errors.length} failed.` : ""),
+      errors.length ? "warning" : "success"
+    );
+  } catch (err) {
+    errEl.textContent = err?.message || "Save failed. Please try again.";
+    errEl.classList.remove("hidden");
+    saveBtn.disabled = false;
+    saveBtn.textContent = "Save All";
+  }
+}
+
+document.getElementById("btn-rs-next").addEventListener("click", rsGoToReview);
+document.getElementById("btn-rs-back").addEventListener("click", () => rsShowStep(1));
+document.getElementById("btn-rs-save").addEventListener("click", rsSaveReceive);
+document.getElementById("btn-receive-sims").addEventListener("click", openReceiveSimsModal);
+document.getElementById("btn-close-receive-sims").addEventListener("click", closeReceiveSimsModal);
+document.getElementById("btn-cancel-receive-sims").addEventListener("click", closeReceiveSimsModal);
+
+// ── SIM Detail Drawer ─────────────────────────────────────────────────────────
+const drawer      = document.getElementById("sim-drawer");
+const drawerOverlay = document.getElementById("drawer-overlay");
+
+async function openDrawer(id) {
+  try {
+    const [sim, ledger] = await Promise.all([
+      api(`/inventory/sims/${id}`),
+      api(`/inventory/sims/${id}/ledger`),
+    ]);
+    renderDrawer(sim.data, ledger.data || []);
+    drawer.classList.remove("translate-x-full");
+    drawerOverlay.classList.remove("hidden");
+  } catch {}
+}
+
+function closeDrawer() {
+  drawer.classList.add("translate-x-full");
+  drawerOverlay.classList.add("hidden");
+}
+
+document.getElementById("drawer-close-btn").addEventListener("click", closeDrawer);
+drawerOverlay.addEventListener("click", closeDrawer);
+
+const STATUS_TRANSITIONS = {
+  available:  ["issued",     "suspended", "retired"],
+  issued:     ["available",  "suspended", "retired"],
+  suspended:  ["available",  "retired"],
+  retired:    [],
+};
+const STATUS_BTN_COLOR = {
+  available: "bg-green-600 hover:bg-green-700 text-white",
+  issued:    "bg-blue-600 hover:bg-blue-700 text-white",
+  suspended: "bg-amber-600 hover:bg-amber-700 text-white",
+  retired:   "bg-slate-500 hover:bg-slate-600 text-white",
+};
+
+function renderDrawer(sim, ledger) {
+  document.getElementById("drawer-title").textContent = sim.iccid;
+
+  const fields = [
+    ["ICCID",       sim.iccid],
+    ["IMSI",        sim.imsi],
+    ["MSISDN",      sim.msisdn || "—"],
+    ["Operator",    sim.operator || "—"],
+    ["Plan",        sim.plan || "—"],
+    ["Status",      `<span class="capitalize font-semibold">${sim.status}</span>`],
+    ["Activation",  sim.activation_date ? fmtDate(sim.activation_date) : "—"],
+    ["Expiry",      sim.expiry_date     ? fmtDate(sim.expiry_date)     : "—"],
+    ["PIN stored",  sim.has_pin ? "✓" : "—"],
+    ["PUK stored",  sim.has_puk ? "✓" : "—"],
+    ["Notes",       sim.notes || "—"],
+    ["Created",     fmtDate(sim.created_at)],
+  ];
+  document.getElementById("drawer-fields").innerHTML = fields.map(([k,v]) => `
+    <div>
+      <dt class="text-xs text-slate-400 font-medium">${k}</dt>
+      <dd class="text-sm text-slate-800">${v}</dd>
+    </div>
+  `).join("");
+
+  // Status change buttons
+  const transitions = STATUS_TRANSITIONS[sim.status] || [];
+  const btnContainer = document.getElementById("drawer-status-btns");
+  if (transitions.length) {
+    btnContainer.innerHTML = transitions.map(s => `
+      <button class="status-change-btn px-3 py-1.5 rounded-lg text-xs font-semibold capitalize ${STATUS_BTN_COLOR[s] || "bg-slate-500 text-white hover:bg-slate-600"}" data-sim-id="${sim.id}" data-new-status="${s}">
+        → ${s}
+      </button>
+    `).join("");
+    btnContainer.querySelectorAll(".status-change-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const notes = document.getElementById("drawer-status-notes").value;
+        const errEl = document.getElementById("drawer-status-error");
+        errEl.classList.add("hidden");
+        try {
+          await api(`/inventory/sims/${btn.dataset.simId}/status`, {
+            method: "POST",
+            body: { status: btn.dataset.newStatus, notes },
+          });
+          closeDrawer();
+          invalidateCache();
+          loadStats();
+          loadSims();
+        } catch (err) {
+          errEl.textContent = err?.message || "Failed to update status.";
+          errEl.classList.remove("hidden");
+        }
+      });
+    });
+  } else {
+    btnContainer.innerHTML = `<p class="text-xs text-slate-400 italic">No status transitions available.</p>`;
+  }
+
+  // Ledger
+  const ACTION_COLOR = {
+    registered: "bg-green-50 text-green-700",
+    updated:    "bg-slate-100 text-slate-600",
+    issued:     "bg-blue-50 text-blue-700",
+    available:  "bg-green-50 text-green-700",
+    suspended:  "bg-amber-50 text-amber-700",
+    retired:    "bg-slate-100 text-slate-500",
+  };
+  document.getElementById("drawer-ledger").innerHTML = ledger.length
+    ? ledger.map(e => `
+      <div class="flex gap-3 items-start text-sm">
+        <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium capitalize shrink-0 ${ACTION_COLOR[e.action] || "bg-slate-100 text-slate-600"}">${e.action}</span>
+        <div class="flex-1 min-w-0">
+          ${e.from_status ? `<span class="text-slate-400 text-xs">${e.from_status} → ${e.to_status}</span>` : ""}
+          ${e.notes ? `<p class="text-slate-600 truncate">${e.notes}</p>` : ""}
+          <p class="text-xs text-slate-400">${e.actor_email} · ${fmtDate(e.created_at)}</p>
+        </div>
+      </div>
+    `).join("")
+    : `<p class="text-xs text-slate-400 italic">No ledger entries yet.</p>`;
+}
+
+// ── Utility ───────────────────────────────────────────────────────────────────
+function fmtDate(d) {
+  if (!d) return "—";
+  try { return new Date(d).toLocaleDateString("en-GB", { year:"numeric", month:"short", day:"2-digit" }); }
+  catch { return d; }
+}
+</script>
+</body>
+</html>

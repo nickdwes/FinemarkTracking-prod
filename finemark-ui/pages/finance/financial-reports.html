@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Financial Reports - FineMark Tracking</title>
+    <link rel="icon" href="../../assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="../../assets/tailwind.css" />
+    <link rel="stylesheet" href="../../assets/font-awesome.min.css" />
+    <style>
+      .hover-lift {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      .hover-lift:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+      }
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 9999px;
+        padding: 2px 8px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .status-completed {
+        background: #dcfce7;
+        color: #166534;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+
+        <div class="max-w-6xl mx-auto space-y-6">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 class="text-2xl font-semibold text-slate-900">Financial Reports</h1>
+              <p class="text-sm text-slate-600">Download and review financial summaries.</p>
+            </div>
+            <a href="finance-dashboard.html" class="text-sm text-blue-600 hover:underline">← Back to Finance Dashboard</a>
+          </div>
+
+          <section id="revenue" class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-lg font-semibold text-slate-900">Revenue Reports</h2>
+                <p class="text-sm text-slate-500">Monthly and yearly revenue analysis.</p>
+              </div>
+              <button class="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50" aria-label="Download revenue CSV">
+                Download CSV
+              </button>
+            </div>
+            <div class="grid gap-3 md:grid-cols-3">
+              <div class="border border-slate-200 rounded-lg p-4 hover-lift">
+                <p class="text-sm font-semibold text-slate-900">January 2024</p>
+                <p class="text-xs text-slate-500" data-amount="42500">Revenue: KES 0</p>
+              </div>
+              <div class="border border-slate-200 rounded-lg p-4 hover-lift">
+                <p class="text-sm font-semibold text-slate-900">Q4 2023</p>
+                <p class="text-xs text-slate-500" data-amount="118400">Revenue: KES 0</p>
+              </div>
+              <div class="border border-slate-200 rounded-lg p-4 hover-lift">
+                <p class="text-sm font-semibold text-slate-900">2023 Summary</p>
+                <p class="text-xs text-slate-500" data-amount="452700">Revenue: KES 0</p>
+              </div>
+            </div>
+          </section>
+
+          <section id="invoices" class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-lg font-semibold text-slate-900">Invoice Reports</h2>
+                <p class="text-sm text-slate-500">Invoice status and aging reports.</p>
+              </div>
+              <button class="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50" aria-label="Download invoice CSV">
+                Download CSV
+              </button>
+            </div>
+            <div class="grid gap-3 md:grid-cols-3">
+              <div class="border border-slate-200 rounded-lg p-4 hover-lift">
+                <p class="text-sm font-semibold text-slate-900">Overdue Invoices</p>
+                <p class="text-xs text-slate-500" data-amount="23450">14 invoices • KES 0</p>
+              </div>
+              <div class="border border-slate-200 rounded-lg p-4 hover-lift">
+                <p class="text-sm font-semibold text-slate-900">Paid Invoices</p>
+                <p class="text-xs text-slate-500" data-amount="124580">96 invoices • KES 0</p>
+              </div>
+              <div class="border border-slate-200 rounded-lg p-4 hover-lift">
+                <p class="text-sm font-semibold text-slate-900">Pending Approvals</p>
+                <p class="text-xs text-slate-500" data-amount="8200">9 invoices • KES 0</p>
+              </div>
+            </div>
+          </section>
+
+          <section id="payments" class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-lg font-semibold text-slate-900">Payment Reports</h2>
+                <p class="text-sm text-slate-500">Payment collection and trends.</p>
+              </div>
+              <button class="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50" aria-label="Download payment CSV">
+                Download CSV
+              </button>
+            </div>
+            <div class="grid gap-3 md:grid-cols-3">
+              <div class="border border-slate-200 rounded-lg p-4 hover-lift">
+                <p class="text-sm font-semibold text-slate-900">Bank Transfers</p>
+                <p class="text-xs text-slate-500" data-amount="78900">64 payments • KES 0</p>
+              </div>
+              <div class="border border-slate-200 rounded-lg p-4 hover-lift">
+                <p class="text-sm font-semibold text-slate-900">Card Payments</p>
+                <p class="text-xs text-slate-500" data-amount="18200">22 payments • KES 0</p>
+              </div>
+              <div class="border border-slate-200 rounded-lg p-4 hover-lift">
+                <p class="text-sm font-semibold text-slate-900">Mobile Money</p>
+                <p class="text-xs text-slate-500" data-amount="7480">18 payments • KES 0</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      
+  </main>
+</div>
+<div id="fm-footer"></div>
+<script src="../../assets/contracts.js"></script>
+<script src="../../assets/app.js"></script>
+<script src="../../assets/layout.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    window.FINEMARK_APP?.requirePageAccess?.();
+  });
+</script>
+<script>
+      const formatKES = (value) =>
+        window.FINEMARK_APP?.formatKES ? window.FINEMARK_APP.formatKES(value) : `KES ${Number(value || 0).toLocaleString("en-KE")}`;
+      document.querySelectorAll("[data-amount]").forEach((el) => {
+        const amount = Number(el.dataset.amount || 0);
+        const prefix = el.textContent.includes("Revenue") ? "Revenue: " : el.textContent.split("•")[0].trim() + " • ";
+        el.textContent = `${prefix}${formatKES(amount)}`;
+      });
+    </script>
+</body>
+</html>

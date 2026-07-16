@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Product Catalog</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+    <div class="max-w-7xl mx-auto space-y-6">
+
+      <!-- Page header -->
+      <div class="flex flex-wrap items-center gap-3 justify-between">
+        <div>
+          <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Product Catalog</h1>
+          <p class="text-sm text-slate-500">Define products, pricing, and manage supplier associations.</p>
+        </div>
+        <div class="flex gap-2">
+          <button id="btn-manage-categories" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-slate-50">Categories</button>
+          <button id="btn-manage-suppliers" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-slate-50">Suppliers</button>
+          <button id="btn-new-product" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700">+ New Product</button>
+        </div>
+      </div>
+
+      <!-- Category tabs -->
+      <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm">
+        <div class="flex items-center gap-1 px-4 pt-4 border-b border-slate-100 overflow-x-auto">
+          <button class="cat-tab whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-blue-600 text-blue-700 bg-blue-50" data-cat="">All Categories</button>
+          <button class="cat-tab whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-slate-600 hover:bg-slate-50" data-cat="VT">Vehicle Tracking</button>
+          <button class="cat-tab whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-slate-600 hover:bg-slate-50" data-cat="CT">Cargo Tracking</button>
+          <button class="cat-tab whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-slate-600 hover:bg-slate-50" data-cat="FM">Fuel Management</button>
+          <button class="cat-tab whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-slate-600 hover:bg-slate-50" data-cat="DC">Dash Cameras</button>
+          <button class="cat-tab whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-slate-600 hover:bg-slate-50" data-cat="AT">Anti-Theft</button>
+        </div>
+
+        <!-- Filter row -->
+        <div class="p-4 flex flex-wrap gap-3 items-end border-b border-slate-100">
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Search</label>
+            <input id="search-input" type="text" placeholder="Product code, name, model…" class="w-64 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Code</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Product / Model</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Supplier</th>
+                <th class="text-right px-4 py-3 font-medium text-slate-500 pricing-col">Purchase</th>
+                <th class="text-right px-4 py-3 font-medium text-slate-500 pricing-col">Sale</th>
+                <th class="text-center px-4 py-3 font-medium text-slate-500">In Stock</th>
+                <th class="text-center px-4 py-3 font-medium text-slate-500">Reorder</th>
+                <th class="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody id="catalog-body" class="divide-y divide-slate-100">
+              <tr><td colspan="8" class="text-center py-8 text-slate-400">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="catalog-empty" class="hidden rounded-lg border border-dashed border-slate-300 m-4 p-8 text-center text-sm text-slate-500">No products found.</div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- New Product Modal -->
+<div id="modal-product" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col" style="max-height:90vh">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+      <h2 id="modal-title" class="text-lg font-semibold">New Product</h2>
+      <button id="btn-close-modal" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">×</button>
+    </div>
+    <!-- Tab nav -->
+    <div class="flex gap-0 border-b border-slate-100 px-4 shrink-0 overflow-x-auto">
+      <button type="button" class="ptab-btn px-4 py-3 text-xs font-medium border-b-2 whitespace-nowrap" data-tab="details">Details</button>
+      <button type="button" class="ptab-btn px-4 py-3 text-xs font-medium border-b-2 whitespace-nowrap" data-tab="sales">Sales Content</button>
+      <button type="button" class="ptab-btn px-4 py-3 text-xs font-medium border-b-2 whitespace-nowrap" data-tab="quotation">Quotation Description</button>
+    </div>
+    <form id="product-form" class="flex-1 overflow-y-auto p-6">
+      <input type="hidden" id="f-product-id" />
+
+      <!-- ─── TAB: Details ─────────────────────────────────────── -->
+      <div class="ptab-panel grid grid-cols-2 gap-4" id="ptab-details">
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Category *</label>
+          <select id="f-category" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" required>
+            <option value="">Select category</option>
+            <option value="__VT">Vehicle Tracking (VT)</option>
+            <option value="__CT">Cargo Tracking (CT)</option>
+            <option value="__FM">Fuel Management (FM)</option>
+            <option value="__DC">Dashboard Cameras (DC)</option>
+            <option value="__AT">Anti Theft &amp; Alarm (AT)</option>
+            <option value="__SG">Speed Governors (SG)</option>
+          </select>
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Product Name *</label>
+          <input id="f-name" type="text" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Device Model</label>
+          <input id="f-model" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Manufacturer</label>
+          <input id="f-manufacturer" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Supplier</label>
+          <select id="f-supplier" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+            <option value="">None</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Warranty (months)</label>
+          <input id="f-warranty" type="number" min="0" value="12" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Device Identifier Type <span class="text-red-500">*</span></label>
+          <p class="text-xs text-slate-400 mb-2">Controls which identifier is required when receiving this product into inventory.</p>
+          <div class="flex gap-4">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="f-identifier-type" value="imei" class="accent-blue-600" />
+              <span class="text-sm font-medium text-slate-700">IMEI only</span>
+              <span class="text-xs text-slate-400">(15-digit, e.g. GPS trackers)</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="f-identifier-type" value="serial" class="accent-blue-600" />
+              <span class="text-sm font-medium text-slate-700">Serial Number only</span>
+              <span class="text-xs text-slate-400">(e.g. cameras, alarms)</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="f-identifier-type" value="both" class="accent-blue-600" checked />
+              <span class="text-sm font-medium text-slate-700">Either (IMEI or Serial)</span>
+              <span class="text-xs text-slate-400">(flexible)</span>
+            </label>
+          </div>
+        </div>
+        <div class="col-span-2">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="f-requires-sim" class="accent-blue-600 w-4 h-4" checked />
+            <span class="text-sm font-medium text-slate-700">Requires SIM card</span>
+          </label>
+          <p class="text-xs text-slate-400 mt-1 ml-6">Uncheck for devices that have an IMEI but don't need a SIM (e.g. WiFi/Bluetooth-only trackers). The job card's SIM pairing step will be skipped for this product.</p>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Purchase Price (KES)</label>
+          <input id="f-purchase-price" type="number" min="0" step="0.01" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Sale Price (KES)</label>
+          <input id="f-sale-price" type="number" min="0" step="0.01" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Installation Price (KES)</label>
+          <input id="f-install-price" type="number" min="0" step="0.01" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Subscription / Month (KES)</label>
+          <input id="f-sub-price" type="number" min="0" step="0.01" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Max Discount %</label>
+          <input id="f-max-discount" type="number" min="0" max="100" value="10" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Min Margin %</label>
+          <input id="f-min-margin" type="number" min="0" max="100" value="20" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Reorder Level</label>
+          <input id="f-reorder" type="number" min="0" value="5" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Max Stock Level</label>
+          <input id="f-max-stock" type="number" min="0" value="100" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+      </div>
+
+      <!-- ─── TAB: Sales Content ─────────────────────────────────────── -->
+      <div class="ptab-panel grid grid-cols-2 gap-4 hidden" id="ptab-sales">
+        <p class="col-span-2 text-xs text-slate-400">Visible to sales team in the Product Catalogue — talking points, features and specs.</p>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Description</label>
+          <textarea id="f-description" rows="2" placeholder="Short product overview shown on the sales catalogue" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 resize-none"></textarea>
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Key Features <span class="text-slate-400">(one per line)</span></label>
+          <textarea id="f-key-features" rows="4" placeholder="Real-time GPS tracking\nGeofencing alerts\nEngine cut-off capability\n24/7 monitoring" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 resize-y" style="font-family:monospace"></textarea>
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Sales Talking Points <span class="text-slate-400">(one per line)</span></label>
+          <textarea id="f-talking-points" rows="4" placeholder="Reduces fleet fuel costs by up to 20%\nInstalled in under 30 minutes\nPay-as-you-go subscription — no lock-in" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 resize-y" style="font-family:monospace"></textarea>
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Technical Specifications</label>
+          <textarea id="f-tech-specs" rows="4" placeholder="Network: 4G LTE / 2G fallback\nGPS: 16-channel, &lt;5m accuracy\nBattery backup: 6 hours\nDimensions: 90 × 50 × 20mm" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 resize-y" style="font-family:monospace"></textarea>
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Target Customer Segment</label>
+          <input id="f-target-segment" type="text" placeholder="e.g. Commercial fleet operators, logistics companies, school bus operators" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+      </div>
+
+      <!-- ─── TAB: Quotation Description ─────────────────────────────────────── -->
+      <div class="ptab-panel grid grid-cols-2 gap-4 hidden" id="ptab-quotation">
+        <p class="col-span-2 text-xs text-slate-400">Shown as the line-item description when this product is added to a customer quotation. Falls back to the Sales Content description above if left blank.</p>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Quotation Product Description</label>
+          <textarea id="f-quotation-description" rows="4" placeholder="Customer-facing description used on quotation line items" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 resize-y"></textarea>
+        </div>
+      </div>
+
+      <div id="form-error" class="hidden rounded-lg bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-600 mt-4"></div>
+      <div class="flex justify-end gap-3 pt-4 mt-2 border-t border-slate-100">
+        <button type="button" id="btn-cancel-form" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50">Cancel</button>
+        <button type="submit" class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700">Save Product</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Suppliers side panel -->
+<div id="panel-suppliers" class="hidden fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col">
+  <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+    <h2 class="text-lg font-semibold">Suppliers</h2>
+    <button id="btn-close-suppliers" class="text-slate-400 hover:text-slate-600 text-xl font-bold">×</button>
+  </div>
+  <div class="flex-1 overflow-y-auto divide-y divide-slate-100" id="supplier-list">
+    <div class="p-6 text-sm text-slate-400 text-center">Loading…</div>
+  </div>
+  <div class="px-6 py-4 border-t border-slate-100">
+    <button id="btn-new-supplier" class="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">+ Add Supplier</button>
+  </div>
+</div>
+
+<!-- Add / Edit Supplier modal — full tabbed form -->
+<!-- Categories modal -->
+<div id="modal-categories" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col" style="max-height:90vh">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+      <h3 class="text-base font-semibold text-slate-800">Manage Product Categories</h3>
+      <button id="btn-close-categories" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">×</button>
+    </div>
+    <div class="px-6 py-5 overflow-y-auto">
+      <div id="categories-error" class="hidden rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600 mb-4"></div>
+
+      <!-- Existing categories list -->
+      <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Existing Categories</h4>
+      <div id="categories-list" class="space-y-2 mb-6">
+        <p class="text-sm text-slate-500">Loading…</p>
+      </div>
+
+      <!-- Add new category form -->
+      <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3 pt-4 border-t border-slate-100">Add New Category</h4>
+      <form id="category-form" class="grid grid-cols-2 gap-x-5 gap-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Code <span class="text-red-500">*</span></label>
+          <input id="cf-code" type="text" required maxlength="4" placeholder="e.g. VT, SG" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm uppercase focus:outline-none focus:border-blue-500">
+          <p class="text-xs text-slate-400 mt-1">Short identifier (2–4 chars)</p>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Prefix <span class="text-red-500">*</span></label>
+          <input id="cf-prefix" type="text" required maxlength="4" placeholder="e.g. VT, SG" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm uppercase focus:outline-none focus:border-blue-500">
+          <p class="text-xs text-slate-400 mt-1">Used to generate product codes</p>
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Name <span class="text-red-500">*</span></label>
+          <input id="cf-name" type="text" required placeholder="e.g. Vehicle Tracking" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Description</label>
+          <textarea id="cf-description" rows="2" placeholder="Optional description" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 resize-none"></textarea>
+        </div>
+        <div class="col-span-2 flex justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" id="btn-reset-category" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg">Reset</button>
+          <button type="submit" class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700">Add Category</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="modal-supplier" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col" style="max-height:92vh">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+      <h3 id="supplier-modal-title" class="text-base font-semibold text-slate-800">Add Supplier</h3>
+      <button id="btn-close-supplier-modal" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">×</button>
+    </div>
+    <!-- Tab nav -->
+    <div class="flex gap-0 border-b border-slate-100 px-4 shrink-0 overflow-x-auto">
+      <button class="stab-btn px-4 py-3 text-xs font-medium border-b-2 whitespace-nowrap" data-tab="company">Company</button>
+      <button class="stab-btn px-4 py-3 text-xs font-medium border-b-2 whitespace-nowrap" data-tab="contacts">Contacts</button>
+      <button class="stab-btn px-4 py-3 text-xs font-medium border-b-2 whitespace-nowrap" data-tab="finance">Finance</button>
+      <button class="stab-btn px-4 py-3 text-xs font-medium border-b-2 whitespace-nowrap" data-tab="procurement">Procurement</button>
+      <button class="stab-btn px-4 py-3 text-xs font-medium border-b-2 whitespace-nowrap" data-tab="compliance">Compliance</button>
+      <button class="stab-btn px-4 py-3 text-xs font-medium border-b-2 whitespace-nowrap" data-tab="performance">Performance</button>
+    </div>
+    <!-- Scrollable form body -->
+    <form id="supplier-form" class="flex-1 overflow-y-auto px-6 py-5">
+      <input type="hidden" id="f-supplier-id">
+      <div id="supplier-form-error" class="hidden rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600 mb-4"></div>
+
+      <!-- ─── TAB: Company ─────────────────────────────────────── -->
+      <div class="stab-panel grid grid-cols-2 gap-x-5 gap-y-4" id="stab-company">
+        <p class="col-span-2 text-xs font-semibold text-slate-400 uppercase tracking-wide pb-1 border-b border-slate-100">Basic Information</p>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Supplier Name <span class="text-red-500">*</span></label>
+          <input id="sf-name" type="text" required placeholder="Legal company name used for contracts and payments" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Business Registration No.</label>
+          <input id="sf-reg-no" type="text" placeholder="Company registration number" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Tax / VAT Number</label>
+          <input id="sf-tax-id" type="text" placeholder="VAT or tax ID" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Supplier Category</label>
+          <select id="sf-category" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+            <option value="">Select…</option>
+            <option value="Manufacturer">Manufacturer</option>
+            <option value="Distributor">Distributor</option>
+            <option value="Importer">Importer</option>
+            <option value="Local Reseller">Local Reseller</option>
+            <option value="Service Provider">Service Provider</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Country of Operation</label>
+          <input id="sf-country" type="text" placeholder="e.g. Lithuania, China" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Head Office Address</label>
+          <textarea id="sf-address" rows="2" placeholder="Full business address" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 resize-none"></textarea>
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Website</label>
+          <input id="sf-website" type="url" placeholder="https://supplier.com" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+      </div>
+
+      <!-- ─── TAB: Contacts ──────────────────────────────────────── -->
+      <div class="stab-panel grid grid-cols-2 gap-x-5 gap-y-4 hidden" id="stab-contacts">
+        <p class="col-span-2 text-xs font-semibold text-slate-400 uppercase tracking-wide pb-1 border-b border-slate-100">Primary Contact</p>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Contact Person</label>
+          <input id="sf-contact" type="text" placeholder="Procurement / sales representative" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Job Title</label>
+          <input id="sf-job-title" type="text" placeholder="e.g. Account Manager" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Phone Number</label>
+          <input id="sf-phone" type="tel" placeholder="+254…" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Alternative Phone</label>
+          <input id="sf-alt-phone" type="tel" placeholder="Backup contact number" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Email Address</label>
+          <input id="sf-email" type="email" placeholder="contact@supplier.com" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <p class="col-span-2 text-xs font-semibold text-slate-400 uppercase tracking-wide pb-1 border-b border-slate-100 mt-2">Finance Contact</p>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Finance Contact Person</label>
+          <input id="sf-fin-contact" type="text" placeholder="Accounts receivable contact" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Finance Phone</label>
+          <input id="sf-fin-phone" type="tel" placeholder="Finance dept phone" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Finance Email</label>
+          <input id="sf-fin-email" type="email" placeholder="accounts@supplier.com" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+      </div>
+
+      <!-- ─── TAB: Finance ──────────────────────────────────────── -->
+      <div class="stab-panel grid grid-cols-2 gap-x-5 gap-y-4 hidden" id="stab-finance">
+        <p class="col-span-2 text-xs font-semibold text-slate-400 uppercase tracking-wide pb-1 border-b border-slate-100">Banking Details</p>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Bank Name</label>
+          <input id="sf-bank-name" type="text" placeholder="e.g. HSBC, KCB" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Account Name</label>
+          <input id="sf-account-name" type="text" placeholder="Registered account name" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Account Number</label>
+          <input id="sf-account-number" type="text" placeholder="Bank account number" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">SWIFT Code</label>
+          <input id="sf-swift" type="text" placeholder="For international payments" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Currency</label>
+          <select id="sf-currency" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+            <option value="">Select…</option>
+            <option value="KES">KES – Kenyan Shilling</option>
+            <option value="USD">USD – US Dollar</option>
+            <option value="EUR">EUR – Euro</option>
+            <option value="CNY">CNY – Chinese Yuan</option>
+            <option value="GBP">GBP – British Pound</option>
+          </select>
+        </div>
+        <p class="col-span-2 text-xs font-semibold text-slate-400 uppercase tracking-wide pb-1 border-b border-slate-100 mt-2">Payment Terms</p>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Advance Payment %</label>
+          <input id="sf-advance-pct" type="number" min="0" max="100" placeholder="e.g. 30" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Credit Period (days)</label>
+          <input id="sf-credit-days" type="number" min="0" placeholder="e.g. 30" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Payment Method</label>
+          <select id="sf-payment-method" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+            <option value="">Select…</option>
+            <option value="Wire Transfer">Wire Transfer</option>
+            <option value="Bank Transfer">Bank Transfer</option>
+            <option value="Letter of Credit">Letter of Credit</option>
+            <option value="Cash">Cash</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- ─── TAB: Procurement ──────────────────────────────────── -->
+      <div class="stab-panel grid grid-cols-2 gap-x-5 gap-y-4 hidden" id="stab-procurement">
+        <p class="col-span-2 text-xs font-semibold text-slate-400 uppercase tracking-wide pb-1 border-b border-slate-100">Logistics Details</p>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Distributor Level</label>
+          <select id="sf-level" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+            <option value="">Select…</option>
+            <option value="Manufacturer">Manufacturer</option>
+            <option value="Authorized Distributor">Authorized Distributor</option>
+            <option value="Regional Distributor">Regional Distributor</option>
+            <option value="Local Distributor">Local Distributor</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Shipping Origin (City, Country)</label>
+          <input id="sf-shipping-origin" type="text" placeholder="e.g. Shenzhen, China" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Typical Lead Time (days)</label>
+          <input id="sf-lead-time" type="number" min="1" placeholder="Days from order to dispatch" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Min Order Quantity (units)</label>
+          <input id="sf-min-order" type="number" min="1" placeholder="Minimum purchase quantity" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Preferred Freight Forwarder</label>
+          <input id="sf-freight" type="text" placeholder="Logistics partner (e.g. DHL, Freight in Time)" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-2">Shipping Methods Supported</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="sf-shipping" value="Air Freight" class="rounded"> Air Freight</label>
+            <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="sf-shipping" value="Sea Freight" class="rounded"> Sea Freight</label>
+            <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="sf-shipping" value="Courier" class="rounded"> Courier</label>
+            <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="sf-shipping" value="Road Transport" class="rounded"> Road Transport</label>
+          </div>
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-2">Product Categories Supplied</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="sf-prod-cats" value="Vehicle Tracking" class="rounded"> Vehicle Tracking Devices</label>
+            <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="sf-prod-cats" value="Cargo Tracking" class="rounded"> Cargo Tracking Devices</label>
+            <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="sf-prod-cats" value="Fuel Sensors" class="rounded"> Fuel Sensors</label>
+            <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="sf-prod-cats" value="Dash Cameras" class="rounded"> Dash Cameras</label>
+            <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="sf-prod-cats" value="Alarm Systems" class="rounded"> Alarm Systems</label>
+            <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="sf-prod-cats" value="Speed Governors" class="rounded"> Speed Governors</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── TAB: Compliance ──────────────────────────────────── -->
+      <div class="stab-panel grid grid-cols-2 gap-x-5 gap-y-4 hidden" id="stab-compliance">
+        <p class="col-span-2 text-xs font-semibold text-slate-400 uppercase tracking-wide pb-1 border-b border-slate-100">Quality & Certifications</p>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-2">Certifications Held</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="sf-certs" value="ISO" class="rounded"> ISO Certification</label>
+            <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="sf-certs" value="CE" class="rounded"> CE Certification</label>
+            <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="sf-certs" value="RoHS" class="rounded"> RoHS Compliant</label>
+            <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="sf-certs" value="Automotive" class="rounded"> Automotive Standards</label>
+          </div>
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Warranty Terms</label>
+          <textarea id="sf-warranty-terms" rows="2" placeholder="Warranty period and coverage details" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 resize-none"></textarea>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Return & Replacement Policy</label>
+          <textarea id="sf-return-policy" rows="2" placeholder="Return conditions and timeline" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 resize-none"></textarea>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Defective Unit Procedure</label>
+          <textarea id="sf-defective" rows="2" placeholder="Steps to log and return defective units" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 resize-none"></textarea>
+        </div>
+        <p class="col-span-2 text-xs font-semibold text-slate-400 uppercase tracking-wide pb-1 border-b border-slate-100 mt-2">Contract & Legal</p>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Contract Reference</label>
+          <input id="sf-contract" type="text" placeholder="Contract / agreement ID" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Contract Start Date</label>
+          <input id="sf-contract-start" type="date" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Contract Expiry Date</label>
+          <input id="sf-contract-expiry" type="date" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">SLA Response Time</label>
+          <input id="sf-sla-response" type="text" placeholder="e.g. 24 hours" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">SLA Replacement Time</label>
+          <input id="sf-sla-replace" type="text" placeholder="e.g. 5 business days" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <p class="col-span-2 text-xs font-semibold text-slate-400 uppercase tracking-wide pb-1 border-b border-slate-100 mt-2">Risk & Status</p>
+        <div>
+          <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+            <input id="sf-approved" type="checkbox" class="rounded w-4 h-4 accent-blue-600"> Approved Vendor
+          </label>
+        </div>
+        <div>
+          <label class="flex items-center gap-2 text-sm text-red-600 cursor-pointer">
+            <input id="sf-blacklisted" type="checkbox" class="rounded w-4 h-4 accent-red-500"> Blacklisted
+          </label>
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Compliance Documents</label>
+          <textarea id="sf-compliance-docs" rows="2" placeholder="Import permits, product certificates – one per line" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 resize-none"></textarea>
+        </div>
+      </div>
+
+      <!-- ─── TAB: Performance ─────────────────────────────────── -->
+      <div class="stab-panel grid grid-cols-2 gap-x-5 gap-y-4 hidden" id="stab-performance">
+        <p class="col-span-2 text-xs font-semibold text-slate-400 uppercase tracking-wide pb-1 border-b border-slate-100">Supplier Ratings (1 = Poor, 5 = Excellent)</p>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Procurement Rating</label>
+          <select id="sf-rating-procurement" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+            <option value="">—</option><option value="1">1 – Poor</option><option value="2">2 – Below Average</option>
+            <option value="3">3 – Average</option><option value="4">4 – Good</option><option value="5">5 – Excellent</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Quality Rating</label>
+          <select id="sf-rating-quality" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+            <option value="">—</option><option value="1">1 – Poor</option><option value="2">2 – Below Average</option>
+            <option value="3">3 – Average</option><option value="4">4 – Good</option><option value="5">5 – Excellent</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Delivery Reliability</label>
+          <select id="sf-rating-delivery" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+            <option value="">—</option><option value="1">1 – Poor</option><option value="2">2 – Below Average</option>
+            <option value="3">3 – Average</option><option value="4">4 – Good</option><option value="5">5 – Excellent</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Pricing Competitiveness</label>
+          <select id="sf-rating-pricing" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+            <option value="">—</option><option value="1">1 – Poor</option><option value="2">2 – Below Average</option>
+            <option value="3">3 – Average</option><option value="4">4 – Good</option><option value="5">5 – Excellent</option>
+          </select>
+        </div>
+        <p class="col-span-2 text-xs font-semibold text-slate-400 uppercase tracking-wide pb-1 border-b border-slate-100 mt-2">Inventory Integration</p>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Preferred Products Supplied</label>
+          <input id="sf-preferred-products" type="text" placeholder="e.g. FMB920, FMC130, Hikvision DS-2XS2" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Batch Numbers Supplied</label>
+          <input id="sf-batch-info" type="text" placeholder="Batch reference information" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Serial / IMEI Range</label>
+          <input id="sf-serial-range" type="text" placeholder="e.g. 86000000001–86000050000" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <p class="col-span-2 text-xs font-semibold text-slate-400 uppercase tracking-wide pb-1 border-b border-slate-100 mt-2">Financial Tracking</p>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Last Purchase Date</label>
+          <input id="sf-last-purchase" type="date" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Total Purchase Value (KES)</label>
+          <input id="sf-total-purchase" type="number" min="0" placeholder="Cumulative spend" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Outstanding Balance (KES)</label>
+          <input id="sf-outstanding" type="number" min="0" placeholder="Amount owed to supplier" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Credit Limit (KES)</label>
+          <input id="sf-credit-limit" type="number" min="0" placeholder="Approved credit ceiling" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <p class="col-span-2 text-xs font-semibold text-slate-400 uppercase tracking-wide pb-1 border-b border-slate-100 mt-2">Performance Metrics</p>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Avg Delivery Time (days)</label>
+          <input id="sf-avg-delivery" type="number" min="0" step="0.1" placeholder="Average actual delivery days" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Order Fulfillment Rate (%)</label>
+          <input id="sf-fulfillment" type="number" min="0" max="100" step="0.1" placeholder="e.g. 95.5" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Defective Unit Rate (%)</label>
+          <input id="sf-defective-rate" type="number" min="0" max="100" step="0.1" placeholder="e.g. 1.2" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Warranty Claim Rate (%)</label>
+          <input id="sf-warranty-claim" type="number" min="0" max="100" step="0.1" placeholder="e.g. 2.0" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+        <p class="col-span-2 text-xs font-semibold text-slate-400 uppercase tracking-wide pb-1 border-b border-slate-100 mt-2">Notes & Attachments</p>
+        <div class="col-span-2">
+          <textarea id="sf-notes" rows="3" placeholder="Contract documents, supplier agreements, price lists, any additional notes…" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 resize-none"></textarea>
+        </div>
+      </div>
+    </form>
+    <!-- Wizard footer -->
+    <div class="flex items-center justify-between gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
+      <button type="button" id="btn-stab-prev" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-30">← Previous</button>
+      <div class="flex gap-3">
+        <button type="button" id="btn-cancel-supplier" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
+        <button type="button" id="btn-stab-next" class="rounded-lg bg-slate-700 px-5 py-2 text-sm font-medium text-white hover:bg-slate-800">Next →</button>
+        <button type="submit" form="supplier-form" id="btn-save-supplier" class="hidden rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700">Save Supplier</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="fm-footer"></div>
+<script src="assets/app.js"></script>
+<script src="assets/layout.js"></script>
+<script>
+(() => {
+  // Use the global apiFetch from app.js — it handles token refresh and 401 redirect automatically
+  const { apiFetch } = window.FINEMARK_APP;
+  const req = (path, opts = {}) => {
+    const method = opts.method || "GET";
+    let body;
+    if (opts.body) { try { body = JSON.parse(opts.body); } catch { body = opts.body; } }
+    return apiFetch(path, { method, body });
+  };
+
+  // ── Hardcoded category list (used immediately; upgraded to DB UUIDs after load) ──
+  const STATIC_CATS = [
+    { code: "VT", name: "Vehicle Tracking",    id: null },
+    { code: "CT", name: "Cargo Tracking",       id: null },
+    { code: "FM", name: "Fuel Management",      id: null },
+    { code: "DC", name: "Dashboard Cameras",    id: null },
+    { code: "AT", name: "Anti-Theft & Alarm",   id: null },
+    { code: "SG", name: "Speed Governors",      id: null },
+  ];
+
+  let allProducts = [], categories = [...STATIC_CATS], suppliers = [], activeCat = "", activeCatId = "";
+
+  // Populate category select immediately from STATIC_CATS — no waiting for API
+  function buildCategorySelect(cats) {
+    const sel = document.getElementById("f-category");
+    const prev = sel.value;
+    sel.innerHTML = `<option value="">Select category</option>`;
+    cats.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value  = c.id || c.code;   // use UUID when available, code as fallback
+      opt.dataset.code = c.code;
+      opt.textContent = `${c.name} (${c.code})`;
+      sel.appendChild(opt);
+    });
+    // Restore selection if still valid
+    if (prev) sel.value = prev;
+  }
+
+  buildCategorySelect(STATIC_CATS); // immediate — never blank
+
+  async function load() {
+    try {
+      const [catRes, supRes] = await Promise.all([
+        req("/inventory/catalog/categories"),
+        req("/inventory/catalog/suppliers").catch(() => ({ data: [] })),
+      ]);
+      // Merge real UUIDs into categories array
+      const apiCats = catRes.data ?? [];
+      categories = apiCats.length ? apiCats : STATIC_CATS;
+      buildCategorySelect(categories); // upgrade to real UUIDs
+
+      // Update tab data-cat-id attributes
+      document.querySelectorAll(".cat-tab[data-cat]").forEach(btn => {
+        const code = btn.getAttribute("data-cat");
+        if (!code) return;
+        const cat = categories.find(c => c.code === code);
+        if (cat?.id) btn.setAttribute("data-cat-id", cat.id);
+      });
+
+      // Populate supplier dropdown
+      suppliers = supRes.data ?? [];
+      const supSel = document.getElementById("f-supplier");
+      const prevSup = supSel.value;
+      supSel.innerHTML = `<option value="">None</option>`;
+      suppliers.forEach(s => {
+        const opt = document.createElement("option");
+        opt.value = s.id;
+        opt.textContent = s.supplier_name;
+        supSel.appendChild(opt);
+      });
+      if (prevSup) supSel.value = prevSup;
+    } catch (err) {
+      console.warn("[catalog] Failed to load categories from API:", err.message);
+      // STATIC_CATS already in place — form still usable
+    }
+    await loadProducts();
+  }
+
+  // Resolve a category select value to a real UUID (or null)
+  function resolveCategoryId(val) {
+    if (!val) return null;
+    // If it's already a UUID pattern keep it
+    if (/^[0-9a-f-]{36}$/.test(val)) return val;
+    // Otherwise treat as a code and look up
+    const cat = categories.find(c => c.code === val);
+    return cat?.id ?? null;
+  }
+
+  async function loadProducts() {
+    const q = document.getElementById("search-input").value.trim();
+    const catParam = activeCatId ? `categoryId=${activeCatId}&` : "";
+    const qParam   = q ? `q=${encodeURIComponent(q)}&` : "";
+    const url = `/inventory/catalog?${catParam}${qParam}pageSize=200`;
+    try {
+      const r = await req(url);
+      allProducts = r.data ?? [];
+    } catch (_) {
+      allProducts = [];
+    }
+    renderTable(allProducts);
+  }
+
+  const pricingRole  = ["Admin", "InventoryManager"];
+  const userRole     = localStorage.getItem("role") ?? "";
+  const canSeePricing = pricingRole.includes(userRole);
+  if (!canSeePricing) document.querySelectorAll(".pricing-col").forEach(el => el.style.display = "none");
+
+  function renderTable(prods) {
+    const tbody = document.getElementById("catalog-body");
+    const empty  = document.getElementById("catalog-empty");
+    if (!prods.length) {
+      tbody.innerHTML = "";
+      empty.classList.remove("hidden");
+      return;
+    }
+    empty.classList.add("hidden");
+    tbody.innerHTML = prods.map(p => {
+      const stock = p.in_stock_count ?? 0;
+      const low   = stock <= (p.reorder_level ?? 5);
+      return `<tr class="hover:bg-slate-50 cursor-pointer" data-id="${p.id}">
+        <td class="px-4 py-3 font-mono text-xs text-blue-700 font-semibold">${p.product_code}</td>
+        <td class="px-4 py-3"><p class="font-medium text-slate-800">${p.product_name}</p><p class="text-xs text-slate-400">${p.device_model ?? ""}</p></td>
+        <td class="px-4 py-3 text-xs text-slate-500">${p.supplier_name ?? "—"}</td>
+        ${canSeePricing ? `<td class="px-4 py-3 text-right text-xs">KES ${Number(p.purchase_price||0).toLocaleString()}</td><td class="px-4 py-3 text-right text-xs">KES ${Number(p.sale_price||0).toLocaleString()}</td>` : ""}
+        <td class="px-4 py-3 text-center"><span class="font-semibold ${low ? "text-red-500" : "text-slate-800"}">${stock}</span></td>
+        <td class="px-4 py-3 text-center text-xs text-slate-400">${p.reorder_level ?? 5}</td>
+        <td class="px-4 py-3 text-right"><button class="btn-edit-product text-xs px-2 py-1 rounded border border-slate-200 hover:bg-slate-50" data-id="${p.id}">Edit</button></td>
+      </tr>`;
+    }).join("");
+    document.querySelectorAll(".btn-edit-product").forEach(btn => btn.addEventListener("click", e => { e.stopPropagation(); openEditModal(btn.dataset.id); }));
+  }
+
+  // ── Product modal tabs ───────────────────────────────────────────────────
+  const PTABS = ['details', 'sales', 'quotation'];
+  function showProductTab(name) {
+    PTABS.forEach(t => {
+      const btn = document.querySelector(`.ptab-btn[data-tab="${t}"]`);
+      const panel = document.getElementById(`ptab-${t}`);
+      const active = t === name;
+      if (btn) {
+        btn.classList.toggle('border-blue-600', active);
+        btn.classList.toggle('text-blue-700', active);
+        btn.classList.toggle('border-transparent', !active);
+        btn.classList.toggle('text-slate-500', !active);
+      }
+      if (panel) panel.classList.toggle('hidden', !active);
+    });
+  }
+  document.querySelectorAll('.ptab-btn').forEach(btn =>
+    btn.addEventListener('click', () => showProductTab(btn.dataset.tab))
+  );
+
+  function openNewModal() {
+    document.getElementById("modal-title").textContent = "New Product";
+    document.getElementById("product-form").reset();
+    document.getElementById("f-product-id").value = "";
+    document.getElementById("form-error").classList.add("hidden");
+    buildCategorySelect(categories); // re-build after reset() wipes dynamic options
+    // default identifier type to "both"
+    document.querySelector('input[name="f-identifier-type"][value="both"]').checked = true;
+    document.getElementById("f-requires-sim").checked = true;
+    showProductTab('details');
+    document.getElementById("modal-product").classList.remove("hidden");
+    document.getElementById("f-name").focus();
+  }
+
+  function openEditModal(id) {
+    const p = allProducts.find(x => x.id === id);
+    if (!p) return;
+    document.getElementById("modal-title").textContent = "Edit Product";
+    document.getElementById("f-product-id").value = p.id;
+    document.getElementById("f-category").value     = p.category_id ?? "";
+    document.getElementById("f-name").value          = p.product_name ?? "";
+    document.getElementById("f-model").value         = p.device_model ?? "";
+    document.getElementById("f-manufacturer").value  = p.manufacturer ?? "";
+    document.getElementById("f-supplier").value      = p.supplier_id ?? "";
+    document.getElementById("f-warranty").value      = p.warranty_months ?? 12;
+    document.getElementById("f-purchase-price").value = p.purchase_price ?? "";
+    document.getElementById("f-sale-price").value    = p.sale_price ?? "";
+    document.getElementById("f-install-price").value = p.installation_price ?? "";
+    document.getElementById("f-sub-price").value     = p.subscription_price ?? "";
+    document.getElementById("f-max-discount").value  = p.max_discount_pct ?? 10;
+    document.getElementById("f-min-margin").value    = p.min_margin_pct ?? 20;
+    document.getElementById("f-reorder").value       = p.reorder_level ?? 5;
+    document.getElementById("f-max-stock").value     = p.max_stock_level ?? 100;
+    document.getElementById("f-description").value   = p.description ?? "";
+    document.getElementById("f-key-features").value  = p.key_features ?? "";
+    document.getElementById("f-talking-points").value= p.talking_points ?? "";
+    document.getElementById("f-tech-specs").value    = p.tech_specs ?? "";
+    document.getElementById("f-target-segment").value= p.target_segment ?? "";
+    document.getElementById("f-quotation-description").value = p.quotation_description ?? "";
+    const idType = p.identifier_type || "both";
+    const idRadio = document.querySelector(`input[name="f-identifier-type"][value="${idType}"]`);
+    if (idRadio) idRadio.checked = true;
+    document.getElementById("f-requires-sim").checked = p.requires_sim !== false;
+    showProductTab('details');
+    document.getElementById("form-error").classList.add("hidden");
+    document.getElementById("modal-product").classList.remove("hidden");
+  }
+
+  document.getElementById("btn-new-product").addEventListener("click", openNewModal);
+  document.getElementById("btn-close-modal").addEventListener("click", () => document.getElementById("modal-product").classList.add("hidden"));
+  document.getElementById("btn-cancel-form").addEventListener("click", () => document.getElementById("modal-product").classList.add("hidden"));
+
+  document.querySelectorAll(".cat-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".cat-tab").forEach(b => { b.classList.remove("border-blue-600","text-blue-700","bg-blue-50"); b.classList.add("border-transparent","text-slate-600"); });
+      btn.classList.add("border-blue-600","text-blue-700","bg-blue-50"); btn.classList.remove("border-transparent","text-slate-600");
+      activeCat   = btn.dataset.cat ?? "";
+      activeCatId = btn.getAttribute("data-cat-id") ?? "";
+      loadProducts();
+    });
+  });
+
+  let searchTimer;
+  document.getElementById("search-input").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(loadProducts, 300); });
+
+  document.getElementById("product-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const errEl = document.getElementById("form-error");
+    errEl.classList.add("hidden");
+    const id = document.getElementById("f-product-id").value;
+    const rawCat = document.getElementById("f-category").value;
+    const categoryId = resolveCategoryId(rawCat);
+    if (!categoryId) {
+      errEl.textContent = "Please select a category.";
+      errEl.classList.remove("hidden");
+      return;
+    }
+    const body = {
+      categoryId,
+      productName:        document.getElementById("f-name").value,
+      deviceModel:        document.getElementById("f-model").value,
+      manufacturer:       document.getElementById("f-manufacturer").value,
+      supplierId:         document.getElementById("f-supplier").value || null,
+      warrantyMonths:     Number(document.getElementById("f-warranty").value),
+      purchasePrice:      Number(document.getElementById("f-purchase-price").value),
+      salePrice:          Number(document.getElementById("f-sale-price").value),
+      installationPrice:  Number(document.getElementById("f-install-price").value),
+      subscriptionPrice:  Number(document.getElementById("f-sub-price").value),
+      maxDiscountPct:     Number(document.getElementById("f-max-discount").value),
+      minMarginPct:       Number(document.getElementById("f-min-margin").value),
+      reorderLevel:       Number(document.getElementById("f-reorder").value),
+      maxStockLevel:      Number(document.getElementById("f-max-stock").value),
+      description:        document.getElementById("f-description").value || null,
+      keyFeatures:        document.getElementById("f-key-features").value || null,
+      talkingPoints:      document.getElementById("f-talking-points").value || null,
+      techSpecs:          document.getElementById("f-tech-specs").value || null,
+      targetSegment:      document.getElementById("f-target-segment").value || null,
+      quotationDescription: document.getElementById("f-quotation-description").value || null,
+      identifierType:     document.querySelector('input[name="f-identifier-type"]:checked')?.value || "both",
+      requiresSim:        document.getElementById("f-requires-sim").checked,
+    };
+    const submitBtn = e.target.querySelector("button[type=submit]");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Saving…";
+    try {
+      if (id) {
+        await req(`/inventory/catalog/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+      } else {
+        await req("/inventory/catalog", { method: "POST", body: JSON.stringify(body) });
+      }
+      document.getElementById("modal-product").classList.add("hidden");
+      loadProducts();
+    } catch (err) {
+      errEl.textContent = err.message || "Error saving product.";
+      errEl.classList.remove("hidden");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Save Product";
+    }
+  });
+
+  // ── Supplier tab wizard ───────────────────────────────────────────────────
+  const STABS = ['company','contacts','finance','procurement','compliance','performance'];
+  let currentStab = 0;
+
+  function showSupplierTab(name) {
+    currentStab = Math.max(0, STABS.indexOf(name));
+    STABS.forEach(t => {
+      const btn   = document.querySelector(`.stab-btn[data-tab="${t}"]`);
+      const panel = document.getElementById(`stab-${t}`);
+      const active = t === name;
+      if (btn) {
+        btn.classList.toggle('border-blue-600', active);
+        btn.classList.toggle('text-blue-700',   active);
+        btn.classList.toggle('border-transparent', !active);
+        btn.classList.toggle('text-slate-500',  !active);
+      }
+      if (panel) panel.classList.toggle('hidden', !active);
+    });
+    const prevBtn = document.getElementById('btn-stab-prev');
+    const nextBtn = document.getElementById('btn-stab-next');
+    const saveBtn = document.getElementById('btn-save-supplier');
+    if (prevBtn) prevBtn.disabled = currentStab === 0;
+    if (nextBtn) nextBtn.classList.toggle('hidden', currentStab === STABS.length - 1);
+    if (saveBtn) saveBtn.classList.toggle('hidden', currentStab !== STABS.length - 1);
+  }
+
+  document.querySelectorAll('.stab-btn').forEach(btn =>
+    btn.addEventListener('click', () => showSupplierTab(btn.dataset.tab))
+  );
+  document.getElementById('btn-stab-prev').addEventListener('click', () => {
+    if (currentStab > 0) showSupplierTab(STABS[currentStab - 1]);
+  });
+  document.getElementById('btn-stab-next').addEventListener('click', () => {
+    if (currentStab < STABS.length - 1) showSupplierTab(STABS[currentStab + 1]);
+  });
+
+  // ── Supplier form helpers ─────────────────────────────────────────────────
+  const sfVal = id => document.getElementById(id)?.value?.trim() || null;
+  const sfNum = id => { const v = document.getElementById(id)?.value; return (v !== '' && v != null && v !== undefined) ? Number(v) : null; };
+  const sfSet = (id, val) => { const el = document.getElementById(id); if (el) el.value = val ?? ''; };
+  const sfChecks = name => {
+    const vals = [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(el => el.value);
+    return vals.length ? JSON.stringify(vals) : null;
+  };
+  const sfSetChecks = (name, jsonStr) => {
+    const vals = jsonStr ? (() => { try { return JSON.parse(jsonStr); } catch { return []; } })() : [];
+    document.querySelectorAll(`input[name="${name}"]`).forEach(el => el.checked = vals.includes(el.value));
+  };
+  const STAR = r => r ? '★'.repeat(r) + '☆'.repeat(5 - r) : '—';
+
+  // ── Supplier list panel ───────────────────────────────────────────────────
+  async function refreshSupplierList() {
+    const list = document.getElementById('supplier-list');
+    list.innerHTML = `<div class="p-6 text-sm text-slate-400 text-center">Loading…</div>`;
+    try {
+      const rows = (await req('/inventory/catalog/suppliers')).data ?? [];
+      if (!rows.length) {
+        list.innerHTML = `<div class="p-6 text-sm text-slate-400 text-center">No suppliers yet. Click + Add Supplier to get started.</div>`;
+        return;
+      }
+      list.innerHTML = rows.map(s => `
+        <div class="px-5 py-4 flex items-start justify-between gap-3 hover:bg-slate-50">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 flex-wrap mb-0.5">
+              <p class="font-semibold text-sm text-slate-800">${s.supplier_name}</p>
+              ${s.supplier_category ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">${s.supplier_category}</span>` : ''}
+              ${s.blacklist_status ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-600 font-semibold">BLACKLISTED</span>` : ''}
+              ${!s.blacklist_status && s.approved_vendor ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-medium">✓ Approved</span>` : ''}
+            </div>
+            <p class="text-xs text-slate-500">${[s.contact_person, s.email].filter(Boolean).join(' · ')}</p>
+            <p class="text-xs text-slate-400">${[s.phone, s.country, s.distributor_level].filter(Boolean).join(' · ')}</p>
+            ${s.procurement_rating ? `<p class="text-xs text-amber-500 mt-0.5">Procurement: ${STAR(s.procurement_rating)}  Quality: ${STAR(s.quality_rating)}</p>` : ''}
+          </div>
+          <button class="btn-edit-supplier shrink-0 text-xs px-2 py-1 rounded border border-slate-200 hover:bg-white mt-0.5" data-id="${s.id}">Edit</button>
+        </div>`).join('');
+      document.querySelectorAll('.btn-edit-supplier').forEach(btn =>
+        btn.addEventListener('click', () => openEditSupplierModal(btn.dataset.id))
+      );
+      // Sync supplier dropdown in product form
+      suppliers = rows;
+      const supSel = document.getElementById('f-supplier');
+      const prev = supSel.value;
+      supSel.innerHTML = `<option value="">None</option>`;
+      rows.forEach(s => { const o = document.createElement('option'); o.value = s.id; o.textContent = s.supplier_name; supSel.appendChild(o); });
+      if (prev) supSel.value = prev;
+    } catch (err) {
+      list.innerHTML = `<div class="p-6 text-sm text-red-400 text-center">Failed to load suppliers: ${err.message}</div>`;
+    }
+  }
+
+  // ── Open modal ────────────────────────────────────────────────────────────
+  function openSupplierModal(data = null) {
+    document.getElementById('supplier-modal-title').textContent = data ? 'Edit Supplier' : 'Add Supplier';
+    document.getElementById('supplier-form').reset();
+    document.querySelectorAll('#supplier-form input[type=checkbox]').forEach(el => el.checked = false);
+    document.getElementById('f-supplier-id').value = data?.id ?? '';
+    // Company
+    sfSet('sf-name',     data?.supplier_name);
+    sfSet('sf-reg-no',   data?.business_reg_no);
+    sfSet('sf-tax-id',   data?.tax_id);
+    sfSet('sf-category', data?.supplier_category);
+    sfSet('sf-country',  data?.country);
+    sfSet('sf-address',  data?.head_office_address);
+    sfSet('sf-website',  data?.website);
+    // Contacts
+    sfSet('sf-contact',     data?.contact_person);
+    sfSet('sf-job-title',   data?.job_title);
+    sfSet('sf-phone',       data?.phone);
+    sfSet('sf-alt-phone',   data?.alt_phone);
+    sfSet('sf-email',       data?.email);
+    sfSet('sf-fin-contact', data?.finance_contact_person);
+    sfSet('sf-fin-phone',   data?.finance_phone);
+    sfSet('sf-fin-email',   data?.finance_email);
+    // Finance
+    sfSet('sf-bank-name',      data?.bank_name);
+    sfSet('sf-account-name',   data?.account_name);
+    sfSet('sf-account-number', data?.account_number);
+    sfSet('sf-swift',          data?.swift_code);
+    sfSet('sf-currency',       data?.currency);
+    sfSet('sf-advance-pct',    data?.advance_payment_pct);
+    sfSet('sf-credit-days',    data?.credit_period_days);
+    sfSet('sf-payment-method', data?.payment_method);
+    // Procurement
+    sfSet('sf-level',           data?.distributor_level);
+    sfSet('sf-shipping-origin', data?.shipping_origin);
+    sfSet('sf-lead-time',       data?.lead_time_days);
+    sfSet('sf-min-order',       data?.min_order_quantity);
+    sfSet('sf-freight',         data?.preferred_freight_forwarder);
+    sfSetChecks('sf-shipping',  data?.shipping_methods);
+    sfSetChecks('sf-prod-cats', data?.product_categories_supplied);
+    // Compliance
+    sfSetChecks('sf-certs',     data?.certifications);
+    sfSet('sf-warranty-terms',  data?.warranty_terms);
+    sfSet('sf-return-policy',   data?.return_policy);
+    sfSet('sf-defective',       data?.defective_unit_procedure);
+    sfSet('sf-contract',        data?.contract_reference);
+    sfSet('sf-contract-start',  data?.contract_start_date);
+    sfSet('sf-contract-expiry', data?.contract_expiry_date);
+    sfSet('sf-sla-response',    data?.sla_response_time);
+    sfSet('sf-sla-replace',     data?.sla_replacement_time);
+    const appEl = document.getElementById('sf-approved');
+    if (appEl) appEl.checked = data ? (data.approved_vendor !== 0 && data.approved_vendor !== false) : true;
+    const blEl = document.getElementById('sf-blacklisted');
+    if (blEl) blEl.checked = !!data?.blacklist_status;
+    sfSet('sf-compliance-docs', data?.compliance_documents);
+    // Performance
+    sfSet('sf-rating-procurement', data?.procurement_rating);
+    sfSet('sf-rating-quality',     data?.quality_rating);
+    sfSet('sf-rating-delivery',    data?.delivery_rating);
+    sfSet('sf-rating-pricing',     data?.pricing_rating);
+    sfSet('sf-preferred-products', data?.preferred_products);
+    sfSet('sf-batch-info',         data?.batch_numbers_info);
+    sfSet('sf-serial-range',       data?.serial_range_info);
+    sfSet('sf-last-purchase',      data?.last_purchase_date);
+    sfSet('sf-total-purchase',     data?.total_purchase_value);
+    sfSet('sf-outstanding',        data?.outstanding_balance);
+    sfSet('sf-credit-limit',       data?.credit_limit);
+    sfSet('sf-avg-delivery',       data?.avg_delivery_days);
+    sfSet('sf-fulfillment',        data?.fulfillment_rate);
+    sfSet('sf-defective-rate',     data?.defective_rate);
+    sfSet('sf-warranty-claim',     data?.warranty_claim_rate);
+    sfSet('sf-notes',              data?.notes);
+
+    document.getElementById('supplier-form-error').classList.add('hidden');
+    showSupplierTab('company');
+    document.getElementById('modal-supplier').classList.remove('hidden');
+    setTimeout(() => document.getElementById('sf-name')?.focus(), 50);
+  }
+
+  async function openEditSupplierModal(id) {
+    try {
+      const row = (await req(`/inventory/catalog/suppliers/${id}`)).data;
+      openSupplierModal(row);
+    } catch (err) {
+      alert('Could not load supplier: ' + err.message);
+    }
+  }
+
+  document.getElementById('btn-manage-suppliers').addEventListener('click', () => {
+    document.getElementById('panel-suppliers').classList.remove('hidden');
+    refreshSupplierList();
+  });
+
+  // ── Categories management ────────────────────────────────────────────────
+  function renderCategoriesList() {
+    const wrap = document.getElementById('categories-list');
+    if (!categories.length) {
+      wrap.innerHTML = '<p class="text-sm text-slate-500">No categories yet.</p>';
+      return;
+    }
+    wrap.innerHTML = categories.map(c => `
+      <div class="flex items-center justify-between border border-slate-200 rounded-lg px-4 py-2.5 text-sm">
+        <div>
+          <span class="font-medium text-slate-800">${c.name}</span>
+          <span class="text-xs text-slate-500 ml-2">Code: ${c.code || '—'} · Prefix: ${c.prefix || '—'}</span>
+        </div>
+        ${c.id ? '<span class="text-xs text-emerald-600">Saved</span>' : '<span class="text-xs text-amber-600">Default</span>'}
+      </div>
+    `).join('');
+  }
+  async function refreshCategoriesFromApi() {
+    try {
+      const res = await req('/inventory/catalog/categories');
+      categories = res.data && res.data.length ? res.data : categories;
+      buildCategorySelect(categories);
+      renderCategoriesList();
+    } catch (err) {
+      console.warn('[categories] reload failed:', err.message);
+    }
+  }
+  document.getElementById('btn-manage-categories').addEventListener('click', () => {
+    document.getElementById('categories-error').classList.add('hidden');
+    document.getElementById('category-form').reset();
+    renderCategoriesList();
+    document.getElementById('modal-categories').classList.remove('hidden');
+  });
+  document.getElementById('btn-close-categories').addEventListener('click', () =>
+    document.getElementById('modal-categories').classList.add('hidden')
+  );
+  document.getElementById('btn-reset-category').addEventListener('click', () => {
+    document.getElementById('category-form').reset();
+    document.getElementById('categories-error').classList.add('hidden');
+  });
+  // Auto-fill prefix from code as the user types
+  document.getElementById('cf-code').addEventListener('input', e => {
+    const v = e.target.value.toUpperCase();
+    e.target.value = v;
+    const prefixEl = document.getElementById('cf-prefix');
+    if (!prefixEl.dataset.touched) prefixEl.value = v;
+  });
+  document.getElementById('cf-prefix').addEventListener('input', e => {
+    e.target.dataset.touched = '1';
+    e.target.value = e.target.value.toUpperCase();
+  });
+  document.getElementById('category-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const errEl = document.getElementById('categories-error');
+    errEl.classList.add('hidden');
+    const code = document.getElementById('cf-code').value.trim().toUpperCase();
+    const prefix = document.getElementById('cf-prefix').value.trim().toUpperCase();
+    const name = document.getElementById('cf-name').value.trim();
+    const description = document.getElementById('cf-description').value.trim();
+    if (!code || !prefix || !name) {
+      errEl.textContent = 'Code, prefix, and name are required.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    try {
+      await req('/inventory/catalog/categories', {
+        method: 'POST',
+        body: JSON.stringify({ code, prefix, name, description: description || null })
+      });
+      document.getElementById('category-form').reset();
+      document.getElementById('cf-prefix').dataset.touched = '';
+      await refreshCategoriesFromApi();
+    } catch (err) {
+      errEl.textContent = err.message || 'Failed to add category.';
+      errEl.classList.remove('hidden');
+    }
+  });
+  document.getElementById('btn-close-suppliers').addEventListener('click', () =>
+    document.getElementById('panel-suppliers').classList.add('hidden')
+  );
+  document.getElementById('btn-new-supplier').addEventListener('click', () => openSupplierModal());
+  document.getElementById('btn-close-supplier-modal').addEventListener('click', () =>
+    document.getElementById('modal-supplier').classList.add('hidden')
+  );
+  document.getElementById('btn-cancel-supplier').addEventListener('click', () =>
+    document.getElementById('modal-supplier').classList.add('hidden')
+  );
+
+  // ── Supplier form submit ──────────────────────────────────────────────────
+  document.getElementById('supplier-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const errEl = document.getElementById('supplier-form-error');
+    errEl.classList.add('hidden');
+    const id = document.getElementById('f-supplier-id').value;
+    const body = {
+      supplierName:             sfVal('sf-name'),
+      businessRegNo:            sfVal('sf-reg-no'),
+      taxId:                    sfVal('sf-tax-id'),
+      supplierCategory:         sfVal('sf-category'),
+      country:                  sfVal('sf-country'),
+      headOfficeAddress:        sfVal('sf-address'),
+      website:                  sfVal('sf-website'),
+      contactPerson:            sfVal('sf-contact'),
+      jobTitle:                 sfVal('sf-job-title'),
+      phone:                    sfVal('sf-phone'),
+      altPhone:                 sfVal('sf-alt-phone'),
+      email:                    sfVal('sf-email'),
+      financeContactPerson:     sfVal('sf-fin-contact'),
+      financePhone:             sfVal('sf-fin-phone'),
+      financeEmail:             sfVal('sf-fin-email'),
+      bankName:                 sfVal('sf-bank-name'),
+      accountName:              sfVal('sf-account-name'),
+      accountNumber:            sfVal('sf-account-number'),
+      swiftCode:                sfVal('sf-swift'),
+      currency:                 sfVal('sf-currency'),
+      advancePaymentPct:        sfNum('sf-advance-pct'),
+      creditPeriodDays:         sfNum('sf-credit-days'),
+      paymentMethod:            sfVal('sf-payment-method'),
+      distributorLevel:         sfVal('sf-level'),
+      shippingOrigin:           sfVal('sf-shipping-origin'),
+      leadTimeDays:             sfNum('sf-lead-time'),
+      minOrderQuantity:         sfNum('sf-min-order'),
+      preferredFreightForwarder: sfVal('sf-freight'),
+      shippingMethods:          sfChecks('sf-shipping'),
+      productCategoriesSupplied: sfChecks('sf-prod-cats'),
+      certifications:           sfChecks('sf-certs'),
+      warrantyTerms:            sfVal('sf-warranty-terms'),
+      returnPolicy:             sfVal('sf-return-policy'),
+      defectiveUnitProcedure:   sfVal('sf-defective'),
+      contractReference:        sfVal('sf-contract'),
+      contractStartDate:        sfVal('sf-contract-start'),
+      contractExpiryDate:       sfVal('sf-contract-expiry'),
+      slaResponseTime:          sfVal('sf-sla-response'),
+      slaReplacementTime:       sfVal('sf-sla-replace'),
+      approvedVendor:           document.getElementById('sf-approved')?.checked,
+      blacklistStatus:          document.getElementById('sf-blacklisted')?.checked,
+      complianceDocuments:      sfVal('sf-compliance-docs'),
+      procurementRating:        sfNum('sf-rating-procurement'),
+      qualityRating:            sfNum('sf-rating-quality'),
+      deliveryRating:           sfNum('sf-rating-delivery'),
+      pricingRating:            sfNum('sf-rating-pricing'),
+      preferredProducts:        sfVal('sf-preferred-products'),
+      batchNumbersInfo:         sfVal('sf-batch-info'),
+      serialRangeInfo:          sfVal('sf-serial-range'),
+      lastPurchaseDate:         sfVal('sf-last-purchase'),
+      totalPurchaseValue:       sfNum('sf-total-purchase'),
+      outstandingBalance:       sfNum('sf-outstanding'),
+      creditLimit:              sfNum('sf-credit-limit'),
+      avgDeliveryDays:          sfNum('sf-avg-delivery'),
+      fulfillmentRate:          sfNum('sf-fulfillment'),
+      defectiveRate:            sfNum('sf-defective-rate'),
+      warrantyClaimRate:        sfNum('sf-warranty-claim'),
+      notes:                    sfVal('sf-notes'),
+    };
+    const saveBtn = document.getElementById('btn-save-supplier');
+    saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+    try {
+      if (id) {
+        await req(`/inventory/catalog/suppliers/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+      } else {
+        await req('/inventory/catalog/suppliers', { method: 'POST', body: JSON.stringify(body) });
+      }
+      document.getElementById('modal-supplier').classList.add('hidden');
+      refreshSupplierList();
+    } catch (err) {
+      errEl.textContent = err.message || 'Failed to save supplier.';
+      errEl.classList.remove('hidden');
+      showSupplierTab('company');
+    } finally {
+      saveBtn.disabled = false; saveBtn.textContent = 'Save Supplier';
+    }
+  });
+
+  load();
+})();
+</script>
+  </body>
+</html>

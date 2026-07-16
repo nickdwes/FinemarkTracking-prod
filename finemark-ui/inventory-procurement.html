@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Procurement</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+    <div class="max-w-7xl mx-auto space-y-6">
+
+      <!-- Page header -->
+      <div class="flex flex-wrap items-center gap-3 justify-between">
+        <div>
+          <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Procurement</h1>
+          <p class="text-sm text-slate-500">Manage requisitions, purchase orders, and goods receiving.</p>
+        </div>
+        <button id="btn-new-req" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700">+ New Requisition</button>
+      </div>
+
+      <!-- View tabs -->
+      <div class="flex gap-2 border-b border-slate-200">
+        <button class="view-tab px-5 py-3 text-sm font-semibold border-b-2 border-blue-600 text-blue-700" data-view="requisitions">Requisitions</button>
+        <button class="view-tab px-5 py-3 text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-slate-800" data-view="orders">Purchase Orders</button>
+        <button class="view-tab px-5 py-3 text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-slate-800" data-view="batches">GRN Batches</button>
+      </div>
+
+      <!-- Requisitions section -->
+      <div id="section-requisitions" class="bg-white rounded-xl border border-slate-200/80 shadow-sm">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div class="flex gap-1">
+            <button class="req-tab px-3 py-1.5 text-xs rounded-lg bg-white shadow-sm text-slate-900 border border-slate-200" data-st="">All</button>
+            <button class="req-tab px-3 py-1.5 text-xs rounded-lg text-slate-600 hover:bg-slate-50" data-st="Pending">Pending</button>
+            <button class="req-tab px-3 py-1.5 text-xs rounded-lg text-slate-600 hover:bg-slate-50" data-st="Approved">Approved</button>
+            <button class="req-tab px-3 py-1.5 text-xs rounded-lg text-slate-600 hover:bg-slate-50" data-st="Rejected">Rejected</button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Req No</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Product</th>
+                <th class="text-center px-4 py-3 font-medium text-slate-500">Qty</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Requested By</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Status</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Date</th>
+                <th class="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody id="req-body"><tr><td colspan="7" class="text-center py-8 text-slate-400">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Purchase Orders section -->
+      <div id="section-orders" class="hidden bg-white rounded-xl border border-slate-200/80 shadow-sm">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <h3 class="font-semibold text-slate-800">Purchase Orders</h3>
+          <button id="btn-new-po" class="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700">+ New PO</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">PO No</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Supplier</th>
+                <th class="text-right px-4 py-3 font-medium text-slate-500">Amount</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Status</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Date</th>
+                <th class="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody id="po-body"><tr><td colspan="6" class="text-center py-8 text-slate-400">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- GRN Batches section -->
+      <div id="section-batches" class="hidden bg-white rounded-xl border border-slate-200/80 shadow-sm">
+        <div class="px-6 py-4 border-b border-slate-100"><h3 class="font-semibold text-slate-800">Goods Received Notes</h3></div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Batch No</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">PO No</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Supplier</th>
+                <th class="text-center px-4 py-3 font-medium text-slate-500">Devices</th>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Received At</th>
+                <th class="text-center px-4 py-3 font-medium text-slate-500">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="batch-body"><tr><td colspan="6" class="text-center py-8 text-slate-400">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- New Requisition Modal -->
+<div id="modal-req" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md">
+    <div class="flex items-center justify-between px-6 py-4 border-b">
+      <h2 class="text-lg font-semibold">New Purchase Requisition</h2>
+      <button id="btn-close-req" class="text-slate-400 hover:text-slate-600 text-xl font-bold">×</button>
+    </div>
+    <form id="req-form" class="p-6 space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Product *</label>
+        <select id="req-product" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" required></select>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Quantity *</label>
+          <input id="req-qty" type="number" min="1" value="1" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Preferred Supplier</label>
+          <select id="req-supplier" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+            <option value="">Any</option>
+          </select>
+          <p id="req-supplier-hint" class="hidden mt-1 text-xs text-blue-600 flex items-center gap-1">🔒 <span></span></p>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Justification</label>
+        <textarea id="req-justification" rows="2" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm resize-none"></textarea>
+      </div>
+      <div id="req-error" class="hidden rounded bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-600"></div>
+      <div class="flex justify-end gap-3">
+        <button type="button" id="btn-cancel-req" class="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50">Cancel</button>
+        <button type="submit" class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700">Submit</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- New PO Modal -->
+<div id="modal-po" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
+      <h2 class="text-lg font-semibold">New Purchase Order</h2>
+      <button id="btn-close-po-modal" class="text-slate-400 hover:text-slate-600 text-xl font-bold">×</button>
+    </div>
+    <form id="po-form" class="flex-1 overflow-y-auto p-6 space-y-4">
+
+      <!-- Approved Requisitions picker -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Approved Requisitions <span class="font-normal text-slate-400">(select to pull into PO)</span></label>
+        <div id="po-req-list" class="rounded-lg border border-slate-200 divide-y divide-slate-100 max-h-44 overflow-y-auto text-sm">
+          <div class="px-4 py-3 text-slate-400 text-xs">Loading…</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Supplier *</label>
+          <select id="po-supplier" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" required>
+            <option value="">Select supplier…</option>
+          </select>
+          <p id="po-supplier-hint" class="hidden mt-1 text-xs text-blue-600 flex items-center gap-1">🔒 <span></span></p>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Expected Delivery Date</label>
+          <input id="po-delivery-date" type="date" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Notes / Terms</label>
+        <textarea id="po-notes" rows="2" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm resize-none"></textarea>
+      </div>
+
+      <!-- Line Items -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <label class="text-xs font-medium text-slate-600">Line Items *</label>
+          <button type="button" id="btn-add-po-line" class="text-xs px-3 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100">+ Add Line</button>
+        </div>
+        <div class="overflow-x-auto rounded-lg border border-slate-200">
+          <table class="w-full text-xs">
+            <thead class="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th class="text-left px-3 py-2 font-medium text-slate-500">Product</th>
+                <th class="text-center px-3 py-2 font-medium text-slate-500 w-20">Qty</th>
+                <th class="text-center px-3 py-2 font-medium text-slate-500 w-28">Unit Price (KES)</th>
+                <th class="text-right px-3 py-2 font-medium text-slate-500 w-28">Line Total</th>
+                <th class="w-8 px-2 py-2"></th>
+              </tr>
+            </thead>
+            <tbody id="po-lines-body"></tbody>
+          </table>
+        </div>
+        <div class="flex justify-end mt-2 pr-2">
+          <span class="text-xs text-slate-500 mr-2">Total:</span>
+          <span id="po-total-display" class="text-sm font-bold text-green-700">KES 0</span>
+        </div>
+      </div>
+
+      <div id="po-error" class="hidden rounded bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-600"></div>
+      <div class="flex justify-end gap-3">
+        <button type="button" id="btn-cancel-po" class="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50">Cancel</button>
+        <button type="submit" id="btn-submit-po" class="rounded-lg bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700">Create PO</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- PO Detail / GRN Side Drawer -->
+<div id="drawer-po" class="hidden fixed inset-0 z-50 flex flex-col bg-white shadow-2xl" style="left:0;top:0;right:0;bottom:0">
+  <!-- Header -->
+  <div class="flex items-center justify-between px-6 py-3 border-b flex-shrink-0 bg-white">
+    <h2 class="text-lg font-semibold" id="drawer-po-title">Purchase Order</h2>
+    <div class="flex items-center gap-2" id="drawer-po-actions"></div>
+    <button id="btn-close-po-drawer" class="ml-4 text-slate-400 hover:text-slate-600 text-xl font-bold">×</button>
+  </div>
+  <!-- Body: split left (details) / right (PDF preview) -->
+  <div class="flex flex-1 min-h-0">
+    <!-- Left panel: PO metadata + lines -->
+    <div class="w-80 flex-shrink-0 border-r border-slate-100 overflow-y-auto p-6" id="drawer-po-content"></div>
+    <!-- Right panel: live PDF preview -->
+    <div class="flex-1 flex flex-col min-h-0 bg-slate-100">
+      <div id="drawer-pdf-status" class="hidden px-4 py-2 text-xs text-slate-500 flex items-center gap-2">
+        <svg class="animate-spin h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+        Generating preview…
+      </div>
+      <iframe id="drawer-pdf-frame" class="flex-1 w-full border-0" src="about:blank" title="PO Preview"></iframe>
+    </div>
+  </div>
+</div>
+
+<div id="fm-footer"></div>
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+(() => {
+  const { apiFetch } = window.FINEMARK_APP;
+  const req = (path, opts = {}) => {
+    const method = opts.method || "GET";
+    let body;
+    if (opts.body) { try { body = JSON.parse(opts.body); } catch { body = opts.body; } }
+    return apiFetch(path, { method, body });
+  };
+
+  let catalogs = [], suppliers = [], activeReqSt = "", activeView = "requisitions";
+
+  const STATUS_COLORS = { "Pending":"bg-amber-100 text-amber-700", "Approved":"bg-green-100 text-green-700", "Rejected":"bg-red-100 text-red-700", "Draft":"bg-slate-100 text-slate-600", "Confirmed":"bg-blue-100 text-blue-700", "Received":"bg-green-100 text-green-700", "Partially Received":"bg-yellow-100 text-yellow-700" };
+
+  async function loadLookups() {
+    [catalogs, suppliers] = await Promise.all([
+      req("/inventory/catalog?pageSize=200").then(r => r.data ?? []),
+      req("/inventory/catalog/suppliers").then(r => r.data ?? []),
+    ]);
+    const opts = `<option value="">Select product</option>` + catalogs.map(p => `<option value="${p.id}">${p.product_code} — ${p.product_name}</option>`).join("");
+    document.getElementById("req-product").innerHTML = opts;
+    const supOpts = `<option value="">Any</option>` + suppliers.map(s => `<option value="${s.id}">${s.supplier_name}</option>`).join("");
+    document.getElementById("req-supplier").innerHTML = supOpts;
+  }
+
+  // Requisitions
+  async function loadRequisitions() {
+    const r = await req(`/inventory/procurement/requisitions${activeReqSt ? `?status=${activeReqSt}` : ""}`, {});
+    const rows = r.data ?? [];
+    const tbody2 = document.getElementById("req-body");
+    const role = JSON.parse(localStorage.getItem("finemark_session") || "{}")?.user?.role ?? "";
+    const canApprove = ["Admin","InventoryManager"].includes(role);
+    tbody2.innerHTML = rows.length ? rows.map(r => {
+      const badge = STATUS_COLORS[r.status] ?? "bg-slate-100 text-slate-600";
+      return `<tr class="hover:bg-slate-50">
+        <td class="px-4 py-3 font-mono text-xs font-semibold text-blue-700">${r.req_no}</td>
+        <td class="px-4 py-3"><p class="font-medium">${r.product_code ?? ""}</p><p class="text-xs text-slate-400">${r.product_name ?? ""}</p></td>
+        <td class="px-4 py-3 text-center font-semibold">${r.quantity}</td>
+        <td class="px-4 py-3 text-xs">${r.requested_by_email ?? ""}</td>
+        <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full font-semibold ${badge}">${r.status}</span></td>
+        <td class="px-4 py-3 text-xs text-slate-400">${r.created_at?.slice(0,10) ?? ""}</td>
+        <td class="px-4 py-3 text-right flex gap-1 justify-end">
+          ${canApprove && r.status === "Pending" ? `<button class="btn-approve text-xs px-2 py-1 rounded bg-green-600 text-white hover:bg-green-700" data-id="${r.id}">Approve</button><button class="btn-reject text-xs px-2 py-1 rounded bg-red-500 text-white hover:bg-red-600" data-id="${r.id}">Reject</button>` : ""}
+        </td>
+      </tr>`;
+    }).join("") : `<tr><td colspan="7" class="text-center py-8 text-slate-400">No requisitions.</td></tr>`;
+    tbody2.querySelectorAll(".btn-approve").forEach(btn => btn.addEventListener("click", async () => {
+      await req(`/inventory/procurement/requisitions/${btn.dataset.id}/approve`, { method: "POST" });
+      loadRequisitions();
+    }));
+    tbody2.querySelectorAll(".btn-reject").forEach(btn => btn.addEventListener("click", async () => {
+      const reason = prompt("Rejection reason:");
+      if (!reason) return;
+      await req(`/inventory/procurement/requisitions/${btn.dataset.id}/reject`, { method: "POST", body: JSON.stringify({ reason }) });
+      loadRequisitions();
+    }));
+  }
+
+  // Purchase Orders
+  async function loadOrders() {
+    const r = await req("/inventory/procurement/orders");
+    const rows = r.data ?? [];
+    const tbody = document.getElementById("po-body");
+    tbody.innerHTML = rows.length ? rows.map(o => {
+      const badge = STATUS_COLORS[o.status] ?? "bg-slate-100 text-slate-600";
+      return `<tr class="hover:bg-slate-50">
+        <td class="px-4 py-3 font-mono text-xs font-semibold text-blue-700">${o.po_no}</td>
+        <td class="px-4 py-3 text-xs">${o.supplier_name ?? "—"}</td>
+        <td class="px-4 py-3 text-right text-xs">KES ${Number(o.total_amount||0).toLocaleString()}</td>
+        <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full font-semibold ${badge}">${o.status}</span></td>
+        <td class="px-4 py-3 text-xs text-slate-400">${o.created_at?.slice(0,10) ?? ""}</td>
+        <td class="px-4 py-3 text-right">
+          <button class="btn-view-po text-xs px-2 py-1 rounded border border-slate-200 hover:bg-slate-50" data-id="${o.id}">View</button>
+        </td>
+      </tr>`;
+    }).join("") : `<tr><td colspan="6" class="text-center py-8 text-slate-400">No purchase orders.</td></tr>`;
+    tbody.querySelectorAll(".btn-view-po").forEach(btn => btn.addEventListener("click", () => openPoDrawer(btn.dataset.id)));
+  }
+
+  async function openPoDrawer(id) {
+    const drawer = document.getElementById("drawer-po");
+    drawer.classList.remove("hidden");
+    // Reset preview
+    const frame  = document.getElementById("drawer-pdf-frame");
+    const status = document.getElementById("drawer-pdf-status");
+    frame.src = "about:blank";
+    status.classList.remove("hidden");
+    status.innerHTML = `<svg class="animate-spin h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg> Generating preview…`;
+
+    const dc = document.getElementById("drawer-po-content");
+    dc.innerHTML = `<div class="text-sm text-slate-400">Loading…</div>`;
+    const { data: po } = await req(`/inventory/procurement/orders/${id}`);
+    if (!po) return;
+    document.getElementById("drawer-po-title").textContent = `PO ${po.po_no}`;
+    const badge = STATUS_COLORS[po.status] ?? "";
+    dc.innerHTML = `
+      <div class="space-y-3 text-sm mb-4">
+        <div><p class="text-xs text-slate-400">Supplier</p><p class="font-medium">${po.supplier_name}</p></div>
+        <div><p class="text-xs text-slate-400">Status</p><span class="text-xs px-2 py-0.5 rounded-full font-semibold ${badge}">${po.status}</span></div>
+        <div><p class="text-xs text-slate-400">Total</p><p class="font-semibold text-green-700">KES ${Number(po.total_amount||0).toLocaleString()}</p></div>
+        <div><p class="text-xs text-slate-400">Delivery</p><p>${po.delivery_date ?? "—"}</p></div>
+        ${po.notes ? `<div><p class="text-xs text-slate-400">Notes</p><p class="text-xs">${po.notes}</p></div>` : ""}
+      </div>
+      <h4 class="text-sm font-semibold mb-2">Line Items</h4>
+      <div class="space-y-2">
+        ${(po.lines ?? []).map(l => `<div class="text-xs text-slate-700 border rounded-lg px-3 py-2">
+          <p class="font-medium">${l.product_name ?? ""}</p>
+          <p class="text-slate-400">${l.product_code ?? ""}</p>
+          <p class="mt-1 flex justify-between"><span>Qty: ${l.quantity}</span><span class="text-slate-400">Rcvd: ${l.quantity_received}</span></p>
+        </div>`).join("")}
+      </div>
+    `;
+    const actions = document.getElementById("drawer-po-actions");
+    actions.innerHTML = "";
+    const role = JSON.parse(localStorage.getItem("finemark_session") || "{}")?.user?.role ?? "";
+    if (["Admin","InventoryManager"].includes(role) && po.status === "Draft") {
+      actions.innerHTML += `<button id="btn-confirm-po" class="rounded-lg bg-green-600 px-4 py-2 text-xs font-semibold text-white hover:bg-green-700">Confirm PO</button>`;
+      actions.querySelector("#btn-confirm-po").addEventListener("click", async () => {
+        await req(`/inventory/procurement/orders/${id}/confirm`, { method: "POST" });
+        openPoDrawer(id); loadOrders();
+      });
+    }
+    if (["Admin","InventoryManager","WarehouseOfficer"].includes(role) && ["Confirmed","Partially Received"].includes(po.status)) {
+      actions.innerHTML += `<button id="btn-grn" class="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700">Receive Goods</button>`;
+      actions.querySelector("#btn-grn").addEventListener("click", () => openGrnModal(po));
+    }
+    // PDF download
+    actions.innerHTML += `<button id="btn-dl-pdf" class="rounded-lg border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">⬇ Download PDF</button>`;
+    actions.querySelector("#btn-dl-pdf").addEventListener("click", async () => {
+      const btn = actions.querySelector("#btn-dl-pdf");
+      btn.disabled = true; btn.textContent = "Downloading…";
+      try {
+        const session = JSON.parse(localStorage.getItem("finemark_session") || "{}");
+        const apiBase = window.FINEMARK_APP?.CONFIG?.API_BASE_URL ?? "/api";
+        const resp = await fetch(`${apiBase}/inventory/procurement/orders/${id}/pdf?disposition=attachment`, {
+          headers: { Authorization: `Bearer ${session?.accessToken ?? ""}` },
+        });
+        if (!resp.ok) { alert("Failed to generate PDF."); return; }
+        const blob = await resp.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement("a");
+        a.href = url; a.download = `PO_${po.po_no}.pdf`;
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
+      } catch { alert("Failed to download PDF."); }
+      finally { btn.disabled = false; btn.textContent = "⬇ Download PDF"; }
+    });
+
+    // ── Live PDF preview ───────────────────────────────────────────────────
+    try {
+      const session = JSON.parse(localStorage.getItem("finemark_session") || "{}");
+      const apiBase = window.FINEMARK_APP?.CONFIG?.API_BASE_URL ?? "/api";
+      const resp = await fetch(`${apiBase}/inventory/procurement/orders/${id}/pdf`, {
+        headers: { Authorization: `Bearer ${session?.accessToken ?? ""}` },
+      });
+      if (resp.ok) {
+        const objUrl = URL.createObjectURL(await resp.blob());
+        frame.onload = () => status.classList.add("hidden");
+        frame.src = objUrl;
+      } else {
+        status.innerHTML = `<span class="text-red-500 text-xs">Preview failed (${resp.status}). Use Download PDF.</span>`;
+      }
+    } catch {
+      status.innerHTML = `<span class="text-red-500 text-xs">Preview unavailable.</span>`;
+    }
+  }
+
+  async function downloadGrnPdf(batchId, batchNo) {
+    const session = JSON.parse(localStorage.getItem("finemark_session") || "{}");
+    const resp = await fetch(`${API}/inventory/procurement/batches/${batchId}/pdf?disposition=attachment`, {
+      headers: { Authorization: `Bearer ${session?.accessToken}` }
+    });
+    if (!resp.ok) { alert("Failed to download GRN PDF."); return; }
+    const blob = await resp.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `GRN_${batchNo}.pdf`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function openGrnModal(po) {
+    const body = prompt(`Paste items as JSON array:\n[{"productId":"...","imei":"...","serialNumber":"...","purchasePrice":0}]\n\nPO: ${po.po_no}`);
+    if (!body) return;
+    try {
+      const items = JSON.parse(body);
+      const loc = prompt("Warehouse location (e.g. Shelf A-1):");
+      req(`/inventory/procurement/orders/${po.id}/receive`, { method: "POST", body: JSON.stringify({ items, warehouseLocation: loc }) })
+        .then(r => {
+          const received = r.data?.received?.length ?? 0;
+          const errors   = r.data?.errors?.length ?? 0;
+          alert(`${received} devices received. ${errors} errors.`);
+          loadOrders(); loadBatches(); openPoDrawer(po.id);
+          if (r.data?.batchId) downloadGrnPdf(r.data.batchId, r.data.batchNo);
+        });
+    } catch { alert("Invalid JSON."); }
+  }
+
+  // Batches
+  async function loadBatches() {
+    const r = await req("/inventory/procurement/batches");
+    const rows = r.data ?? [];
+    const tbody = document.getElementById("batch-body");
+    tbody.innerHTML = rows.length ? rows.map(b => `<tr class="hover:bg-slate-50">
+      <td class="px-4 py-3 font-mono text-xs font-semibold text-blue-700">${b.batch_number}</td>
+      <td class="px-4 py-3 text-xs">${b.po_no ?? "—"}</td>
+      <td class="px-4 py-3 text-xs">${b.supplier_name ?? "—"}</td>
+      <td class="px-4 py-3 text-center font-semibold">${b.item_count ?? 0}</td>
+      <td class="px-4 py-3 text-xs text-slate-400">${b.received_at?.slice(0,16).replace("T"," ") ?? b.created_at?.slice(0,10) ?? ""}</td>
+      <td class="px-4 py-3 text-center">
+        <button class="btn-dl-grn rounded px-3 py-1 text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700" data-id="${b.id}" data-no="${b.batch_number}">⬇ GRN</button>
+      </td>
+    </tr>`).join("") : `<tr><td colspan="6" class="text-center py-8 text-slate-400">No batches.</td></tr>`;
+    tbody.querySelectorAll(".btn-dl-grn").forEach(btn =>
+      btn.addEventListener("click", () => downloadGrnPdf(btn.dataset.id, btn.dataset.no))
+    );
+  }
+
+  // View tabs
+  document.querySelectorAll(".view-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".view-tab").forEach(b => { b.classList.remove("border-blue-600","text-blue-700"); b.classList.add("border-transparent","text-slate-600"); });
+      btn.classList.add("border-blue-600","text-blue-700"); btn.classList.remove("border-transparent","text-slate-600");
+      activeView = btn.dataset.view;
+      ["requisitions","orders","batches"].forEach(v => {
+        document.getElementById(`section-${v}`).classList.toggle("hidden", v !== activeView);
+      });
+      if (activeView === "orders") loadOrders();
+      else if (activeView === "batches") loadBatches();
+    });
+  });
+
+  // Req sub-tabs
+  document.querySelectorAll(".req-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".req-tab").forEach(b => b.classList.remove("bg-white","shadow-sm","text-slate-900"));
+      btn.classList.add("bg-white","shadow-sm","text-slate-900");
+      activeReqSt = btn.dataset.st; loadRequisitions();
+    });
+  });
+
+  // Req modal
+  document.getElementById("btn-new-req").addEventListener("click", () => {
+    document.getElementById("modal-req").classList.remove("hidden");
+    // Reset supplier lock on open
+    const supSel = document.getElementById("req-supplier");
+    supSel.value = "";
+    supSel.disabled = false;
+    supSel.classList.remove("bg-slate-100", "text-slate-500", "cursor-not-allowed");
+    document.getElementById("req-supplier-hint").classList.add("hidden");
+    document.getElementById("req-product").value = "";
+  });
+  document.getElementById("btn-close-req").addEventListener("click", () => document.getElementById("modal-req").classList.add("hidden"));
+  document.getElementById("btn-cancel-req").addEventListener("click", () => document.getElementById("modal-req").classList.add("hidden"));
+
+  // Auto-lock supplier when product is chosen
+  document.getElementById("req-product").addEventListener("change", () => {
+    const productId = document.getElementById("req-product").value;
+    const supSel = document.getElementById("req-supplier");
+    const hint = document.getElementById("req-supplier-hint");
+    const product = catalogs.find(p => p.id === productId);
+    if (product && product.supplier_id) {
+      supSel.value = product.supplier_id;
+      supSel.disabled = true;
+      supSel.classList.add("bg-slate-100", "text-slate-500", "cursor-not-allowed");
+      const sup = suppliers.find(s => s.id === product.supplier_id);
+      hint.querySelector("span").textContent = `Locked to linked supplier: ${sup ? sup.supplier_name : product.supplier_id}`;
+      hint.classList.remove("hidden");
+    } else {
+      supSel.value = "";
+      supSel.disabled = false;
+      supSel.classList.remove("bg-slate-100", "text-slate-500", "cursor-not-allowed");
+      hint.classList.add("hidden");
+    }
+  });
+  document.getElementById("req-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const err = document.getElementById("req-error");
+    err.classList.add("hidden");
+    const body = {
+      productId:     document.getElementById("req-product").value,
+      quantity:      Number(document.getElementById("req-qty").value),
+      supplierId:    document.getElementById("req-supplier").value || null,
+      justification: document.getElementById("req-justification").value,
+    };
+    const r = await req("/inventory/procurement/requisitions", { method: "POST", body: JSON.stringify(body) });
+    if (r.ok === false) { err.textContent = r.message || "Error"; err.classList.remove("hidden"); return; }
+    document.getElementById("modal-req").classList.add("hidden");
+    document.getElementById("req-form").reset();
+    loadRequisitions();
+  });
+
+  document.getElementById("btn-close-po-drawer").addEventListener("click", () => document.getElementById("drawer-po").classList.add("hidden"));
+
+  // ── New PO modal ─────────────────────────────────────────────────────────────
+  let poLineCount = 0;
+
+  // prefill: { productId, productName, productCode, quantity, reqId }
+  function buildPoLineRow(prefill = {}) {
+    poLineCount++;
+    const productOpts = `<option value="">Select product…</option>` +
+      catalogs.map(p => {
+        const sel = p.id === prefill.productId ? " selected" : "";
+        return `<option value="${p.id}"${sel}>${p.product_code} — ${p.product_name}</option>`;
+      }).join("");
+    const tr = document.createElement("tr");
+    tr.className = "border-b border-slate-100 last:border-0";
+    if (prefill.reqId) tr.dataset.reqId = prefill.reqId;
+
+    // If pre-filled from a requisition, lock the product & qty; show req badge
+    const hasReq = Boolean(prefill.reqId);
+    tr.innerHTML = `
+      <td class="px-3 py-2">
+        ${hasReq
+          ? `<span class="text-xs font-medium text-slate-700">${prefill.productCode ? prefill.productCode + " — " : ""}${prefill.productName ?? ""}</span>
+             <input type="hidden" class="po-line-product" value="${prefill.productId ?? ""}" />`
+          : `<select class="po-line-product w-full rounded border border-slate-200 px-2 py-1 text-xs" required>${productOpts}</select>`
+        }
+      </td>
+      <td class="px-3 py-2">
+        <input class="po-line-qty w-full rounded border border-slate-200 px-2 py-1 text-xs text-center"
+          type="number" min="1" value="${prefill.quantity ?? 1}" required ${hasReq ? "" : ""} />
+      </td>
+      <td class="px-3 py-2">
+        <input class="po-line-price w-full rounded border border-slate-200 px-2 py-1 text-xs text-center"
+          type="number" min="0" step="0.01" value="0" required />
+      </td>
+      <td class="px-3 py-2 text-right po-line-total font-semibold text-slate-700">0</td>
+      <td class="px-2 py-2 text-center">
+        ${hasReq
+          ? `<span class="text-xs text-blue-500 font-mono whitespace-nowrap" title="From requisition">REQ</span>`
+          : `<button type="button" class="btn-remove-po-line text-red-400 hover:text-red-600 font-bold text-sm">×</button>`
+        }
+      </td>`;
+    if (!hasReq) {
+      tr.querySelector(".btn-remove-po-line").addEventListener("click", () => { tr.remove(); recalcPoTotal(); });
+    }
+    [tr.querySelector(".po-line-qty"), tr.querySelector(".po-line-price")].forEach(el =>
+      el?.addEventListener("input", () => recalcPoRowTotal(tr))
+    );
+    return tr;
+  }
+
+  function recalcPoRowTotal(tr) {
+    const qty   = parseFloat(tr.querySelector(".po-line-qty").value) || 0;
+    const price = parseFloat(tr.querySelector(".po-line-price").value) || 0;
+    tr.querySelector(".po-line-total").textContent = `KES ${(qty * price).toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2})}`;
+    recalcPoTotal();
+  }
+
+  function recalcPoTotal() {
+    let total = 0;
+    document.querySelectorAll("#po-lines-body tr").forEach(tr => {
+      const qty   = parseFloat(tr.querySelector(".po-line-qty").value) || 0;
+      const price = parseFloat(tr.querySelector(".po-line-price").value) || 0;
+      total += qty * price;
+    });
+    document.getElementById("po-total-display").textContent = `KES ${total.toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2})}`;
+  }
+
+  async function openPoModal() {
+    // Populate supplier dropdown
+    const supSel  = document.getElementById("po-supplier");
+    const hint    = document.getElementById("po-supplier-hint");
+    supSel.innerHTML = `<option value="">Select supplier…</option>` +
+      suppliers.map(s => `<option value="${s.id}">${s.supplier_name}</option>`).join("");
+    supSel.disabled = false;
+    hint.classList.add("hidden");
+
+    // Reset form
+    document.getElementById("po-form").reset();
+    document.getElementById("po-error").classList.add("hidden");
+    document.getElementById("po-lines-body").innerHTML = "";
+    poLineCount = 0;
+    document.getElementById("po-total-display").textContent = "KES 0";
+    document.getElementById("modal-po").classList.remove("hidden");
+
+    // Load approved requisitions not yet on a PO
+    const reqList = document.getElementById("po-req-list");
+    reqList.innerHTML = `<div class="px-4 py-3 text-slate-400 text-xs">Loading…</div>`;
+    try {
+      const r = await req("/inventory/procurement/requisitions?status=Approved&pageSize=100");
+      const pending = (r.data ?? []).filter(x => !x.purchase_order_id);
+      if (!pending.length) {
+        reqList.innerHTML = `<div class="px-4 py-3 text-slate-400 text-xs">No approved requisitions available.</div>`;
+      } else {
+        reqList.innerHTML = pending.map(x => `
+          <label class="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 cursor-pointer">
+            <input type="checkbox" class="po-req-cb rounded border-slate-300 text-blue-600" value="${x.id}"
+              data-product-id="${x.product_id}" data-product-name="${x.product_name ?? ""}"
+              data-product-code="${x.product_code ?? ""}" data-qty="${x.quantity}"
+              data-supplier-id="${x.supplier_id ?? ""}" data-supplier-name="${x.supplier_name ?? ""}" />
+            <span class="flex-1 min-w-0">
+              <span class="font-semibold text-blue-700 font-mono text-xs">${x.req_no}</span>
+              <span class="mx-2 text-slate-300">|</span>
+              <span class="text-slate-700">${x.product_name ?? x.product_code ?? ""}</span>
+            </span>
+            <span class="text-xs text-slate-500 ml-auto pl-4">Qty: <b>${x.quantity}</b></span>
+            ${x.supplier_name ? `<span class="text-xs text-slate-400">${x.supplier_name}</span>` : ""}
+          </label>`).join("");
+
+        // Checkbox → auto-add / remove line rows and auto-lock supplier
+        reqList.querySelectorAll(".po-req-cb").forEach(cb => {
+          cb.addEventListener("change", () => {
+            if (cb.checked) {
+              // Add a pre-filled line row
+              const tr = buildPoLineRow({
+                productId:   cb.dataset.productId,
+                productName: cb.dataset.productName,
+                productCode: cb.dataset.productCode,
+                quantity:    Number(cb.dataset.qty) || 1,
+                reqId:       cb.value,
+              });
+              document.getElementById("po-lines-body").appendChild(tr);
+            } else {
+              // Remove the line row linked to this req
+              const existing = document.querySelector(`#po-lines-body tr[data-req-id="${cb.value}"]`);
+              if (existing) { existing.remove(); recalcPoTotal(); }
+            }
+            // Auto-lock supplier if all checked reqs have the same supplier
+            const checked = [...reqList.querySelectorAll(".po-req-cb:checked")];
+            if (checked.length > 0) {
+              const ids  = [...new Set(checked.map(c => c.dataset.supplierId).filter(Boolean))];
+              const names= [...new Set(checked.map(c => c.dataset.supplierName).filter(Boolean))];
+              if (ids.length === 1 && ids[0]) {
+                supSel.value    = ids[0];
+                supSel.disabled = true;
+                supSel.classList.add("bg-slate-100","text-slate-500","cursor-not-allowed");
+                hint.querySelector("span").textContent = `Locked to: ${names[0]}`;
+                hint.classList.remove("hidden");
+              } else {
+                supSel.disabled = false;
+                supSel.classList.remove("bg-slate-100","text-slate-500","cursor-not-allowed");
+                hint.classList.add("hidden");
+              }
+            } else {
+              supSel.disabled = false;
+              supSel.classList.remove("bg-slate-100","text-slate-500","cursor-not-allowed");
+              hint.classList.add("hidden");
+            }
+          });
+        });
+      }
+    } catch {
+      reqList.innerHTML = `<div class="px-4 py-3 text-red-400 text-xs">Failed to load requisitions.</div>`;
+    }
+  }
+
+  function closePoModal() { document.getElementById("modal-po").classList.add("hidden"); }
+
+  document.getElementById("btn-new-po").addEventListener("click", openPoModal);
+  document.getElementById("btn-close-po-modal").addEventListener("click", closePoModal);
+  document.getElementById("btn-cancel-po").addEventListener("click", closePoModal);
+
+  document.getElementById("btn-add-po-line").addEventListener("click", () => {
+    document.getElementById("po-lines-body").appendChild(buildPoLineRow());
+  });
+
+  document.getElementById("po-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const errEl = document.getElementById("po-error");
+    errEl.classList.add("hidden");
+    const supplierId = document.getElementById("po-supplier").value;
+    const deliveryDate = document.getElementById("po-delivery-date").value || null;
+    const notes = document.getElementById("po-notes").value.trim() || null;
+    const lineRows = document.querySelectorAll("#po-lines-body tr");
+    if (!lineRows.length) { errEl.textContent = "Add at least one line item."; errEl.classList.remove("hidden"); return; }
+    const lines = [];
+    let valid = true;
+    lineRows.forEach(tr => {
+      const productId = tr.querySelector(".po-line-product").value;
+      const quantity  = parseInt(tr.querySelector(".po-line-qty").value, 10);
+      const unitPrice = parseFloat(tr.querySelector(".po-line-price").value);
+      if (!productId) { valid = false; }
+      else { lines.push({ productId, quantity: quantity || 1, unitPrice: unitPrice || 0 }); }
+    });
+    if (!valid) { errEl.textContent = "Please select a product for every line."; errEl.classList.remove("hidden"); return; }
+    // Collect linked requisition IDs
+    const requisitionIds = [...document.querySelectorAll(".po-req-cb:checked")].map(c => c.value);
+
+    const btn = document.getElementById("btn-submit-po");
+    btn.disabled = true; btn.textContent = "Creating…";
+    try {
+      const r = await req("/inventory/procurement/orders", { method: "POST", body: JSON.stringify({ supplierId, lines, deliveryDate, notes, requisitionIds }) });
+      if (r.ok === false) { errEl.textContent = r.message || "Failed to create PO."; errEl.classList.remove("hidden"); return; }
+      closePoModal();
+      loadOrders();
+      // Switch to Orders tab
+      document.querySelectorAll(".view-tab").forEach(b => { b.classList.remove("border-blue-600","text-blue-700"); b.classList.add("border-transparent","text-slate-600"); });
+      const ordersTab = document.querySelector('[data-view="orders"]');
+      ordersTab.classList.add("border-blue-600","text-blue-700"); ordersTab.classList.remove("border-transparent","text-slate-600");
+      ["requisitions","orders","batches"].forEach(v => document.getElementById(`section-${v}`).classList.toggle("hidden", v !== "orders"));
+      activeView = "orders";
+    } finally {
+      btn.disabled = false; btn.textContent = "Create PO";
+    }
+  });
+
+  loadLookups();
+  loadRequisitions();
+})();
+</script>
+  </body>
+</html>

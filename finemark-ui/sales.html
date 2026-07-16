@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Sales Dashboard</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <script src="assets/chart.umd.min.js"></script>
+  <style>
+    .section-anchor{scroll-margin-top:4.5rem;}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+    .fade-in{animation:fadeIn .22s ease;}
+    .tab-btn{padding:.35rem 1rem;border-radius:.5rem;font-size:.8rem;font-weight:500;color:#475569;transition:all .15s;white-space:nowrap;cursor:pointer;}
+    .tab-btn:hover{background:#fff;color:#0f172a;}
+    .tab-btn.active{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);color:#0f172a;font-weight:700;}
+    .badge{display:inline-flex;align-items:center;border-radius:9999px;padding:.15rem .55rem;font-size:.7rem;font-weight:600;border-width:1px;}
+    .badge-new{background:#f1f5f9;color:#334155;border-color:#e2e8f0;}
+    .badge-qualified{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+    .badge-converted{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}
+    .badge-disq{background:#fff1f2;color:#be123c;border-color:#fecdd3;}
+    .badge-pending{background:#fffbeb;color:#b45309;border-color:#fde68a;}
+    .badge-sales{background:#fdf4ff;color:#7e22ce;border-color:#e9d5ff;}
+    .badge-bdm{background:#fff7ed;color:#c2410c;border-color:#fed7aa;}
+    .metric-card{background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;padding:1.25rem 1.5rem;box-shadow:0 1px 3px rgba(0,0,0,.06);transition:box-shadow .15s;}
+    .metric-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1);}
+    .funnel-stage{display:flex;align-items:center;justify-content:center;border-radius:.5rem;font-size:.8rem;font-weight:600;color:#fff;transition:opacity .2s;}
+    .modal-wrap{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.45);z-index:60;padding:1rem;}
+    .modal-wrap.open{display:flex;}
+    .rank-1{background:#f59e0b;color:#fff;} .rank-2{background:#9ca3af;color:#fff;} .rank-3{background:#d97706;color:#fff;}
+    .rank-n{background:#f1f5f9;color:#475569;}
+    .bar-track{background:#e2e8f0;border-radius:9999px;height:.45rem;overflow:hidden;}
+    .bar-fill{height:100%;border-radius:9999px;}
+    .tool-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;padding:1rem;background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;font-size:.78rem;font-weight:600;color:#475569;cursor:pointer;transition:all .15s;text-decoration:none;text-align:center;}
+    .tool-card.hidden{display:none;}
+    .tool-card:hover{border-color:#6366f1;color:#4f46e5;background:#eef2ff;transform:translateY(-2px);box-shadow:0 4px 14px rgba(99,102,241,.15);}
+    .tool-card svg{opacity:.7;}
+    .tool-card:hover svg{opacity:1;}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-4 md:p-6 max-w-[1440px] mx-auto space-y-6">
+
+    <!-- ═══ PAGE HEADER ═══ -->
+    <div class="flex flex-wrap items-center gap-3 justify-between">
+      <div>
+        <h1 id="greeting" class="text-2xl font-bold tracking-tight text-slate-900">Sales Dashboard</h1>
+        <p id="page-subtitle" class="text-sm text-slate-500 mt-0.5">My pipeline · My leads · My customers</p>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <span id="role-badge" class="badge badge-sales text-xs px-3 py-1">Sales</span>
+        <!-- Date range filter -->
+        <div class="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 text-xs shadow-sm">
+          <button class="date-btn rounded px-2.5 py-1.5 bg-indigo-600 text-white font-semibold" data-days="30">30d</button>
+          <button class="date-btn rounded px-2.5 py-1.5 text-slate-500 hover:bg-slate-100" data-days="7">7d</button>
+          <button class="date-btn rounded px-2.5 py-1.5 text-slate-500 hover:bg-slate-100" data-days="90">90d</button>
+          <button class="date-btn rounded px-2.5 py-1.5 text-slate-500 hover:bg-slate-100" data-days="365">1y</button>
+          <button class="date-btn rounded px-2.5 py-1.5 text-slate-500 hover:bg-slate-100" data-days="0">All</button>
+        </div>
+        <!-- BDM-only: sales rep filter -->
+        <select id="rep-filter" class="hidden text-xs rounded-lg border border-slate-200 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400/40">
+          <option value="">All Sales Reps</option>
+        </select>
+        <button onclick="refreshAll()" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 shadow-sm">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0115.7-4.4M20 15a9 9 0 01-15.7 4.4"/></svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══ SECTION NAV ═══ -->
+    <nav class="flex items-center gap-1 overflow-x-auto bg-slate-100 rounded-xl px-2 py-1.5">
+      <button class="tab-btn active" data-sec="overview">Overview</button>
+      <button class="tab-btn" data-sec="leads">Leads</button>
+      <button class="tab-btn" data-sec="customers">Customers</button>
+      <button class="tab-btn" data-sec="quotes">Quotes</button>
+      <button class="tab-btn" data-sec="invoices">Invoices</button>
+      <button class="tab-btn" data-sec="campaigns">Campaigns</button>
+      <button class="tab-btn" data-sec="analytics">Sales Analytics</button>
+      <button class="tab-btn" id="nav-tools" data-sec="tools">Quick Tools</button>
+    </nav>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- OVERVIEW                                                        -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <section id="sec-overview" class="section-anchor space-y-6 fade-in">
+
+      <!-- TOP METRIC CARDS -->
+      <div id="metric-cards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"></div>
+
+      <!-- PIPELINE FUNNEL + CHART -->
+      <div class="grid gap-4 lg:grid-cols-3">
+        <!-- Sales Funnel -->
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+          <h3 class="font-semibold text-slate-900 text-sm mb-4">Lead Pipeline Funnel</h3>
+          <div id="funnel-wrap" class="space-y-2 px-2"></div>
+        </div>
+        <!-- Monthly Trend Chart -->
+        <div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-slate-900 text-sm">Monthly Sales Trend</h3>
+            <span class="text-xs text-slate-400">Leads created per month</span>
+          </div>
+          <div class="relative h-52"><canvas id="trend-chart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- SALES INTELLIGENCE + QUICK INSIGHTS (2-col) -->
+      <div class="grid gap-4 lg:grid-cols-2">
+        <!-- Top Services / Products -->
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+          <h3 class="font-semibold text-slate-900 text-sm mb-4">Sales Intelligence</h3>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Top Requested Services</p>
+              <div id="top-services" class="space-y-2"></div>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Most Active Products</p>
+              <div id="top-products" class="space-y-2"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Customer Leaderboard (top 5) -->
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-slate-900 text-sm">Top Accounts by Leads</h3>
+            <button onclick="showSection('leads')" class="text-xs text-indigo-600 hover:underline font-medium">View all →</button>
+          </div>
+          <div id="customer-leaderboard" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <!-- BDM-ONLY: Team Performance and Acquisition Source -->
+      <div id="bdm-overview-extras" class="hidden grid gap-4 lg:grid-cols-2">
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+          <h3 class="font-semibold text-slate-900 text-sm mb-4">Sales Rep Leaderboard</h3>
+          <div id="rep-leaderboard" class="space-y-2"></div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+          <h3 class="font-semibold text-slate-900 text-sm mb-1">Customer Acquisition Sources</h3>
+          <p class="text-xs text-slate-400 mb-3">How customers found us</p>
+          <div class="relative h-48"><canvas id="source-chart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ALERTS -->
+      <div id="alerts-wrap" class="space-y-2"></div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- LEADS                                                           -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <section id="sec-leads" class="section-anchor hidden space-y-4 fade-in">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="font-bold text-slate-900 text-lg">Lead Management</h2>
+          <p class="text-xs text-slate-500">Track and manage your sales leads</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <input id="leads-search" type="search" placeholder="Search lead, customer…" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400/40 w-44" oninput="renderLeads()" />
+          <select id="leads-status-filter" class="text-xs rounded-lg border border-slate-200 bg-white px-3 py-2 focus:outline-none" onchange="renderLeads()">
+            <option value="">All Statuses</option>
+            <option>New</option><option>Qualified</option><option>Converted</option><option>Disqualified</option>
+          </select>
+          <select id="leads-type-filter" class="text-xs rounded-lg border border-slate-200 bg-white px-3 py-2 focus:outline-none" onchange="renderLeads()">
+            <option value="">All Types</option>
+            <option value="new_customer">New Customer</option>
+            <option value="existing_customer">Existing Customer</option>
+          </select>
+          <a href="crm-leads.html" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 shadow-sm transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            New Lead
+          </a>
+        </div>
+      </div>
+
+      <!-- Stage pills -->
+      <div class="flex items-center gap-1 overflow-x-auto bg-white border border-slate-200 rounded-xl px-2 py-1.5 shadow-sm">
+        <button class="tab-btn active" data-lead-stage="">All</button>
+        <button class="tab-btn" data-lead-stage="New">New</button>
+        <button class="tab-btn" data-lead-stage="Qualified">Qualified</button>
+        <button class="tab-btn" data-lead-stage="Converted">Converted</button>
+        <button class="tab-btn" data-lead-stage="Disqualified">Disqualified</button>
+      </div>
+
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm min-w-[700px]">
+            <thead class="bg-slate-50 text-xs text-slate-400 uppercase tracking-wide">
+              <tr>
+                <th class="px-4 py-3 text-left">Lead No</th>
+                <th class="px-4 py-3 text-left">Customer / Contact</th>
+                <th class="px-4 py-3 text-left">Type</th>
+                <th class="px-4 py-3 text-left">Source</th>
+                <th class="px-4 py-3 text-left">Services</th>
+                <th class="px-4 py-3 text-left">Status</th>
+                <th class="px-4 py-3 text-left bdm-only">Sales Rep</th>
+                <th class="px-4 py-3 text-left">Date</th>
+                <th class="px-4 py-3 text-left">Action</th>
+              </tr>
+            </thead>
+            <tbody id="leads-body" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+        <div id="leads-empty" class="hidden py-12 text-center text-sm text-slate-400">No leads found matching your filters.</div>
+        <div id="leads-loading" class="py-10 text-center text-sm text-slate-400">Loading leads…</div>
+      </div>
+      <!-- Lead stats row -->
+      <div id="lead-stats-row" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- CUSTOMERS                                                       -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <section id="sec-customers" class="section-anchor hidden space-y-4 fade-in">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="font-bold text-slate-900 text-lg">Customer Accounts</h2>
+          <p class="text-xs text-slate-500">Accounts assigned to you · Click a row for full 360 view</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <input id="cust-search" type="search" placeholder="Search account…" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400/40 w-44" oninput="renderCustomers()" />
+          <select id="cust-type-filter" class="text-xs rounded-lg border border-slate-200 bg-white px-3 py-2 focus:outline-none" onchange="renderCustomers()">
+            <option value="">All Types</option><option value="individual">Individual</option><option value="corporate">Corporate</option>
+          </select>
+          <!-- BDM only: assign customer -->
+          <button id="btn-assign-cust" onclick="openAssignCustModal()" class="hidden inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 shadow-sm transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0M12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            Assign Customer
+          </button>
+        </div>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm min-w-[600px]">
+            <thead class="bg-slate-50 text-xs text-slate-400 uppercase tracking-wide">
+              <tr>
+                <th class="px-4 py-3 text-left">Account No</th>
+                <th class="px-4 py-3 text-left">Name</th>
+                <th class="px-4 py-3 text-left">Type</th>
+                <th class="px-4 py-3 text-left">Source</th>
+                <th class="px-4 py-3 text-left">Region</th>
+                <th class="px-4 py-3 text-left bdm-only">Account Manager</th>
+                <th class="px-4 py-3 text-left">Status</th>
+                <th class="px-4 py-3 text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="customers-body" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+        <div id="cust-empty" class="hidden py-12 text-center text-sm text-slate-400">No customers found.</div>
+        <div id="cust-loading" class="py-10 text-center text-sm text-slate-400">Loading customers…</div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- QUOTES                                                          -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <section id="sec-quotes" class="section-anchor hidden space-y-4 fade-in">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="font-bold text-slate-900 text-lg">Quotations</h2>
+          <p class="text-xs text-slate-500">All quotes and proforma invoices</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <input id="quotes-search" type="search" placeholder="Search quote…" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs focus:outline-none w-44" oninput="renderQuotes()" />
+          <a href="crm-quotes.html" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 shadow-sm transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            New Quote
+          </a>
+        </div>
+      </div>
+      <!-- Quote summary cards -->
+      <div id="quote-metric-row" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
+      <div class="grid gap-4 lg:grid-cols-3">
+        <div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm min-w-[620px]">
+              <thead class="bg-slate-50 text-xs text-slate-400 uppercase tracking-wide">
+                <tr>
+                  <th class="px-4 py-3 text-left">Quote No</th>
+                  <th class="px-4 py-3 text-left">Customer</th>
+                  <th class="px-4 py-3 text-right">Value (KES)</th>
+                  <th class="px-4 py-3 text-left bdm-only">Rep</th>
+                  <th class="px-4 py-3 text-left">Status</th>
+                  <th class="px-4 py-3 text-left">Date</th>
+                  <th class="px-4 py-3 text-left">Action</th>
+                </tr>
+              </thead>
+              <tbody id="quotes-body" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+          <div id="quotes-loading" class="py-10 text-center text-sm text-slate-400">Loading quotes…</div>
+          <div id="quotes-empty" class="hidden py-10 text-center text-sm text-slate-400">No quotes found.</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-4">
+          <h3 class="font-semibold text-slate-900 text-sm">Quote Conversion</h3>
+          <div class="relative h-44"><canvas id="conversion-chart"></canvas></div>
+          <div id="conversion-legend" class="space-y-1 text-xs text-slate-500"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- INVOICES                                                        -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <section id="sec-invoices" class="section-anchor hidden space-y-4 fade-in">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="font-bold text-slate-900 text-lg">Invoices & Revenue</h2>
+          <p class="text-xs text-slate-500">Invoice tracking and payment status</p>
+        </div>
+        <input id="inv-search" type="search" placeholder="Search invoice…" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs focus:outline-none w-44" oninput="renderInvoices()" />
+      </div>
+      <div id="inv-metric-row" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm min-w-[620px]">
+            <thead class="bg-slate-50 text-xs text-slate-400 uppercase tracking-wide">
+              <tr>
+                <th class="px-4 py-3 text-left">Invoice No</th>
+                <th class="px-4 py-3 text-left">Customer</th>
+                <th class="px-4 py-3 text-right">Amount (KES)</th>
+                <th class="px-4 py-3 text-left">Type</th>
+                <th class="px-4 py-3 text-left">Status</th>
+                <th class="px-4 py-3 text-left">Due Date</th>
+                <th class="px-4 py-3 text-left">Action</th>
+              </tr>
+            </thead>
+            <tbody id="invoices-body" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+        <div id="inv-loading" class="py-10 text-center text-sm text-slate-400">Loading invoices…</div>
+        <div id="inv-empty" class="hidden py-10 text-center text-sm text-slate-400">No invoices found.</div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- CAMPAIGNS                                                       -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <section id="sec-campaigns" class="section-anchor hidden space-y-4 fade-in">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="font-bold text-slate-900 text-lg">Campaigns & Opportunities</h2>
+          <p class="text-xs text-slate-500">Active campaigns you can use to engage customers</p>
+        </div>
+        <a href="crm-campaigns.html" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 shadow-sm transition">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+          Manage Campaigns
+        </a>
+      </div>
+      <div id="campaigns-grid" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div id="campaigns-loading" class="col-span-3 py-10 text-center text-sm text-slate-400">Loading campaigns…</div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- ANALYTICS                                                       -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <section id="sec-analytics" class="section-anchor hidden space-y-6 fade-in">
+      <div>
+        <h2 class="font-bold text-slate-900 text-lg">Sales Analytics</h2>
+        <p class="text-xs text-slate-500">Performance insights and conversion metrics</p>
+      </div>
+
+      <!-- KPI summary row -->
+      <div id="analytics-kpis" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
+
+      <div class="grid gap-4 lg:grid-cols-2">
+        <!-- Revenue pipeline bar -->
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+          <h3 class="font-semibold text-slate-900 text-sm mb-4">Pipeline Value by Stage</h3>
+          <div class="relative h-52"><canvas id="pipeline-value-chart"></canvas></div>
+        </div>
+        <!-- Lead source breakdown -->
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+          <h3 class="font-semibold text-slate-900 text-sm mb-4">Leads by Source</h3>
+          <div class="relative h-52"><canvas id="source-bar-chart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- BDM: Team performance charts -->
+      <div id="bdm-analytics-extras" class="hidden grid gap-4 lg:grid-cols-2">
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+          <h3 class="font-semibold text-slate-900 text-sm mb-4">Deals per Sales Person</h3>
+          <div class="relative h-52"><canvas id="rep-deals-chart"></canvas></div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+          <h3 class="font-semibold text-slate-900 text-sm mb-4">Lead Conversion Rate per Rep</h3>
+          <div class="relative h-52"><canvas id="rep-conv-chart"></canvas></div>
+        </div>
+        <!-- Detailed team performance table -->
+        <div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+          <h3 class="font-semibold text-slate-900 text-sm mb-4">Sales Team Performance Summary</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm min-w-[640px]">
+              <thead class="text-xs text-slate-400 uppercase tracking-wide">
+                <tr>
+                  <th class="py-2.5 pr-4 text-left">Rank</th>
+                  <th class="py-2.5 px-2 text-left">Sales Person</th>
+                  <th class="py-2.5 px-2 text-center">Total Leads</th>
+                  <th class="py-2.5 px-2 text-center">Qualified</th>
+                  <th class="py-2.5 px-2 text-center">Converted</th>
+                  <th class="py-2.5 px-2 text-center">Conv. Rate</th>
+                  <th class="py-2.5 px-2 text-center">Customers</th>
+                  <th class="py-2.5 px-2 text-center">Quotes</th>
+                </tr>
+              </thead>
+              <tbody id="team-perf-body" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- QUICK TOOLS                                                     -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <section id="sec-tools" class="section-anchor hidden space-y-6 fade-in">
+      <div>
+        <h2 class="font-bold text-slate-900 text-lg">Quick Tools</h2>
+        <p class="text-xs text-slate-500">Fast access to core sales workflows</p>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <a href="crm-leads.html" class="tool-card">
+          <svg class="w-7 h-7 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Create Lead
+        </a>
+        <a href="crm-quotes.html" class="tool-card">
+          <svg class="w-7 h-7 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Quote Generator
+        </a>
+        <a href="crm-customers.html" class="tool-card">
+          <svg class="w-7 h-7 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Customer Search
+        </a>
+        <a href="crm-customer-360.html" class="tool-card">
+          <svg class="w-7 h-7 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+          Customer 360
+        </a>
+        <a href="inventory-catalog.html" class="tool-card">
+          <svg class="w-7 h-7 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+          Product Catalogue
+        </a>
+        <a href="crm-campaigns.html" class="tool-card">
+          <svg class="w-7 h-7 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
+          Campaigns
+        </a>
+        <a href="crm-proforma.html" class="tool-card">
+          <svg class="w-7 h-7 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          Proforma Invoice
+        </a>
+        <a href="create-invoice.html" class="tool-card">
+          <svg class="w-7 h-7 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
+          Create Invoice
+        </a>
+        <a href="crm-communications.html" class="tool-card">
+          <svg class="w-7 h-7 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+          Communications
+        </a>
+        <a href="create-request.html" class="tool-card">
+          <svg class="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+          Install Request
+        </a>
+        <!-- BDM only -->
+        <a href="#" id="tool-onboard-rep" onclick="openOnboardModal(event)" class="tool-card bdm-tool hidden">
+          <svg class="w-7 h-7 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+          Assign BD Staff
+        </a>
+        <a href="admin-users.html" class="tool-card bdm-tool hidden">
+          <svg class="w-7 h-7 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          User Management
+        </a>
+      </div>
+
+      <!-- BDM: Lead assignment tool -->
+      <div id="bdm-assignment-tool" class="hidden bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-4">
+        <h3 class="font-semibold text-slate-900 text-sm">Lead Assignment / Reassignment</h3>
+        <div class="grid sm:grid-cols-3 gap-3">
+          <div>
+            <label class="text-xs font-medium text-slate-600 block mb-1.5">Lead</label>
+            <select id="assign-lead-sel" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/40"></select>
+          </div>
+          <div>
+            <label class="text-xs font-medium text-slate-600 block mb-1.5">Assign to Sales Rep</label>
+            <select id="assign-rep-sel" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/40"></select>
+          </div>
+          <div class="flex items-end">
+            <button onclick="doAssignLead()" class="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition">Assign Lead</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+<div id="fm-footer"></div>
+
+<!-- ═══ ASSIGN CUSTOMER MODAL ═══ -->
+<div id="assign-cust-modal" class="modal-wrap" role="dialog">
+  <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold text-slate-900">Assign Customer to Sales Rep</h2>
+      <button onclick="closeModal('assign-cust-modal')" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&#x2715;</button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="text-xs font-medium text-slate-600 block mb-1">Customer</label>
+        <select id="modal-cust-sel" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/40"></select>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-slate-600 block mb-1">Sales Rep</label>
+        <select id="modal-rep-sel" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/40"></select>
+      </div>
+      <div id="assign-cust-err" class="hidden text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 border border-red-100"></div>
+      <div class="flex items-center justify-end gap-3 pt-2">
+        <button onclick="closeModal('assign-cust-modal')" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
+        <button onclick="confirmAssignCustomer()" class="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Assign</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ASSIGN BD EMPLOYEE MODAL ═══ -->
+<div id="onboard-modal" class="modal-wrap" role="dialog">
+  <div class="w-full max-w-xl bg-white rounded-2xl shadow-xl border border-slate-200 p-6">
+    <div class="flex items-center justify-between mb-1">
+      <h2 class="text-base font-bold text-slate-900">Assign Business Development Staff to Channel</h2>
+      <button onclick="closeModal('onboard-modal')" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&#x2715;</button>
+    </div>
+    <p class="text-xs text-slate-400 mb-4">Select an employee from the Business Development team and assign them to a sales channel.</p>
+
+    <!-- Loading state -->
+    <div id="ob-loading" class="py-6 text-center text-sm text-slate-400">Loading BD team employees…</div>
+
+    <!-- Form (hidden until loaded) -->
+    <div id="ob-form" class="hidden space-y-4">
+
+      <!-- Channel selector tabs -->
+      <div>
+        <label class="text-xs font-semibold text-slate-600 block mb-2 uppercase tracking-wide">Sales Channel</label>
+        <div class="grid grid-cols-2 gap-2" id="ob-channel-tabs">
+          <button type="button" data-channel="telesales" onclick="selectChannel('telesales')" class="ob-ch-btn channel-btn flex flex-col items-start gap-1 rounded-xl border-2 border-indigo-500 bg-indigo-50 p-3 text-left transition">
+            <span class="text-sm font-bold text-indigo-700">📞 Telesales &amp; Online</span>
+            <span class="text-[11px] text-indigo-500 leading-snug">Online customers &amp; customer channel</span>
+            <span class="text-[10px] text-slate-400 mt-0.5">Telesales Officer</span>
+          </button>
+          <button type="button" data-channel="field" onclick="selectChannel('field')" class="ob-ch-btn channel-btn flex flex-col items-start gap-1 rounded-xl border-2 border-slate-200 bg-white p-3 text-left transition hover:border-emerald-400">
+            <span class="text-sm font-bold text-emerald-700">🚗 Field Sales</span>
+            <span class="text-[11px] text-emerald-600 leading-snug">Individual customers, field visits</span>
+            <span class="text-[10px] text-slate-400 mt-0.5">Sales Agent Retail &amp; Bank Financed</span>
+          </button>
+          <button type="button" data-channel="keyaccount" onclick="selectChannel('keyaccount')" class="ob-ch-btn channel-btn flex flex-col items-start gap-1 rounded-xl border-2 border-slate-200 bg-white p-3 text-left transition hover:border-amber-400">
+            <span class="text-sm font-bold text-amber-700">🏦 Key Accounts</span>
+            <span class="text-[11px] text-amber-600 leading-snug">Banks, large corporates &amp; big accounts</span>
+            <span class="text-[10px] text-slate-400 mt-0.5">Key Account Manager</span>
+          </button>
+          <button type="button" data-channel="corporate" onclick="selectChannel('corporate')" class="ob-ch-btn channel-btn flex flex-col items-start gap-1 rounded-xl border-2 border-slate-200 bg-white p-3 text-left transition hover:border-purple-400">
+            <span class="text-sm font-bold text-purple-700">🏢 Corporate &amp; Business</span>
+            <span class="text-[11px] text-purple-600 leading-snug">Business accounts &amp; corporate sales</span>
+            <span class="text-[10px] text-slate-400 mt-0.5">Corporate Sales Officer</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Employee picker -->
+      <div>
+        <label class="text-xs font-medium text-slate-600 block mb-1.5">BD Employee <span class="text-slate-400">(filtered by channel role)</span></label>
+        <select id="ob-emp-sel" onchange="onEmpSelect()" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/40"></select>
+        <!-- Employee info card -->
+        <div id="ob-emp-card" class="hidden mt-2 rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+          <div><span class="text-slate-400">Employee No:</span> <span id="ob-emp-no" class="font-semibold text-slate-700"></span></div>
+          <div><span class="text-slate-400">Job Role:</span> <span id="ob-emp-role" class="font-semibold text-slate-700"></span></div>
+          <div><span class="text-slate-400">Work Email:</span> <span id="ob-emp-email" class="font-mono text-slate-600"></span></div>
+          <div><span class="text-slate-400">Phone:</span> <span id="ob-emp-phone" class="text-slate-600"></span></div>
+        </div>
+      </div>
+
+      <!-- Territory / Region -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-medium text-slate-600 block mb-1.5">Territory / Region</label>
+          <select id="ob-region" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/40">
+            <option value="">Select territory</option>
+            <option>Nairobi</option><option>Mombasa</option><option>Kisumu</option>
+            <option>Nakuru</option><option>Eldoret</option><option>Thika</option>
+            <option>Nationwide</option><option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-medium text-slate-600 block mb-1.5">System Access</label>
+          <select id="ob-access" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/40">
+            <option value="create">Create new login</option>
+            <option value="skip">Channel assignment only (no login)</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="ob-err" class="hidden text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 border border-red-100"></div>
+      <p class="text-xs text-slate-400">When "Create new login" is selected, a system user account with role <strong>Sales</strong> will be created using the employee's work email. A password reset link will be sent automatically.</p>
+
+      <div class="flex items-center justify-end gap-3 pt-1">
+        <button onclick="closeModal('onboard-modal')" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
+        <button onclick="submitOnboard()" class="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Assign to Channel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="fixed top-5 right-5 z-[70] hidden">
+  <div id="toast-inner" class="rounded-xl px-4 py-2.5 text-sm font-medium text-white shadow-lg flex items-center gap-2 min-w-[200px]">
+    <span id="toast-icon"></span><span id="toast-msg"></span>
+  </div>
+</div>
+
+<script src="assets/contracts.js"></script>
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => { window.FINEMARK_APP?.requirePageAccess?.(); });
+</script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+// Sales Dashboard v1
+// ═══════════════════════════════════════════════════════════════
+const API = "/api";
+const $  = id => document.getElementById(id);
+const fmtDate  = v => v ? new Date(v).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}) : "—";
+const fmtMoney = n => isNaN(n) ? "—" : Number(n).toLocaleString("en-KE",{minimumFractionDigits:0,maximumFractionDigits:0});
+
+function toast(msg, type="success") {
+  const colors={success:"#16a34a",error:"#dc2626",info:"#2563eb",warn:"#d97706"};
+  const icons ={success:"✓",error:"✗",info:"ℹ",warn:"⚠"};
+  $("toast-msg").textContent=msg; $("toast-icon").textContent=icons[type]||"ℹ";
+  $("toast-inner").style.background=colors[type]||colors.info;
+  $("toast").classList.remove("hidden");
+  clearTimeout(window._toastT);
+  window._toastT=setTimeout(()=>$("toast").classList.add("hidden"),3200);
+}
+
+async function apiFetch(path,opts={}) {
+  const session=(()=>{try{return JSON.parse(localStorage.getItem("finemark_session")||"{}");}catch{return {};}})();
+  const token=session.accessToken||session.token||null;
+  const r=await fetch(API+path,{...opts,headers:{"Content-Type":"application/json",...(token?{Authorization:`Bearer ${token}`}:{}), ...(opts.headers||{})}});
+  if(r.status===401){window.location.href="login.html";return;}
+  if(!r.ok){const e=await r.json().catch(()=>({message:r.statusText}));throw new Error(e.message||r.statusText);}
+  return r.json();
+}
+
+function currentUser(){try{return JSON.parse(localStorage.getItem("finemark_session")||"{}");}catch{return {};}}
+
+function userRole(){return (currentUser().user?.role||currentUser().role||"").toLowerCase();}
+function isBDM(){const r=userRole();return r==="businessdevelopment"||r==="bdm"||r==="admin"||r==="manager"||r==="salesmanager";}
+
+// ── State ─────────────────────────────────────────────────────
+let _leads=[], _customers=[], _quotes=[], _invoices=[], _campaigns=[], _salesReps=[];
+let _filterDays=30, _filterRep="", _filterLeadStage="";
+let _charts={};
+
+// ── Auth / Role setup ─────────────────────────────────────────
+function initRoleUI(){
+  const bdm=isBDM();
+  const roleLabel=bdm?"Business Development Manager":"Sales Person";
+  const badgeCls=bdm?"badge-bdm":"badge-sales";
+  const rb=$("role-badge");
+  if(rb){rb.textContent=roleLabel;rb.className=`badge ${badgeCls} text-xs px-3 py-1`;}
+  // Greeting
+  const hr=new Date().getHours();
+  const greetWord=hr<12?"Good morning":hr<17?"Good afternoon":"Good evening";
+  const cu=currentUser();
+  const userName=cu.user?.name||cu.name||cu.user?.email?.split("@")[0]||cu.email?.split("@")[0]||"there";
+  const greetEl=$("greeting");
+  if(greetEl) greetEl.textContent=greetWord+", "+userName;
+  $("page-subtitle").textContent=bdm
+    ?"Full team pipeline · Lead assignment · Revenue analytics"
+    :"My pipeline · My leads · My customers";
+  // BDM-only elements
+  document.querySelectorAll(".bdm-only").forEach(el=>el.classList.toggle("hidden",!bdm));
+  document.querySelectorAll(".bdm-tool").forEach(el=>el.classList.toggle("hidden",!bdm));
+  if(bdm){
+    $("rep-filter").classList.remove("hidden");
+    $("bdm-overview-extras").classList.remove("hidden");
+    $("bdm-analytics-extras").classList.remove("hidden");
+    $("bdm-assignment-tool").classList.remove("hidden");
+    $("btn-assign-cust").classList.remove("hidden");
+  }
+}
+
+// ── Section nav ───────────────────────────────────────────────
+const SECTIONS=["overview","leads","customers","quotes","invoices","campaigns","analytics","tools"];
+function showSection(name){
+  SECTIONS.forEach(s=>{
+    const el=$(`sec-${s}`);
+    if(el){el.classList.toggle("hidden",s!==name);if(s===name)el.classList.add("fade-in");}
+  });
+  document.querySelectorAll("[data-sec]").forEach(b=>{
+    b.classList.toggle("active",b.dataset.sec===name);
+  });
+  if(name==="analytics") renderAnalyticsCharts();
+  if(name==="quotes")    renderQuoteConvChart();
+}
+document.querySelectorAll("[data-sec]").forEach(btn=>{
+  btn.addEventListener("click",()=>showSection(btn.dataset.sec));
+});
+
+// ── Date range buttons ────────────────────────────────────────
+document.querySelectorAll(".date-btn").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.querySelectorAll(".date-btn").forEach(b=>{b.className="date-btn rounded px-2.5 py-1.5 text-slate-500 hover:bg-slate-100";});
+    btn.className="date-btn rounded px-2.5 py-1.5 bg-indigo-600 text-white font-semibold";
+    _filterDays=parseInt(btn.dataset.days); renderAll();
+  });
+});
+
+// ── Rep filter (BDM) ──────────────────────────────────────────
+$("rep-filter").addEventListener("change",()=>{_filterRep=$("rep-filter").value;renderAll();});
+
+// ── Lead stage tabs ───────────────────────────────────────────
+document.querySelectorAll("[data-lead-stage]").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.querySelectorAll("[data-lead-stage]").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    _filterLeadStage=btn.dataset.leadStage;
+    renderLeads();
+  });
+});
+
+// Date filter helper
+function inWindow(dateStr){
+  if(!_filterDays) return true;
+  if(!dateStr) return true;
+  return new Date(dateStr)>=new Date(Date.now()-_filterDays*86400000);
+}
+
+// ── LOAD ──────────────────────────────────────────────────────
+async function loadAll(){
+  const uid=currentUser().user?.id||currentUser().id||"";
+  const repQ=isBDM()?"":(`&salesRepId=${uid}`);
+  const [lr,cr,qr,ir,campR,usrR]=await Promise.allSettled([
+    apiFetch(`/crm/leads?pageSize=500${repQ}`),
+    apiFetch(`/crm/customers?pageSize=300`),
+    apiFetch(`/crm/quotes?pageSize=300`),
+    apiFetch(`/invoices?pageSize=300`),
+    apiFetch(`/crm/campaigns?pageSize=100`),
+    isBDM()?apiFetch(`/users?role=Sales,Telesales,FieldSales,BDM,TeamLead&pageSize=200`):{status:"fulfilled",value:{data:[]}},
+  ]);
+  _leads    = lr.status==="fulfilled"     ? (lr.value?.data||[])    : [];
+  _customers= cr.status==="fulfilled"     ? (cr.value?.data||[])    : [];
+  _quotes   = qr.status==="fulfilled"     ? (qr.value?.data||[])    : [];
+  _invoices = ir.status==="fulfilled"     ? (ir.value?.data||[])    : [];
+  _campaigns= campR.status==="fulfilled"  ? (campR.value?.data||[]) : [];
+  _salesReps= usrR.status==="fulfilled"   ? (usrR.value?.data||[])  : [];
+
+  if(isBDM()) buildRepFilter();
+  renderAll();
+}
+
+function buildRepFilter(){
+  $("rep-filter").innerHTML=`<option value="">All Sales Reps</option>`
+    +_salesReps.map(r=>`<option value="${r.id}">${r.name||r.email||r.id}</option>`).join("");
+  // Also hydrate assignment selects
+  const sel=$("assign-rep-sel");
+  if(sel) sel.innerHTML=`<option value="">— Select rep —</option>`
+    +_salesReps.map(r=>`<option value="${r.id}">${r.name||r.email||r.id}</option>`).join("");
+  const asel=$("assign-lead-sel");
+  if(asel) asel.innerHTML=`<option value="">— Select lead —</option>`
+    +_leads.map(l=>`<option value="${l.id}">${l.leadNo} · ${l.customerName||l.companyName||"—"}</option>`).join("");
+}
+
+function filteredLeads(){
+  return _leads.filter(l=>{
+    if(!inWindow(l.createdAt)) return false;
+    if(_filterRep && l.salesRepId!==_filterRep) return false;
+    if(_filterLeadStage && l.status!==_filterLeadStage) return false;
+    return true;
+  });
+}
+
+function renderAll(){
+  renderOverview();
+  renderLeads();
+  renderCustomers();
+  renderQuotes();
+  renderInvoices();
+  renderCampaigns();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// OVERVIEW
+// ═══════════════════════════════════════════════════════════════
+function renderOverview(){
+  const fl=filteredLeads();
+  const uid=currentUser().user?.id||currentUser().id||"";
+
+  const total    = fl.length;
+  const newLeads = fl.filter(l=>l.status==="New").length;
+  const qualified= fl.filter(l=>l.status==="Qualified").length;
+  const converted= fl.filter(l=>l.status==="Converted").length;
+  const newCust  = fl.filter(l=>l.customerType==="new_customer"&&l.status==="Converted").length;
+  const myCust   = isBDM()?_customers.length:_customers.filter(c=>c.accountManagerId===uid).length;
+
+  // Additional BDM-level metrics
+  const allLeads   = isBDM()?fl:fl;
+  const pipelineVal= _quotes.filter(q=>inWindow(q.createdAt||q.created_at)).reduce((s,q)=>s+(parseFloat(q.total||q.totalAmount||0)),0);
+
+  const cards = isBDM() ? [
+    {label:"Total Pipeline Leads",val:total,icon:"📊",color:"indigo"},
+    {label:"New Leads",val:newLeads,icon:"🆕",color:"blue"},
+    {label:"Qualified",val:qualified,icon:"✅",color:"emerald"},
+    {label:"Converted",val:converted,icon:"🎯",color:"green"},
+    {label:"New Customers",val:newCust,icon:"👤",color:"purple"},
+    {label:"Pipeline Value",val:`KES ${fmtMoney(pipelineVal)}`,icon:"💰",color:"amber"},
+  ] : [
+    {label:"My New Leads",val:fl.filter(l=>l.status==="New"&&l.customerType==="new_customer").length,icon:"🆕",color:"blue"},
+    {label:"Existing Cust. Leads",val:fl.filter(l=>l.customerType==="existing_customer").length,icon:"🔄",color:"indigo"},
+    {label:"Qualified",val:qualified,icon:"✅",color:"emerald"},
+    {label:"Converted",val:converted,icon:"🎯",color:"green"},
+    {label:"New Customers",val:newCust,icon:"👤",color:"purple"},
+    {label:"My Accounts",val:myCust,icon:"🏢",color:"amber"},
+  ];
+
+  const colorMap={blue:"bg-blue-50 border-blue-100",indigo:"bg-indigo-50 border-indigo-100",
+    emerald:"bg-emerald-50 border-emerald-100",green:"bg-green-50 border-green-100",
+    purple:"bg-purple-50 border-purple-100",amber:"bg-amber-50 border-amber-100"};
+  const textMap={blue:"text-blue-700",indigo:"text-indigo-700",emerald:"text-emerald-700",
+    green:"text-green-700",purple:"text-purple-700",amber:"text-amber-700"};
+
+  $("metric-cards").innerHTML=cards.map(c=>`
+    <div class="metric-card ${colorMap[c.color]||''} cursor-pointer" onclick="showSection('leads')">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-xl">${c.icon}</span>
+        <span class="text-xs text-slate-500 leading-tight">${c.label}</span>
+      </div>
+      <p class="text-2xl font-bold ${textMap[c.color]||'text-slate-900'}">${c.val}</p>
+    </div>`).join("");
+
+  renderFunnel(fl);
+  renderTrendChart(fl);
+  renderSalesIntelligence(fl);
+  renderCustomerLeaderboard(fl);
+  renderAlerts(fl);
+  if(isBDM()){renderRepLeaderboard(fl);renderSourceChart();}
+}
+
+function renderFunnel(fl){
+  const stages=[
+    {label:"New",color:"#6366f1"},
+    {label:"Qualified",color:"#10b981"},
+    {label:"Converted",color:"#16a34a"},
+    {label:"Disqualified",color:"#ef4444"},
+  ];
+  const total=fl.length||1;
+  const wrap=$("funnel-wrap");
+  if(!wrap) return;
+  wrap.innerHTML=stages.map((s,i)=>{
+    const cnt=fl.filter(l=>l.status===s.label).length;
+    const pct=Math.round(cnt/total*100);
+    const w=Math.max(40, 100-(i*12));
+    return `<div style="margin:0 auto;width:${w}%">
+      <div class="funnel-stage py-2.5 text-center text-xs" style="background:${s.color};opacity:${0.9-i*0.05}">
+        ${s.label} · ${cnt}
+      </div>
+    </div>
+    <div class="text-center text-[10px] text-slate-400 mb-1">${i<3?`↓ ${pct}% of total`:""}
+    </div>`;
+  }).join("");
+}
+
+function renderTrendChart(fl){
+  const months={};
+  const now=new Date();
+  for(let i=5;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    months[`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`]=0;
+  }
+  fl.forEach(l=>{
+    if(!l.createdAt) return;
+    const d=new Date(l.createdAt);
+    const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    if(months[k]!==undefined) months[k]++;
+  });
+  const labels=Object.keys(months).map(k=>{const[y,m]=k.split("-");return new Date(y,m-1).toLocaleString("en",{month:"short",year:"2-digit"});});
+  const data=Object.values(months);
+  if(_charts.trend) _charts.trend.destroy();
+  _charts.trend=new Chart($("trend-chart").getContext("2d"),{
+    type:"line",
+    data:{labels,datasets:[{label:"Leads",data,borderColor:"#6366f1",backgroundColor:"rgba(99,102,241,.1)",tension:.4,fill:true,pointBackgroundColor:"#6366f1",pointRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1,font:{size:10}}},x:{ticks:{font:{size:10}}}}}
+  });
+}
+
+function renderSalesIntelligence(fl){
+  const svcMap={}, prodMap={};
+  fl.forEach(l=>{
+    (l.serviceRequested||[]).forEach(s=>{svcMap[s]=(svcMap[s]||0)+1;});
+    (l.productsInterested||[]).forEach(p=>{const k=p?.productName||p?.productCode||String(p);prodMap[k]=(prodMap[k]||0)+1;});
+    if(l.productCategoryName) prodMap[l.productCategoryName]=(prodMap[l.productCategoryName]||0)+1;
+  });
+  const topSvc=Object.entries(svcMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const topProd=Object.entries(prodMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const maxSvc=topSvc[0]?.[1]||1, maxProd=topProd[0]?.[1]||1;
+
+  const barHtml=(items,max)=>items.length?items.map(([k,v])=>`
+    <div class="space-y-0.5">
+      <div class="flex justify-between text-xs"><span class="text-slate-700 font-medium truncate max-w-[120px]">${k}</span><span class="text-slate-400">${v}</span></div>
+      <div class="bar-track"><div class="bar-fill bg-indigo-400" style="width:${Math.round(v/max*100)}%"></div></div>
+    </div>`).join("")
+    :`<p class="text-xs text-slate-400">No data</p>`;
+
+  $("top-services").innerHTML=barHtml(topSvc,maxSvc);
+  $("top-products").innerHTML=barHtml(topProd,maxProd);
+}
+
+function renderCustomerLeaderboard(fl){
+  const custMap={};
+  fl.forEach(l=>{
+    const key=l.customerName||l.companyName||"Unknown";
+    if(!custMap[key]) custMap[key]={name:key,leads:0,converted:0};
+    custMap[key].leads++;
+    if(l.status==="Converted") custMap[key].converted++;
+  });
+  const sorted=Object.values(custMap).sort((a,b)=>b.leads-a.leads).slice(0,6);
+  const max=sorted[0]?.leads||1;
+  $("customer-leaderboard").innerHTML=sorted.length?sorted.map((c,i)=>`
+    <div class="flex items-center gap-3">
+      <span class="rank-${i<3?i+1:'n'} inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold flex-shrink-0">${i+1}</span>
+      <div class="flex-1 min-w-0">
+        <div class="flex justify-between text-xs mb-0.5"><span class="font-medium text-slate-800 truncate">${c.name}</span><span class="text-slate-400 ml-1">${c.leads} leads</span></div>
+        <div class="bar-track"><div class="bar-fill bg-indigo-400" style="width:${Math.round(c.leads/max*100)}%"></div></div>
+      </div>
+      <span class="text-[10px] text-emerald-600 font-semibold flex-shrink-0">${c.converted} conv.</span>
+    </div>`).join(""):`<p class="text-sm text-slate-400">No data yet.</p>`;
+}
+
+function renderRepLeaderboard(fl){
+  const repMap={};
+  _salesReps.forEach(r=>{repMap[r.id]={name:r.name||r.email||r.id,leads:0,converted:0};});
+  fl.forEach(l=>{
+    if(!repMap[l.salesRepId]) repMap[l.salesRepId]={name:l.salesRepName||l.salesRepEmail||l.salesRepId||"Unknown",leads:0,converted:0};
+    repMap[l.salesRepId].leads++;
+    if(l.status==="Converted") repMap[l.salesRepId].converted++;
+  });
+  const sorted=Object.values(repMap).sort((a,b)=>b.converted-a.converted).slice(0,6);
+  const max=sorted[0]?.converted||1;
+  $("rep-leaderboard").innerHTML=sorted.length?sorted.map((r,i)=>`
+    <div class="flex items-center gap-3">
+      <span class="rank-${i<3?i+1:'n'} inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold flex-shrink-0">${i+1}</span>
+      <div class="flex-1 min-w-0">
+        <div class="flex justify-between text-xs mb-0.5"><span class="font-medium text-slate-800 truncate">${r.name}</span><span class="text-slate-400">${r.leads} leads</span></div>
+        <div class="bar-track"><div class="bar-fill bg-orange-400" style="width:${sorted[0].converted?Math.round(r.converted/max*100):0}%"></div></div>
+      </div>
+      <span class="text-[10px] text-emerald-600 font-semibold flex-shrink-0">${r.converted} conv.</span>
+    </div>`).join(""):`<p class="text-sm text-slate-400">No sales reps data.</p>`;
+}
+
+function renderSourceChart(){
+  const srcMap={};
+  _customers.forEach(c=>{const s=c.source||"Unknown";srcMap[s]=(srcMap[s]||0)+1;});
+  const labels=Object.keys(srcMap), data=Object.values(srcMap);
+  const COLORS=["#6366f1","#10b981","#f59e0b","#ef4444","#8b5cf6","#14b8a6","#f97316"];
+  if(_charts.source) _charts.source.destroy();
+  const cv=$("source-chart");
+  if(!cv) return;
+  _charts.source=new Chart(cv.getContext("2d"),{
+    type:"doughnut",
+    data:{labels,datasets:[{data,backgroundColor:COLORS,borderWidth:2,borderColor:"#fff"}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{font:{size:10},boxWidth:10}}}}
+  });
+}
+
+function renderAlerts(fl){
+  const wrap=$("alerts-wrap"); if(!wrap) return;
+  const alerts=[];
+  const newLeads=fl.filter(l=>l.status==="New");
+  if(newLeads.length>0) alerts.push({type:"info",msg:`${newLeads.length} new lead${newLeads.length>1?"s":""} awaiting qualification.`,action:"leads"});
+  // Check for old qualified leads (>7 days)
+  const stale=fl.filter(l=>l.status==="Qualified"&&l.createdAt&&(Date.now()-new Date(l.createdAt).getTime())>7*86400000);
+  if(stale.length>0) alerts.push({type:"warn",msg:`${stale.length} qualified lead${stale.length>1?"s":""} have been open for over 7 days.`,action:"leads"});
+
+  const clrMap={info:"bg-blue-50 border-blue-200 text-blue-800",warn:"bg-amber-50 border-amber-200 text-amber-800"};
+  wrap.innerHTML=alerts.map(a=>`
+    <div class="${clrMap[a.type]} border rounded-xl px-4 py-3 text-sm flex items-center justify-between gap-3">
+      <span>${a.type==="warn"?"⚠️":"ℹ️"} ${a.msg}</span>
+      <button onclick="showSection('${a.action}')" class="text-xs font-semibold underline whitespace-nowrap">View</button>
+    </div>`).join("");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LEADS TABLE
+// ═══════════════════════════════════════════════════════════════
+function leadBadge(s){
+  const m={New:"badge-new",Qualified:"badge-qualified",Converted:"badge-converted",Disqualified:"badge-disq"};
+  return `<span class="badge ${m[s]||'badge-new'}">${s||"New"}</span>`;
+}
+
+function renderLeads(){
+  const $search=($("leads-search")||{}).value||"";
+  const $status=($("leads-status-filter")||{}).value||"";
+  const $type  =($("leads-type-filter")||{}).value||"";
+  let fl=filteredLeads();
+  if($search){const q=$search.toLowerCase();fl=fl.filter(l=>(l.leadNo+l.customerName+l.companyName+l.email+l.phone).toLowerCase().includes(q));}
+  if($status) fl=fl.filter(l=>l.status===$status);
+  if($type)   fl=fl.filter(l=>l.customerType===$type);
+
+  $("leads-loading").classList.add("hidden");
+  if(!fl.length){
+    $("leads-body").innerHTML="";
+    $("leads-empty").classList.remove("hidden");
+  } else {
+    $("leads-empty").classList.add("hidden");
+    $("leads-body").innerHTML=fl.map(l=>{
+      const name=l.customerName||l.companyName||l.email||"—";
+      const svcs=(l.serviceRequested||[]).slice(0,2).join(", ")||"—";
+      const repName=l.salesRepName||l.salesRepEmail||"—";
+      return `<tr class="hover:bg-slate-50/40">
+        <td class="px-4 py-3"><span class="font-mono text-xs text-indigo-700 font-semibold">${l.leadNo||"—"}</span></td>
+        <td class="px-4 py-3">
+          <div class="font-medium text-sm text-slate-900">${name}</div>
+          <div class="text-xs text-slate-400">${l.phone||l.email||""}</div>
+        </td>
+        <td class="px-4 py-3"><span class="text-xs text-slate-600">${l.customerType==="new_customer"?"New":"Existing"}</span></td>
+        <td class="px-4 py-3 text-xs text-slate-500">${l.leadSource||"—"}</td>
+        <td class="px-4 py-3 text-xs text-slate-600 max-w-[140px] truncate">${svcs}</td>
+        <td class="px-4 py-3">${leadBadge(l.status)}</td>
+        <td class="px-4 py-3 text-xs text-slate-500 bdm-only">${repName}</td>
+        <td class="px-4 py-3 text-xs text-slate-400">${fmtDate(l.createdAt)}</td>
+        <td class="px-4 py-3">
+          <a href="crm-lead-detail.html?id=${l.id}" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">View →</a>
+        </td>
+      </tr>`;
+    }).join("");
+  }
+
+  // Stats row
+  const total=fl.length, qualified=fl.filter(l=>l.status==="Qualified").length;
+  const converted=fl.filter(l=>l.status==="Converted").length;
+  const convRate=total?Math.round(converted/total*100):0;
+  $("lead-stats-row").innerHTML=[
+    {label:"Total Leads",val:total,color:"text-slate-700"},
+    {label:"Qualified",val:qualified,color:"text-blue-700"},
+    {label:"Converted",val:converted,color:"text-emerald-700"},
+    {label:"Conv. Rate",val:`${convRate}%`,color:"text-indigo-700"},
+  ].map(s=>`<div class="bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm text-center">
+    <p class="text-xl font-bold ${s.color}">${s.val}</p>
+    <p class="text-xs text-slate-400 mt-0.5">${s.label}</p>
+  </div>`).join("");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CUSTOMERS TABLE
+// ═══════════════════════════════════════════════════════════════
+function renderCustomers(){
+  const uid=currentUser().user?.id||currentUser().id||"";
+  const $search=($("cust-search")||{}).value||"";
+  const $type  =($("cust-type-filter")||{}).value||"";
+  let custs=isBDM()?_customers:_customers.filter(c=>c.accountManagerId===uid);
+  if(_filterRep) custs=custs.filter(c=>c.accountManagerId===_filterRep);
+  if($search){const q=$search.toLowerCase();custs=custs.filter(c=>(c.displayName||c.accountNo||"").toLowerCase().includes(q));}
+  if($type) custs=custs.filter(c=>c.type===$type);
+
+  $("cust-loading").classList.add("hidden");
+  if(!custs.length){
+    $("customers-body").innerHTML="";
+    $("cust-empty").classList.remove("hidden");
+  } else {
+    $("cust-empty").classList.add("hidden");
+    const statusCls={Active:"text-emerald-600",Inactive:"text-slate-400",Suspended:"text-red-500"};
+    $("customers-body").innerHTML=custs.map(c=>{
+      const mgr=_salesReps.find(r=>r.id===c.accountManagerId);
+      return `<tr class="hover:bg-slate-50/40">
+        <td class="px-4 py-3 font-mono text-xs text-indigo-700 font-semibold">${c.accountNo||"—"}</td>
+        <td class="px-4 py-3 font-medium text-sm text-slate-900">${c.displayName||"—"}</td>
+        <td class="px-4 py-3 text-xs text-slate-500 capitalize">${c.type||"—"}</td>
+        <td class="px-4 py-3 text-xs text-slate-500">${c.source||"—"}</td>
+        <td class="px-4 py-3 text-xs text-slate-500">${c.region||"—"}</td>
+        <td class="px-4 py-3 text-xs text-slate-500 bdm-only">${mgr?mgr.name||mgr.email:"—"}</td>
+        <td class="px-4 py-3 text-xs font-semibold ${statusCls[c.status]||'text-slate-600'}">${c.status||"Active"}</td>
+        <td class="px-4 py-3">
+          <a href="crm-customer-360.html?id=${c.id}" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">360 View →</a>
+        </td>
+      </tr>`;
+    }).join("");
+  }
+
+  // hydrate assign customer modal
+  const ms=$("modal-cust-sel");
+  if(ms) ms.innerHTML=`<option value="">— Select customer —</option>`
+    +_customers.map(c=>`<option value="${c.id}">${c.displayName||c.accountNo||c.id}</option>`).join("");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// QUOTES
+// ═══════════════════════════════════════════════════════════════
+function qStatusBadge(s){
+  const m={Draft:"bg-slate-100 text-slate-600 border-slate-200",Sent:"bg-blue-50 text-blue-700 border-blue-200",
+    Accepted:"bg-emerald-50 text-emerald-700 border-emerald-200",Rejected:"bg-red-50 text-red-700 border-red-200",
+    Expired:"bg-amber-50 text-amber-700 border-amber-200",Converted:"bg-purple-50 text-purple-700 border-purple-200"};
+  return `<span class="badge ${m[s]||m.Draft}">${s||"Draft"}</span>`;
+}
+
+function renderQuotes(){
+  const uid=currentUser().user?.id||currentUser().id||"";
+  const $s=($("quotes-search")||{}).value||"";
+  let qs=_quotes.filter(q=>inWindow(q.createdAt||q.created_at));
+  if(!isBDM()) qs=qs.filter(q=>q.salesRepId===uid||q.created_by_user_id===uid||q.createdByUserId===uid);
+  if(_filterRep) qs=qs.filter(q=>q.salesRepId===_filterRep||q.createdByUserId===_filterRep);
+  if($s){const q=$s.toLowerCase();qs=qs.filter(x=>(x.quoteNo||x.quote_no||x.id||"").toLowerCase().includes(q)||(x.customerName||x.customer_name||"").toLowerCase().includes(q));}
+
+  // Summary metrics
+  const totalVal=qs.reduce((s,q)=>s+(parseFloat(q.total||q.totalAmount||0)),0);
+  const proforma=qs.filter(q=>(q.type||"").toLowerCase().includes("proforma"));
+  $("quote-metric-row").innerHTML=[
+    {label:"Quotes Generated",val:qs.length,icon:"📋",color:"indigo"},
+    {label:"Total Value (KES)",val:fmtMoney(totalVal),icon:"💰",color:"emerald"},
+    {label:"Accepted",val:qs.filter(q=>q.status==="Accepted").length,icon:"✅",color:"green"},
+    {label:"Proforma Invoices",val:proforma.length,icon:"📄",color:"purple"},
+  ].map(s=>`<div class="metric-card bg-${s.color}-50 border-${s.color}-100 cursor-default">
+    <div class="flex items-center gap-2 mb-1"><span>${s.icon}</span><span class="text-xs text-slate-500">${s.label}</span></div>
+    <p class="text-xl font-bold text-${s.color}-700">${s.val}</p>
+  </div>`).join("");
+
+  $("quotes-loading").classList.add("hidden");
+  if(!qs.length){$("quotes-body").innerHTML="";$("quotes-empty").classList.remove("hidden");return;}
+  $("quotes-empty").classList.add("hidden");
+  $("quotes-body").innerHTML=qs.slice(0,50).map(q=>{
+    const qno=q.quoteNo||q.quote_no||q.id?.slice(0,8)||"—";
+    const cust=q.customerName||q.customer_name||"—";
+    const amt=parseFloat(q.total||q.totalAmount||0);
+    const rep=q.salesRepName||q.salesRepEmail||"—";
+    return `<tr class="hover:bg-slate-50/40">
+      <td class="px-4 py-3 font-mono text-xs text-indigo-700 font-semibold">${qno}</td>
+      <td class="px-4 py-3 text-sm text-slate-800">${cust}</td>
+      <td class="px-4 py-3 text-xs font-semibold text-right text-slate-700">${fmtMoney(amt)}</td>
+      <td class="px-4 py-3 text-xs text-slate-500 bdm-only">${rep}</td>
+      <td class="px-4 py-3">${qStatusBadge(q.status)}</td>
+      <td class="px-4 py-3 text-xs text-slate-400">${fmtDate(q.createdAt||q.created_at)}</td>
+      <td class="px-4 py-3"><a href="crm-quote-detail.html?id=${q.id}" class="text-xs text-indigo-600 hover:underline font-medium">View →</a></td>
+    </tr>`;
+  }).join("");
+}
+
+function renderQuoteConvChart(){
+  const uid=currentUser().user?.id||currentUser().id||"";
+  let qs=_quotes.filter(q=>inWindow(q.createdAt||q.created_at));
+  if(!isBDM()) qs=qs.filter(q=>q.salesRepId===uid||q.created_by_user_id===uid||q.createdByUserId===uid);
+  const statuses=["Draft","Sent","Accepted","Rejected","Expired","Converted"];
+  const counts=statuses.map(s=>qs.filter(q=>q.status===s).length);
+  const COLORS=["#94a3b8","#6366f1","#10b981","#ef4444","#f59e0b","#8b5cf6"];
+  if(_charts.conv) _charts.conv.destroy();
+  const cv=$("conversion-chart"); if(!cv) return;
+  _charts.conv=new Chart(cv.getContext("2d"),{
+    type:"doughnut",
+    data:{labels:statuses,datasets:[{data:counts,backgroundColor:COLORS,borderWidth:2,borderColor:"#fff"}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}
+  });
+  $("conversion-legend").innerHTML=statuses.map((s,i)=>`
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:${COLORS[i]}"></span> ${s}</div>
+      <span class="font-semibold text-slate-700">${counts[i]}</span>
+    </div>`).join("");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INVOICES
+// ═══════════════════════════════════════════════════════════════
+function invStatusBadge(s){
+  const m={Draft:"bg-slate-100 text-slate-600 border-slate-200 badge",
+    Issued:"bg-blue-50 text-blue-700 border-blue-200 badge",
+    Paid:"bg-emerald-50 text-emerald-700 border-emerald-200 badge",
+    Overdue:"bg-red-50 text-red-700 border-red-200 badge",
+    "Partially Paid":"bg-amber-50 text-amber-700 border-amber-200 badge",
+    Cancelled:"bg-slate-50 text-slate-400 border-slate-200 badge"};
+  return `<span class="${m[s]||m.Draft}">${s||"Draft"}</span>`;
+}
+
+function renderInvoices(){
+  const $s=($("inv-search")||{}).value||"";
+  let ivs=_invoices.filter(i=>inWindow(i.created_at||i.createdAt));
+  if($s){const q=$s.toLowerCase();ivs=ivs.filter(x=>(x.invoiceNumber||x.invoice_no||x.invoiceNo||"").toLowerCase().includes(q)||(x.customer||x.customer_name||x.customerName||"").toLowerCase().includes(q));}
+
+  const totalIssued=ivs.reduce((s,i)=>s+(parseFloat(i.total||i.totalAmount||0)),0);
+  const totalPaid=ivs.filter(i=>i.status==="Paid").reduce((s,i)=>s+(parseFloat(i.total||i.totalAmount||0)),0);
+  const overdue=ivs.filter(i=>i.status==="Overdue").length;
+  $("inv-metric-row").innerHTML=[
+    {label:"Total Invoices",val:ivs.length,icon:"🧾",color:"indigo"},
+    {label:"Total Issued (KES)",val:fmtMoney(totalIssued),icon:"💰",color:"blue"},
+    {label:"Total Paid (KES)",val:fmtMoney(totalPaid),icon:"✅",color:"emerald"},
+    {label:"Overdue",val:overdue,icon:"⚠️",color:"red"},
+  ].map(s=>`<div class="metric-card bg-${s.color}-50 border-${s.color}-100">
+    <div class="flex items-center gap-2 mb-1"><span>${s.icon}</span><span class="text-xs text-slate-500">${s.label}</span></div>
+    <p class="text-xl font-bold text-${s.color}-700">${s.val}</p>
+  </div>`).join("");
+
+  $("inv-loading").classList.add("hidden");
+  if(!ivs.length){$("invoices-body").innerHTML="";$("inv-empty").classList.remove("hidden");return;}
+  $("inv-empty").classList.add("hidden");
+  $("invoices-body").innerHTML=ivs.slice(0,50).map(i=>{
+    const ino=i.invoiceNumber||i.invoice_no||i.invoiceNo||i.id?.slice(0,8)||"—";
+    const cust=i.customer||i.customer_name||i.customerName||"—";
+    const amt=parseFloat(i.total||i.totalAmount||0);
+    const type=i.type||(ino.includes("PRO")?"Proforma":"Invoice");
+    return `<tr class="hover:bg-slate-50/40">
+      <td class="px-4 py-3 font-mono text-xs text-indigo-700 font-semibold">${ino}</td>
+      <td class="px-4 py-3 text-sm text-slate-800">${cust}</td>
+      <td class="px-4 py-3 text-xs font-semibold text-right text-slate-700">${fmtMoney(amt)}</td>
+      <td class="px-4 py-3 text-xs text-slate-500">${type}</td>
+      <td class="px-4 py-3">${invStatusBadge(i.status)}</td>
+      <td class="px-4 py-3 text-xs text-slate-400">${fmtDate(i.dueOn||i.due_date||i.dueDate)}</td>
+      <td class="px-4 py-3"><a href="invoices.html?id=${i.id}" class="text-xs text-indigo-600 hover:underline font-medium">View →</a></td>
+    </tr>`;
+  }).join("");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CAMPAIGNS
+// ═══════════════════════════════════════════════════════════════
+function renderCampaigns(){
+  $("campaigns-loading").classList.add("hidden");
+  const grid=$("campaigns-grid");
+  if(!_campaigns.length){
+    grid.innerHTML=`<div class="col-span-3 py-12 text-center text-sm text-slate-400">No active campaigns found. <a href="crm-campaigns.html" class="text-indigo-600 hover:underline">Create one →</a></div>`;
+    return;
+  }
+  const statusCls={Active:"bg-emerald-50 border-emerald-200 text-emerald-700",
+    Draft:"bg-slate-50 border-slate-200 text-slate-500",
+    Completed:"bg-blue-50 border-blue-200 text-blue-600",
+    Paused:"bg-amber-50 border-amber-200 text-amber-700"};
+  grid.innerHTML=_campaigns.map(c=>`
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 hover:shadow-md transition space-y-3">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <h4 class="font-semibold text-slate-900 text-sm">${c.name||c.title||"Campaign"}</h4>
+          <p class="text-xs text-slate-400 mt-0.5">${c.type||c.channel||""}</p>
+        </div>
+        <span class="badge text-[10px] ${statusCls[c.status]||statusCls.Draft}">${c.status||"Draft"}</span>
+      </div>
+      <p class="text-xs text-slate-600 line-clamp-2">${c.description||c.message||"No description."}</p>
+      <div class="flex items-center justify-between text-xs text-slate-400 pt-1 border-t border-slate-100">
+        <span>${c.startDate||c.start_date?fmtDate(c.startDate||c.start_date):"No date"}</span>
+        <a href="crm-campaigns.html?id=${c.id}" class="text-indigo-600 hover:underline font-medium">View details →</a>
+      </div>
+    </div>`).join("");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ANALYTICS CHARTS
+// ═══════════════════════════════════════════════════════════════
+function renderAnalyticsCharts(){
+  const fl=filteredLeads();
+
+  // KPIs
+  const total=fl.length, converted=fl.filter(l=>l.status==="Converted").length;
+  const convRate=total?Math.round(converted/total*100):0;
+  const qfl=_quotes.filter(q=>inWindow(q.createdAt||q.created_at));
+  const avgDeal=qfl.length?Math.round(qfl.reduce((s,q)=>s+(parseFloat(q.total||q.totalAmount||0)),0)/qfl.length):0;
+  $("analytics-kpis").innerHTML=[
+    {label:"Total Leads",val:total,color:"indigo"},
+    {label:"Conversion Rate",val:`${convRate}%`,color:"emerald"},
+    {label:"Avg. Deal Size (KES)",val:fmtMoney(avgDeal),color:"blue"},
+    {label:"Quotes Generated",val:qfl.length,color:"purple"},
+  ].map(s=>`<div class="metric-card text-center">
+    <p class="text-xs text-slate-400 mb-1">${s.label}</p>
+    <p class="text-2xl font-bold text-${s.color}-600">${s.val}</p>
+  </div>`).join("");
+
+  // Pipeline value by stage
+  const stages=["New","Qualified","Converted","Disqualified"];
+  const stageCounts=stages.map(s=>fl.filter(l=>l.status===s).length);
+  const PIPELINE_COLORS=["#6366f1","#10b981","#16a34a","#ef4444"];
+  if(_charts.pipeVal) _charts.pipeVal.destroy();
+  const pv=$("pipeline-value-chart"); if(pv){
+    _charts.pipeVal=new Chart(pv.getContext("2d"),{
+      type:"bar",
+      data:{labels:stages,datasets:[{label:"Leads",data:stageCounts,backgroundColor:PIPELINE_COLORS,borderRadius:8}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{font:{size:10}}},x:{ticks:{font:{size:10}}}}}
+    });
+  }
+
+  // Leads by source
+  const srcMap={};
+  fl.forEach(l=>{const s=l.leadSource||"Unknown";srcMap[s]=(srcMap[s]||0)+1;});
+  const srcLabels=Object.keys(srcMap), srcData=Object.values(srcMap);
+  const SRC_COLORS=["#6366f1","#10b981","#f59e0b","#ef4444","#8b5cf6","#14b8a6","#f97316"];
+  if(_charts.srcBar) _charts.srcBar.destroy();
+  const sb=$("source-bar-chart"); if(sb){
+    _charts.srcBar=new Chart(sb.getContext("2d"),{
+      type:"bar",
+      data:{labels:srcLabels,datasets:[{label:"Leads",data:srcData,backgroundColor:SRC_COLORS,borderRadius:8}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{font:{size:10}}},x:{ticks:{font:{size:10}}}}}
+    });
+  }
+
+  if(!isBDM()) return;
+
+  // Rep data
+  const repMap={};
+  _salesReps.forEach(r=>{repMap[r.id]={name:r.name||r.email||r.id,total:0,converted:0};});
+  fl.forEach(l=>{
+    if(!repMap[l.salesRepId]) repMap[l.salesRepId]={name:l.salesRepName||l.salesRepEmail||l.salesRepId||"?",total:0,converted:0};
+    repMap[l.salesRepId].total++;
+    if(l.status==="Converted") repMap[l.salesRepId].converted++;
+  });
+  const repArr=Object.values(repMap).sort((a,b)=>b.total-a.total).slice(0,8);
+  const repNames=repArr.map(r=>r.name.split(" ")[0]);
+
+  if(_charts.repDeals) _charts.repDeals.destroy();
+  const rd=$("rep-deals-chart"); if(rd){
+    _charts.repDeals=new Chart(rd.getContext("2d"),{
+      type:"bar",
+      data:{labels:repNames,datasets:[
+        {label:"Total Leads",data:repArr.map(r=>r.total),backgroundColor:"#c7d2fe",borderRadius:4},
+        {label:"Converted",data:repArr.map(r=>r.converted),backgroundColor:"#4f46e5",borderRadius:4},
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:10},boxWidth:10}}},scales:{y:{beginAtZero:true,ticks:{font:{size:10}}},x:{ticks:{font:{size:10}}}}}
+    });
+  }
+
+  // Conversion rate per rep
+  if(_charts.repConv) _charts.repConv.destroy();
+  const rc=$("rep-conv-chart"); if(rc){
+    _charts.repConv=new Chart(rc.getContext("2d"),{
+      type:"bar",
+      data:{labels:repNames,datasets:[{label:"Conv. Rate %",data:repArr.map(r=>r.total?Math.round(r.converted/r.total*100):0),backgroundColor:"#10b981",borderRadius:6}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:100,ticks:{font:{size:10},callback:v=>v+"%"}},x:{ticks:{font:{size:10}}}}}
+    });
+  }
+
+  // Team perf table
+  const uid=currentUser().user?.id||currentUser().id||"";
+  $("team-perf-body").innerHTML=repArr.map((r,i)=>{
+    const custCount=_customers.filter(c=>c.accountManagerId===Object.keys(repMap).find(k=>repMap[k]===r)).length;
+    const qCount=_quotes.filter(q=>inWindow(q.createdAt||q.created_at)&&(q.salesRepId===Object.keys(repMap).find(k=>repMap[k]===r)||false)).length;
+    const convRate=r.total?Math.round(r.converted/r.total*100):0;
+    return `<tr class="hover:bg-slate-50/40">
+      <td class="py-3 pr-4"><span class="rank-${i<3?i+1:'n'} inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold">${i+1}</span></td>
+      <td class="py-3 px-2 font-medium text-sm text-slate-900">${r.name}</td>
+      <td class="py-3 px-2 text-center text-sm font-semibold text-slate-700">${r.total}</td>
+      <td class="py-3 px-2 text-center text-sm text-blue-700 font-semibold">${fl.filter(l=>l.status==="Qualified"&&(l.salesRepId===Object.keys(repMap).find(k=>repMap[k]===r))).length}</td>
+      <td class="py-3 px-2 text-center text-sm text-emerald-700 font-semibold">${r.converted}</td>
+      <td class="py-3 px-2 text-center text-sm font-semibold ${convRate>=50?'text-emerald-600':convRate>=25?'text-amber-600':'text-red-500'}">${convRate}%</td>
+      <td class="py-3 px-2 text-center text-sm text-slate-600">${custCount}</td>
+      <td class="py-3 px-2 text-center text-sm text-slate-600">${qCount}</td>
+    </tr>`;
+  }).join("")||`<tr><td colspan="8" class="py-8 text-center text-sm text-slate-400">No sales rep data available.</td></tr>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BDM ACTIONS
+// ═══════════════════════════════════════════════════════════════
+function openAssignCustModal(){$("assign-cust-modal").classList.add("open");}
+// BD channel → job role title mapping
+const BD_ORG_UNIT = "f652aa05-ebbb-451e-a273-dc2d7a41773a";
+const CHANNEL_ROLE_MAP = {
+  telesales:   ["Telesales Officer"],
+  field:       ["Sales Agent Retail and Bank Financed","Tender Sales Representative"],
+  keyaccount:  ["Key Account Manager","Business Development Manager"],
+  corporate:   ["Corporate Sales Officer"],
+};
+const CHANNEL_COLORS = {
+  telesales:  {border:"border-indigo-500",bg:"bg-indigo-50",text:"text-indigo-700"},
+  field:      {border:"border-emerald-500",bg:"bg-emerald-50",text:"text-emerald-700"},
+  keyaccount: {border:"border-amber-500",bg:"bg-amber-50",text:"text-amber-700"},
+  corporate:  {border:"border-purple-500",bg:"bg-purple-50",text:"text-purple-700"},
+};
+let _bdEmployees = [], _selectedChannel = "telesales";
+
+async function openOnboardModal(e){
+  if(e) e.preventDefault();
+  $("onboard-modal").classList.add("open");
+  $("ob-loading").classList.remove("hidden");
+  $("ob-form").classList.add("hidden");
+  $("ob-err").classList.add("hidden");
+  try{
+    const r = await apiFetch(`/hr/employees?orgUnitId=${BD_ORG_UNIT}&status=Active&pageSize=100`);
+    _bdEmployees = r?.data || [];
+    selectChannel(_selectedChannel);
+    $("ob-loading").classList.add("hidden");
+    $("ob-form").classList.remove("hidden");
+  } catch(e2){
+    $("ob-loading").textContent = "Failed to load BD employees: " + e2.message;
+  }
+}
+
+function selectChannel(ch){
+  _selectedChannel = ch;
+  const colorBorder={telesales:"border-indigo-500",field:"border-emerald-500",keyaccount:"border-amber-500",corporate:"border-purple-500"};
+  const colorBg   ={telesales:"bg-indigo-50",field:"bg-emerald-50",keyaccount:"bg-amber-50",corporate:"bg-purple-50"};
+  document.querySelectorAll(".ob-ch-btn").forEach(btn=>{
+    const c=btn.dataset.channel, active=c===ch;
+    ["border-indigo-500","border-emerald-500","border-amber-500","border-purple-500","border-slate-200"].forEach(cls=>btn.classList.remove(cls));
+    ["bg-indigo-50","bg-emerald-50","bg-amber-50","bg-purple-50","bg-white"].forEach(cls=>btn.classList.remove(cls));
+    btn.classList.add(active ? (colorBorder[c]||"border-indigo-500") : "border-slate-200");
+    btn.classList.add(active ? (colorBg[c]||"bg-indigo-50") : "bg-white");
+  });
+  populateEmpDropdown(ch);
+}
+
+function populateEmpDropdown(ch){
+  const allowed = CHANNEL_ROLE_MAP[ch] || [];
+  const filtered = _bdEmployees.filter(e => allowed.some(r => (e.jobRoleTitle||e.jobRole||"").toLowerCase()===r.toLowerCase()));
+  const all = filtered.length ? filtered : _bdEmployees;
+  const sel = $("ob-emp-sel");
+  sel.innerHTML = `<option value="">— Select employee —</option>`
+    + all.map(e => `<option value="${e.id}" data-role="${e.jobRoleTitle||''}" data-no="${e.employeeNo||''}" data-email="${e.workEmail||e.email||''}" data-phone="${e.phone||''}">${e.fullName||e.name||e.full_name||e.id} · ${e.jobRoleTitle||''}</option>`).join("");
+  $("ob-emp-card").classList.add("hidden");
+}
+
+function onEmpSelect(){
+  const sel = $("ob-emp-sel");
+  const opt = sel.selectedOptions[0];
+  if(!opt||!opt.value){$("ob-emp-card").classList.add("hidden");return;}
+  $("ob-emp-no").textContent    = opt.dataset.no||"—";
+  $("ob-emp-role").textContent  = opt.dataset.role||"—";
+  $("ob-emp-email").textContent = opt.dataset.email||"—";
+  $("ob-emp-phone").textContent = opt.dataset.phone||"—";
+  $("ob-emp-card").classList.remove("hidden");
+  // Auto-suggest region from employee work location if available
+  const emp = _bdEmployees.find(e=>e.id===opt.value);
+  if(emp?.residentialAddress){ /* region pick could be smarter */ }
+}
+function closeModal(id){$(id).classList.remove("open");}
+
+async function confirmAssignCustomer(){
+  const custId=$("modal-cust-sel").value, repId=$("modal-rep-sel").value;
+  const err=$("assign-cust-err");
+  err.classList.add("hidden");
+  if(!custId||!repId){err.textContent="Please select both a customer and a sales rep.";err.classList.remove("hidden");return;}
+  try{
+    await apiFetch(`/crm/customers/${custId}`,{method:"PATCH",body:JSON.stringify({accountManagerId:repId})});
+    toast("Customer assigned successfully","success");
+    closeModal("assign-cust-modal");
+    const cr=await apiFetch("/crm/customers?pageSize=300");
+    _customers=cr?.data||_customers;
+    renderCustomers();
+  }catch(e){err.textContent=e.message;err.classList.remove("hidden");}
+}
+
+async function submitOnboard(){
+  const sel = $("ob-emp-sel");
+  const opt = sel?.selectedOptions[0];
+  const empId = opt?.value||"", empName = opt?.text?.split(" · ")[0]||"", empEmail = opt?.dataset?.email||"";
+  const region = $("ob-region").value, access = $("ob-access").value;
+  const err=$("ob-err"); err.classList.add("hidden");
+  if(!empId){err.textContent="Please select an employee.";err.classList.remove("hidden");return;}
+  const channelLabels={telesales:"Telesales & Online",field:"Field Sales",keyaccount:"Key Accounts",corporate:"Corporate & Business"};
+  const channelLabel = channelLabels[_selectedChannel]||_selectedChannel;
+  try{
+    if(access==="create"){
+      if(!empEmail){err.textContent="This employee has no work email — cannot create login. Set a work email in HR first.";err.classList.remove("hidden");return;}
+      await apiFetch("/users",{method:"POST",body:JSON.stringify({
+        name:empName, email:empEmail, role:"Sales",
+        region, hrEmployeeId:empId, salesChannel:_selectedChannel, sendInvite:true
+      })});
+      toast(`${empName} assigned to ${channelLabel} — login invite sent`,"success");
+    } else {
+      toast(`${empName} assigned to ${channelLabel} channel`,"success");
+    }
+    closeModal("onboard-modal");
+    const ur=await apiFetch("/users?role=Sales&pageSize=100");
+    _salesReps=ur?.data||_salesReps;
+    buildRepFilter();
+  }catch(e2){
+    // if user already exists, still show success for channel assignment
+    if(e2.message?.toLowerCase().includes("already")){
+      toast(`${empName} already has a login — assigned to ${channelLabel}`,"info");
+      closeModal("onboard-modal");
+    } else {
+      err.textContent=e2.message;
+      err.classList.remove("hidden");
+    }
+  }
+}
+
+async function doAssignLead(){
+  const leadId=$("assign-lead-sel").value, repId=$("assign-rep-sel").value;
+  if(!leadId||!repId){toast("Please select both a lead and a sales rep","warn");return;}
+  const rep=_salesReps.find(r=>r.id===repId);
+  try{
+    await apiFetch(`/crm/leads/${leadId}`,{method:"PATCH",body:JSON.stringify({salesRepId:repId,salesRepEmail:rep?.email||""})});
+    toast("Lead reassigned","success");
+    const lr=await apiFetch("/crm/leads?pageSize=500");
+    _leads=lr?.data||_leads;
+    buildRepFilter();renderAll();
+  }catch(e){toast(e.message,"error");}
+}
+
+async function refreshAll(){
+  // clear caches and reload
+  _leads=[];_customers=[];_quotes=[];_invoices=[];_campaigns=[];_salesReps=[];
+  $("leads-loading").classList.remove("hidden");
+  $("cust-loading").classList.remove("hidden");
+  await loadAll();
+  toast("Dashboard refreshed","success");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+initRoleUI();
+loadAll();
+</script>
+</body>
+</html>

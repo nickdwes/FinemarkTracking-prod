@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Admin Users</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+
+          <div class="max-w-6xl mx-auto space-y-6">
+            <div class="flex flex-wrap items-center gap-3 justify-between">
+              <div>
+                <h1 class="text-3xl font-semibold tracking-tight text-slate-900">User Management</h1>
+                <p class="text-sm text-slate-600">Manage roles, access, and status.</p>
+              </div>
+              <span class="inline-flex items-center rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700 border border-purple-100">
+                Admin
+              </span>
+            </div>
+
+            <div class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm shadow-slate-200/60 space-y-4">
+              <div class="flex flex-wrap items-center gap-3 justify-between">
+                <div class="flex flex-wrap gap-3">
+                  <label class="sr-only" for="search">Search</label>
+                  <input id="search" type="text" placeholder="Search name or email" class="w-full sm:w-64 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                  <!-- Options populated dynamically by populateRoleSelects() from role_configs
+                       (the same data admin-access-control.html manages) — see that function. -->
+                  <select id="role-filter" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                    <option value="all">All Roles</option>
+                  </select>
+                  <select id="status-filter" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                    <option value="all">All Status</option>
+                    <option value="Active">Active</option>
+                    <option value="Disabled">Disabled</option>
+                    <option value="Pending">Pending</option>
+                  </select>
+                  <button id="refresh-users" type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                    Refresh
+                  </button>
+                </div>
+                <button id="create-user" type="button" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+                  Create User
+                </button>
+              </div>
+
+              <div class="flex items-center justify-between text-sm text-slate-600">
+                <span id="users-count">Showing 0 users</span>
+              </div>
+              <div id="users-inline-error" class="hidden"></div>
+              <div id="users-skeleton" class="hidden"></div>
+              <div id="users-empty" class="hidden rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                <p>No users found for the selected filters.</p>
+                <button id="reset-filters" type="button" class="mt-3 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">Reset filters</button>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm min-w-[760px]">
+                  <thead class="text-left text-slate-500">
+                    <tr>
+                      <th scope="col" class="py-2">Name</th>
+                      <th scope="col" class="py-2">Email</th>
+                      <th scope="col" class="py-2">Role</th>
+                      <th scope="col" class="py-2">Status</th>
+                      <th scope="col" class="py-2">Last Login</th>
+                      <th scope="col" class="py-2">Created At</th>
+                      <th scope="col" class="py-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="users-body" class="divide-y divide-slate-200"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        
+  </main>
+</div>
+<div id="fm-footer"></div>
+<div class="flex min-h-screen">
+      
+
+      <div class="flex-1 flex flex-col">
+        
+
+        
+
+        <div id="createUserModal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/40 px-4" role="dialog" aria-modal="true" aria-labelledby="create-title" aria-hidden="true">
+          <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl border border-slate-200">
+            <div class="flex items-center justify-between">
+              <h2 id="create-title" class="text-lg font-semibold text-slate-900">Create User</h2>
+              <button id="close-create" type="button" class="text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 rounded">✕</button>
+            </div>
+            <form id="create-form" class="mt-4 space-y-4" novalidate>
+              <div>
+                <label class="block text-sm font-medium mb-1.5 text-slate-700" for="create-name">Name</label>
+                <input id="create-name" type="text" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" placeholder="Full name" />
+                <p class="fm-error hidden" data-error-for="create-name"></p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1.5 text-slate-700" for="create-email">Email</label>
+                <input id="create-email" type="email" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" placeholder="name@finemark.com" />
+                <p class="fm-error hidden" data-error-for="create-email"></p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1.5 text-slate-700" for="create-role">Role</label>
+                <!-- Options populated dynamically by populateRoleSelects() -->
+                <select id="create-role" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1.5 text-slate-700" for="create-status">Status</label>
+                <select id="create-status" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="Active">Active</option>
+                  <option value="Pending">Pending</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1.5 text-slate-700" for="create-password">Temporary Password</label>
+                <div class="flex flex-wrap items-center gap-2">
+                  <input id="create-password" type="text" class="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" placeholder="At least 8 characters" />
+                  <button id="create-generate" type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">Generate</button>
+                  <button id="create-copy" type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">Copy</button>
+                </div>
+                <p class="fm-error hidden" data-error-for="create-password"></p>
+              </div>
+              <label class="flex items-center gap-2 text-sm text-slate-600">
+                <input id="create-require-reset" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/40" checked />
+                Require password reset on first login
+              </label>
+              <div class="flex items-center justify-end gap-3 pt-2">
+                <button id="cancel-create" type="button" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  Cancel
+                </button>
+                <button id="submit-create" type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+                  Create User
+                </button>
+              </div>
+              <div id="create-inline-error" class="hidden"></div>
+              <p class="text-xs text-slate-500">New user can login with the temporary password.</p>
+            </form>
+          </div>
+        </div>
+
+        <div id="view-modal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/40 px-4" role="dialog" aria-modal="true" aria-labelledby="view-title" aria-hidden="true">
+          <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl border border-slate-200">
+            <div class="flex items-center justify-between">
+              <h2 id="view-title" class="text-lg font-semibold text-slate-900">User Details</h2>
+              <button id="close-view" type="button" class="text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 rounded">✕</button>
+            </div>
+            <div class="mt-4 space-y-3 text-sm text-slate-700">
+              <p><span class="text-slate-500">Name:</span> <span id="view-name" class="font-medium text-slate-900">--</span></p>
+              <p><span class="text-slate-500">Email:</span> <span id="view-email" class="font-medium text-slate-900">--</span></p>
+              <p><span class="text-slate-500">Role:</span> <span id="view-role" class="font-medium text-slate-900">--</span></p>
+              <p><span class="text-slate-500">Status:</span> <span id="view-status" class="font-medium text-slate-900">--</span></p>
+              <p><span class="text-slate-500">Last Login:</span> <span id="view-login" class="font-medium text-slate-900">--</span></p>
+            </div>
+            <div class="mt-6 flex justify-end">
+              <button id="view-close-secondary" type="button" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div id="reset-modal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/40 px-4" role="dialog" aria-modal="true" aria-labelledby="reset-title" aria-hidden="true">
+          <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl border border-slate-200">
+            <div class="flex items-center justify-between">
+              <h2 id="reset-title" class="text-lg font-semibold text-slate-900">Reset Password</h2>
+              <button id="close-reset" type="button" class="text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 rounded">✕</button>
+            </div>
+            <p class="mt-3 text-sm text-slate-600">
+              Send a password reset link to <span id="reset-email" class="font-medium text-slate-900">--</span>.
+            </p>
+            <div class="mt-6 flex items-center justify-end gap-3">
+              <button id="cancel-reset" type="button" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                Cancel
+              </button>
+              <button id="confirm-reset" type="button" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+                Send reset
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div id="resetPasswordModal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/40 px-4" role="dialog" aria-modal="true" aria-labelledby="rp-title" aria-hidden="true">
+          <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl border border-slate-200">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 id="rp-title" class="text-lg font-semibold text-slate-900">Reset Password</h2>
+                <p class="text-sm text-slate-500" id="rp-subtitle">--</p>
+              </div>
+              <button id="rp-close" type="button" class="text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 rounded">✕</button>
+            </div>
+            <div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-700">
+              Share the temporary password securely. The user will be logged out of active sessions.
+            </div>
+            <div class="mt-4 space-y-3">
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5" for="rp-tempPassword">Temporary Password</label>
+                <div class="flex flex-wrap items-center gap-2">
+                  <input id="rp-tempPassword" type="text" class="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" placeholder="Generate or enter a temp password" />
+                  <button id="rp-generate" type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">Generate</button>
+                  <button id="rp-copy" type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">Copy</button>
+                </div>
+                <p class="fm-error hidden" data-error="tempPassword"></p>
+              </div>
+              <label class="flex items-center gap-2 text-sm text-slate-600">
+                <input id="rp-forceReset" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/40" checked />
+                Force password reset on next login
+              </label>
+            </div>
+            <div id="rp-inlineError" class="hidden mt-3"></div>
+            <div class="mt-6 flex items-center justify-end gap-3">
+              <button id="rp-cancel" type="button" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                Cancel
+              </button>
+              <button id="rp-submit" type="button" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50">
+                Issue Reset
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Change Role Modal -->
+        <div id="changeRoleModal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/40 px-4" role="dialog" aria-modal="true" aria-labelledby="cr-title" aria-hidden="true">
+          <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl border border-slate-200">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 id="cr-title" class="text-lg font-semibold text-slate-900">Change Role</h2>
+                <p class="text-sm text-slate-500" id="cr-subtitle">--</p>
+              </div>
+              <button id="cr-close" type="button" class="text-slate-400 hover:text-slate-600 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">✕</button>
+            </div>
+            <div class="mt-4 space-y-4">
+              <div>
+                <p class="text-xs text-slate-500 mb-1">Current role</p>
+                <p id="cr-current-role" class="text-sm font-semibold text-slate-800">--</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5" for="cr-new-role">New Role</label>
+                <!-- Options populated dynamically by populateRoleSelects() -->
+                <select id="cr-new-role" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                </select>
+              </div>
+              <div id="cr-inline-error" class="hidden rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700"></div>
+            </div>
+            <div class="mt-6 flex items-center justify-end gap-3">
+              <button id="cr-cancel" type="button" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">Cancel</button>
+              <button id="cr-submit" type="button" class="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50">Save Role</button>
+            </div>
+          </div>
+        </div>
+
+        
+      </div>
+    </div>
+
+<script src="assets/contracts.js"></script>
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", async () => {
+    const authorized = await window.FINEMARK_APP?.requirePageAccess?.();
+    if (authorized === false) return;
+    window.__pageAuthorized = true;
+    if (typeof populateRoleSelects === "function") await populateRoleSelects();
+    if (typeof loadUsers === "function") loadUsers();
+  });
+</script>
+<script>
+      let users = [];
+      const rowErrors = new Map();
+      const rowLoading = new Set();
+
+      const usersBody = document.getElementById("users-body");
+      const searchInput = document.getElementById("search");
+      const roleFilter = document.getElementById("role-filter");
+      const statusFilter = document.getElementById("status-filter");
+      const refreshUsers = document.getElementById("refresh-users");
+      const usersCount = document.getElementById("users-count");
+      const usersInlineError = document.getElementById("users-inline-error");
+      const usersSkeleton = document.getElementById("users-skeleton");
+      const usersEmpty = document.getElementById("users-empty");
+      const resetFilters = document.getElementById("reset-filters");
+
+      const createModal = document.getElementById("createUserModal");
+      const createForm = document.getElementById("create-form");
+      const createName = document.getElementById("create-name");
+      const createEmail = document.getElementById("create-email");
+      const createRole = document.getElementById("create-role");
+      const createStatus = document.getElementById("create-status");
+      const createPassword = document.getElementById("create-password");
+      const requireReset = document.getElementById("create-require-reset");
+      const createUserButton = document.getElementById("create-user");
+      const closeCreate = document.getElementById("close-create");
+      const cancelCreate = document.getElementById("cancel-create");
+      const submitCreate = document.getElementById("submit-create");
+      const createInlineError = document.getElementById("create-inline-error");
+      const createGenerate = document.getElementById("create-generate");
+      const createCopy = document.getElementById("create-copy");
+
+      const viewModal = document.getElementById("view-modal");
+      const resetModal = document.getElementById("reset-modal");
+      const viewName = document.getElementById("view-name");
+      const viewEmail = document.getElementById("view-email");
+      const viewRole = document.getElementById("view-role");
+      const viewStatus = document.getElementById("view-status");
+      const viewLogin = document.getElementById("view-login");
+      const resetEmail = document.getElementById("reset-email");
+
+      const closeView = document.getElementById("close-view");
+      const closeViewSecondary = document.getElementById("view-close-secondary");
+      const closeReset = document.getElementById("close-reset");
+      const cancelReset = document.getElementById("cancel-reset");
+      const confirmReset = document.getElementById("confirm-reset");
+
+      const resetPasswordModal = document.getElementById("resetPasswordModal");
+      const rpSubtitle = document.getElementById("rp-subtitle");
+      const rpTempPassword = document.getElementById("rp-tempPassword");
+      const rpForceReset = document.getElementById("rp-forceReset");
+      const rpGenerate = document.getElementById("rp-generate");
+      const rpCopy = document.getElementById("rp-copy");
+      const rpSubmit = document.getElementById("rp-submit");
+      const rpCancel = document.getElementById("rp-cancel");
+      const rpClose = document.getElementById("rp-close");
+      const rpInlineError = document.getElementById("rp-inlineError");
+      let selectedUser = null;
+      const formatDate = (value) => {
+        if (!value) return "—";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return "—";
+        return date.toLocaleString();
+      };
+
+      // Populated by populateRoleSelects() from role_configs — role_key -> { displayName, badgeColor }.
+      // roleBadge() falls back to this (rather than a generic gray) for any role not in the
+      // hardcoded palette below, so custom/legacy roles still render with a distinct color.
+      let roleMetaByKey = {};
+
+      const hexToRgba = (hex, alpha) => {
+        const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || "");
+        if (!m) return null;
+        const [r, g, b] = [m[1], m[2], m[3]].map((h) => parseInt(h, 16));
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      };
+
+      const roleBadge = (role) => {
+        const colors = {
+          Admin:      "bg-purple-50 text-purple-700 border-purple-100",
+          Finance:    "bg-amber-50 text-amber-700 border-amber-100",
+          Sales:      "bg-blue-50 text-blue-700 border-blue-100",
+          CRM:        "bg-cyan-50 text-cyan-700 border-cyan-100",
+          Technical:  "bg-indigo-50 text-indigo-700 border-indigo-100",
+          Technician: "bg-teal-50 text-teal-700 border-teal-100",
+          HR:         "bg-rose-50 text-rose-700 border-rose-100",
+          Inventory:         "bg-orange-50 text-orange-700 border-orange-100",
+          InventoryManager: "bg-orange-50 text-orange-700 border-orange-100",
+          Operations: "bg-lime-50 text-lime-700 border-lime-100",
+          Manager:    "bg-violet-50 text-violet-700 border-violet-100",
+          Driver:     "bg-sky-50 text-sky-700 border-sky-100",
+        };
+        const roleLabel = roleMetaByKey[role]?.displayName || (role === "InventoryManager" ? "Inventory Manager" : role);
+        if (colors[role]) {
+          return `<span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${colors[role]}">${roleLabel}</span>`;
+        }
+        const hex = roleMetaByKey[role]?.badgeColor;
+        const bg = hex && hexToRgba(hex, 0.1);
+        if (hex && bg) {
+          return `<span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-medium" style="background:${bg};color:${hex};border-color:${hex}">${roleLabel}</span>`;
+        }
+        return `<span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-700 border-slate-200">${roleLabel}</span>`;
+      };
+
+      const statusBadge = (status) => {
+        const colors = {
+          Active: "bg-emerald-50 text-emerald-700 border-emerald-100",
+          Disabled: "bg-slate-100 text-slate-700 border-slate-200",
+          Pending: "bg-amber-50 text-amber-700 border-amber-100",
+        };
+        const classes = colors[status] || "bg-slate-100 text-slate-700 border-slate-200";
+        return `<span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${classes}">${status}</span>`;
+      };
+
+      const resetBadge = (flag) => {
+        if (!flag) return "";
+        return `<span class="ml-2 inline-flex rounded-full border border-amber-100 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Reset Required</span>`;
+      };
+
+      const fetchUsers = async (filters = {}) => {
+        const response = await window.FINEMARK_APP.UserService.list(filters);
+        users = response.data || [];
+        return users;
+      };
+
+      const renderUserRow = (user) => {
+        const toggleLabel = user.status === "Disabled" ? "Enable" : "Disable";
+        const isDisabled = user.status === "Active";
+        const isLoading = rowLoading.has(String(user.id));
+        const toggleClasses = isDisabled
+          ? "border-rose-200 text-rose-700 hover:bg-rose-50 focus-visible:ring-2 focus-visible:ring-rose-300"
+          : "border-emerald-200 text-emerald-700 hover:bg-emerald-50 focus-visible:ring-2 focus-visible:ring-emerald-300";
+        const spinner = isLoading
+          ? `<span class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"></span>`
+          : "";
+        return `
+          <tr class="hover:bg-slate-50" data-row-id="${user.id}">
+            <td class="py-2 font-medium">${user.name}</td>
+            <td class="py-2">${user.email}</td>
+            <td class="py-2">${roleBadge(user.role)}</td>
+            <td class="py-2">${statusBadge(user.status)}</td>
+            <td class="py-2">${formatDate(user.lastLoginAt)}</td>
+            <td class="py-2">${formatDate(user.createdAt)}${resetBadge(user.forcePasswordReset)}</td>
+            <td class="py-2 space-x-2">
+              <button type="button" aria-label="View user" class="text-blue-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 rounded" data-action="view" data-id="${user.id}">View</button>
+              <button type="button" aria-label="Toggle user status" class="inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-xs font-semibold ${toggleClasses} ${isLoading ? "opacity-70 cursor-not-allowed" : ""}" data-action="toggle-status" data-id="${user.id}" ${isLoading ? "disabled" : ""}>
+                ${spinner}
+                <span>${toggleLabel}</span>
+              </button>
+              <button type="button" aria-label="Reset user password" class="rounded-md border border-indigo-200 px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300" data-action="reset-password" data-user-id="${user.id}">Reset Password</button>
+              <button type="button" aria-label="Change user role" class="rounded-md border border-violet-200 px-2.5 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300" data-action="change-role" data-id="${user.id}">Change Role</button>
+            </td>
+          </tr>
+          <tr id="error-row-${user.id}" class="${rowErrors.has(String(user.id)) ? "" : "hidden"}">
+            <td class="py-2" colspan="7">
+              <div id="error-cell-${user.id}"></div>
+            </td>
+          </tr>
+        `;
+      };
+
+      const renderUsersTable = (list) => {
+        usersBody.innerHTML = list.map(renderUserRow).join("");
+        rowErrors.forEach((message, id) => {
+          const container = document.getElementById(`error-cell-${id}`);
+          const row = document.getElementById(`error-row-${id}`);
+          if (container && row) {
+            row.classList.remove("hidden");
+            window.FINEMARK_APP.showInlineError(container, message, {
+              retryText: "Retry",
+              onRetry: () => handleToggleStatus(id),
+            });
+          }
+        });
+      };
+
+      const clearTable = () => {
+        usersBody.innerHTML = "";
+      };
+
+      const applyFilters = async () => {
+        const filters = {};
+        if (searchInput.value.trim()) filters.search = searchInput.value.trim();
+        if (roleFilter.value !== "all") filters.role = roleFilter.value;
+        if (statusFilter.value !== "all") filters.status = statusFilter.value;
+        return filters;
+      };
+
+      const loadUsers = async () => {
+        usersInlineError.classList.add("hidden");
+        usersEmpty.classList.add("hidden");
+        usersSkeleton.classList.remove("hidden");
+        window.FINEMARK_APP.renderSkeleton(usersSkeleton, "table");
+        clearTable();
+        try {
+          const filters = await applyFilters();
+          const list = await fetchUsers(filters);
+          usersSkeleton.classList.add("hidden");
+          usersCount.textContent = `Showing ${list.length} users`;
+          if (!list.length) {
+            usersEmpty.classList.remove("hidden");
+            return;
+          }
+          renderUsersTable(list);
+        } catch (error) {
+          usersSkeleton.classList.add("hidden");
+          usersInlineError.classList.remove("hidden");
+          window.FINEMARK_APP.showInlineError(usersInlineError, error.message || "Failed to load users", {
+            retryText: "Retry",
+            onRetry: loadUsers,
+          });
+          window.FINEMARK_APP.showToast(error.message || "Failed to load users", "error");
+        }
+      };
+
+      const openModal = (modal) => {
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+        modal.setAttribute("aria-hidden", "false");
+        const focusable = modal.querySelector("button");
+        if (focusable) {
+          focusable.focus();
+        }
+      };
+
+      const closeModal = (modal) => {
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+        modal.setAttribute("aria-hidden", "true");
+      };
+
+      usersBody.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        const actionEl = target.closest("[data-action],[data-user-id]");
+        if (!actionEl) return;
+        const action = actionEl.dataset.action;
+        const id = actionEl.dataset.id || actionEl.dataset.userId;
+        const user = users.find((item) => String(item.id) === String(id));
+        if (!user) return;
+
+        if (action === "view") {
+          viewName.textContent = user.name;
+          viewEmail.textContent = user.email;
+          viewRole.textContent = user.role;
+          viewStatus.textContent = user.status;
+          viewLogin.textContent = user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : "Never";
+          openModal(viewModal);
+        }
+
+        if (action === "toggle-status") {
+          handleToggleStatus(String(user.id));
+        }
+
+        if (action === "reset") {
+          resetEmail.textContent = user.email;
+          openModal(resetModal);
+        }
+
+        if (action === "reset-password") {
+          openResetPasswordModal(user);
+        }
+
+        if (action === "change-role") {
+          openChangeRoleModal(user);
+        }
+      });
+
+      const showToast = () => {
+        window.FINEMARK_APP.showToast("User created", "success");
+      };
+
+      createUserButton.addEventListener("click", () => {
+        createForm.reset();
+        window.FINEMARK_APP.clearFormErrors(createForm);
+        createInlineError.classList.add("hidden");
+        openModal(createModal);
+      });
+
+      closeCreate.addEventListener("click", () => closeModal(createModal));
+      cancelCreate.addEventListener("click", () => closeModal(createModal));
+
+      createForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        window.FINEMARK_APP.clearFormErrors(createForm);
+        createInlineError.classList.add("hidden");
+        const nameValue = createName.value.trim();
+        const emailValue = createEmail.value.trim();
+        const passwordValue = createPassword.value.trim();
+        const nameError = window.FINEMARK_APP.Validators.required(nameValue);
+        const emailError = window.FINEMARK_APP.Validators.email(emailValue);
+        const passwordError = window.FINEMARK_APP.Validators.passwordPolicy(passwordValue);
+
+        if (nameError) window.FINEMARK_APP.setFieldError(createName, nameError);
+        if (emailError) window.FINEMARK_APP.setFieldError(createEmail, emailError);
+        if (passwordError) window.FINEMARK_APP.setFieldError(createPassword, passwordError);
+
+        if (nameError || emailError || passwordError) {
+          return;
+        }
+
+        window.FINEMARK_APP.setLoading(submitCreate, true, "Creating...");
+        try {
+          await window.FINEMARK_APP.apiFetch("/users", {
+            method: "POST",
+            body: {
+              name: nameValue,
+              email: emailValue,
+              role: createRole.value,
+              status: createStatus.value || "Active",
+              tempPassword: passwordValue,
+              forcePasswordReset: requireReset.checked,
+            },
+            formEl: createForm,
+          });
+
+          closeModal(createModal);
+          await loadUsers();
+          showToast();
+        } catch (error) {
+          window.FINEMARK_APP.showToast(error.message || "Failed to create user", "error");
+          createInlineError.classList.remove("hidden");
+          window.FINEMARK_APP.showInlineError(createInlineError, error.message || "Failed to create user", {
+            retryText: "Retry",
+            onRetry: () => createForm.requestSubmit(),
+          });
+        } finally {
+          window.FINEMARK_APP.setLoading(submitCreate, false);
+        }
+      });
+
+      closeView.addEventListener("click", () => closeModal(viewModal));
+      closeViewSecondary.addEventListener("click", () => closeModal(viewModal));
+      closeReset.addEventListener("click", () => closeModal(resetModal));
+      cancelReset.addEventListener("click", () => closeModal(resetModal));
+      confirmReset.addEventListener("click", async () => {
+        const user = users.find((entry) => entry.email === resetEmail.textContent);
+        if (user) {
+          window.FINEMARK_APP.showToast("Reset link sent", "info");
+        }
+        closeModal(resetModal);
+      });
+
+      [searchInput, roleFilter, statusFilter].forEach((input) => {
+        input.addEventListener("input", loadUsers);
+        input.addEventListener("change", loadUsers);
+      });
+
+      refreshUsers.addEventListener("click", loadUsers);
+      resetFilters.addEventListener("click", () => {
+        searchInput.value = "";
+        roleFilter.value = "all";
+        statusFilter.value = "all";
+        loadUsers();
+      });
+
+      // Populate every role <select> from role_configs — the same authoritative data
+      // admin-access-control.html manages. Awaited once at page bootstrap (before
+      // loadUsers()) so the Change Role modal's pre-select never races an in-flight fetch.
+      async function populateRoleSelects() {
+        try {
+          const data = await window.FINEMARK_APP.RoleConfigService.list();
+          const roles = data.roles || [];
+          roleMetaByKey = {};
+          roles.forEach((r) => {
+            roleMetaByKey[r.role_key] = { displayName: r.display_name, badgeColor: r.badge_color };
+          });
+
+          const systemRoles = roles.filter((r) => r.is_system && r.role_key !== "Sales" && r.role_key !== "Management");
+          const legacyRoles = roles.filter((r) => r.is_system && (r.role_key === "Sales" || r.role_key === "Management"));
+          const customRoles = roles.filter((r) => !r.is_system);
+
+          const optionHtml = (r) => `<option value="${r.role_key}">${r.display_name}</option>`;
+          const groupHtml = (label, list) => list.length
+            ? `<optgroup label="${label}">${list.map(optionHtml).join("")}</optgroup>` : "";
+
+          const assignableHtml = groupHtml("System Roles", systemRoles) + groupHtml("Custom Roles", customRoles);
+          const createSel = document.getElementById("create-role");
+          const crSel = document.getElementById("cr-new-role");
+          if (createSel) createSel.innerHTML = assignableHtml;
+          if (crSel) crSel.innerHTML = assignableHtml;
+
+          const filterSel = document.getElementById("role-filter");
+          if (filterSel) {
+            filterSel.innerHTML = `<option value="all">All Roles</option>` + assignableHtml + groupHtml("Legacy", legacyRoles);
+          }
+        } catch (e) {
+          // Non-critical for page load — role selects just stay empty; Create/Change Role
+          // will surface a clear error if someone tries to submit without a role picked.
+        }
+      }
+
+      const handleToggleStatus = async (userId) => {
+        const user = users.find((item) => String(item.id) === String(userId));
+        if (!user) return;
+        const nextStatus = user.status === "Disabled" ? "Active" : "Disabled";
+        if (nextStatus === "Disabled") {
+          const confirmed = window.confirm("Disable this user? They will be logged out of all sessions.");
+          if (!confirmed) return;
+        }
+        rowErrors.delete(String(userId));
+        rowLoading.add(String(userId));
+        renderUsersTable(users);
+        try {
+          const response = await window.FINEMARK_APP.apiFetch(`/users/${userId}`, {
+            method: "PATCH",
+            body: { status: nextStatus },
+          });
+          const updated = response?.data || { ...user, status: nextStatus };
+          const idx = users.findIndex((item) => String(item.id) === String(userId));
+          if (idx >= 0) {
+            users[idx] = { ...users[idx], ...updated };
+          }
+          window.FINEMARK_APP.showToast(nextStatus === "Disabled" ? "User disabled" : "User enabled", "success");
+        } catch (error) {
+          rowErrors.set(String(userId), error.message || "Failed to update status");
+          window.FINEMARK_APP.showToast(error.message || "Failed to update status", "error");
+        } finally {
+          rowLoading.delete(String(userId));
+          renderUsersTable(users);
+        }
+      };
+
+      const openResetPasswordModal = (user) => {
+        selectedUser = user;
+        rpSubtitle.textContent = `${user.name} · ${user.email}`;
+        rpTempPassword.value = "";
+        rpForceReset.checked = true;
+        rpInlineError.classList.add("hidden");
+        window.FINEMARK_APP.clearFieldError(rpTempPassword);
+        window.FINEMARK_APP.openModal("resetPasswordModal");
+      };
+
+      const generateTempPassword = () => {
+        const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+        let candidate = "";
+        while (candidate.length < 12) {
+          candidate += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        if (!/[A-Z]/.test(candidate)) candidate = `A${candidate.slice(1)}`;
+        if (!/[0-9]/.test(candidate)) candidate = `${candidate.slice(0, 10)}8${candidate.slice(11)}`;
+        rpTempPassword.value = candidate;
+        window.FINEMARK_APP.showToast("Temporary password generated", "info");
+      };
+
+      const copyToClipboard = async () => {
+        const value = rpTempPassword.value.trim();
+        if (!value) {
+          window.FINEMARK_APP.showToast("Generate a password first", "error");
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(value);
+          window.FINEMARK_APP.showToast("Copied to clipboard", "success");
+        } catch (error) {
+          window.FINEMARK_APP.showToast("Copy failed", "error");
+        }
+      };
+
+      const validateResetPasswordForm = () => {
+        window.FINEMARK_APP.clearFieldError(rpTempPassword);
+        const error = window.FINEMARK_APP.Validators.passwordPolicy(rpTempPassword.value.trim());
+        if (error) {
+          window.FINEMARK_APP.setFieldError(rpTempPassword, error);
+          return false;
+        }
+        return true;
+      };
+
+      const submitReset = async () => {
+        if (!selectedUser) return;
+        rpInlineError.classList.add("hidden");
+        if (!validateResetPasswordForm()) return;
+        window.FINEMARK_APP.setLoading(rpSubmit, true, "Issuing...");
+        try {
+          const response = await window.FINEMARK_APP.apiFetch(`/users/${selectedUser.id}/reset-password`, {
+            method: "POST",
+            body: {
+              tempPassword: rpTempPassword.value.trim(),
+              forcePasswordReset: rpForceReset.checked,
+            },
+            retry: { retries: 1, delayMs: 500 },
+          });
+          selectedUser.forcePasswordReset = response?.data?.forcePasswordReset ?? rpForceReset.checked;
+          window.FINEMARK_APP.closeModal("resetPasswordModal");
+          window.FINEMARK_APP.showToast("Reset issued", "success");
+          loadUsers();
+        } catch (error) {
+          window.FINEMARK_APP.showToast(error.message || "Failed to issue reset", "error");
+          rpInlineError.classList.remove("hidden");
+          window.FINEMARK_APP.showInlineError(rpInlineError, error.message || "Failed to issue reset", {
+            retryText: "Retry",
+            onRetry: submitReset,
+          });
+        } finally {
+          window.FINEMARK_APP.setLoading(rpSubmit, false);
+        }
+      };
+
+      rpGenerate.addEventListener("click", generateTempPassword);
+      rpCopy.addEventListener("click", copyToClipboard);
+      rpSubmit.addEventListener("click", submitReset);
+      rpCancel.addEventListener("click", () => window.FINEMARK_APP.closeModal("resetPasswordModal"));
+      rpClose.addEventListener("click", () => window.FINEMARK_APP.closeModal("resetPasswordModal"));
+
+      const generateCreatePassword = () => {
+        const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+        let candidate = "";
+        while (candidate.length < 12) {
+          candidate += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        if (!/[A-Z]/.test(candidate)) candidate = `A${candidate.slice(1)}`;
+        if (!/[0-9]/.test(candidate)) candidate = `${candidate.slice(0, 10)}8${candidate.slice(11)}`;
+        createPassword.value = candidate;
+        window.FINEMARK_APP.showToast("Temporary password generated", "info");
+      };
+
+      const copyCreatePassword = async () => {
+        const value = createPassword.value.trim();
+        if (!value) {
+          window.FINEMARK_APP.showToast("Generate a password first", "error");
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(value);
+          window.FINEMARK_APP.showToast("Copied to clipboard", "success");
+        } catch (error) {
+          window.FINEMARK_APP.showToast("Copy failed", "error");
+        }
+      };
+
+      createGenerate.addEventListener("click", generateCreatePassword);
+      createCopy.addEventListener("click", copyCreatePassword);
+
+      // ── Change Role Modal ──────────────────────────────────────────────────
+      let roleChangeUser = null;
+
+      const openChangeRoleModal = (user) => {
+        roleChangeUser = user;
+        document.getElementById("cr-subtitle").textContent = `${user.name} · ${user.email}`;
+        document.getElementById("cr-current-role").textContent = user.role;
+        const sel = document.getElementById("cr-new-role");
+        // Pre-select current role
+        const opt = Array.from(sel.options).find(o => o.value === user.role);
+        if (opt) sel.value = user.role;
+        document.getElementById("cr-inline-error").classList.add("hidden");
+        const modal = document.getElementById("changeRoleModal");
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+        modal.setAttribute("aria-hidden", "false");
+      };
+
+      const closeChangeRoleModal = () => {
+        const modal = document.getElementById("changeRoleModal");
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+        modal.setAttribute("aria-hidden", "true");
+        roleChangeUser = null;
+      };
+
+      document.getElementById("cr-close").addEventListener("click", closeChangeRoleModal);
+      document.getElementById("cr-cancel").addEventListener("click", closeChangeRoleModal);
+
+      document.getElementById("cr-submit").addEventListener("click", async () => {
+        if (!roleChangeUser) return;
+        const newRole = document.getElementById("cr-new-role").value;
+        if (newRole === roleChangeUser.role) {
+          closeChangeRoleModal();
+          return;
+        }
+        const errEl = document.getElementById("cr-inline-error");
+        errEl.classList.add("hidden");
+        const btn = document.getElementById("cr-submit");
+        btn.disabled = true;
+        btn.textContent = "Saving…";
+        try {
+          const response = await window.FINEMARK_APP.apiFetch(`/users/${roleChangeUser.id}`, {
+            method: "PATCH",
+            body: { role: newRole },
+          });
+          const updated = response?.data || { ...roleChangeUser, role: newRole };
+          const idx = users.findIndex(u => String(u.id) === String(roleChangeUser.id));
+          if (idx >= 0) users[idx] = { ...users[idx], ...updated, role: newRole };
+          renderUsersTable(users);
+          window.FINEMARK_APP.showToast(`Role updated to ${newRole}`, "success");
+          closeChangeRoleModal();
+        } catch (err) {
+          errEl.textContent = err.message || "Failed to update role";
+          errEl.classList.remove("hidden");
+          window.FINEMARK_APP.showToast(err.message || "Failed to update role", "error");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Save Role";
+        }
+      });
+    </script>
+</body>
+</html>

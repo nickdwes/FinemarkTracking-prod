@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Archive — Audit Log</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-7xl mx-auto space-y-6">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div><h1 class="text-3xl font-semibold tracking-tight text-slate-900">Audit Log</h1>
+              <p class="text-sm text-slate-600">Archived IDTS field-change history (record10) — historical reference only.</p></div>
+            <div id="badge-slot"></div>
+          </div>
+          <section class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm space-y-4">
+            <div class="grid gap-4 md:grid-cols-4">
+              <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Vehicle Reg</label>
+                <input id="vehicle-reg" type="text" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Type to search…"/></div>
+              <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">From</label>
+                <input id="from-date" type="date" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"/></div>
+              <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">To</label>
+                <input id="to-date" type="date" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"/></div>
+              <div class="flex items-end gap-3">
+                <button id="apply" class="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Apply</button>
+                <button id="reset" class="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Reset</button>
+              </div>
+            </div>
+          </section>
+          <p id="count-summary" class="text-sm text-slate-600"></p>
+          <div id="cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+    <script src="assets/contracts.js"></script>
+    <script src="assets/app.js"></script>
+    <script src="assets/layout.js"></script>
+    <script src="assets/archive-common.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", async () => {
+        if ((await ArchiveCommon.gate()) === false) return;
+        document.getElementById("badge-slot").innerHTML = ArchiveCommon.readOnlyBadge;
+        init();
+      });
+      const $ = (id) => document.getElementById(id);
+      function filters() {
+        const f = {};
+        if ($("vehicle-reg").value) f.vehicleReg = $("vehicle-reg").value;
+        if ($("from-date").value) f.fromDate = $("from-date").value;
+        if ($("to-date").value) f.toDate = $("to-date").value;
+        return f;
+      }
+      async function load() {
+        const qs = new URLSearchParams(filters()).toString();
+        $("cards").innerHTML = `<div class="col-span-full text-center text-slate-400 py-8">Loading…</div>`;
+        try {
+          const res = await window.FINEMARK_APP.apiFetch(`/archive/audit-log?${qs}`);
+          const logs = res.data || res;
+          $("count-summary").textContent = `${logs.length} change${logs.length === 1 ? "" : "s"} found (max 200 shown).`;
+          if (!logs.length) {
+            $("cards").innerHTML = `<div class="col-span-full text-center text-amber-700 bg-amber-50 border border-amber-200 rounded-lg py-8">No changes found for the selected filters.</div>`;
+            return;
+          }
+          $("cards").innerHTML = logs.map((log) => `
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+              <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2.5 flex justify-between items-center text-sm font-semibold">
+                <span>${ArchiveCommon.fmtDateTime(log.changedAt)}</span>
+                <span class="bg-white/20 rounded-full px-2 py-0.5 text-xs">${ArchiveCommon.escapeHtml(log.vehicleReg || "—")}</span>
+              </div>
+              <div class="px-4 py-2 border-b border-slate-100 text-xs text-emerald-700 font-semibold bg-emerald-50">${ArchiveCommon.escapeHtml(log.changedBy)}</div>
+              <div class="p-3 max-h-56 overflow-y-auto space-y-2">
+                ${log.changes.length ? log.changes.map((c) => `
+                  <div class="bg-slate-50 rounded-lg border-l-2 border-blue-500 px-3 py-2 text-xs font-mono">
+                    <div class="font-bold text-slate-700">${ArchiveCommon.escapeHtml(c.field)}:</div>
+                    <div><span class="text-rose-600 line-through">${ArchiveCommon.escapeHtml(c.oldValue ?? "null")}</span>
+                    <span class="text-emerald-700 font-semibold ml-1">${ArchiveCommon.escapeHtml(c.newValue ?? "null")}</span></div>
+                  </div>`).join("") : `<div class="text-xs text-slate-400 italic px-1">No parseable field changes.</div>`}
+              </div>
+            </div>`).join("");
+        } catch (e) {
+          $("cards").innerHTML = `<div class="col-span-full text-center text-rose-600 bg-rose-50 border border-rose-200 rounded-lg py-6">${ArchiveCommon.escapeHtml(e.message)}</div>`;
+        }
+      }
+      function init() {
+        load();
+        $("apply").addEventListener("click", load);
+        $("reset").addEventListener("click", () => { $("vehicle-reg").value = ""; $("from-date").value = ""; $("to-date").value = ""; load(); });
+      }
+    </script>
+  </body>
+</html>

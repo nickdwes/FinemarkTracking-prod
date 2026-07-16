@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Certificate Detail Configuration</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-6xl mx-auto space-y-6">
+
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Certificate Detail Configuration</h1>
+              <p class="mt-1 text-sm text-slate-600">
+                Controls which template and fields each partner bank's certificate uses on
+                <a href="create-certificate.html" class="text-blue-600 hover:underline">Generate Manual Certificate</a>.
+                Add a row here when a new partner bank joins — no code change needed.
+              </p>
+            </div>
+            <a href="certificate-dashboard.html" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+              Back to Certificate Dashboard
+            </a>
+          </div>
+
+          <div id="status-banner" class="hidden rounded-lg border px-4 py-2.5 text-sm"></div>
+
+          <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <div>
+                <h2 class="text-sm font-semibold text-slate-800">Bank Configuration Table</h2>
+                <p class="text-xs text-slate-500 mt-0.5">Edit a row and click Save. IMEI/Tracker are always optional on Finemark — Max IMEI/Tracker just controls how many fields are shown.</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button type="button" id="btn-copy-table"
+                  class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                  Copy table
+                </button>
+                <button type="button" id="btn-add-bank"
+                  class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                  Add bank
+                </button>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-200">
+                    <th class="px-4 py-2.5 min-w-[120px]">Bank</th>
+                    <th class="px-4 py-2.5 min-w-[200px]">Full Name</th>
+                    <th class="px-4 py-2.5 min-w-[150px]">Template</th>
+                    <th class="px-3 py-2.5 text-center">Show<br/>Chassis</th>
+                    <th class="px-3 py-2.5 text-center">Show<br/>Engine</th>
+                    <th class="px-3 py-2.5 text-center">Show<br/>IMEI</th>
+                    <th class="px-3 py-2.5 text-center">Show<br/>Tracker</th>
+                    <th class="px-3 py-2.5 text-center">Max<br/>IMEI</th>
+                    <th class="px-3 py-2.5 text-center">Max<br/>Tracker</th>
+                    <th class="px-4 py-2.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="bank-config-tbody">
+                  <tr><td colspan="10" class="px-4 py-8 text-center text-slate-400">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+    <script src="assets/contracts.js"></script>
+    <script src="assets/app.js"></script>
+    <script src="assets/layout.js"></script>
+    <script>
+      let banks = [];
+      // Rows the user has started editing but not yet saved — keyed by row id
+      // (real id, or a synthetic "new-N" id for not-yet-created rows) — so a
+      // re-render (e.g. after another row saves) never clobbers in-progress edits.
+      const dirty = {};
+
+      const tbody = document.getElementById("bank-config-tbody");
+      const banner = document.getElementById("status-banner");
+
+      function showBanner(message, type) {
+        banner.textContent = message;
+        banner.className = `rounded-lg border px-4 py-2.5 text-sm ${
+          type === "error" ? "bg-rose-50 border-rose-200 text-rose-700" : "bg-emerald-50 border-emerald-200 text-emerald-700"
+        }`;
+        banner.classList.remove("hidden");
+        setTimeout(() => banner.classList.add("hidden"), 4000);
+      }
+
+      async function loadBanks() {
+        try {
+          const r = await window.FINEMARK_APP.apiFetch("/certificates/bank-configs");
+          banks = r?.data ?? [];
+          render();
+        } catch (err) {
+          tbody.innerHTML = `<tr><td colspan="10" class="px-4 py-8 text-center text-rose-600">${err.message || "Failed to load."}</td></tr>`;
+        }
+      }
+
+      function rowState(bank) {
+        return dirty[bank.id] || { ...bank };
+      }
+
+      function render() {
+        if (!banks.length) {
+          tbody.innerHTML = `<tr><td colspan="10" class="px-4 py-8 text-center text-slate-400">No banks configured yet.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = banks.map((bank) => {
+          const b = rowState(bank);
+          const isNew = String(bank.id).startsWith("new-");
+          return `
+          <tr class="border-b border-slate-100 last:border-0 align-middle" data-row-id="${bank.id}">
+            <td class="px-4 py-2">
+              <input type="text" value="${(b.bankName || "").replace(/"/g, "&quot;")}"
+                oninput="setField('${bank.id}','bankName',this.value)"
+                class="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm ${bank.isDefault ? "bg-slate-50" : ""}"
+                ${bank.isDefault ? "readonly" : ""} />
+            </td>
+            <td class="px-4 py-2">
+              <input type="text" value="${(b.fullName || "").replace(/"/g, "&quot;")}"
+                oninput="setField('${bank.id}','fullName',this.value)"
+                placeholder="e.g. NCBA Bank Kenya PLC"
+                class="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm" />
+            </td>
+            <td class="px-4 py-2">
+              <select onchange="setField('${bank.id}','template',this.value)" class="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm bg-white">
+                <option value="finemark" ${b.template === "finemark" ? "selected" : ""}>Finemark</option>
+                <option value="unique" ${b.template === "unique" ? "selected" : ""}>Unique Tracking</option>
+              </select>
+            </td>
+            <td class="px-3 py-2 text-center">
+              <input type="checkbox" ${b.showChassis ? "checked" : ""} onchange="setField('${bank.id}','showChassis',this.checked)" class="h-4 w-4 rounded border-slate-300 text-blue-600" />
+            </td>
+            <td class="px-3 py-2 text-center">
+              <input type="checkbox" ${b.showEngine ? "checked" : ""} onchange="setField('${bank.id}','showEngine',this.checked)" class="h-4 w-4 rounded border-slate-300 text-blue-600" />
+            </td>
+            <td class="px-3 py-2 text-center">
+              <input type="checkbox" ${b.showImei ? "checked" : ""} onchange="setField('${bank.id}','showImei',this.checked)" class="h-4 w-4 rounded border-slate-300 text-blue-600" />
+            </td>
+            <td class="px-3 py-2 text-center">
+              <input type="checkbox" ${b.showTracker ? "checked" : ""} onchange="setField('${bank.id}','showTracker',this.checked)" class="h-4 w-4 rounded border-slate-300 text-blue-600" />
+            </td>
+            <td class="px-3 py-2">
+              <input type="number" min="0" max="10" value="${b.maxImei}" oninput="setField('${bank.id}','maxImei',parseInt(this.value||'0',10))" class="w-16 rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-center" />
+            </td>
+            <td class="px-3 py-2">
+              <input type="number" min="0" max="10" value="${b.maxTracker}" oninput="setField('${bank.id}','maxTracker',parseInt(this.value||'0',10))" class="w-16 rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-center" />
+            </td>
+            <td class="px-4 py-2 text-right whitespace-nowrap">
+              <button type="button" onclick="saveRow('${bank.id}')" class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50" ${dirty[bank.id] ? "" : (isNew ? "" : "disabled")}>
+                ${isNew ? "Create" : "Save"}
+              </button>
+              ${bank.isDefault
+                ? `<span class="ml-2 text-xs text-slate-400" title="The default catch-all row can't be deleted">Default</span>`
+                : `<button type="button" onclick="deleteRow('${bank.id}')" class="ml-2 text-xs text-rose-600 hover:underline">Delete</button>`}
+            </td>
+          </tr>`;
+        }).join("");
+      }
+
+      window.setField = (id, field, value) => {
+        const bank = banks.find((b) => b.id === id);
+        if (!bank) return;
+        dirty[id] = { ...(dirty[id] || bank), [field]: value };
+        // Only the Save button's disabled-state needs to change on every
+        // keystroke — a full render() would steal focus out of the input
+        // the admin is actively typing in.
+        const row = tbody.querySelector(`tr[data-row-id="${id}"]`);
+        const saveBtn = row?.querySelector("button");
+        if (saveBtn && !String(id).startsWith("new-")) saveBtn.disabled = false;
+      };
+
+      window.saveRow = async (id) => {
+        const bank = banks.find((b) => b.id === id);
+        const isNew = String(id).startsWith("new-");
+        const state = dirty[id] || bank;
+        if (!state.bankName?.trim()) { showBanner("Bank name is required.", "error"); return; }
+        if (!state.fullName?.trim()) { showBanner("Full name is required.", "error"); return; }
+        const payload = {
+          bankName: state.bankName.trim(),
+          fullName: state.fullName.trim(),
+          template: state.template,
+          showChassis: !!state.showChassis,
+          showEngine: !!state.showEngine,
+          showImei: !!state.showImei,
+          showTracker: !!state.showTracker,
+          maxImei: Number(state.maxImei) || 0,
+          maxTracker: Number(state.maxTracker) || 0,
+        };
+        try {
+          if (isNew) {
+            await window.FINEMARK_APP.apiFetch("/certificates/bank-configs", { method: "POST", body: payload });
+            showBanner(`"${payload.bankName}" added.`, "success");
+          } else {
+            await window.FINEMARK_APP.apiFetch(`/certificates/bank-configs/${id}`, { method: "PATCH", body: payload });
+            showBanner(`"${payload.bankName}" saved.`, "success");
+          }
+          delete dirty[id];
+          await loadBanks();
+        } catch (err) {
+          showBanner(err.message || "Failed to save.", "error");
+        }
+      };
+
+      window.deleteRow = async (id) => {
+        const bank = banks.find((b) => b.id === id);
+        if (String(id).startsWith("new-")) {
+          banks = banks.filter((b) => b.id !== id);
+          delete dirty[id];
+          render();
+          return;
+        }
+        if (!confirm(`Remove "${bank.bankName}" from the certificate bank configuration? Existing certificates already generated for this bank are unaffected.`)) return;
+        try {
+          await window.FINEMARK_APP.apiFetch(`/certificates/bank-configs/${id}`, { method: "DELETE" });
+          showBanner(`"${bank.bankName}" removed.`, "success");
+          await loadBanks();
+        } catch (err) {
+          showBanner(err.message || "Failed to delete.", "error");
+        }
+      };
+
+      let _newRowSeq = 0;
+      document.getElementById("btn-add-bank").addEventListener("click", () => {
+        const id = `new-${++_newRowSeq}`;
+        const blank = {
+          id, bankName: "", fullName: "", template: "finemark",
+          showChassis: false, showEngine: false, showImei: true, showTracker: true,
+          maxImei: 2, maxTracker: 2, isDefault: false,
+        };
+        banks.push(blank);
+        dirty[id] = { ...blank };
+        render();
+      });
+
+      document.getElementById("btn-copy-table").addEventListener("click", async () => {
+        const header = ["Bank", "Full Name", "Template", "Show Chassis", "Show Engine", "Show IMEI", "Show Tracker", "Max IMEI", "Max Tracker"];
+        const rows = banks.map((bank) => {
+          const b = rowState(bank);
+          return [
+            b.bankName, b.fullName, b.template === "unique" ? "Unique Tracking" : "Finemark",
+            b.showChassis ? "Yes" : "No", b.showEngine ? "Yes" : "No",
+            b.showImei ? "Yes" : "No", b.showTracker ? "Yes" : "No",
+            b.maxImei, b.maxTracker,
+          ].join("\t");
+        });
+        const text = [header.join("\t"), ...rows].join("\n");
+        try {
+          await navigator.clipboard.writeText(text);
+          showBanner("Table copied to clipboard.", "success");
+        } catch {
+          showBanner("Couldn't access the clipboard.", "error");
+        }
+      });
+
+      document.addEventListener("DOMContentLoaded", () => {
+        window.FINEMARK_APP?.requirePageAccess?.();
+        loadBanks();
+      });
+    </script>
+  </body>
+</html>

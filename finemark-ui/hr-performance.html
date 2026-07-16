@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Performance Reviews</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-6xl mx-auto space-y-6">
+
+          <!-- Header -->
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <nav class="text-xs text-slate-400 mb-1">
+                <a href="hr-dashboard.html" class="hover:text-teal-600">HR</a> / Performance
+              </nav>
+              <h1 class="text-2xl font-semibold text-slate-900">Performance Reviews</h1>
+            </div>
+            <button onclick="openAddReview()" class="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700">
+              + Add Review
+            </button>
+          </div>
+
+          <!-- Filters -->
+          <div class="flex flex-wrap gap-3">
+            <input id="filter-employee" type="text" placeholder="Search employee…" class="border border-slate-200 rounded-lg px-3 py-2 text-sm w-48 focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+            <input id="filter-cycle" type="text" placeholder="Cycle e.g. 2024 Q1…" class="border border-slate-200 rounded-lg px-3 py-2 text-sm w-44 focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+            <select id="filter-rating" class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+              <option value="">All Ratings</option>
+              <option>Outstanding</option>
+              <option>Exceeds Expectations</option>
+              <option>Meets Expectations</option>
+              <option>Needs Improvement</option>
+              <option>Unsatisfactory</option>
+            </select>
+            <button onclick="renderReviews()" class="px-4 py-2 bg-slate-100 text-sm text-slate-700 rounded-lg hover:bg-slate-200">Filter</button>
+          </div>
+
+          <!-- Table -->
+          <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-slate-100">
+                  <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Employee</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Cycle</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Date</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Rating</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Reviewer</th>
+                  <th class="px-5 py-3"></th>
+                </tr>
+              </thead>
+              <tbody id="reviews-tbody" class="divide-y divide-slate-50"></tbody>
+            </table>
+            <p id="reviews-empty" class="hidden py-10 text-center text-sm text-slate-400">No reviews found.</p>
+          </div>
+
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+
+    <!-- Add Review Modal -->
+    <div id="review-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <h3 class="text-base font-semibold text-slate-800" id="review-modal-title">Add Performance Review</h3>
+          <button onclick="closeReviewModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+        <form id="review-form" class="px-6 py-5 space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Employee *</label>
+            <select id="rev-employee" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+              <option value="">Select employee…</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Review Cycle *</label>
+              <input id="rev-cycle" type="text" required placeholder="e.g. 2024 Q2" maxlength="50" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Review Date *</label>
+              <input id="rev-date" type="date" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Rating *</label>
+            <select id="rev-rating" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+              <option value="">Select…</option>
+              <option>Outstanding</option>
+              <option>Exceeds Expectations</option>
+              <option>Meets Expectations</option>
+              <option>Needs Improvement</option>
+              <option>Unsatisfactory</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Goals</label>
+            <textarea id="rev-goals" rows="2" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm resize-none" placeholder="Goals set for the period…"></textarea>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Comments</label>
+            <textarea id="rev-comments" rows="2" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm resize-none"></textarea>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Outcomes</label>
+            <textarea id="rev-outcomes" rows="2" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm resize-none" placeholder="Actions, promotions, training recommendations…"></textarea>
+          </div>
+          <div id="review-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2"></div>
+          <div class="flex justify-end gap-3 pt-1">
+            <button type="button" onclick="closeReviewModal()" class="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600">Cancel</button>
+            <button type="submit" class="px-4 py-2 text-sm rounded-lg bg-teal-600 text-white hover:bg-teal-700">Save Review</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      let allReviews = [];
+      let allEmployees = [];
+
+      const RATING_COLOR = {
+        Outstanding: "bg-emerald-50 text-emerald-700 border-emerald-200",
+        "Exceeds Expectations": "bg-teal-50 text-teal-700 border-teal-200",
+        "Meets Expectations": "bg-blue-50 text-blue-700 border-blue-200",
+        "Needs Improvement": "bg-amber-50 text-amber-700 border-amber-200",
+        Unsatisfactory: "bg-rose-50 text-rose-700 border-rose-200"
+      };
+
+      const renderReviews = () => {
+        const empQ = document.getElementById("filter-employee").value.trim().toLowerCase();
+        const cycleQ = document.getElementById("filter-cycle").value.trim().toLowerCase();
+        const ratingQ = document.getElementById("filter-rating").value;
+        const filtered = allReviews.filter(r =>
+          (!empQ || (r.employee_name || "").toLowerCase().includes(empQ)) &&
+          (!cycleQ || (r.review_cycle || "").toLowerCase().includes(cycleQ)) &&
+          (!ratingQ || r.rating === ratingQ)
+        );
+        const tbody = document.getElementById("reviews-tbody");
+        const empty = document.getElementById("reviews-empty");
+        if (!filtered.length) { tbody.innerHTML = ""; empty.classList.remove("hidden"); return; }
+        empty.classList.add("hidden");
+        tbody.innerHTML = filtered.map(r => `
+          <tr class="hover:bg-slate-50 cursor-pointer" onclick="window.location.href='hr-employee-profile.html?id=${r.employee_id}&tab=performance'">
+            <td class="px-5 py-3 font-medium text-slate-800">${r.employee_name || r.employee_id}</td>
+            <td class="px-5 py-3 text-slate-600">${r.review_cycle}</td>
+            <td class="px-5 py-3 text-slate-500">${r.review_date}</td>
+            <td class="px-5 py-3"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${RATING_COLOR[r.rating] || 'bg-slate-100 text-slate-600'}">${r.rating}</span></td>
+            <td class="px-5 py-3 text-slate-500">${r.reviewer_name || "—"}</td>
+            <td class="px-5 py-3 text-right">
+              <a href="hr-employee-profile.html?id=${r.employee_id}" class="text-xs text-teal-600 hover:underline" onclick="event.stopPropagation()">Profile</a>
+            </td>
+          </tr>`).join("");
+      };
+
+      const openAddReview = async () => {
+        // Pre-fill employee from query string if present
+        const qs = new URLSearchParams(window.location.search);
+        const { data } = await window.FINEMARK_APP.apiFetch("/hr/employees?status=Active&limit=200");
+        allEmployees = data?.employees || data || [];
+        const sel = document.getElementById("rev-employee");
+        sel.innerHTML = `<option value="">Select employee…</option>` + allEmployees.map(e => `<option value="${e.id}">${e.fullName} (${e.employeeNo})</option>`).join("");
+        if (qs.get("employeeId")) sel.value = qs.get("employeeId");
+        document.getElementById("rev-date").valueAsDate = new Date();
+        document.getElementById("review-error").classList.add("hidden");
+        document.getElementById("review-form").reset();
+        if (qs.get("employeeId")) sel.value = qs.get("employeeId");
+        document.getElementById("review-modal").classList.remove("hidden");
+      };
+      const closeReviewModal = () => document.getElementById("review-modal").classList.add("hidden");
+
+      document.getElementById("review-form").onsubmit = async e => {
+        e.preventDefault();
+        const errEl = document.getElementById("review-error"); errEl.classList.add("hidden");
+        try {
+          await window.FINEMARK_APP.apiFetch("/hr/performance/reviews", {
+            method: "POST",
+            body: {
+              employeeId: document.getElementById("rev-employee").value,
+              reviewCycle: document.getElementById("rev-cycle").value.trim(),
+              reviewDate: document.getElementById("rev-date").value,
+              rating: document.getElementById("rev-rating").value,
+              goals: document.getElementById("rev-goals").value.trim() || undefined,
+              comments: document.getElementById("rev-comments").value.trim() || undefined,
+              outcomes: document.getElementById("rev-outcomes").value.trim() || undefined,
+            },
+          });
+          closeReviewModal();
+          await loadAllReviews();
+        } catch (err) { errEl.textContent = err?.message || "Failed to save"; errEl.classList.remove("hidden"); }
+      };
+
+      const loadAllReviews = async () => {
+        // We aggregate from all visible employees' performance endpoints
+        // The backend's performance reviews per-employee; use a helper approach:
+        // GET /hr/employees?limit=200 then loop — or use a single aggregated endpoint if available
+        // For now, load employees first, then reviews per page
+        const empRes = await window.FINEMARK_APP.apiFetch("/hr/employees?limit=200");
+        const employees = empRes?.data?.employees || empRes?.data || [];
+        const reviews = [];
+        await Promise.all(employees.slice(0, 50).map(async emp => {
+          try {
+            const res = await window.FINEMARK_APP.apiFetch(`/hr/performance/employees/${emp.id}/performance`);
+            (res?.data || []).forEach(r => {
+              reviews.push({ ...r, employee_name: emp.fullName, employee_id: emp.id });
+            });
+          } catch (_) {}
+        }));
+        reviews.sort((a, b) => (b.review_date || "").localeCompare(a.review_date || ""));
+        allReviews = reviews;
+        renderReviews();
+      };
+
+      (async () => {
+        await window.FINEMARK_APP.requirePageAccess();
+        await loadAllReviews();
+      })();
+    </script>
+  </body>
+</html>

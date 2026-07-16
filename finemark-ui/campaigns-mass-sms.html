@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Mass SMS / WhatsApp</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-3xl mx-auto space-y-6">
+
+          <!-- Header -->
+          <div class="flex items-center justify-between">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-900">Mass Messaging</h1>
+              <p class="text-sm text-slate-500 mt-0.5">Send bulk SMS or WhatsApp to a campaign audience</p>
+            </div>
+            <a href="crm-campaigns.html" class="text-sm text-blue-600 hover:underline">← Back to Campaigns</a>
+          </div>
+
+          <!-- Step 1 – Campaign & Channel -->
+          <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 space-y-5">
+            <h2 class="font-semibold text-slate-800 text-sm uppercase tracking-wide">Step 1 — Select Campaign & Channel</h2>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Campaign</label>
+                <select id="sel-campaign" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">Loading campaigns…</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Channel</label>
+                <div class="flex gap-2 mt-1">
+                  <label class="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="radio" name="channel" value="SMS" checked class="accent-blue-600" id="ch-sms" /> SMS
+                  </label>
+                  <label class="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="radio" name="channel" value="WhatsApp" class="accent-green-600" id="ch-wa" /> WhatsApp
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div id="campaign-summary" class="hidden rounded-lg bg-slate-50 border border-slate-100 px-4 py-3 text-sm text-slate-600 space-y-1">
+              <div class="flex gap-6 flex-wrap">
+                <span>Name: <span id="cs-name" class="font-semibold text-slate-800">—</span></span>
+                <span>Status: <span id="cs-status" class="font-semibold text-slate-800">—</span></span>
+                <span>Target: <span id="cs-target" class="font-semibold text-slate-800">—</span></span>
+                <span>Already Sent: <span id="cs-sent" class="font-semibold text-slate-800">—</span></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2 – Compose -->
+          <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 space-y-5">
+            <h2 class="font-semibold text-slate-800 text-sm uppercase tracking-wide">Step 2 — Compose Message</h2>
+
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="block text-xs font-medium text-slate-600">Message</label>
+                <span id="char-count" class="text-xs text-slate-400">0 / 160 chars (1 SMS)</span>
+              </div>
+              <textarea
+                id="msg-body"
+                rows="5"
+                maxlength="918"
+                placeholder="Type your message here…"
+                class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+              ></textarea>
+              <p class="text-xs text-slate-400 mt-1">160 chars = 1 SMS. Longer messages split into multiple parts and cost more.</p>
+            </div>
+
+            <!-- WhatsApp only: media URL -->
+            <div id="wa-media-row" class="hidden">
+              <label class="block text-xs font-medium text-slate-600 mb-1">Media URL <span class="font-normal text-slate-400">(optional — public image/PDF URL)</span></label>
+              <input
+                id="wa-media-url"
+                type="url"
+                placeholder="https://example.com/image.jpg"
+                class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+          </div>
+
+          <!-- Step 3 – Recipients Preview -->
+          <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 space-y-4">
+            <div class="flex items-center justify-between">
+              <h2 class="font-semibold text-slate-800 text-sm uppercase tracking-wide">Step 3 — Preview Recipients</h2>
+              <button
+                id="btn-preview"
+                class="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-40"
+                disabled
+              >
+                Load Recipients
+              </button>
+            </div>
+
+            <div id="preview-empty" class="text-sm text-slate-400">Select a campaign to preview recipients.</div>
+            <div id="preview-loading" class="hidden text-sm text-slate-400"><span class="animate-pulse">Loading…</span></div>
+            <div id="preview-results" class="hidden space-y-3">
+              <div id="preview-stats" class="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 text-sm text-blue-700"></div>
+              <div class="max-h-64 overflow-y-auto rounded-lg border border-slate-100">
+                <table class="w-full text-sm">
+                  <thead class="sticky top-0 bg-white">
+                    <tr class="text-xs text-slate-400 uppercase tracking-wide border-b border-slate-100">
+                      <th class="px-4 py-2 text-left">Customer</th>
+                      <th class="px-4 py-2 text-left">Phone</th>
+                    </tr>
+                  </thead>
+                  <tbody id="preview-tbody" class="divide-y divide-slate-50"></tbody>
+                </table>
+              </div>
+            </div>
+            <div id="preview-error" class="hidden text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3"></div>
+          </div>
+
+          <!-- Step 4 – Send -->
+          <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 space-y-4">
+            <h2 class="font-semibold text-slate-800 text-sm uppercase tracking-wide">Step 4 — Send</h2>
+
+            <!-- Alert if gateway not configured -->
+            <div id="config-warning" class="hidden rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+              <strong>Gateway not configured.</strong> <span id="config-warning-msg"></span>
+            </div>
+
+            <div class="flex gap-3 flex-wrap">
+              <button
+                id="btn-send"
+                class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled
+              >
+                <span id="btn-send-label">Send Messages</span>
+                <span id="btn-send-spinner" class="hidden ml-2 animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+              </button>
+              <button
+                id="btn-cancel"
+                class="rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                onclick="window.location.href='crm-campaigns.html'"
+              >
+                Cancel
+              </button>
+            </div>
+
+            <!-- Result -->
+            <div id="send-result" class="hidden rounded-lg px-4 py-4 text-sm border"></div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+
+    <div id="fm-footer"></div>
+    <script src="assets/contracts.js"></script>
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      const api = () => window.FINEMARK_APP.apiFetch;
+
+      // ── State ──────────────────────────────────────────────────────────────
+      let campaigns = [];
+      let selectedCampaign = null;
+      let previewData = null;
+
+      // ── DOM refs ───────────────────────────────────────────────────────────
+      const selCampaign   = document.getElementById("sel-campaign");
+      const msgBody       = document.getElementById("msg-body");
+      const charCount     = document.getElementById("char-count");
+      const btnPreview    = document.getElementById("btn-preview");
+      const btnSend       = document.getElementById("btn-send");
+      const waMediaRow    = document.getElementById("wa-media-row");
+      const waMediaUrl    = document.getElementById("wa-media-url");
+      const previewEmpty  = document.getElementById("preview-empty");
+      const previewLoad   = document.getElementById("preview-loading");
+      const previewRes    = document.getElementById("preview-results");
+      const previewStats  = document.getElementById("preview-stats");
+      const previewTbody  = document.getElementById("preview-tbody");
+      const previewErr    = document.getElementById("preview-error");
+      const sendResult    = document.getElementById("send-result");
+      const configWarn    = document.getElementById("config-warning");
+      const configWarnMsg = document.getElementById("config-warning-msg");
+      const camSum        = document.getElementById("campaign-summary");
+      const btnSendLabel  = document.getElementById("btn-send-label");
+      const btnSendSpinner= document.getElementById("btn-send-spinner");
+
+      function channel() {
+        return document.querySelector('input[name="channel"]:checked')?.value || "SMS";
+      }
+
+      // ── Load campaigns ─────────────────────────────────────────────────────
+      async function loadCampaigns() {
+        try {
+          const data = await api()("/crm/campaigns?pageSize=200");
+          campaigns = data.data || [];
+          selCampaign.innerHTML = '<option value="">— Select a campaign —</option>'
+            + campaigns.map(c => `<option value="${c.id}">${c.name} (${c.status})</option>`).join("");
+        } catch (e) {
+          selCampaign.innerHTML = '<option value="">Failed to load campaigns</option>';
+        }
+      }
+
+      selCampaign.addEventListener("change", () => {
+        selectedCampaign = campaigns.find(c => c.id === selCampaign.value) || null;
+        previewData = null;
+        resetPreview();
+        if (selectedCampaign) {
+          document.getElementById("cs-name").textContent = selectedCampaign.name;
+          document.getElementById("cs-status").textContent = selectedCampaign.status;
+          document.getElementById("cs-target").textContent = selectedCampaign.targetCount ?? "—";
+          document.getElementById("cs-sent").textContent = selectedCampaign.sentCount ?? "—";
+          camSum.classList.remove("hidden");
+          btnPreview.disabled = false;
+        } else {
+          camSum.classList.add("hidden");
+          btnPreview.disabled = true;
+          btnSend.disabled = true;
+        }
+      });
+
+      // ── Channel toggle ─────────────────────────────────────────────────────
+      document.querySelectorAll('input[name="channel"]').forEach(r => {
+        r.addEventListener("change", () => {
+          const isSms = channel() === "SMS";
+          waMediaRow.classList.toggle("hidden", isSms);
+          document.getElementById("char-count").classList.toggle("hidden", !isSms);
+          updateCharCount();
+          resetPreview();
+          previewData = null;
+        });
+      });
+
+      function updateCharCount() {
+        if (channel() !== "SMS") return;
+        const len = msgBody.value.length;
+        const parts = len <= 160 ? 1 : Math.ceil(len / 153);
+        charCount.textContent = `${len} / 160 chars (${parts} SMS part${parts > 1 ? "s" : ""})`;
+        charCount.className = `text-xs ${len > 160 ? "text-amber-600 font-medium" : "text-slate-400"}`;
+      }
+      msgBody.addEventListener("input", updateCharCount);
+
+      // ── Preview ────────────────────────────────────────────────────────────
+      function resetPreview() {
+        previewEmpty.classList.remove("hidden");
+        previewLoad.classList.add("hidden");
+        previewRes.classList.add("hidden");
+        previewErr.classList.add("hidden");
+        sendResult.classList.add("hidden");
+        btnSend.disabled = true;
+        configWarn.classList.add("hidden");
+      }
+
+      btnPreview.addEventListener("click", async () => {
+        if (!selectedCampaign) return;
+        previewEmpty.classList.add("hidden");
+        previewLoad.classList.remove("hidden");
+        previewRes.classList.add("hidden");
+        previewErr.classList.add("hidden");
+        sendResult.classList.add("hidden");
+
+        try {
+          const ch = channel();
+          const endpoint = ch === "SMS"
+            ? `/crm/campaigns/${selectedCampaign.id}/send-sms`
+            : `/crm/campaigns/${selectedCampaign.id}/send-whatsapp`;
+
+          const data = await api()(endpoint, {
+            method: "POST",
+            body: { message: msgBody.value || "(preview)", dryRun: true },
+          });
+
+          previewData = data;
+          previewLoad.classList.add("hidden");
+          previewRes.classList.remove("hidden");
+
+          previewStats.textContent = `${data.total} eligible recipient${data.total !== 1 ? "s" : ""} will receive this ${ch} message.`;
+
+          previewTbody.innerHTML = (data.recipients || []).map(r =>
+            `<tr class="hover:bg-slate-50">
+               <td class="px-4 py-2 text-slate-800 font-medium">${r.name || "—"}</td>
+               <td class="px-4 py-2 font-mono text-xs text-slate-600">${r.phone}</td>
+             </tr>`
+          ).join("") || `<tr><td colspan="2" class="px-4 py-3 text-slate-400 text-sm">No recipients</td></tr>`;
+
+          btnSend.disabled = data.total === 0 || !msgBody.value.trim();
+        } catch (e) {
+          previewLoad.classList.add("hidden");
+          previewErr.classList.remove("hidden");
+          const status = e?.status ?? 0;
+          if (status === 503) {
+            previewErr.textContent = "";
+            configWarn.classList.remove("hidden");
+            configWarnMsg.textContent = e?.message || "Please configure the SMS/WhatsApp gateway credentials in your .env file.";
+          } else {
+            previewErr.textContent = e?.message || "Failed to load recipients.";
+          }
+        }
+      });
+
+      // ── Send ───────────────────────────────────────────────────────────────
+      btnSend.addEventListener("click", async () => {
+        if (!selectedCampaign || !msgBody.value.trim()) return;
+
+        const confirmed = confirm(
+          `Send "${channel()}" message to ${previewData?.total || "all eligible"} recipients?\n\nThis will bill your ${channel() === "SMS" ? "Africa\'s Talking" : "Twilio"} account.\n\nContinue?`
+        );
+        if (!confirmed) return;
+
+        btnSend.disabled = true;
+        btnSendLabel.textContent = "Sending…";
+        btnSendSpinner.classList.remove("hidden");
+        sendResult.classList.add("hidden");
+
+        try {
+          const ch = channel();
+          const endpoint = ch === "SMS"
+            ? `/crm/campaigns/${selectedCampaign.id}/send-sms`
+            : `/crm/campaigns/${selectedCampaign.id}/send-whatsapp`;
+
+          const body = { message: msgBody.value, dryRun: false };
+          if (ch === "WhatsApp" && waMediaUrl.value.trim()) {
+            body.mediaUrl = waMediaUrl.value.trim();
+          }
+
+          const data = await api()(endpoint, { method: "POST", body });
+
+          sendResult.className = "rounded-lg px-4 py-4 text-sm border bg-green-50 border-green-200 text-green-800";
+          sendResult.innerHTML = `
+            <strong>✓ ${ch} messages dispatched!</strong><br/>
+            <span class="text-green-700">${data.sent} sent successfully · ${data.failed} failed · ${data.total} total recipients</span>
+          `;
+          sendResult.classList.remove("hidden");
+          btnSend.disabled = true;
+
+          // Refresh campaign summary
+          const updated = await api()(`/crm/campaigns/${selectedCampaign.id}`);
+          selectedCampaign = updated;
+          document.getElementById("cs-sent").textContent = updated.sentCount ?? "—";
+        } catch (e) {
+          sendResult.className = "rounded-lg px-4 py-4 text-sm border bg-red-50 border-red-200 text-red-800";
+          sendResult.textContent = `Error: ${e?.message || "Send failed. Check gateway configuration."}`;
+          sendResult.classList.remove("hidden");
+          btnSend.disabled = false;
+        } finally {
+          btnSendLabel.textContent = "Send Messages";
+          btnSendSpinner.classList.add("hidden");
+        }
+      });
+
+      // ── Init ───────────────────────────────────────────────────────────────
+      document.addEventListener("DOMContentLoaded", () => {
+        window.FINEMARK_APP?.requirePageAccess?.();
+        // Pre-select campaign from URL ?id=
+        const preselect = new URLSearchParams(location.search).get("id");
+        loadCampaigns().then(() => {
+          if (preselect) {
+            selCampaign.value = preselect;
+            selCampaign.dispatchEvent(new Event("change"));
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

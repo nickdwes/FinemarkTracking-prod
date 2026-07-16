@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Add New Gadgets</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-5xl mx-auto space-y-6">
+
+          <!-- Header -->
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Add New Gadgets</h1>
+              <p class="text-sm text-slate-600">Register a consignment and add multiple device types to inventory.</p>
+            </div>
+            <a href="admin-gadget-inventory.html" class="text-sm text-blue-600 hover:underline">← Back to Inventory</a>
+          </div>
+
+          <nav class="text-xs text-slate-500">
+            <span class="font-medium text-slate-600">Admin</span> / <span>Add New Gadgets</span>
+          </nav>
+
+          <form id="gadget-form" novalidate class="space-y-6">
+
+            <!-- ── SECTION 1: Consignment Details ── -->
+            <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm shadow-slate-200/60 overflow-hidden">
+              <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between">
+                <div>
+                  <h2 class="text-base font-semibold text-slate-800">Consignment Details</h2>
+                  <p class="text-xs text-slate-500 mt-0.5">Shipment and supplier info. One consignment can include multiple device types.</p>
+                </div>
+                <span class="text-xs font-medium text-teal-700 bg-teal-50 border border-teal-100 rounded-full px-2.5 py-1">Batch Record</span>
+              </div>
+              <div class="p-6 space-y-5">
+
+                <!-- Batch Number + Consignment Ref + Arrival Date -->
+                <div class="grid gap-4 md:grid-cols-3">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="batch-number">
+                      Batch Number
+                      <span class="ml-1 text-xs font-normal text-slate-400">(auto-generated)</span>
+                    </label>
+                    <input id="batch-number" type="text" readonly
+                      class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 font-mono focus:outline-none cursor-default" />
+                    <p class="mt-1 text-xs text-slate-500">Format: BTH-YYYYMMDD-NNN — unique per day</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="consignment-ref">Consignment Reference</label>
+                    <input id="consignment-ref" type="text" placeholder="e.g. CNS20240618"
+                      class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                    <p class="mt-1 text-xs text-slate-500">Supplier's shipment reference</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="arrival-date">Arrival Date</label>
+                    <input id="arrival-date" type="date"
+                      class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  </div>
+                </div>
+
+                <div class="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="supplier-name">Supplier</label>
+                    <input id="supplier-name" type="text" placeholder="e.g. Shenzhen Vehicle Electronics Ltd"
+                      class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="distributor-name">Distributor</label>
+                    <input id="distributor-name" type="text" placeholder="e.g. East Africa Telematics Supplies"
+                      class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  </div>
+                </div>
+
+                <div class="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="country-of-origin">Country of Origin</label>
+                    <input id="country-of-origin" type="text" placeholder="e.g. China"
+                      class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="shipment-method">Shipment Method</label>
+                    <select id="shipment-method" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                      <option value="" disabled selected>Select method</option>
+                      <option value="Air Freight">Air Freight</option>
+                      <option value="Sea Freight">Sea Freight</option>
+                      <option value="Road">Road</option>
+                      <option value="Rail">Rail</option>
+                      <option value="Courier">Courier</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="grid gap-4 md:grid-cols-3">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="warehouse-destination">Warehouse Destination</label>
+                    <select id="warehouse-destination" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                      <option value="" disabled selected>Select warehouse</option>
+                      <option value="Nairobi Main Warehouse">Nairobi Main Warehouse</option>
+                      <option value="Mombasa Warehouse">Mombasa Warehouse</option>
+                      <option value="Kisumu Warehouse">Kisumu Warehouse</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="total-purchase-value">Total Purchase Value</label>
+                    <div class="flex gap-2">
+                      <select id="purchase-currency" class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 w-24">
+                        <option value="USD">USD</option>
+                        <option value="KES">KES</option>
+                        <option value="EUR">EUR</option>
+                      </select>
+                      <input id="total-purchase-value" type="number" min="0" step="0.01" placeholder="0.00"
+                        class="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="total-units-consignment">Total Units in Consignment</label>
+                    <input id="total-units-consignment" type="number" min="0" placeholder="Auto-calculated" readonly
+                      class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 focus:outline-none font-medium" />
+                    <p class="mt-1 text-xs text-slate-500">Sum of all device lines added below</p>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- ── SECTION 2: Device Line Items ── -->
+            <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm shadow-slate-200/60 overflow-hidden">
+              <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between">
+                <div>
+                  <h2 class="text-base font-semibold text-slate-800">Device Line Items</h2>
+                  <p class="text-xs text-slate-500 mt-0.5">Add each device type shipped in this consignment as a separate line item.</p>
+                </div>
+                <span id="total-devices-badge" class="text-xs font-medium text-blue-700 bg-blue-50 border border-blue-100 rounded-full px-2.5 py-1">0 devices total</span>
+              </div>
+
+              <!-- Line items rendered here -->
+              <div id="line-items-list" class="divide-y divide-slate-100"></div>
+
+              <!-- Empty state -->
+              <div id="line-items-empty" class="px-6 py-10 text-center text-sm text-slate-400">
+                <div class="text-3xl mb-2">📦</div>
+                No device types added yet. Click <strong class="text-slate-600">Add Device Type</strong> below to begin.
+              </div>
+
+              <!-- Add line button -->
+              <div class="px-6 py-4 border-t border-slate-100 bg-slate-50/40">
+                <button id="add-line-item" type="button"
+                  class="inline-flex items-center gap-2 rounded-lg border border-dashed border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                  Add Device Type
+                </button>
+              </div>
+            </div>
+
+            <!-- ── Actions ── -->
+            <div class="flex items-center justify-between gap-3">
+              <p id="form-error" class="hidden text-sm text-red-600 font-medium"></p>
+              <div class="flex items-center gap-3 ml-auto">
+                <a href="admin-gadget-inventory.html" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</a>
+                <button id="create-batch" type="submit" disabled
+                  class="rounded-lg bg-slate-900 px-5 py-2 text-sm font-semibold text-white opacity-60 cursor-not-allowed transition-all">
+                  Save Consignment
+                </button>
+              </div>
+            </div>
+
+          </form>
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+
+    <!-- ── LINE ITEM TEMPLATE (hidden, cloned by JS) ── -->
+    <template id="line-item-tpl">
+      <div class="line-item px-6 py-5 space-y-4" data-id="">
+
+        <!-- Line item header -->
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <span class="line-item-num text-xs font-bold text-white bg-slate-500 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0"></span>
+            <span class="line-item-title text-sm font-semibold text-slate-700">New Device Type</span>
+            <span class="line-item-count-badge text-xs font-medium text-blue-700 bg-blue-50 border border-blue-100 rounded-full px-2 py-0.5">0 devices</span>
+          </div>
+          <button type="button" class="btn-remove-line text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded px-2 py-1 transition-colors">Remove</button>
+        </div>
+
+        <!-- Row A: Type + Product Code + Model -->
+        <div class="grid gap-3 md:grid-cols-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Device Type <span class="text-red-500">*</span></label>
+            <select class="field-type w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+              <option value="" selected disabled>Select type</option>
+              <option value="Trackers">Vehicle GPS Trackers</option>
+              <option value="Fuel Sensors">Fuel Monitoring Sensors</option>
+              <option value="Speed Governors">Vehicle Speed Governors</option>
+              <option value="Dash Cameras">Dashboard Cameras</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Product Code</label>
+            <input type="text" class="field-product-code w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" placeholder="e.g. VT001" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Device Model</label>
+            <input type="text" class="field-model w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" placeholder="e.g. Teltonika FMB920" />
+          </div>
+        </div>
+
+        <!-- Row B: Rack + Warranty + Status -->
+        <div class="grid gap-3 md:grid-cols-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Warehouse Rack</label>
+            <select class="field-rack w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+              <option value="" disabled selected>Auto-filled by type</option>
+              <option value="Rack A1 – Vehicle Trackers">Rack A1 – Vehicle Trackers</option>
+              <option value="Rack B2 – Fuel Sensors">Rack B2 – Fuel Sensors</option>
+              <option value="Rack C3 – Speed Governors">Rack C3 – Speed Governors</option>
+              <option value="Rack D4 – Dash Cameras">Rack D4 – Dash Cameras</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Warranty (months)</label>
+            <input type="number" min="0" class="field-warranty w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" placeholder="Auto-filled" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Device Status</label>
+            <select class="field-status w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+              <option value="In Stock" selected>In Stock</option>
+              <option value="Reserved">Reserved</option>
+              <option value="Assigned to Installation Ticket">Assigned to Installation Ticket</option>
+              <option value="Installed">Installed</option>
+              <option value="Returned">Returned</option>
+              <option value="Defective">Defective</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Row C: Pricing -->
+        <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-slate-600">Pricing</span>
+            <span class="margin-pill hidden text-xs font-medium px-2 py-0.5 rounded-full border"></span>
+          </div>
+          <div class="grid gap-3 md:grid-cols-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Buying Price / Unit <span class="font-normal text-slate-400">(cost)</span></label>
+              <div class="flex gap-1.5">
+                <select class="field-buy-currency rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs text-slate-900 focus:outline-none w-16">
+                  <option value="USD">USD</option><option value="KES">KES</option><option value="EUR">EUR</option>
+                </select>
+                <input type="number" min="0" step="0.01" class="field-buy-price flex-1 rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" placeholder="0.00" />
+              </div>
+              <p class="mt-1 text-xs text-slate-400">What you paid the supplier</p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Selling Price / Unit <span class="font-normal text-slate-400">(invoice)</span></label>
+              <div class="flex gap-1.5">
+                <select class="field-sell-currency rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs text-slate-900 focus:outline-none w-16">
+                  <option value="USD">USD</option><option value="KES" selected>KES</option><option value="EUR">EUR</option>
+                </select>
+                <input type="number" min="0" step="0.01" class="field-sell-price flex-1 rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" placeholder="0.00" />
+              </div>
+              <p class="mt-1 text-xs text-slate-400">Default price quoted on invoices</p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Discount Range (%)</label>
+              <div class="flex items-center gap-2">
+                <div class="flex-1">
+                  <label class="text-xs text-slate-400 block mb-1">Min</label>
+                  <input type="number" min="0" max="100" step="0.5" class="field-discount-min w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" placeholder="0" />
+                </div>
+                <span class="text-slate-300 mt-4">—</span>
+                <div class="flex-1">
+                  <label class="text-xs text-slate-400 block mb-1">Max</label>
+                  <input type="number" min="0" max="100" step="0.5" class="field-discount-max w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" placeholder="15" />
+                </div>
+              </div>
+              <p class="mt-1 text-xs text-slate-400">Sales rep ceiling on this device</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row D: Serial / IMEI numbers -->
+        <div>
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+            <label class="text-xs font-medium text-slate-600">
+              Serial Numbers
+              <span class="serial-hint font-normal text-slate-400 ml-1"></span>
+            </label>
+            <div class="flex items-center gap-3 text-xs">
+              <button type="button" class="btn-download-tpl text-blue-600 hover:underline">Download Template</button>
+              <button type="button" class="btn-import-csv text-blue-600 hover:underline">Import CSV</button>
+              <button type="button" class="btn-remove-dups text-slate-500 hover:text-slate-700">Remove Duplicates</button>
+              <button type="button" class="btn-clear text-slate-500 hover:text-slate-700">Clear</button>
+            </div>
+          </div>
+          <input type="file" accept=".csv,text/csv" class="field-csv-input hidden" />
+          <textarea rows="6" class="field-serials w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-mono placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 min-h-[140px]"
+            placeholder="Enter one serial number per line"></textarea>
+          <div class="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs">
+            <span class="text-slate-400">Detected: <span class="cnt-detected font-medium text-slate-600">0</span></span>
+            <span class="text-emerald-600">Valid: <span class="cnt-valid font-semibold">0</span></span>
+            <span class="text-amber-500">Duplicates: <span class="cnt-dups font-semibold">0</span></span>
+            <span class="text-red-500">Invalid: <span class="cnt-invalid font-semibold">0</span></span>
+          </div>
+          <div class="format-hint hidden mt-1.5 rounded-lg bg-blue-50 border border-blue-100 px-2.5 py-1.5 text-xs text-blue-700">
+            <strong>Format:</strong> <span class="format-hint-text"></span>
+          </div>
+        </div>
+
+      </div>
+    </template>
+
+    <script src="assets/contracts.js"></script>
+    <script src="assets/csvUtils.js"></script>
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const { requirePageAccess, requireRole, showToast, apiFetch, setLoading } = window.FINEMARK_APP || {};
+      requirePageAccess?.();
+      requireRole?.(["Admin"]);
+
+      // ── Date helpers ─────────────────────────────────────────────────────────
+      const _pad  = (n) => String(n).padStart(2, "0");
+      const _pad3 = (n) => String(n).padStart(3, "0");
+      const today = new Date();
+      const _ymd  = `${today.getFullYear()}${_pad(today.getMonth()+1)}${_pad(today.getDate())}`;
+
+      // ── Auto-generate batch number (date-based, sequential per day) ──────────
+      // Format: BTH-20260307-001  (BTH = Batch, date, 3-digit sequence for the day)
+      const generateBatchNo = () => {
+        const key = `fm_batch_seq_${_ymd}`;
+        const seq = (parseInt(localStorage.getItem(key) || "0", 10)) + 1;
+        localStorage.setItem(key, String(seq));
+        return `BTH-${_ymd}-${_pad3(seq)}`;
+      };
+
+      // Set defaults on load
+      document.getElementById("arrival-date").value = today.toISOString().slice(0, 10);
+      document.getElementById("batch-number").value = generateBatchNo();
+
+      // ── Line items registry ──────────────────────────────────────────────────
+      let lineItems  = [];
+      let _lineIdSeq = 0;
+
+      const TYPE_META = {
+        "Trackers":        { rack: "Rack A1 – Vehicle Trackers",  warranty: 24, hasImei: true,
+          placeholder: "One entry per line: SERIAL IMEI\ne.g. FMB920SN7845621 356938035643801",
+          hint: "(SERIAL + IMEI per line)",
+          fmtHint: "GPS Trackers: enter SERIAL and IMEI separated by a space on each line." },
+        "Fuel Sensors":    { rack: "Rack B2 – Fuel Sensors",      warranty: 24, hasImei: false,
+          placeholder: "One serial per line\ne.g. FSN98342001",
+          hint: "(serial number only)", fmtHint: "Enter one serial number per line." },
+        "Speed Governors": { rack: "Rack C3 – Speed Governors",   warranty: 12, hasImei: false,
+          placeholder: "One serial per line\ne.g. SG3004589201",
+          hint: "(serial number only)", fmtHint: "Enter one serial number per line." },
+        "Dash Cameras":    { rack: "Rack D4 – Dash Cameras",      warranty: 18, hasImei: false,
+          placeholder: "One serial per line\ne.g. DC2018K200381",
+          hint: "(serial number only)", fmtHint: "Enter one serial number per line." },
+      };
+
+      const TYPE_LABELS = {
+        "Trackers": "Vehicle GPS Trackers",
+        "Fuel Sensors": "Fuel Monitoring Sensors",
+        "Speed Governors": "Vehicle Speed Governors",
+        "Dash Cameras": "Dashboard Cameras",
+      };
+
+      // ── Setup a single line item card ────────────────────────────────────────
+      function setupLineItem(wrapper) {
+        const id = ++_lineIdSeq;
+        wrapper.dataset.id = id;
+
+        const q = (sel) => wrapper.querySelector(sel);
+        const typeEl        = q(".field-type");
+        const productCodeEl = q(".field-product-code");
+        const modelEl       = q(".field-model");
+        const rackEl        = q(".field-rack");
+        const warrantyEl    = q(".field-warranty");
+        const statusEl      = q(".field-status");
+        const buyPriceEl    = q(".field-buy-price");
+        const buyCurrEl     = q(".field-buy-currency");
+        const sellPriceEl   = q(".field-sell-price");
+        const sellCurrEl    = q(".field-sell-currency");
+        const discMinEl     = q(".field-discount-min");
+        const discMaxEl     = q(".field-discount-max");
+        const serialsEl     = q(".field-serials");
+        const csvInputEl    = q(".field-csv-input");
+        const titleEl       = q(".line-item-title");
+        const countBadge    = q(".line-item-count-badge");
+        const marginPill    = q(".margin-pill");
+        const serialHint    = q(".serial-hint");
+        const fmtHint       = q(".format-hint");
+        const fmtHintText   = q(".format-hint-text");
+        const cntDetected   = q(".cnt-detected");
+        const cntValid      = q(".cnt-valid");
+        const cntDups       = q(".cnt-dups");
+        const cntInvalid    = q(".cnt-invalid");
+
+        const parseEntries = () => {
+          const isTracker = typeEl.value === "Trackers";
+          const lines = serialsEl.value.split(/\n+/).map(l => l.trim()).filter(Boolean);
+          const valid = [], invalid = [], seen = new Set();
+          let dups = 0;
+          lines.forEach(line => {
+            const cleaned = line.replace(/\bIMEI\b/gi, "").replace(/\s+/g, " ").trim();
+            const parts  = cleaned.split(" ");
+            const serial = parts[0];
+            const imei   = parts[1] || null;
+            if (!serial || serial.length < 4) { invalid.push(line); return; }
+            if (isTracker && imei && !/^\d{10,20}$/.test(imei)) { invalid.push(line); return; }
+            const key = serial.toLowerCase();
+            if (seen.has(key)) { dups++; return; }
+            seen.add(key);
+            valid.push({ serial, imei, raw: line });
+          });
+          return { raw: lines, valid, invalid, duplicates: dups };
+        };
+
+        const updateMargin = () => {
+          const buy  = parseFloat(buyPriceEl.value);
+          const sell = parseFloat(sellPriceEl.value);
+          if (!buy || !sell || sell <= 0) { marginPill.classList.add("hidden"); return; }
+          const margin = ((sell - buy) / sell) * 100;
+          const markup = ((sell - buy) / buy)  * 100;
+          const ok = sell >= buy;
+          marginPill.textContent = ok
+            ? `Margin ${margin.toFixed(1)}% · Markup ${markup.toFixed(1)}%`
+            : "⚠ Selling below buying price";
+          marginPill.className = `margin-pill text-xs font-medium px-2 py-0.5 rounded-full border ${
+            !ok ? "bg-red-50 text-red-700 border-red-200"
+            : margin >= 20 ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+            : margin >= 10 ? "bg-amber-50 text-amber-700 border-amber-200"
+            : "bg-slate-100 text-slate-600 border-slate-200"}`;
+          marginPill.classList.remove("hidden");
+        };
+
+        const updateCounts = () => {
+          const { raw, valid, invalid, duplicates } = parseEntries();
+          cntDetected.textContent = raw.length;
+          cntValid.textContent    = valid.length;
+          cntDups.textContent     = duplicates;
+          cntInvalid.textContent  = invalid.length;
+          countBadge.textContent  = `${valid.length} device${valid.length !== 1 ? "s" : ""}`;
+          updateTotals();
+        };
+
+        typeEl.addEventListener("change", () => {
+          const meta = TYPE_META[typeEl.value];
+          if (!meta) return;
+          rackEl.value             = meta.rack;
+          warrantyEl.value         = meta.warranty;
+          serialsEl.placeholder    = meta.placeholder;
+          serialHint.textContent   = meta.hint;
+          fmtHintText.textContent  = meta.fmtHint;
+          fmtHint.classList.remove("hidden");
+          titleEl.textContent = TYPE_LABELS[typeEl.value] || typeEl.value;
+          updateCounts();
+        });
+
+        buyPriceEl.addEventListener("input",  () => { updateMargin(); updateTotals(); });
+        sellPriceEl.addEventListener("input", () => { updateMargin(); updateTotals(); });
+
+        discMinEl.addEventListener("input", () => {
+          const mn = parseFloat(discMinEl.value), mx = parseFloat(discMaxEl.value);
+          if (!isNaN(mn) && !isNaN(mx) && mn > mx) discMaxEl.value = discMinEl.value;
+        });
+        discMaxEl.addEventListener("input", () => {
+          const mn = parseFloat(discMinEl.value), mx = parseFloat(discMaxEl.value);
+          if (!isNaN(mn) && !isNaN(mx) && mx < mn) discMinEl.value = discMaxEl.value;
+        });
+
+        serialsEl.addEventListener("input", updateCounts);
+        serialsEl.addEventListener("blur",  updateCounts);
+
+        q(".btn-remove-dups").addEventListener("click", () => {
+          const { valid } = parseEntries();
+          serialsEl.value = valid.map(e => e.imei ? `${e.serial} ${e.imei}` : e.serial).join("\n");
+          updateCounts();
+          showToast?.(`${valid.length} unique entries remain.`, "info");
+        });
+
+        q(".btn-clear").addEventListener("click", () => { serialsEl.value = ""; updateCounts(); });
+
+        q(".btn-download-tpl").addEventListener("click", () => {
+          const isTracker = typeEl.value === "Trackers";
+          const csv = isTracker
+            ? ["serial,imei","FMB920SN7845621,356938035643801","FMB920SN7845622,356938035643802"].join("\n")
+            : ["serial","DEVICE00001","DEVICE00002"].join("\n");
+          const fname = isTracker ? "tracker_template.csv" : "serial_template.csv";
+          if (window.FINEMARK_CSV_UTILS?.downloadCsv) {
+            window.FINEMARK_CSV_UTILS.downloadCsv(fname, csv);
+          } else {
+            const a = document.createElement("a");
+            a.href = "data:text/csv," + encodeURIComponent(csv);
+            a.download = fname; a.click();
+          }
+        });
+
+        q(".btn-import-csv").addEventListener("click", () => csvInputEl.click());
+        csvInputEl.addEventListener("change", async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          try {
+            const text = await file.text();
+            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l && !/^serial/i.test(l));
+            const normalised = lines.map(l => l.replace(",", " "));
+            const existing = serialsEl.value.trim();
+            serialsEl.value = existing ? `${existing}\n${normalised.join("\n")}` : normalised.join("\n");
+            updateCounts();
+            showToast?.(`Imported ${normalised.length} entries.`, "success");
+          } catch (err) {
+            showToast?.(err?.message || "CSV import failed.", "error");
+          } finally { csvInputEl.value = ""; }
+        });
+
+        q(".btn-remove-line").addEventListener("click", () => {
+          lineItems = lineItems.filter(li => li.id !== id);
+          wrapper.remove();
+          renumberLines();
+          updateTotals();
+          updateEmptyState();
+          updateSubmitState();
+        });
+
+        // Expose data getter used at submit time
+        const getData = () => {
+          const { valid } = parseEntries();
+          return {
+            gadgetType:          typeEl.value,
+            productCode:         productCodeEl.value.trim(),
+            deviceModel:         modelEl.value.trim(),
+            warehouseLocation:   rackEl.value,
+            warrantyPeriod:      Number(warrantyEl.value) || 0,
+            deviceStatus:        statusEl.value,
+            buyingPricePerUnit:  Number(buyPriceEl.value)  || 0,
+            buyingCurrency:      buyCurrEl.value,
+            sellingPricePerUnit: Number(sellPriceEl.value) || 0,
+            sellingCurrency:     sellCurrEl.value,
+            discountMinPercent:  parseFloat(discMinEl.value) || 0,
+            discountMaxPercent:  parseFloat(discMaxEl.value) || 0,
+            numberOfDevices:     valid.length,
+            devices:             valid.map(e => ({ serial: e.serial, imei: e.imei || null })),
+          };
+        };
+
+        lineItems.push({
+          id,
+          el: wrapper,
+          getData,
+          getValidCount: () => parseEntries().valid.length,
+          hasType: () => Boolean(typeEl.value),
+        });
+
+        updateCounts();
+      }
+
+      // ── DOM refs ─────────────────────────────────────────────────────────────
+      const lineItemsList      = document.getElementById("line-items-list");
+      const emptyState         = document.getElementById("line-items-empty");
+      const tpl                = document.getElementById("line-item-tpl");
+      const addBtn             = document.getElementById("add-line-item");
+      const totalDevicesBadge  = document.getElementById("total-devices-badge");
+      const totalUnitsInput    = document.getElementById("total-units-consignment");
+      const createBtn          = document.getElementById("create-batch");
+      const formError          = document.getElementById("form-error");
+
+      // ── Add a new device line card ───────────────────────────────────────────
+      addBtn.addEventListener("click", () => {
+        const clone   = tpl.content.cloneNode(true);
+        const wrapper = clone.querySelector(".line-item");
+        lineItemsList.appendChild(wrapper);
+        setupLineItem(wrapper);
+        renumberLines();
+        updateEmptyState();
+        updateSubmitState();
+        wrapper.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+
+      const renumberLines = () => {
+        document.querySelectorAll(".line-item").forEach((el, i) => {
+          const num = el.querySelector(".line-item-num");
+          if (num) num.textContent = i + 1;
+        });
+      };
+
+      const updateEmptyState = () => {
+        emptyState.classList.toggle("hidden", lineItems.length > 0);
+      };
+
+      // ── Global totals & submit state ─────────────────────────────────────────
+      const updateTotals = () => {
+        const total = lineItems.reduce((sum, li) => sum + li.getValidCount(), 0);
+        totalDevicesBadge.textContent = `${total} device${total !== 1 ? "s" : ""} total`;
+        totalUnitsInput.value = total;
+        updateSubmitState();
+      };
+
+      const updateSubmitState = () => {
+        const hasLines    = lineItems.length > 0;
+        const allHaveType = lineItems.every(li => li.hasType());
+        const anyDevices  = lineItems.some(li => li.getValidCount() > 0);
+        const enabled     = hasLines && allHaveType && anyDevices;
+        createBtn.disabled = !enabled;
+        createBtn.classList.toggle("opacity-60", !enabled);
+        createBtn.classList.toggle("cursor-not-allowed", !enabled);
+        if (!enabled && hasLines) {
+          formError.textContent = !allHaveType
+            ? "Please select a device type for each line item."
+            : "Please enter at least one serial number across the device lines.";
+          formError.classList.remove("hidden");
+        } else {
+          formError.classList.add("hidden");
+        }
+      };
+
+      // ── Form submit ──────────────────────────────────────────────────────────
+      document.getElementById("gadget-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (createBtn.disabled) return;
+
+        const batchNo  = document.getElementById("batch-number").value;
+        const lineData = lineItems.map(li => li.getData()).filter(d => d.numberOfDevices > 0);
+        const total    = lineData.reduce((s, d) => s + d.numberOfDevices, 0);
+
+        const payload = {
+          batchNumber:           batchNo,
+          consignmentRef:        document.getElementById("consignment-ref").value.trim() || `CNS_${_ymd}`,
+          supplier:              document.getElementById("supplier-name").value.trim(),
+          distributor:           document.getElementById("distributor-name").value.trim(),
+          countryOfOrigin:       document.getElementById("country-of-origin").value.trim(),
+          warehouseDestination:  document.getElementById("warehouse-destination").value,
+          arrivalDate:           document.getElementById("arrival-date").value,
+          shipmentMethod:        document.getElementById("shipment-method").value,
+          totalPurchaseValue:    Number(document.getElementById("total-purchase-value").value) || 0,
+          purchaseCurrency:      document.getElementById("purchase-currency").value,
+          totalUnitsConsignment: total,
+          lineItems:             lineData,
+          createdAt:             new Date().toISOString(),
+        };
+
+        setLoading?.(createBtn, true, "Saving...");
+        try {
+          await apiFetch?.("/gadgets/batches", { method: "POST", body: payload });
+          showToast?.(`✅ ${total} device(s) across ${lineData.length} line(s) added. Batch: ${batchNo}`, "success");
+          resetForm();
+        } catch (err) {
+          const key = "finemark_gadget_batches";
+          const existing = JSON.parse(localStorage.getItem(key) || "[]");
+          existing.unshift(payload);
+          localStorage.setItem(key, JSON.stringify(existing));
+          showToast?.(`✅ ${total} device(s) saved locally. Batch: ${batchNo}`, "success");
+          resetForm();
+        } finally {
+          setLoading?.(createBtn, false);
+        }
+      });
+
+      const resetForm = () => {
+        document.getElementById("gadget-form").reset();
+        lineItemsList.innerHTML = "";
+        lineItems  = [];
+        _lineIdSeq = 0;
+        document.getElementById("batch-number").value = generateBatchNo();
+        document.getElementById("arrival-date").value = new Date().toISOString().slice(0, 10);
+        updateEmptyState();
+        updateTotals();
+      };
+
+      // Init state
+      updateEmptyState();
+      updateTotals();
+    });
+    </script>
+                      class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  </div>
+                </div>
+
+                <div class="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="supplier-name">Supplier</label>
+                    <input id="supplier-name" type="text" placeholder="e.g. Shenzhen Vehicle Electronics Ltd"
+                      class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="distributor-name">Distributor</label>
+                    <input id="distributor-name" type="text" placeholder="e.g. East Africa Telematics Supplies"
+                      class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  </div>
+                </div>
+
+                <div class="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="country-of-origin">Country of Origin</label>
+                    <input id="country-of-origin" type="text" placeholder="e.g. China"
+                      class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="shipment-method">Shipment Method</label>
+                    <select id="shipment-method" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                      <option value="" disabled selected>Select method</option>
+                      <option value="Air Freight">Air Freight</option>
+                      <option value="Sea Freight">Sea Freight</option>
+                      <option value="Road">Road</option>
+                      <option value="Rail">Rail</option>
+                      <option value="Courier">Courier</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="grid gap-4 md:grid-cols-3">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="warehouse-destination">Warehouse Destination</label>
+                    <select id="warehouse-destination" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                      <option value="" disabled selected>Select warehouse</option>
+                      <option value="Nairobi Main Warehouse">Nairobi Main Warehouse</option>
+                      <option value="Mombasa Warehouse">Mombasa Warehouse</option>
+                      <option value="Kisumu Warehouse">Kisumu Warehouse</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="total-purchase-value">Total Purchase Value</label>
+                    <div class="flex gap-2">
+                      <select id="purchase-currency" class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 w-24">
+                        <option value="USD">USD</option>
+                        <option value="KES">KES</option>
+                        <option value="EUR">EUR</option>
+                      </select>
+                      <input id="total-purchase-value" type="number" min="0" step="0.01" placeholder="0.00"
+                        class="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="total-units-consignment">Total Units in Consignment</label>
+                    <input id="total-units-consignment" type="number" min="0" placeholder="0"
+                      class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- ── SECTION 2: Device Inventory Details ── -->
+            <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm shadow-slate-200/60 overflow-hidden">
+              <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between">
+                <div>
+                  <h2 class="text-base font-semibold text-slate-800">Device Inventory Details</h2>
+                  <p class="text-xs text-slate-500 mt-0.5">Specify the device type and enter serial / IMEI numbers.</p>
+                </div>
+                <span id="device-count-badge" class="text-xs font-medium text-blue-700 bg-blue-50 border border-blue-100 rounded-full px-2.5 py-1">0 devices</span>
+              </div>
+              <div class="p-6 space-y-5">
+
+                <!-- Row 1: Type + Product Code + Model -->
+                <div class="grid gap-4 md:grid-cols-3">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="gadget-type">Device Type <span class="text-red-500">*</span></label>
+                    <select id="gadget-type" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                      <option value="" selected disabled>Select type</option>
+                      <option value="Trackers">Vehicle GPS Trackers</option>
+                      <option value="Fuel Sensors">Fuel Monitoring Sensors</option>
+                      <option value="Speed Governors">Vehicle Speed Governors</option>
+                      <option value="Dash Cameras">Dashboard Cameras</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="product-code">Product Code</label>
+                    <input id="product-code" type="text" placeholder="e.g. VT001"
+                      class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="device-model">Device Model</label>
+                    <input id="device-model" type="text" placeholder="e.g. Teltonika FMB920"
+                      class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  </div>
+                </div>
+
+                <!-- Row 2: Warehouse Location + Warranty Period + Device Status -->
+                <div class="grid gap-4 md:grid-cols-3">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="warehouse-location">Warehouse Location (Rack)</label>
+                    <select id="warehouse-location" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                      <option value="" disabled selected>Auto-filled by type</option>
+                      <option value="Rack A1 – Vehicle Trackers">Rack A1 – Vehicle Trackers</option>
+                      <option value="Rack B2 – Fuel Sensors">Rack B2 – Fuel Sensors</option>
+                      <option value="Rack C3 – Speed Governors">Rack C3 – Speed Governors</option>
+                      <option value="Rack D4 – Dash Cameras">Rack D4 – Dash Cameras</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="warranty-period">Warranty Period (months)</label>
+                    <input id="warranty-period" type="number" min="0" placeholder="Auto-filled by type"
+                      class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="device-status">Device Status</label>
+                    <select id="device-status" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                      <option value="In Stock" selected>In Stock</option>
+                      <option value="Reserved">Reserved</option>
+                      <option value="Assigned to Installation Ticket">Assigned to Installation Ticket</option>
+                      <option value="Installed">Installed</option>
+                      <option value="Returned">Returned</option>
+                      <option value="Defective">Defective</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Row 3: Purchase Batch + Device Count -->
+                <div class="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="batch-number">Purchase Batch Number <span class="text-red-500">*</span></label>
+                    <select id="batch-number" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                      <option value="" selected disabled>Select batch</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="device-count">Number of Devices (calculated)</label>
+                    <input id="device-count" type="number" readonly value="0"
+                      class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 focus:outline-none font-medium" />
+                  </div>
+                </div>
+
+                <!-- Row 4: Pricing ─ Buying Price | Selling Price | Discount Range -->
+                <div class="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-4">
+                  <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-semibold text-slate-700">Pricing</h3>
+                    <!-- Live margin pill -->
+                    <span id="margin-pill" class="hidden text-xs font-medium px-2.5 py-1 rounded-full border"></span>
+                  </div>
+                  <div class="grid gap-4 md:grid-cols-3">
+                    <!-- Buying Price -->
+                    <div>
+                      <label class="block text-sm font-medium text-slate-700 mb-1.5" for="gadget-price">Buying Price per Unit <span class="text-slate-400 font-normal">(cost)</span></label>
+                      <div class="flex gap-2">
+                        <select id="price-currency" class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 w-20">
+                          <option value="USD">USD</option>
+                          <option value="KES">KES</option>
+                          <option value="EUR">EUR</option>
+                        </select>
+                        <input id="gadget-price" type="number" min="0" step="0.01" placeholder="0.00"
+                          class="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                      </div>
+                      <p class="mt-1 text-xs text-slate-500">What you paid the supplier</p>
+                    </div>
+                    <!-- Selling Price -->
+                    <div>
+                      <label class="block text-sm font-medium text-slate-700 mb-1.5" for="selling-price">Selling Price per Unit <span class="text-slate-400 font-normal">(quoted on invoice)</span></label>
+                      <div class="flex gap-2">
+                        <select id="selling-currency" class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 w-20">
+                          <option value="USD">USD</option>
+                          <option value="KES" selected>KES</option>
+                          <option value="EUR">EUR</option>
+                        </select>
+                        <input id="selling-price" type="number" min="0" step="0.01" placeholder="0.00"
+                          class="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                      </div>
+                      <p class="mt-1 text-xs text-slate-500">Default price quoted on invoices</p>
+                    </div>
+                    <!-- Discount Range -->
+                    <div>
+                      <label class="block text-sm font-medium text-slate-700 mb-1.5">Allowable Discount Range</label>
+                      <div class="flex items-center gap-2">
+                        <div class="flex-1">
+                          <label class="text-xs text-slate-500 mb-1 block" for="discount-min">Min %</label>
+                          <input id="discount-min" type="number" min="0" max="100" step="0.5" placeholder="0"
+                            class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                        </div>
+                        <span class="mt-5 text-slate-400 text-sm font-medium self-end pb-2.5">—</span>
+                        <div class="flex-1">
+                          <label class="text-xs text-slate-500 mb-1 block" for="discount-max">Max %</label>
+                          <input id="discount-max" type="number" min="0" max="100" step="0.5" placeholder="15"
+                            class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                        </div>
+                      </div>
+                      <p class="mt-1 text-xs text-slate-500">Sales rep discount ceiling on this gadget</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Serial / IMEI Numbers -->
+                <div>
+                  <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                    <div>
+                      <label class="block text-sm font-medium text-slate-700" for="gadget-serials">Serial Numbers <span id="imei-hint-label" class="font-normal text-slate-500">(+ IMEI for trackers)</span></label>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3 text-xs">
+                      <button id="download-template" type="button" class="text-blue-600 hover:underline">Download Template</button>
+                      <button id="import-csv" type="button" class="text-blue-600 hover:underline">Import CSV</button>
+                      <button id="remove-duplicates" type="button" class="text-slate-500 hover:text-slate-700">Remove Duplicates</button>
+                      <button id="clear-serials" type="button" class="text-slate-500 hover:text-slate-700">Clear</button>
+                    </div>
+                  </div>
+                  <input id="serial-csv-input" type="file" accept=".csv,text/csv" class="hidden" />
+                  <!-- Dynamic placeholder; updated by JS when type changes -->
+                  <textarea id="gadget-serials" rows="10"
+                    placeholder="Enter one serial number per line. For GPS trackers use: SERIAL IMEI (e.g. FMB920SN7845621 356938035643801)"
+                    class="w-full min-h-[260px] rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 font-mono text-xs"></textarea>
+
+                  <!-- Counts row -->
+                  <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                    <span class="text-slate-500">Detected: <span id="serial-detected" class="font-medium text-slate-700">0</span></span>
+                    <span class="text-emerald-600">Valid: <span id="serial-valid" class="font-semibold">0</span></span>
+                    <span class="text-amber-600">Duplicates: <span id="serial-duplicates" class="font-semibold">0</span></span>
+                    <span class="text-red-500">Invalid: <span id="serial-invalid" class="font-semibold">0</span></span>
+                  </div>
+
+                  <!-- Format hint -->
+                  <div id="format-hint" class="mt-2 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-700 hidden">
+                    <strong>Format:</strong> <span id="format-hint-text"></span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- ── Actions ── -->
+            <div class="flex items-center justify-end gap-3">
+              <a href="admin-gadget-inventory.html" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                Cancel
+              </a>
+              <button id="create-batch" type="submit" disabled
+                class="rounded-lg bg-slate-900 px-5 py-2 text-sm font-semibold text-white opacity-60 cursor-not-allowed transition-all">
+                Add to Inventory
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+    <script src="assets/contracts.js"></script>
+    <script src="assets/csvUtils.js"></script>
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const { requirePageAccess, requireRole, showToast, apiFetch, setLoading } = window.FINEMARK_APP || {};
+        requirePageAccess?.();
+        requireRole?.(["Admin"]);
+
+        // ── Element refs ────────────────────────────────────────────────────────
+        const form              = document.getElementById("gadget-form");
+        const typeSelect        = document.getElementById("gadget-type");
+        const serialInput       = document.getElementById("gadget-serials");
+        const deviceCount       = document.getElementById("device-count");
+        const deviceCountBadge  = document.getElementById("device-count-badge");
+        const priceInput        = document.getElementById("gadget-price");
+        const sellingPriceInput = document.getElementById("selling-price");
+        const discountMin       = document.getElementById("discount-min");
+        const discountMax       = document.getElementById("discount-max");
+        const marginPill        = document.getElementById("margin-pill");
+        const batchSelect       = document.getElementById("batch-number");
+        const createBtn         = document.getElementById("create-batch");
+        const warehouseSelect   = document.getElementById("warehouse-location");
+        const warrantyInput     = document.getElementById("warranty-period");
+        const statusSelect      = document.getElementById("device-status");
+        const productCode       = document.getElementById("product-code");
+        const deviceModel       = document.getElementById("device-model");
+        const formatHint        = document.getElementById("format-hint");
+        const formatHintText    = document.getElementById("format-hint-text");
+        const imeiHintLabel     = document.getElementById("imei-hint-label");
+        const csvInput          = document.getElementById("serial-csv-input");
+        const detectedEl        = document.getElementById("serial-detected");
+        const validEl           = document.getElementById("serial-valid");
+        const duplicateEl       = document.getElementById("serial-duplicates");
+        const invalidEl         = document.getElementById("serial-invalid");
+        const consignmentRef    = document.getElementById("consignment-ref");
+
+        // ── Auto-generate consignment reference ─────────────────────────────────
+        const today = new Date();
+        const _pad = (n) => String(n).padStart(2, "0");
+        const autoRef = `CNS${today.getFullYear()}${_pad(today.getMonth()+1)}${_pad(today.getDate())}`;
+        if (consignmentRef && !consignmentRef.value) consignmentRef.placeholder = autoRef;
+
+        // ── Batch number options ─────────────────────────────────────────────────
+        for (let i = 1; i <= 100; i++) {
+          const opt = document.createElement("option");
+          opt.value = String(i); opt.textContent = String(i);
+          batchSelect.appendChild(opt);
+        }
+
+        // ── Type → auto-fill warehouse, warranty, placeholder ───────────────────
+        const TYPE_META = {
+          "Trackers":        { rack: "Rack A1 – Vehicle Trackers",  warranty: 24, hasImei: true,  placeholder: "One entry per line: SERIAL IMEI\ne.g. FMB920SN7845621 356938035643801" },
+          "Fuel Sensors":    { rack: "Rack B2 – Fuel Sensors",      warranty: 24, hasImei: false, placeholder: "One serial number per line\ne.g. FSN98342001" },
+          "Speed Governors": { rack: "Rack C3 – Speed Governors",   warranty: 12, hasImei: false, placeholder: "One serial number per line\ne.g. SG3004589201" },
+          "Dash Cameras":    { rack: "Rack D4 – Dash Cameras",      warranty: 18, hasImei: false, placeholder: "One serial number per line\ne.g. DC2018K200381" },
+        };
+
+        typeSelect.addEventListener("change", () => {
+          const meta = TYPE_META[typeSelect.value];
+          if (!meta) return;
+          warehouseSelect.value = meta.rack;
+          warrantyInput.value   = meta.warranty;
+          serialInput.placeholder = meta.placeholder;
+          if (meta.hasImei) {
+            imeiHintLabel.textContent = "(+ IMEI — enter as: SERIAL IMEI)";
+            formatHintText.textContent = "GPS Trackers: enter SERIAL and IMEI separated by a space on each line.";
+          } else {
+            imeiHintLabel.textContent = "(serial numbers only)";
+            formatHintText.textContent = "Enter one serial number per line. IMEI is not required for this device type.";
+          }
+          formatHint.classList.remove("hidden");
+          updateCounts();
+        });
+
+        // ── Serial/IMEI parsing ──────────────────────────────────────────────────
+        // Accepts:
+        //   • trackers:  "SERIAL IMEI" or "SERIAL" per line (IMEI optional)
+        //   • others:    "SERIAL" per line (alphanumeric)
+        const parseEntries = (value) => {
+          const lines = value.split(/\n+/).map(l => l.trim()).filter(Boolean);
+          const valid = [], invalid = [], seen = new Set();
+          let duplicates = 0;
+          const isTracker = typeSelect.value === "Trackers";
+
+          lines.forEach(line => {
+            // Strip "IMEI" keyword if present: "FMB920SN7845621 IMEI 356938035643801"
+            const cleaned = line.replace(/\bIMEI\b/gi, "").replace(/\s+/g, " ").trim();
+            const parts = cleaned.split(" ");
+            const serial = parts[0];
+            const imei   = parts[1] || null;
+
+            if (!serial || serial.length < 4) { invalid.push(line); return; }
+            if (isTracker && imei && !/^\d{10,20}$/.test(imei)) { invalid.push(line); return; }
+
+            const key = serial.toLowerCase();
+            if (seen.has(key)) { duplicates++; return; }
+            seen.add(key);
+            valid.push({ serial, imei, raw: line });
+          });
+
+          return { raw: lines, valid, invalid, duplicates };
+        };
+
+        // ── Live margin calculator ────────────────────────────────────────────────
+        const updateMargin = () => {
+          const buy  = parseFloat(priceInput.value);
+          const sell = parseFloat(sellingPriceInput.value);
+          if (!buy || !sell || buy <= 0 || sell <= 0) {
+            marginPill.classList.add("hidden");
+            return;
+          }
+          const margin = ((sell - buy) / sell) * 100;
+          const markup = ((sell - buy) / buy)  * 100;
+          const isValid = sell >= buy;
+          marginPill.textContent = isValid
+            ? `Margin ${margin.toFixed(1)}%  ·  Markup ${markup.toFixed(1)}%`
+            : `⚠ Selling price is below buying price`;
+          marginPill.className = `text-xs font-medium px-2.5 py-1 rounded-full border ${
+            !isValid ? "bg-red-50 text-red-700 border-red-200"
+            : margin >= 20 ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+            : margin >= 10 ? "bg-amber-50 text-amber-700 border-amber-200"
+            : "bg-slate-100 text-slate-600 border-slate-200"
+          }`;
+          marginPill.classList.remove("hidden");
+        };
+
+        const updateCounts = () => {
+          const { raw, valid, invalid, duplicates } = parseEntries(serialInput.value);
+          detectedEl.textContent  = String(raw.length);
+          validEl.textContent     = String(valid.length);
+          duplicateEl.textContent = String(duplicates);
+          invalidEl.textContent   = String(invalid.length);
+          deviceCount.value       = String(valid.length);
+          deviceCountBadge.textContent = `${valid.length} device${valid.length !== 1 ? "s" : ""}`;
+          updateMargin();
+          toggleCreate(valid.length);
+          return { raw, valid, invalid, duplicates };
+        };
+
+        const toggleCreate = (validCount) => {
+          const price    = Number(priceInput.value);
+          const hasType  = Boolean(typeSelect.value);
+          const hasBatch = Boolean(batchSelect.value);
+          const enabled  = hasType && hasBatch && validCount > 0 && Number.isFinite(price) && price >= 0;
+          createBtn.disabled = !enabled;
+          createBtn.classList.toggle("opacity-60", !enabled);
+          createBtn.classList.toggle("cursor-not-allowed", !enabled);
+        };
+
+        const removeDuplicates = () => {
+          const { valid } = parseEntries(serialInput.value);
+          serialInput.value = valid.map(e => e.imei ? `${e.serial} ${e.imei}` : e.serial).join("\n");
+          updateCounts();
+          showToast?.(`Duplicates removed. ${valid.length} unique entries remain.`, "info");
+        };
+
+        const appendEntries = (lines) => {
+          if (!lines.length) return;
+          const existing = serialInput.value.trim();
+          serialInput.value = existing ? `${existing}\n${lines.join("\n")}` : lines.join("\n");
+          updateCounts();
+        };
+
+        const downloadTemplate = () => {
+          const isTracker = typeSelect.value === "Trackers";
+          let csv;
+          if (isTracker) {
+            csv = ["serial,imei","FMB920SN7845621,356938035643801","FMB920SN7845622,356938035643802"].join("\n");
+            window.FINEMARK_CSV_UTILS?.downloadCsv?.("tracker_template.csv", csv);
+          } else {
+            csv = ["serial","FSN98342001","FSN98342002","FSN98342003"].join("\n");
+            window.FINEMARK_CSV_UTILS?.downloadCsv?.("serial_template.csv", csv);
+          }
+        };
+
+        const handleCsvImport = async (file) => {
+          try {
+            const text = await file.text();
+            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l && !/^serial/i.test(l));
+            // Normalise comma-separated serial,imei rows
+            const normalised = lines.map(l => l.replace(",", " "));
+            appendEntries(normalised);
+            showToast?.(`Imported ${normalised.length} entries from CSV.`, "success");
+          } catch (err) {
+            showToast?.(err?.message || "Failed to import CSV.", "error");
+          } finally {
+            csvInput.value = "";
+          }
+        };
+
+        // ── Event listeners ──────────────────────────────────────────────────────
+        serialInput.addEventListener("input", updateCounts);
+        serialInput.addEventListener("blur", updateCounts);
+        priceInput.addEventListener("input", () => { updateMargin(); updateCounts(); });
+        sellingPriceInput.addEventListener("input", () => { updateMargin(); updateCounts(); });
+        discountMin.addEventListener("input", () => {
+          // Clamp min ≤ max
+          const mn = parseFloat(discountMin.value);
+          const mx = parseFloat(discountMax.value);
+          if (!isNaN(mn) && !isNaN(mx) && mn > mx) discountMax.value = discountMin.value;
+        });
+        discountMax.addEventListener("input", () => {
+          const mn = parseFloat(discountMin.value);
+          const mx = parseFloat(discountMax.value);
+          if (!isNaN(mn) && !isNaN(mx) && mx < mn) discountMin.value = discountMax.value;
+        });
+        batchSelect.addEventListener("change", () => updateCounts());
+
+        document.getElementById("remove-duplicates").addEventListener("click", removeDuplicates);
+        document.getElementById("download-template").addEventListener("click", downloadTemplate);
+        document.getElementById("import-csv").addEventListener("click", () => csvInput.click());
+        document.getElementById("clear-serials").addEventListener("click", () => {
+          serialInput.value = "";
+          updateCounts();
+        });
+        csvInput.addEventListener("change", (e) => {
+          const file = e.target.files?.[0];
+          if (file) handleCsvImport(file);
+        });
+
+        // ── Form submit ──────────────────────────────────────────────────────────
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const { valid } = updateCounts();
+          if (createBtn.disabled) return;
+
+          const ref = consignmentRef.value.trim() || autoRef;
+          const payload = {
+            consignmentRef:      ref,
+            supplier:            document.getElementById("supplier-name").value.trim(),
+            distributor:         document.getElementById("distributor-name").value.trim(),
+            countryOfOrigin:     document.getElementById("country-of-origin").value.trim(),
+            warehouseDestination:document.getElementById("warehouse-destination").value,
+            arrivalDate:         document.getElementById("arrival-date").value,
+            shipmentMethod:      document.getElementById("shipment-method").value,
+            totalPurchaseValue:  Number(document.getElementById("total-purchase-value").value) || 0,
+            purchaseCurrency:    document.getElementById("purchase-currency").value,
+            totalUnitsConsignment: Number(document.getElementById("total-units-consignment").value) || valid.length,
+            gadgetType:          typeSelect.value,
+            productCode:         productCode.value.trim(),
+            deviceModel:         deviceModel.value.trim(),
+            warehouseLocation:   warehouseSelect.value,
+            warrantyPeriod:      Number(warrantyInput.value) || 0,
+            deviceStatus:        statusSelect.value,
+            batchNumber:         Number(batchSelect.value),
+            buyingPricePerUnit:  Number(priceInput.value),
+            buyingCurrency:      document.getElementById("price-currency").value,
+            sellingPricePerUnit: Number(sellingPriceInput.value) || 0,
+            sellingCurrency:     document.getElementById("selling-currency").value,
+            discountMinPercent:  parseFloat(discountMin.value) || 0,
+            discountMaxPercent:  parseFloat(discountMax.value) || 0,
+            numberOfDevices:     valid.length,
+            devices:             valid.map(e => ({ serial: e.serial, imei: e.imei || null })),
+            createdAt:           new Date().toISOString(),
+          };
+
+          setLoading?.(createBtn, true, "Saving...");
+          try {
+            await apiFetch?.("/gadgets/batches", { method: "POST", body: payload });
+            showToast?.(`✅ ${valid.length} device(s) added to inventory (${ref})`, "success");
+          } catch (error) {
+            // Offline fallback
+            const key = "finemark_gadget_batches";
+            const existing = JSON.parse(localStorage.getItem(key) || "[]");
+            existing.unshift(payload);
+            localStorage.setItem(key, JSON.stringify(existing));
+            showToast?.(`✅ ${valid.length} device(s) saved locally (${ref})`, "success");
+          } finally {
+            form.reset();
+            deviceCount.value = "0";
+            deviceCountBadge.textContent = "0 devices";
+            updateCounts();
+            setLoading?.(createBtn, false);
+            // Re-populate batch options after reset
+            if (!batchSelect.options.length) {
+              for (let i = 1; i <= 100; i++) {
+                const opt = document.createElement("option");
+                opt.value = String(i); opt.textContent = String(i);
+                batchSelect.appendChild(opt);
+              }
+            }
+          }
+        });
+
+        updateCounts();
+      });
+    </script>
+</body>
+</html>

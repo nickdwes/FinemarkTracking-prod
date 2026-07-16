@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Sales Intelligence</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <script src="assets/chart.umd.min.js"></script>
+  <style>
+    @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+    .fade-in{animation:fadeIn .22s ease;}
+    .metric-card{background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;padding:1.1rem 1.35rem;box-shadow:0 1px 3px rgba(0,0,0,.06);transition:box-shadow .15s;}
+    .metric-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1);}
+    .badge{display:inline-flex;align-items:center;border-radius:9999px;padding:.15rem .6rem;font-size:.7rem;font-weight:600;border-width:1px;}
+    .badge-all{background:#eef2ff;color:#4338ca;border-color:#c7d2fe;}
+    .badge-team{background:#fff7ed;color:#c2410c;border-color:#fed7aa;}
+    .badge-own{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}
+    .date-btn{border-radius:.4rem;padding:.4rem .65rem;font-size:.72rem;font-weight:600;}
+    .chart-card{background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;padding:1.25rem;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-4 md:p-6 max-w-[1440px] mx-auto space-y-6">
+
+    <div class="flex flex-wrap items-center gap-3 justify-between">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Sales Intelligence</h1>
+        <p class="text-sm text-slate-500 mt-0.5">Pipeline · Revenue · Customers · Activity — one view of everything sales</p>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <span id="scope-badge" class="badge badge-own">Loading…</span>
+        <div class="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 text-xs shadow-sm">
+          <button class="date-btn bg-slate-900 text-white" data-days="30">30d</button>
+          <button class="date-btn text-slate-500 hover:bg-slate-100" data-days="90">90d</button>
+          <button class="date-btn text-slate-500 hover:bg-slate-100" data-days="365">1yr</button>
+        </div>
+        <a href="sales-reports.html" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 shadow-sm">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m6 10V11M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          Open Reports
+        </a>
+      </div>
+    </div>
+
+    <div id="load-error" class="hidden rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm text-rose-700"></div>
+
+    <!-- KPI cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-4 fade-in">
+      <div class="metric-card">
+        <p class="text-xs text-slate-500 font-medium mb-1">Total Leads</p>
+        <p id="kpi-total-leads" class="text-2xl font-bold text-slate-900">—</p>
+        <p id="kpi-leads-sub" class="text-xs text-slate-400 mt-0.5">—</p>
+      </div>
+      <div class="metric-card">
+        <p class="text-xs text-slate-500 font-medium mb-1">Conversion Rate</p>
+        <p id="kpi-conv-rate" class="text-2xl font-bold text-green-600">—</p>
+        <p class="text-xs text-slate-400 mt-0.5">leads → converted</p>
+      </div>
+      <div class="metric-card">
+        <p class="text-xs text-slate-500 font-medium mb-1">Quote Value</p>
+        <p id="kpi-quote-value" class="text-2xl font-bold text-indigo-600">—</p>
+        <p id="kpi-quote-sub" class="text-xs text-slate-400 mt-0.5">—</p>
+      </div>
+      <div class="metric-card">
+        <p class="text-xs text-slate-500 font-medium mb-1">Quote Win Rate</p>
+        <p id="kpi-win-rate" class="text-2xl font-bold text-amber-600">—</p>
+        <p class="text-xs text-slate-400 mt-0.5">accepted / sent</p>
+      </div>
+      <div class="metric-card col-span-2 md:col-span-1">
+        <p class="text-xs text-slate-500 font-medium mb-1">Invoiced Revenue</p>
+        <p id="kpi-invoiced" class="text-2xl font-bold text-emerald-600">—</p>
+        <p id="kpi-invoiced-sub" class="text-xs text-slate-400 mt-0.5">—</p>
+      </div>
+      <div class="metric-card">
+        <p class="text-xs text-slate-500 font-medium mb-1">Outstanding</p>
+        <p id="kpi-outstanding" class="text-2xl font-bold text-rose-600">—</p>
+        <p class="text-xs text-slate-400 mt-0.5">unpaid invoices</p>
+      </div>
+      <div class="metric-card">
+        <p class="text-xs text-slate-500 font-medium mb-1">Active Customers</p>
+        <p id="kpi-active-customers" class="text-2xl font-bold text-slate-900">—</p>
+        <p class="text-xs text-slate-400 mt-0.5">all-time</p>
+      </div>
+      <div class="metric-card">
+        <p class="text-xs text-slate-500 font-medium mb-1">New Customers</p>
+        <p id="kpi-new-customers" class="text-2xl font-bold text-blue-600">—</p>
+        <p class="text-xs text-slate-400 mt-0.5">in period</p>
+      </div>
+      <div class="metric-card">
+        <p class="text-xs text-slate-500 font-medium mb-1">Communications</p>
+        <p id="kpi-comms" class="text-2xl font-bold text-slate-900">—</p>
+        <p class="text-xs text-slate-400 mt-0.5">logged in period</p>
+      </div>
+    </div>
+
+    <!-- Charts row 1: funnel + source -->
+    <div class="grid lg:grid-cols-2 gap-5 fade-in">
+      <div class="chart-card">
+        <h2 class="text-sm font-semibold text-slate-800 mb-3">Lead Status Funnel</h2>
+        <div class="relative h-64"><canvas id="lead-status-chart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2 class="text-sm font-semibold text-slate-800 mb-3">Lead Source Breakdown</h2>
+        <div class="relative h-64"><canvas id="lead-source-chart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Charts row 2: revenue trend -->
+    <div class="chart-card fade-in">
+      <h2 class="text-sm font-semibold text-slate-800 mb-3">Revenue Trend — Quote Value vs Invoiced (monthly)</h2>
+      <div class="relative h-72"><canvas id="revenue-trend-chart"></canvas></div>
+    </div>
+
+    <!-- Charts row 3: quote status + comms channel -->
+    <div class="grid lg:grid-cols-2 gap-5 fade-in">
+      <div class="chart-card">
+        <h2 class="text-sm font-semibold text-slate-800 mb-3">Quote Status Breakdown</h2>
+        <div class="relative h-64"><canvas id="quote-status-chart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2 class="text-sm font-semibold text-slate-800 mb-3">Communication Channel Activity</h2>
+        <div class="relative h-64"><canvas id="comms-channel-chart"></canvas></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div id="fm-footer"></div>
+
+<script src="assets/app.js?v=202607111100"></script>
+<script src="assets/layout.js?v=202607111100"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  window.FINEMARK_APP?.requirePageAccess?.();
+  init();
+});
+
+const APP = window.FINEMARK_APP;
+const $ = (id) => document.getElementById(id);
+const _charts = {};
+function destroyChart(id) { if (_charts[id]) { _charts[id].destroy(); delete _charts[id]; } }
+
+const PALETTE = ["#6366f1", "#34d399", "#f59e0b", "#f472b6", "#38bdf8", "#a78bfa", "#fb7185", "#4ade80", "#94a3b8"];
+
+function fmtMoney(n) {
+  n = Number(n) || 0;
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(0)}K`;
+  return n.toFixed(0);
+}
+function fmtPct(n) { return `${(Number(n) || 0).toFixed(1)}%`; }
+
+let _days = 90;
+
+function currentRange() {
+  const to = new Date();
+  const from = new Date();
+  if (_days > 0) from.setDate(from.getDate() - _days);
+  else from.setFullYear(from.getFullYear() - 1);
+  return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
+}
+
+async function init() {
+  document.querySelectorAll(".date-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".date-btn").forEach((b) => { b.classList.remove("bg-slate-900", "text-white"); b.classList.add("text-slate-500"); });
+      btn.classList.add("bg-slate-900", "text-white"); btn.classList.remove("text-slate-500");
+      _days = Number(btn.dataset.days);
+      load();
+    });
+  });
+  await load();
+}
+
+async function load() {
+  $("load-error").classList.add("hidden");
+  try {
+    const { from, to } = currentRange();
+    const res = await APP.apiFetch(`/sales-intelligence/summary?from=${from}&to=${to}`);
+    render(res);
+  } catch (e) {
+    $("load-error").textContent = e?.message || "Failed to load sales intelligence data.";
+    $("load-error").classList.remove("hidden");
+  }
+}
+
+function render(res) {
+  const scopeEl = $("scope-badge");
+  const scopeMap = {
+    all: { label: "All Sales", cls: "badge-all" },
+    team: { label: "My Team", cls: "badge-team" },
+    own: { label: "My Records", cls: "badge-own" },
+  };
+  const s = scopeMap[res.scope] || scopeMap.own;
+  scopeEl.textContent = s.label;
+  scopeEl.className = `badge ${s.cls}`;
+
+  const k = res.kpis || {};
+  $("kpi-total-leads").textContent = k.totalLeads ?? 0;
+  $("kpi-leads-sub").textContent = `${k.corporateLeads ?? 0} corporate · ${k.retailLeads ?? 0} retail`;
+  $("kpi-conv-rate").textContent = fmtPct(k.conversionRate);
+  $("kpi-quote-value").textContent = `KES ${fmtMoney(k.totalQuoteValue)}`;
+  $("kpi-quote-sub").textContent = `${k.totalQuotes ?? 0} quotes`;
+  $("kpi-win-rate").textContent = fmtPct(k.quoteWinRate);
+  $("kpi-invoiced").textContent = `KES ${fmtMoney(k.totalInvoicedRevenue)}`;
+  $("kpi-invoiced-sub").textContent = `${k.totalInvoices ?? 0} invoices · KES ${fmtMoney(k.paidRevenue)} paid`;
+  $("kpi-outstanding").textContent = `KES ${fmtMoney(k.outstandingRevenue)}`;
+  $("kpi-active-customers").textContent = k.activeCustomers ?? 0;
+  $("kpi-new-customers").textContent = k.newCustomers ?? 0;
+  $("kpi-comms").textContent = k.totalCommunications ?? 0;
+
+  const c = res.charts || {};
+  renderBarChart("lead-status-chart", c.leadStatus, "#6366f1");
+  renderBarChart("lead-source-chart", c.leadSource, "#38bdf8");
+  renderBarChart("quote-status-chart", c.quoteStatus, "#f59e0b");
+  renderBarChart("comms-channel-chart", c.communicationChannel, "#34d399");
+  renderRevenueTrend(c.revenueTrend || []);
+}
+
+function renderBarChart(canvasId, rows, color) {
+  destroyChart(canvasId);
+  const el = $(canvasId);
+  if (!el) return;
+  rows = rows || [];
+  if (!rows.length) {
+    const ctx = el.getContext("2d");
+    ctx.clearRect(0, 0, el.width, el.height);
+    return;
+  }
+  _charts[canvasId] = new Chart(el.getContext("2d"), {
+    type: "bar",
+    data: {
+      labels: rows.map((r) => r.label),
+      datasets: [{ label: "Count", data: rows.map((r) => r.count), backgroundColor: rows.map((_, i) => PALETTE[i % PALETTE.length]), borderRadius: 4 }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0, font: { size: 10 } } }, x: { ticks: { font: { size: 9 } } } },
+    },
+  });
+}
+
+function renderRevenueTrend(rows) {
+  destroyChart("revenue-trend-chart");
+  const el = $("revenue-trend-chart");
+  if (!el) return;
+  _charts["revenue-trend-chart"] = new Chart(el.getContext("2d"), {
+    data: {
+      labels: rows.map((r) => r.month),
+      datasets: [
+        { type: "line", label: "Quote Value", data: rows.map((r) => r.quoteValue), borderColor: "#6366f1", backgroundColor: "rgba(99,102,241,.08)", tension: 0.35, fill: true, pointRadius: 3 },
+        { type: "line", label: "Invoiced", data: rows.map((r) => r.invoicedValue), borderColor: "#10b981", backgroundColor: "rgba(16,185,129,.08)", tension: 0.35, fill: true, pointRadius: 3 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { font: { size: 10 }, boxWidth: 10 } } },
+      scales: { y: { beginAtZero: true, ticks: { font: { size: 9 } } }, x: { ticks: { font: { size: 9 } } } },
+    },
+  });
+}
+</script>
+</body>
+</html>

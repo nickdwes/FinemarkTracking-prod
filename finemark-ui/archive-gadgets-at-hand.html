@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Archive — Gadgets At Hand</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-6xl mx-auto space-y-6">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div><h1 class="text-3xl font-semibold tracking-tight text-slate-900">Gadgets At Hand</h1>
+              <p class="text-sm text-slate-600">Archived IDTS gadget allocations — historical reference only. Transfer/OTP actions from the original page aren't part of the archive; use the live CRM's device custody module for that.</p></div>
+            <div id="badge-slot"></div>
+          </div>
+          <section class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm space-y-4">
+            <div class="grid gap-4 md:grid-cols-3">
+              <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Batch</label>
+                <select id="f-batch" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"><option value="">All</option></select></div>
+              <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Technician</label>
+                <select id="f-technician" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"><option value="">All</option></select></div>
+              <div class="flex items-end"><button id="filter" class="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Filter</button></div>
+            </div>
+          </section>
+          <section class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm space-y-3">
+            <h2 class="text-sm font-semibold text-slate-700">Gadgets At Hand (allocated, not yet installed)</h2>
+            <div class="overflow-x-auto"><table class="w-full text-sm min-w-[800px]">
+              <thead class="text-left text-slate-500 text-xs uppercase border-b border-slate-200"><tr><th class="py-2">S/N</th><th class="py-2">Batch</th><th class="py-2">IMEI</th><th class="py-2">Type</th><th class="py-2">Technician</th><th class="py-2">SIM</th><th class="py-2">Arrival</th></tr></thead>
+              <tbody id="rows-hand" class="divide-y divide-slate-100"></tbody>
+            </table></div>
+          </section>
+          <section class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm space-y-3">
+            <h2 class="text-sm font-semibold text-slate-700">Remaining Gadgets in Store</h2>
+            <div class="overflow-x-auto"><table class="w-full text-sm min-w-[600px]">
+              <thead class="text-left text-slate-500 text-xs uppercase border-b border-slate-200"><tr><th class="py-2">S/N</th><th class="py-2">Batch</th><th class="py-2">IMEI</th><th class="py-2">Type</th><th class="py-2">Arrival</th></tr></thead>
+              <tbody id="rows-store" class="divide-y divide-slate-100"></tbody>
+            </table></div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+    <script src="assets/contracts.js"></script>
+    <script src="assets/app.js"></script>
+    <script src="assets/layout.js"></script>
+    <script src="assets/archive-common.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", async () => {
+        if ((await ArchiveCommon.gate()) === false) return;
+        document.getElementById("badge-slot").innerHTML = ArchiveCommon.readOnlyBadge;
+        init();
+      });
+      const $ = (id) => document.getElementById(id);
+      async function loadBatches() {
+        try {
+          const res = await window.FINEMARK_APP.apiFetch("/archive/gadget-batches");
+          (res.data || res).forEach((b) => { const o = document.createElement("option"); o.value = b; o.textContent = b; $("f-batch").appendChild(o); });
+        } catch (e) { /* non-fatal */ }
+      }
+      async function load() {
+        const f = {};
+        if ($("f-batch").value) f.batch = $("f-batch").value;
+        if ($("f-technician").value) f.technician = $("f-technician").value;
+        const qs = new URLSearchParams(f).toString();
+        $("rows-hand").innerHTML = `<tr><td colspan="7" class="text-center text-slate-400 py-8">Loading…</td></tr>`;
+        try {
+          const res = await window.FINEMARK_APP.apiFetch(`/archive/gadgets-at-hand?${qs}`);
+          const d = res.data || res;
+          $("f-technician").innerHTML = `<option value="">All</option>` + d.technicianCounts.map((t) => `<option value="${ArchiveCommon.escapeHtml(t.technician)}" ${f.technician === t.technician ? "selected" : ""}>${ArchiveCommon.escapeHtml(t.technician)} (${t.gadgetCount})</option>`).join("");
+          $("rows-hand").innerHTML = d.outOfStore.length
+            ? d.outOfStore.map((g, i) => `<tr><td class="py-2">${i + 1}</td><td class="py-2">${ArchiveCommon.escapeHtml(g.batch)}</td><td class="py-2 font-mono">${ArchiveCommon.escapeHtml(g.imei)}</td><td class="py-2">${ArchiveCommon.escapeHtml(g.gadgetType)}</td><td class="py-2">${ArchiveCommon.escapeHtml(g.technician)}</td><td class="py-2 font-mono">${ArchiveCommon.escapeHtml(g.msisdn || "N/A")}</td><td class="py-2">${ArchiveCommon.escapeHtml(g.arrivalDate)}</td></tr>`).join("")
+            : `<tr><td colspan="7" class="text-center text-slate-400 py-8">No gadgets out of store found.</td></tr>`;
+          $("rows-store").innerHTML = d.remainingInStore.length
+            ? d.remainingInStore.map((g, i) => `<tr><td class="py-2">${i + 1}</td><td class="py-2">${ArchiveCommon.escapeHtml(g.batch)}</td><td class="py-2 font-mono">${ArchiveCommon.escapeHtml(g.imei)}</td><td class="py-2">${ArchiveCommon.escapeHtml(g.gadgetType)}</td><td class="py-2">${ArchiveCommon.escapeHtml(g.arrivalDate)}</td></tr>`).join("")
+            : `<tr><td colspan="5" class="text-center text-slate-400 py-8">No gadgets remaining in store found.</td></tr>`;
+        } catch (e) {
+          $("rows-hand").innerHTML = `<tr><td colspan="7" class="text-center text-rose-600 py-8">${ArchiveCommon.escapeHtml(e.message)}</td></tr>`;
+        }
+      }
+      function init() { loadBatches(); load(); $("filter").addEventListener("click", load); }
+    </script>
+  </body>
+</html>

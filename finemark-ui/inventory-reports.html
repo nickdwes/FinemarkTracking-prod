@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Inventory Reports</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    .tab-btn{padding:.4rem 1rem;border-radius:.5rem;font-size:.8rem;font-weight:500;color:#475569;transition:all .15s;white-space:nowrap;cursor:pointer;}
+    .tab-btn:hover{background:#fff;color:#0f172a;}
+    .tab-btn.active{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);color:#0f172a;font-weight:700;}
+    table.report-table th{position:sticky;top:0;background:#f8fafc;text-align:left;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:#64748b;padding:.55rem .75rem;border-bottom:1px solid #e2e8f0;white-space:nowrap;}
+    table.report-table td{padding:.55rem .75rem;font-size:.8rem;border-bottom:1px solid #f1f5f9;color:#334155;white-space:nowrap;}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-3 sm:p-6 min-w-0 space-y-5">
+
+    <div class="flex flex-wrap items-center gap-3 justify-between">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Inventory Reports</h1>
+        <p class="text-sm text-slate-500 mt-0.5">Search, filter, configure columns, and export inventory data across every dataset.</p>
+      </div>
+    </div>
+
+    <!-- Report type tabs -->
+    <div id="report-tabs" class="flex items-center gap-1 rounded-xl bg-slate-100 p-1 overflow-x-auto"></div>
+
+    <!-- Filter bar -->
+    <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+      <div id="filter-fields" class="grid gap-3 md:grid-cols-4"></div>
+      <div class="flex flex-wrap items-center gap-3">
+        <button id="btn-apply" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Apply</button>
+        <button id="btn-reset" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Reset</button>
+        <button id="btn-export" class="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100">Export CSV</button>
+        <div class="relative">
+          <button id="btn-columns" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/></svg>
+            Columns
+          </button>
+          <div id="columns-panel" class="hidden absolute left-0 z-20 mt-2 w-72 max-h-96 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg p-3 space-y-1">
+            <div class="flex items-center justify-between pb-2 mb-1 border-b border-slate-100">
+              <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Show columns</span>
+              <div class="flex gap-2">
+                <button id="cols-all" class="text-xs font-medium text-blue-600 hover:text-blue-800">All</button>
+                <button id="cols-default" class="text-xs font-medium text-blue-600 hover:text-blue-800">Default</button>
+              </div>
+            </div>
+            <div id="columns-list" class="space-y-1"></div>
+          </div>
+        </div>
+        <span id="result-count" class="text-xs text-slate-500 ml-auto"></span>
+      </div>
+    </div>
+
+    <!-- Results table -->
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      <div class="overflow-x-auto max-h-[560px]">
+        <table class="report-table min-w-full">
+          <thead id="table-head"></thead>
+          <tbody id="table-body"><tr><td class="text-center py-10 text-slate-400">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div id="pagination" class="flex items-center justify-between gap-3 px-4 py-3 border-t border-slate-100 text-xs text-slate-500"></div>
+    </div>
+
+  </main>
+</div>
+
+<div id="fm-footer"></div>
+
+<script src="assets/app.js?v=202607161500"></script>
+<script src="assets/layout.js?v=202607161500"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  window.FINEMARK_APP?.requirePageAccess?.();
+  init();
+});
+
+const APP = window.FINEMARK_APP;
+const $ = (id) => document.getElementById(id);
+const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const DEVICE_STATUSES = ["In Stock", "Reserved", "Issued for Installation", "Installed", "Returned", "Defective", "Sent to Supplier"];
+const SIM_STATUSES = ["available", "issued", "installed", "suspended", "retired"];
+const MOVEMENT_ACTIONS = ["RECEIVED", "ISSUED_TO_TECHNICIAN", "INSTALLED", "RETURNED_TO_INVENTORY", "ACKNOWLEDGED", "ISO_ASSISTED_TRANSFER", "RETURNED_FOR_TRANSFER"];
+
+// ── Report configs. server mode: paginated endpoint + query-param filters.
+//    client mode: fetch a full array once, then filter/paginate in-browser. ──
+const REPORTS = {
+  "device-ledger": {
+    label: "Device Ledger",
+    mode: "server",
+    endpoint: "/inventory/items",
+    rowsOf: (r) => r?.data || [],
+    totalOf: (r) => r?.meta?.total || 0,
+    searchPlaceholder: "IMEI, serial, model, product…",
+    filters: [
+      { id: "status", type: "select", label: "Status", options: DEVICE_STATUSES },
+      { id: "dateFrom", type: "date", label: "Received From" },
+      { id: "dateTo", type: "date", label: "Received To" },
+    ],
+    columns: [
+      ["product_code", "Code"], ["product_name", "Product"], ["device_model", "Model"], ["category_name", "Category"],
+      ["imei", "IMEI"], ["serial_number", "Serial"], ["status", "Status"],
+      ["warehouse_location", "Location"], ["supplier_name", "Supplier"], ["batch_number", "Batch"],
+      ["issued_to_name", "Held By"], ["job_customer_name", "Customer"], ["job_vehicle_reg", "Vehicle"],
+      ["purchase_date", "Purchased"], ["warranty_expires_at", "Warranty Exp"], ["created_at", "Received"],
+    ],
+    defaultCols: ["product_code", "product_name", "device_model", "imei", "status", "warehouse_location", "issued_to_name", "job_customer_name", "created_at"],
+  },
+  "sims": {
+    label: "SIM Cards",
+    mode: "server",
+    endpoint: "/inventory/sims",
+    rowsOf: (r) => r?.data || [],
+    totalOf: (r) => r?.total || 0,
+    searchPlaceholder: "ICCID, IMSI, MSISDN, operator…",
+    filters: [
+      { id: "status", type: "select", label: "Status", options: SIM_STATUSES },
+      { id: "operator", type: "text", label: "Operator" },
+    ],
+    columns: [
+      ["iccid", "ICCID"], ["imsi", "IMSI"], ["msisdn", "MSISDN"], ["operator", "Operator"], ["plan", "Plan"],
+      ["sim_type", "Type"], ["status", "Status"], ["batch_ref", "Batch"],
+      ["activation_date", "Activated"], ["expiry_date", "Expiry"],
+      ["issued_to_name", "Held By"], ["job_customer_name", "Customer"], ["job_vehicle_reg", "Vehicle"],
+      ["technician_email", "Technician"], ["iso_name", "ISO"], ["device_model", "Paired Device"],
+      ["installed_at", "Installed"], ["created_at", "Received"],
+    ],
+    defaultCols: ["iccid", "msisdn", "operator", "status", "batch_ref", "issued_to_name", "job_customer_name", "installed_at"],
+  },
+  "stock-levels": {
+    label: "Stock Levels",
+    mode: "client",
+    // Reuses the dashboard aggregate (per-product status breakdown) — small,
+    // fixed list, so load once and filter/paginate client-side.
+    load: async () => {
+      const r = await APP.apiFetch("/inventory/items/dashboard-detail");
+      return (r?.data?.byCategoryProduct || []).map((p) => {
+        const effective = Number(p.in_stock || 0) + Number(p.reserved || 0) + Number(p.issued || 0);
+        return { ...p, effective_stock: effective, below_reorder: (Number(p.reorder_level) || 0) >= effective ? "Yes" : "No" };
+      });
+    },
+    searchPlaceholder: "Product, model, category…",
+    filters: [{ id: "belowReorderOnly", type: "checkbox", label: "Below reorder only" }],
+    clientFilter: (rows, vals) => {
+      if (vals.belowReorderOnly) rows = rows.filter((r) => r.below_reorder === "Yes");
+      return rows;
+    },
+    columns: [
+      ["category_name", "Category"], ["product_code", "Code"], ["product_name", "Product"], ["device_model", "Model"],
+      ["in_stock", "In Stock"], ["reserved", "Reserved"], ["issued", "Issued"], ["installed", "Installed"],
+      ["returned", "Returned"], ["defective", "Defective"], ["to_supplier", "To Supplier"],
+      ["total", "Total"], ["effective_stock", "Effective"], ["reorder_level", "Reorder At"], ["below_reorder", "Below Reorder"],
+    ],
+    defaultCols: ["category_name", "product_code", "product_name", "in_stock", "issued", "installed", "total", "reorder_level", "below_reorder"],
+    numberCols: ["in_stock", "reserved", "issued", "installed", "returned", "defective", "to_supplier", "total", "effective_stock", "reorder_level"],
+  },
+  "installed-gadgets": {
+    label: "Installed Gadgets",
+    mode: "client",
+    // Only devices actually installed on a customer's vehicle. Small set
+    // (~hundreds), so load all installed items once and search/filter/export
+    // client-side across every column (customer, vehicle, rep, technician…).
+    load: async () => {
+      const rows = [];
+      for (let p = 1; p <= 10; p++) {
+        const r = await APP.apiFetch(`/inventory/items?status=Installed&page=${p}&pageSize=500`);
+        const batch = r?.data || [];
+        rows.push(...batch);
+        if (batch.length < 500) break;
+      }
+      return rows;
+    },
+    searchPlaceholder: "Customer, vehicle, IMEI, rep, technician…",
+    filters: [
+      { id: "instFrom", type: "date", label: "Installed From" },
+      { id: "instTo", type: "date", label: "Installed To" },
+      { id: "unlinkedOnly", type: "checkbox", label: "Only missing customer/vehicle" },
+    ],
+    clientFilter: (rows, vals) => {
+      // installation_date is an ISO timestamp; the date inputs give yyyy-mm-dd,
+      // so compare on the date portion (ISO strings sort lexicographically).
+      if (vals.instFrom) rows = rows.filter((r) => r.installation_date && r.installation_date.slice(0, 10) >= vals.instFrom);
+      if (vals.instTo)   rows = rows.filter((r) => r.installation_date && r.installation_date.slice(0, 10) <= vals.instTo);
+      if (vals.unlinkedOnly) rows = rows.filter((r) => !r.job_customer_name && !r.job_vehicle_reg);
+      return rows;
+    },
+    columns: [
+      ["product_code", "Code"], ["product_name", "Product"], ["device_model", "Model"],
+      ["imei", "IMEI"], ["serial_number", "Serial"],
+      ["job_customer_name", "Customer"], ["job_vehicle_reg", "Vehicle"],
+      ["sales_rep_name", "Sales Rep"], ["technician_name", "Technician"], ["iso_name", "ISO"],
+      ["installation_date", "Installation Date"], ["ticket_no", "Ticket"],
+      ["partner_bank", "Partner Bank"], ["loan_term_months", "Loan Term (Months)"], ["quote_amount", "Quotation Price (KES)"],
+      ["invoice_no", "Invoice"], ["invoice_status", "Invoice Status"],
+      ["paired_sim_iccid", "Paired SIM"], ["warehouse_location", "Location"],
+    ],
+    defaultCols: ["product_name", "device_model", "imei", "job_customer_name", "job_vehicle_reg", "sales_rep_name", "technician_name", "iso_name", "installation_date", "partner_bank", "loan_term_months", "quote_amount", "invoice_no", "invoice_status"],
+    numberCols: ["loan_term_months", "quote_amount"],
+  },
+  "movements": {
+    label: "Movements",
+    mode: "server",
+    endpoint: "/inventory/items/movements",
+    rowsOf: (r) => r?.data || [],
+    totalOf: (r) => r?.meta?.total || 0,
+    searchPlaceholder: "IMEI, serial, product, email…",
+    filters: [
+      { id: "action", type: "select", label: "Action", options: MOVEMENT_ACTIONS },
+      { id: "dateFrom", type: "date", label: "From" },
+      { id: "dateTo", type: "date", label: "To" },
+    ],
+    columns: [
+      ["created_at", "When"], ["action", "Action"], ["product_code", "Code"], ["product_name", "Product"],
+      ["device_model", "Model"], ["imei", "IMEI"], ["serial_number", "Serial"],
+      ["from_status", "From Status"], ["to_status", "To Status"],
+      ["from_location", "From"], ["to_location", "To"], ["performed_by_email", "By"], ["notes", "Notes"],
+    ],
+    defaultCols: ["created_at", "action", "product_code", "imei", "from_status", "to_status", "performed_by_email"],
+  },
+};
+
+let _activeReport = "device-ledger";
+let _page = 1;
+const _pageSize = 50;
+let _total = 0;
+let _clientAll = null;   // full array cache for client-mode reports
+let _clientFiltered = [];
+
+// ── configurable columns (persisted per report) ──
+const COLS_KEY = (k) => `fm_inv_report_cols_${k}`;
+const defaultColsFor = (k) => REPORTS[k].defaultCols || REPORTS[k].columns.map(([c]) => c);
+function visibleColsFor(k) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(COLS_KEY(k)) || "null");
+    if (Array.isArray(saved) && saved.length) {
+      const valid = new Set(REPORTS[k].columns.map(([c]) => c));
+      const f = saved.filter((c) => valid.has(c));
+      if (f.length) return f;
+    }
+  } catch {}
+  return defaultColsFor(k);
+}
+const setVisibleColsFor = (k, cols) => { try { localStorage.setItem(COLS_KEY(k), JSON.stringify(cols)); } catch {} };
+function activeColumns() {
+  const vis = new Set(visibleColsFor(_activeReport));
+  return REPORTS[_activeReport].columns.filter(([c]) => vis.has(c));
+}
+
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const DATETIME_RE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/;
+function fmtVal(key, v) {
+  const cfg = REPORTS[_activeReport];
+  if (cfg.numberCols && cfg.numberCols.includes(key)) return Number(v ?? 0).toLocaleString();
+  if (typeof v === "string" && (DATE_ONLY_RE.test(v) || DATETIME_RE.test(v))) {
+    const d = new Date(v);
+    if (!isNaN(d.getTime())) return DATE_ONLY_RE.test(v)
+      ? d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+      : d.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+  return v;
+}
+
+// ── tabs ──
+function renderTabs() {
+  const wrap = $("report-tabs");
+  wrap.innerHTML = Object.entries(REPORTS).map(([k, cfg]) =>
+    `<button class="tab-btn${k === _activeReport ? " active" : ""}" data-report="${k}">${escapeHtml(cfg.label)}</button>`).join("");
+  wrap.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      _activeReport = btn.dataset.report;
+      _page = 1; _clientAll = null;
+      wrap.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      renderFilterFields();
+      loadReport();
+    });
+  });
+}
+
+// ── filter fields ──
+function renderFilterFields() {
+  const cfg = REPORTS[_activeReport];
+  const fields = [{ id: "search", label: "Search", type: "text", placeholder: cfg.searchPlaceholder || "Search", span: 2 }, ...(cfg.filters || [])];
+  $("filter-fields").innerHTML = fields.map((f) => {
+    let input;
+    if (f.type === "select") {
+      input = `<select id="f-${f.id}" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white"><option value="">All</option>${f.options.map((o) => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join("")}</select>`;
+    } else if (f.type === "checkbox") {
+      input = `<label class="mt-2 flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" id="f-${f.id}" class="rounded border-slate-300" /> ${escapeHtml(f.label)}</label>`;
+    } else {
+      input = `<input id="f-${f.id}" type="${f.type}" placeholder="${escapeHtml(f.placeholder || "")}" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />`;
+    }
+    const lbl = f.type === "checkbox" ? "" : `<label class="text-xs font-semibold text-slate-600">${escapeHtml(f.label)}</label>`;
+    return `<div class="${f.span === 2 ? "md:col-span-2" : ""}">${lbl}${input}</div>`;
+  }).join("");
+}
+
+function currentFilterValues() {
+  const cfg = REPORTS[_activeReport];
+  const vals = {};
+  const s = $("f-search"); if (s && s.value.trim()) vals.q = s.value.trim();
+  for (const f of (cfg.filters || [])) {
+    const el = $(`f-${f.id}`);
+    if (!el) continue;
+    if (f.type === "checkbox") { if (el.checked) vals[f.id] = true; }
+    else if (el.value && el.value.trim()) vals[f.id] = el.value.trim();
+  }
+  return vals;
+}
+
+// ── columns picker ──
+function renderColumnsPanel() {
+  const cfg = REPORTS[_activeReport];
+  const vis = new Set(visibleColsFor(_activeReport));
+  $("columns-list").innerHTML = cfg.columns.map(([key, label]) => `
+    <label class="flex items-center gap-2 px-1.5 py-1 rounded-lg hover:bg-slate-50 text-sm text-slate-700 cursor-pointer">
+      <input type="checkbox" data-col="${key}" ${vis.has(key) ? "checked" : ""} class="rounded border-slate-300" /> ${escapeHtml(label)}
+    </label>`).join("");
+  $("columns-list").querySelectorAll("input[type=checkbox]").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      const checked = [...$("columns-list").querySelectorAll("input:checked")].map((c) => c.dataset.col);
+      if (!checked.length) { cb.checked = true; return; }
+      setVisibleColsFor(_activeReport, cfg.columns.map(([c]) => c).filter((c) => checked.includes(c)));
+      renderTableHead(); renderTableBody(_lastRows);
+    });
+  });
+}
+
+// ── table ──
+function renderTableHead() {
+  $("table-head").innerHTML = `<tr>${activeColumns().map(([, label]) => `<th>${escapeHtml(label)}</th>`).join("")}</tr>`;
+}
+let _lastRows = [];
+function renderTableBody(rows) {
+  const cols = activeColumns();
+  _lastRows = rows;
+  $("table-body").innerHTML = rows.length
+    ? rows.map((r) => `<tr class="hover:bg-slate-50/60">${cols.map(([key]) => `<td>${escapeHtml(fmtVal(key, r[key]) ?? "—")}</td>`).join("")}</tr>`).join("")
+    : `<tr><td colspan="${cols.length}" class="text-center py-10 text-slate-400">No records for this filter.</td></tr>`;
+}
+
+// ── load / render ──
+async function loadReport() {
+  const cfg = REPORTS[_activeReport];
+  renderTableHead();
+  renderColumnsPanel();
+  $("table-body").innerHTML = `<tr><td colspan="${activeColumns().length}" class="text-center py-10 text-slate-400">Loading…</td></tr>`;
+  try {
+    if (cfg.mode === "client") {
+      if (!_clientAll) _clientAll = await cfg.load();
+      applyClient();
+    } else {
+      const vals = currentFilterValues();
+      const params = new URLSearchParams({ ...vals, page: _page, pageSize: _pageSize });
+      const res = await APP.apiFetch(`${cfg.endpoint}?${params.toString()}`);
+      _total = cfg.totalOf(res);
+      renderTableBody(cfg.rowsOf(res));
+      renderPagination();
+    }
+  } catch (e) {
+    $("table-body").innerHTML = `<tr><td colspan="${activeColumns().length}" class="text-center py-10 text-rose-500">${escapeHtml(e?.message || "Failed to load report.")}</td></tr>`;
+  }
+}
+
+// client-mode (stock levels): filter the cached array, paginate in-browser
+function applyClient() {
+  const cfg = REPORTS[_activeReport];
+  const vals = currentFilterValues();
+  let rows = _clientAll.slice();
+  if (vals.q) {
+    const q = vals.q.toLowerCase();
+    rows = rows.filter((r) => cfg.columns.some(([k]) => String(r[k] ?? "").toLowerCase().includes(q)));
+  }
+  if (cfg.clientFilter) rows = cfg.clientFilter(rows, vals);
+  _clientFiltered = rows;
+  _total = rows.length;
+  const pages = Math.max(1, Math.ceil(_total / _pageSize));
+  if (_page > pages) _page = pages;
+  renderTableBody(rows.slice((_page - 1) * _pageSize, (_page - 1) * _pageSize + _pageSize));
+  renderPagination();
+}
+
+function renderPagination() {
+  const pages = Math.max(1, Math.ceil(_total / _pageSize));
+  $("result-count").textContent = `${_total.toLocaleString()} result${_total === 1 ? "" : "s"}`;
+  $("pagination").innerHTML = `
+    <span>Page ${_page} of ${pages}</span>
+    <div class="flex gap-2">
+      <button id="pg-prev" class="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40" ${_page <= 1 ? "disabled" : ""}>Prev</button>
+      <button id="pg-next" class="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40" ${_page >= pages ? "disabled" : ""}>Next</button>
+    </div>`;
+  const go = (d) => { _page += d; REPORTS[_activeReport].mode === "client" ? applyClient() : loadReport(); };
+  $("pg-prev")?.addEventListener("click", () => { if (_page > 1) go(-1); });
+  $("pg-next")?.addEventListener("click", () => { if (_page < pages) go(1); });
+}
+
+// ── CSV export — the FILTERED rows with the VISIBLE columns.
+//    server mode: loop-fetch all matching pages (capped). client mode: the
+//    filtered array. ──
+async function exportCsv() {
+  const cfg = REPORTS[_activeReport];
+  const cols = activeColumns();
+  let rows;
+  if (cfg.mode === "client") {
+    rows = _clientFiltered;
+  } else {
+    rows = [];
+    const vals = currentFilterValues();
+    const big = 1000;
+    for (let p = 1; p <= 20; p++) {
+      const params = new URLSearchParams({ ...vals, page: p, pageSize: big });
+      const res = await APP.apiFetch(`${cfg.endpoint}?${params.toString()}`).catch(() => null);
+      const batch = res ? cfg.rowsOf(res) : [];
+      rows.push(...batch);
+      if (batch.length < big) break;
+    }
+  }
+  const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const lines = [cols.map(([, label]) => esc(label)).join(",")];
+  for (const r of rows) lines.push(cols.map(([key]) => esc(fmtVal(key, r[key]))).join(","));
+  const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `${_activeReport}-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+// ── init + wiring ──
+function init() {
+  renderTabs();
+  renderFilterFields();
+  $("btn-apply").addEventListener("click", () => { _page = 1; loadReport(); });
+  $("btn-reset").addEventListener("click", () => { renderFilterFields(); _page = 1; _clientAll = null; loadReport(); });
+  $("btn-export").addEventListener("click", exportCsv);
+  $("btn-columns").addEventListener("click", (e) => { e.stopPropagation(); $("columns-panel").classList.toggle("hidden"); });
+  $("columns-panel").addEventListener("click", (e) => e.stopPropagation());
+  document.addEventListener("click", () => $("columns-panel").classList.add("hidden"));
+  $("cols-all").addEventListener("click", () => { setVisibleColsFor(_activeReport, REPORTS[_activeReport].columns.map(([c]) => c)); renderColumnsPanel(); renderTableHead(); renderTableBody(_lastRows); });
+  $("cols-default").addEventListener("click", () => { setVisibleColsFor(_activeReport, defaultColsFor(_activeReport)); renderColumnsPanel(); renderTableHead(); renderTableBody(_lastRows); });
+  loadReport();
+}
+</script>
+</body>
+</html>

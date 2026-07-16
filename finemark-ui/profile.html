@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | My Profile</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-3xl mx-auto space-y-6">
+
+          <!-- Page title -->
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 class="text-2xl font-semibold tracking-tight text-slate-900">My Profile</h1>
+              <p class="text-sm text-slate-500 mt-0.5">Manage your account details and security settings.</p>
+            </div>
+            <span id="profile-status-badge"
+              class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 border border-slate-200">
+              —
+            </span>
+          </div>
+
+          <!-- Tab bar -->
+          <div class="flex gap-1 border-b border-slate-200">
+            <button id="tab-profile-btn" class="tab-btn px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors" data-tab="profile">My Profile</button>
+            <button id="tab-security-btn" class="tab-btn px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors" data-tab="security">Security</button>
+          </div>
+
+          <!-- ── PROFILE TAB ────────────────────────────────────── -->
+          <div id="tab-profile" class="tab-panel space-y-5">
+
+            <!-- Account info (read-only) -->
+            <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+              <div class="px-5 py-4 border-b border-slate-100">
+                <h2 class="text-sm font-semibold text-slate-700">Account Information</h2>
+              </div>
+              <div class="px-5 py-4 grid sm:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p class="text-xs text-slate-500 mb-0.5">Email</p>
+                  <p id="prof-email" class="font-medium text-slate-900">—</p>
+                </div>
+                <div>
+                  <p class="text-xs text-slate-500 mb-0.5">Role</p>
+                  <p id="prof-role" class="font-medium text-slate-900">—</p>
+                </div>
+                <div>
+                  <p class="text-xs text-slate-500 mb-0.5">Last Login</p>
+                  <p id="prof-login" class="font-medium text-slate-900">—</p>
+                </div>
+                <div id="prof-empno-wrap" class="hidden">
+                  <p class="text-xs text-slate-500 mb-0.5">Employee No.</p>
+                  <p id="prof-empno" class="font-mono font-medium text-teal-700">—</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Display name -->
+            <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+              <div class="px-5 py-4 border-b border-slate-100">
+                <h2 class="text-sm font-semibold text-slate-700">Display Name</h2>
+              </div>
+              <form id="name-form" class="px-5 py-4 space-y-3">
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Full Name</label>
+                  <input id="prof-name-input" type="text" name="name" maxlength="120"
+                    class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
+                    placeholder="Your display name" />
+                  <p class="fm-error hidden text-xs text-rose-600 mt-1" data-error-for="name"></p>
+                </div>
+                <div class="flex justify-end gap-3 pt-1">
+                  <button type="button" id="name-cancel"
+                    class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
+                  <button type="submit" id="name-submit"
+                    class="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800 transition-colors">Save Name</button>
+                </div>
+              </form>
+            </div>
+
+            <!-- Personal details (HR linked only) -->
+            <div id="personal-section" class="hidden bg-white border border-slate-200/80 rounded-xl shadow-sm">
+              <div class="px-5 py-4 border-b border-slate-100">
+                <h2 class="text-sm font-semibold text-slate-700">Personal Details</h2>
+                <p class="text-xs text-slate-400 mt-0.5">Contact information linked to your employee record.</p>
+              </div>
+              <form id="personal-form" class="px-5 py-4 space-y-4">
+                <div class="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Phone Number</label>
+                    <input id="prof-phone" type="tel" name="phone" maxlength="30"
+                      class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
+                      placeholder="+254 7XX XXX XXX" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Work Email</label>
+                    <input id="prof-work-email" type="text"
+                      class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 text-slate-500 cursor-not-allowed"
+                      placeholder="—" readonly />
+                    <p class="text-xs text-slate-400 mt-0.5">Managed by HR — contact admin to update.</p>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Residential Address</label>
+                  <input id="prof-address" type="text" name="residentialAddress" maxlength="300"
+                    class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
+                    placeholder="Street, Area, City" />
+                </div>
+                <!-- Sensitive read-only fields -->
+                <div id="sensitive-section" class="hidden pt-3 border-t border-slate-100">
+                  <p class="text-xs font-medium text-slate-500 mb-3">Sensitive Records <span class="text-slate-400 font-normal">(read-only — contact HR to update)</span></p>
+                  <div class="grid sm:grid-cols-3 gap-4">
+                    <div>
+                      <p class="text-xs text-slate-500 mb-0.5">National ID</p>
+                      <p id="prof-national-id" class="font-mono text-sm font-medium text-slate-800">—</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-slate-500 mb-0.5">KRA PIN</p>
+                      <p id="prof-kra-pin" class="font-mono text-sm font-medium text-slate-800">—</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-slate-500 mb-0.5">Date of Birth</p>
+                      <p id="prof-dob" class="text-sm font-medium text-slate-800">—</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex justify-end gap-3 pt-1">
+                  <button type="button" id="personal-cancel"
+                    class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
+                  <button type="submit" id="personal-submit"
+                    class="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800 transition-colors">Save Details</button>
+                </div>
+              </form>
+            </div>
+
+            <!-- Emergency Contacts -->
+            <div id="emergency-section" class="hidden bg-white border border-slate-200/80 rounded-xl shadow-sm">
+              <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <h2 class="text-sm font-semibold text-slate-700">Emergency Contacts</h2>
+                  <p class="text-xs text-slate-400 mt-0.5">People to contact in an emergency.</p>
+                </div>
+                <button type="button" id="add-ec-btn"
+                  class="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 border border-blue-200 rounded-lg px-3 py-1.5 hover:bg-blue-50 transition-colors">
+                  + Add Contact
+                </button>
+              </div>
+              <div id="ec-list" class="px-5 py-4 space-y-3">
+                <p class="text-sm text-slate-400 italic">No emergency contacts on file.</p>
+              </div>
+              <div class="px-5 pb-4 flex justify-end">
+                <button type="button" id="ec-save-btn"
+                  class="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800 transition-colors">Save Contacts</button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- ── SECURITY TAB ───────────────────────────────────── -->
+          <div id="tab-security" class="tab-panel space-y-5 hidden">
+
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm space-y-3">
+                <h2 class="text-sm font-semibold text-slate-700">Password Requirements</h2>
+                <ul class="text-sm text-slate-600 list-disc list-inside space-y-1">
+                  <li>At least 8 characters</li>
+                  <li>One uppercase letter</li>
+                  <li>One number</li>
+                </ul>
+                <p class="text-xs text-slate-400 pt-1 border-t border-slate-100">Changing your password will sign you out.</p>
+              </div>
+              <div class="bg-amber-50 border border-amber-100 rounded-xl p-5">
+                <h2 class="text-sm font-semibold text-amber-800 mb-2">Security Tip</h2>
+                <p class="text-sm text-amber-700">Use a unique password not shared with other services. A strong password is your first line of defence.</p>
+              </div>
+            </div>
+
+            <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+              <div class="px-5 py-4 border-b border-slate-100">
+                <h2 class="text-sm font-semibold text-slate-700">Change Password</h2>
+              </div>
+              <form id="password-form" class="px-5 py-4 space-y-4">
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Current Password</label>
+                  <div class="relative">
+                    <input type="password" name="currentPassword" id="inp-current-pw"
+                      class="w-full border border-slate-200 rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
+                      placeholder="Enter current password" autocomplete="current-password" />
+                    <button type="button" class="pw-toggle absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" data-target="inp-current-pw">
+                      <svg viewBox="0 0 24 24" class="h-4 w-4 pointer-events-none" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                  </div>
+                  <p class="fm-error hidden text-xs text-rose-600 mt-1" data-error-for="currentPassword"></p>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">New Password</label>
+                  <div class="relative">
+                    <input type="password" name="newPassword" id="inp-new-pw"
+                      class="w-full border border-slate-200 rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
+                      placeholder="Enter new password" autocomplete="new-password" />
+                    <button type="button" class="pw-toggle absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" data-target="inp-new-pw">
+                      <svg viewBox="0 0 24 24" class="h-4 w-4 pointer-events-none" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                  </div>
+                  <p class="fm-error hidden text-xs text-rose-600 mt-1" data-error-for="newPassword"></p>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Confirm New Password</label>
+                  <div class="relative">
+                    <input type="password" name="confirmPassword" id="inp-confirm-pw"
+                      class="w-full border border-slate-200 rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
+                      placeholder="Re-enter new password" autocomplete="new-password" />
+                    <button type="button" class="pw-toggle absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" data-target="inp-confirm-pw">
+                      <svg viewBox="0 0 24 24" class="h-4 w-4 pointer-events-none" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                  </div>
+                  <p class="fm-error hidden text-xs text-rose-600 mt-1" data-error-for="confirmPassword"></p>
+                </div>
+                <div class="flex justify-end gap-3 pt-2">
+                  <button type="button" id="password-cancel"
+                    class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
+                  <button type="submit" id="password-submit"
+                    class="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800 transition-colors">Update Password</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", async () => {
+        const {
+          requireAuth, getSession, MeService, showToast,
+          Validators, setFieldError, clearFormErrors, setLoading, clearSession,
+        } = window.FINEMARK_APP || {};
+
+        if (!requireAuth?.()) return;
+
+        // ── Tab switching ──────────────────────────────────────────────
+        const TABS = ["profile", "security"];
+        function activateTab(name) {
+          TABS.forEach(t => {
+            const btn = document.getElementById("tab-" + t + "-btn");
+            const panel = document.getElementById("tab-" + t);
+            const active = t === name;
+            if (btn) {
+              btn.classList.toggle("border-slate-900", active);
+              btn.classList.toggle("text-slate-900", active);
+              btn.classList.toggle("font-semibold", active);
+              btn.classList.toggle("border-transparent", !active);
+              btn.classList.toggle("text-slate-500", !active);
+            }
+            if (panel) panel.classList.toggle("hidden", !active);
+          });
+          const url = new URL(location.href);
+          url.searchParams.set("tab", name);
+          history.replaceState(null, "", url.toString());
+        }
+        TABS.forEach(t => {
+          document.getElementById("tab-" + t + "-btn")?.addEventListener("click", () => activateTab(t));
+        });
+        const initialTab = new URLSearchParams(location.search).get("tab") || "profile";
+        activateTab(TABS.includes(initialTab) ? initialTab : "profile");
+
+        // ── Password show/hide ─────────────────────────────────────────
+        document.querySelectorAll(".pw-toggle").forEach(btn => {
+          btn.addEventListener("click", () => {
+            const inp = document.getElementById(btn.dataset.target);
+            if (inp) inp.type = inp.type === "password" ? "text" : "password";
+          });
+        });
+
+        const fmtDate = v => v ? new Date(v).toLocaleString() : "—";
+        const statusBadge = document.getElementById("profile-status-badge");
+        let _user = null, _emp = null;
+
+        // ── Load account ───────────────────────────────────────────────
+        try {
+          const r = await MeService?.getProfile?.();
+          _user = r?.user;
+        } catch { _user = getSession?.()?.user; }
+
+        if (_user) {
+          document.getElementById("prof-email").textContent = _user.email || "—";
+          document.getElementById("prof-role").textContent = _user.role || "—";
+          document.getElementById("prof-login").textContent = fmtDate(_user.lastLoginAt);
+          document.getElementById("prof-name-input").value = _user.name || "";
+          const status = _user.status || "Active";
+          statusBadge.textContent = status;
+          statusBadge.className = "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border " +
+            (status === "Disabled"
+              ? "bg-rose-50 text-rose-700 border-rose-100"
+              : "bg-emerald-50 text-emerald-700 border-emerald-100");
+        }
+
+        // ── Load HR employee record ────────────────────────────────────
+        try {
+          const r = await MeService?.getEmployee?.();
+          _emp = r?.employee;
+        } catch { /* no HR record */ }
+
+        if (_emp) {
+          if (_emp.employeeNo) {
+            document.getElementById("prof-empno").textContent = _emp.employeeNo;
+            document.getElementById("prof-empno-wrap").classList.remove("hidden");
+          }
+          document.getElementById("personal-section").classList.remove("hidden");
+          document.getElementById("emergency-section").classList.remove("hidden");
+          document.getElementById("prof-phone").value = _emp.phone || "";
+          document.getElementById("prof-address").value = _emp.residentialAddress || "";
+          document.getElementById("prof-work-email").value = _emp.workEmail || "";
+          if (_emp.nationalId || _emp.kraPin || _emp.dateOfBirth) {
+            document.getElementById("sensitive-section").classList.remove("hidden");
+            document.getElementById("prof-national-id").textContent = _emp.nationalId || "—";
+            document.getElementById("prof-kra-pin").textContent = _emp.kraPin || "—";
+            document.getElementById("prof-dob").textContent = _emp.dateOfBirth || "—";
+          }
+          renderEcList(_emp.emergencyContacts || []);
+        }
+
+        // ── Emergency contacts ─────────────────────────────────────────
+        let _ecItems = (_emp?.emergencyContacts || []).map(c => ({ ...c }));
+
+        function renderEcList(contacts) {
+          _ecItems = contacts.map(c => ({ ...c }));
+          _renderEcDom();
+        }
+
+        function _esc(s) {
+          return (s||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+        }
+
+        function _renderEcDom() {
+          const container = document.getElementById("ec-list");
+          if (!_ecItems.length) {
+            container.innerHTML = '<p class="text-sm text-slate-400 italic">No emergency contacts on file.</p>';
+            return;
+          }
+          container.innerHTML = _ecItems.map((c, i) =>
+            '<div class="grid sm:grid-cols-3 gap-3 p-3 rounded-lg border border-slate-100 bg-slate-50">' +
+              '<div><label class="block text-xs font-medium text-slate-500 mb-1">Name</label>' +
+              '<input type="text" class="ec-name w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400 bg-white"' +
+              ' value="' + _esc(c.name) + '" placeholder="Full name" data-idx="' + i + '" /></div>' +
+              '<div><label class="block text-xs font-medium text-slate-500 mb-1">Relationship</label>' +
+              '<input type="text" class="ec-rel w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400 bg-white"' +
+              ' value="' + _esc(c.relationship) + '" placeholder="e.g. Spouse, Parent" data-idx="' + i + '" /></div>' +
+              '<div class="flex gap-2"><div class="flex-1"><label class="block text-xs font-medium text-slate-500 mb-1">Phone</label>' +
+              '<input type="tel" class="ec-phone w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400 bg-white"' +
+              ' value="' + _esc(c.phone) + '" placeholder="+254 7XX XXX XXX" data-idx="' + i + '" /></div>' +
+              '<div class="flex items-end pb-0.5"><button type="button" class="ec-remove rounded-lg border border-red-200 text-red-500 hover:bg-red-50 px-2 py-1.5" data-idx="' + i + '" title="Remove">' +
+              '<svg viewBox="0 0 24 24" class="h-4 w-4 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>' +
+              '</button></div></div></div>'
+          ).join("");
+
+          container.querySelectorAll(".ec-name").forEach(inp =>
+            inp.addEventListener("input", e => { _ecItems[+e.target.dataset.idx].name = e.target.value; }));
+          container.querySelectorAll(".ec-rel").forEach(inp =>
+            inp.addEventListener("input", e => { _ecItems[+e.target.dataset.idx].relationship = e.target.value; }));
+          container.querySelectorAll(".ec-phone").forEach(inp =>
+            inp.addEventListener("input", e => { _ecItems[+e.target.dataset.idx].phone = e.target.value; }));
+          container.querySelectorAll(".ec-remove").forEach(btn =>
+            btn.addEventListener("click", e => {
+              _ecItems.splice(+e.target.dataset.idx, 1);
+              _renderEcDom();
+            }));
+        }
+
+        document.getElementById("add-ec-btn")?.addEventListener("click", () => {
+          _ecItems.push({ name: "", relationship: "", phone: "" });
+          _renderEcDom();
+          const inputs = document.getElementById("ec-list").querySelectorAll(".ec-name");
+          if (inputs.length) inputs[inputs.length - 1].focus();
+        });
+
+        document.getElementById("ec-save-btn")?.addEventListener("click", async () => {
+          const btn = document.getElementById("ec-save-btn");
+          setLoading?.(btn, true, "Saving…");
+          try {
+            await MeService?.updateEmployee?.({ emergencyContacts: _ecItems });
+            showToast?.("Emergency contacts saved.", "success");
+          } catch (e) {
+            showToast?.(e?.message || "Failed to save contacts.", "error");
+          } finally { setLoading?.(btn, false); }
+        });
+
+        // ── Display name form ──────────────────────────────────────────
+        const nameForm = document.getElementById("name-form");
+        const nameSubmitBtn = document.getElementById("name-submit");
+        document.getElementById("name-cancel")?.addEventListener("click", () => {
+          document.getElementById("prof-name-input").value = _user?.name || "";
+          clearFormErrors?.(nameForm);
+        });
+        nameForm?.addEventListener("submit", async e => {
+          e.preventDefault();
+          clearFormErrors?.(nameForm);
+          const name = document.getElementById("prof-name-input").value.trim();
+          if (!name) { setFieldError?.(document.getElementById("prof-name-input"), "Name is required."); return; }
+          setLoading?.(nameSubmitBtn, true, "Saving…");
+          try {
+            await MeService?.updateProfile?.({ name });
+            if (_user) _user.name = name;
+            showToast?.("Display name updated.", "success");
+          } catch (err) {
+            showToast?.(err?.message || "Failed to update name.", "error");
+          } finally { setLoading?.(nameSubmitBtn, false); }
+        });
+
+        // ── Personal details form ──────────────────────────────────────
+        const personalForm = document.getElementById("personal-form");
+        const personalSubmitBtn = document.getElementById("personal-submit");
+        document.getElementById("personal-cancel")?.addEventListener("click", () => {
+          document.getElementById("prof-phone").value = _emp?.phone || "";
+          document.getElementById("prof-address").value = _emp?.residentialAddress || "";
+        });
+        personalForm?.addEventListener("submit", async e => {
+          e.preventDefault();
+          const phone = document.getElementById("prof-phone").value.trim();
+          const residentialAddress = document.getElementById("prof-address").value.trim();
+          setLoading?.(personalSubmitBtn, true, "Saving…");
+          try {
+            await MeService?.updateEmployee?.({ phone, residentialAddress });
+            if (_emp) { _emp.phone = phone; _emp.residentialAddress = residentialAddress; }
+            showToast?.("Personal details updated.", "success");
+          } catch (err) {
+            showToast?.(err?.message || "Failed to update details.", "error");
+          } finally { setLoading?.(personalSubmitBtn, false); }
+        });
+
+        // ── Change password form ───────────────────────────────────────
+        const pwForm = document.getElementById("password-form");
+        const pwSubmitBtn = document.getElementById("password-submit");
+        document.getElementById("password-cancel")?.addEventListener("click", () => {
+          pwForm.reset(); clearFormErrors?.(pwForm);
+        });
+        pwForm?.addEventListener("submit", async e => {
+          e.preventDefault();
+          clearFormErrors?.(pwForm);
+          const currentPassword = pwForm.currentPassword.value.trim();
+          const newPassword = pwForm.newPassword.value.trim();
+          const confirmPassword = pwForm.confirmPassword.value.trim();
+          const errors = [];
+          const req_ = Validators?.required;
+          const policy = Validators?.passwordPolicy;
+          const e1 = req_?.(currentPassword);
+          if (e1) { setFieldError?.(pwForm.currentPassword, e1); errors.push(e1); }
+          const e2 = req_?.(newPassword) || policy?.(newPassword);
+          if (e2) { setFieldError?.(pwForm.newPassword, e2); errors.push(e2); }
+          if (newPassword && currentPassword && newPassword === currentPassword) {
+            const m = "New password must differ from current password.";
+            setFieldError?.(pwForm.newPassword, m); errors.push(m);
+          }
+          const e3 = req_?.(confirmPassword);
+          if (e3) { setFieldError?.(pwForm.confirmPassword, e3); errors.push(e3); }
+          if (confirmPassword && newPassword && confirmPassword !== newPassword) {
+            const m = "Passwords do not match.";
+            setFieldError?.(pwForm.confirmPassword, m); errors.push(m);
+          }
+          if (errors.length) return;
+          setLoading?.(pwSubmitBtn, true, "Updating…");
+          try {
+            await MeService?.changePassword?.({ currentPassword, newPassword, confirmPassword }, pwForm);
+            showToast?.("Password updated. Signing you out…", "info");
+            clearSession?.();
+            setTimeout(() => { window.location.href = "login.html"; }, 1400);
+          } catch (err) {
+            showToast?.(err?.message || "Failed to update password.", "error");
+          } finally { setLoading?.(pwSubmitBtn, false); }
+        });
+      });
+    </script>
+  </body>
+</html>

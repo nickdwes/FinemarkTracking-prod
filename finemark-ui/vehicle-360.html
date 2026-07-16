@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Vehicle 360</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    .tab-btn { padding:8px 18px; border-radius:8px; font-size:.78rem; font-weight:600; cursor:pointer; color:#64748b; transition:all .15s; white-space:nowrap; }
+    .tab-btn.active { background:#2563eb; color:#fff; }
+    .tab-btn:not(.active):hover { background:#f1f5f9; color:#334155; }
+    .tab-pane { display:none; }
+    .tab-pane.active { display:block; }
+    .field-row { display:flex; gap:12px; padding:8px 0; border-bottom:1px solid #f1f5f9; }
+    .field-row:last-child { border-bottom:none; }
+    .field-label { width:170px; flex-shrink:0; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#94a3b8; padding-top:1px; }
+    .field-val { flex:1; font-size:.85rem; color:#1e293b; font-weight:500; }
+    .badge { display:inline-flex; align-items:center; gap:3px; padding:2px 9px; border-radius:99px; font-size:.66rem; font-weight:700; }
+    .badge-green  { background:#d1fae5; color:#065f46; border:1px solid #a7f3d0; }
+    .badge-blue   { background:#dbeafe; color:#1e40af; border:1px solid #bfdbfe; }
+    .badge-amber  { background:#fef3c7; color:#92400e; border:1px solid #fde68a; }
+    .badge-rose   { background:#ffe4e6; color:#9f1239; border:1px solid #fecdd3; }
+    .badge-slate  { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
+    .badge-violet { background:#ede9fe; color:#5b21b6; border:1px solid #ddd6fe; }
+    .timeline-item { display:flex; gap:14px; padding:14px 0; border-bottom:1px solid #f1f5f9; }
+    .timeline-item:last-child { border-bottom:none; }
+    .tl-dot { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .tl-content { flex:1; }
+    .ticket-card { border:1px solid #e2e8f0; border-radius:12px; padding:14px; margin-bottom:10px; transition:border-color .15s, box-shadow .15s; }
+    .ticket-card:hover { border-color:#93c5fd; box-shadow:0 2px 12px rgba(37,99,235,.06); }
+    .cert-card { border:1px solid #e2e8f0; border-radius:12px; padding:14px; margin-bottom:10px; }
+    .info-section { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:18px 20px; margin-bottom:16px; }
+    .info-section-title { display:flex; align-items:center; gap:8px; font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#64748b; margin-bottom:14px; }
+    .stage-pill { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:6px; font-size:.65rem; font-weight:700; background:#f1f5f9; color:#475569; }
+    .spinner { border:2.5px solid #e2e8f0; border-top-color:#2563eb; border-radius:50%; width:18px; height:18px; animation:spin .7s linear infinite; display:inline-block; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .edit-btn { cursor:pointer; }
+    .editable-field { display:none; }
+    .field-row.editing .field-val { display:none; }
+    .field-row.editing .editable-field { display:block; }
+    input.edit-input { border:1px solid #93c5fd; border-radius:7px; padding:4px 9px; font-size:.85rem; color:#1e293b; outline:none; width:100%; }
+    input.edit-input:focus { box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+  <div id="fm-header"></div>
+  <div class="flex min-h-screen pt-16">
+    <div id="fm-sidebar"></div>
+    <main class="flex-1 p-5 lg:p-7 overflow-x-hidden">
+      <div class="max-w-5xl mx-auto space-y-5" id="v360-content">
+
+        <!-- Loading state -->
+        <div id="v360-loading" class="flex items-center justify-center py-20">
+          <div class="text-center">
+            <div class="spinner mx-auto mb-3" style="width:32px;height:32px;border-width:3px;"></div>
+            <p class="text-slate-500 text-sm">Loading vehicle profile…</p>
+          </div>
+        </div>
+
+        <!-- Error state -->
+        <div id="v360-error" class="hidden text-center py-20">
+          <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-rose-100 text-rose-600 mb-4">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+          </div>
+          <p class="text-slate-700 font-semibold" id="v360-error-msg">Vehicle not found.</p>
+          <a href="vehicles-list.html" class="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700">← Back to List</a>
+        </div>
+
+        <!-- Main content (hidden until loaded) -->
+        <div id="v360-main" class="hidden space-y-5">
+
+          <!-- Header card -->
+          <div class="bg-white border border-slate-200 rounded-2xl px-6 py-5 shadow-sm">
+            <div class="flex flex-wrap items-start gap-4 justify-between">
+              <div class="flex items-start gap-4">
+                <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600 text-white text-xl font-black shadow flex-shrink-0" id="veh-initials">—</div>
+                <div>
+                  <div class="flex items-center gap-2 flex-wrap mb-1">
+                    <h1 class="text-2xl font-extrabold tracking-tight text-slate-900" id="veh-reg">—</h1>
+                    <span id="veh-make-badge" class="badge badge-blue"></span>
+                    <span id="veh-device-badge"></span>
+                  </div>
+                  <p class="text-sm text-slate-500" id="veh-desc"></p>
+                  <div class="flex flex-wrap gap-2 mt-2" id="veh-meta-badges"></div>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <button id="btn-edit-toggle" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                  Edit Details
+                </button>
+                <a id="btn-back" href="vehicles-list.html" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition">
+                  ← Back
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="bg-white border border-slate-200 rounded-xl overflow-x-auto shadow-sm">
+            <div class="flex gap-1 p-2 min-w-max">
+              <button class="tab-btn active" data-tab="details">Details</button>
+              <button class="tab-btn" data-tab="customer">Customer</button>
+              <button class="tab-btn" data-tab="tickets">Job Cards</button>
+              <button class="tab-btn" data-tab="devices">Devices &amp; SIMs</button>
+              <button class="tab-btn" data-tab="certs">Certificates</button>
+              <button class="tab-btn" data-tab="timeline">Timeline</button>
+            </div>
+          </div>
+
+          <!-- Tab content -->
+          <div id="tab-details" class="tab-pane active">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+              <!-- Vehicle Identification -->
+              <div class="info-section">
+                <div class="info-section-title">
+                  <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h9l2-2z"/><path stroke-linecap="round" stroke-linejoin="round" d="M13 11h4l2 5H13v-5z"/></svg>
+                  Vehicle Identification
+                </div>
+                <div id="vd-identification"></div>
+              </div>
+
+              <!-- Technical Specs -->
+              <div class="info-section">
+                <div class="info-section-title">
+                  <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+                  Technical Specifications
+                </div>
+                <div id="vd-specs"></div>
+              </div>
+
+              <!-- GPS Uninstallation -->
+              <div class="info-section">
+                <div class="info-section-title">
+                  <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  GPS Uninstallation
+                </div>
+                <div id="uninstall-section"></div>
+              </div>
+
+            </div>
+
+            <!-- Edit form (hidden by default) -->
+            <div id="edit-form" class="hidden info-section">
+              <div class="info-section-title">
+                <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                Edit Vehicle Details
+              </div>
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-4" id="edit-fields"></div>
+              <div class="flex gap-2 mt-4">
+                <button id="btn-save-edit" class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition">Save Changes</button>
+                <button id="btn-cancel-edit" class="rounded-lg border border-slate-200 px-5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Customer tab -->
+          <div id="tab-customer" class="tab-pane">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <div class="info-section">
+                <div class="info-section-title">
+                  <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                  Account Information
+                </div>
+                <div id="cust-account"></div>
+              </div>
+              <div class="info-section">
+                <div class="info-section-title">
+                  <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                  Contacts
+                </div>
+                <div id="cust-contacts"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tickets tab -->
+          <div id="tab-tickets" class="tab-pane">
+            <div id="tickets-list"></div>
+          </div>
+
+          <!-- Devices tab -->
+          <div id="tab-devices" class="tab-pane">
+            <div id="devices-list"></div>
+          </div>
+
+          <!-- Certificates tab -->
+          <div id="tab-certs" class="tab-pane">
+            <div id="certs-list"></div>
+          </div>
+
+          <!-- Timeline tab -->
+          <div id="tab-timeline" class="tab-pane">
+            <div class="info-section">
+              <div class="info-section-title">
+                <svg class="w-4 h-4 text-violet-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Vehicle History Timeline
+              </div>
+              <div id="timeline-items"></div>
+            </div>
+          </div>
+
+        </div><!-- /v360-main -->
+      </div><!-- /max-w -->
+    </main>
+  </div>
+  <div id="fm-footer"></div>
+
+  <!-- Mark Loan Settled Early Modal -->
+  <div id="modal-mark-settled" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6 space-y-4">
+      <h3 class="text-lg font-semibold text-slate-800">Mark Loan Settled Early</h3>
+      <div>
+        <label class="block text-xs font-medium text-slate-700 mb-1">Settlement Date</label>
+        <input id="ms-date" type="date" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-700 mb-1">Reason</label>
+        <textarea id="ms-reason" rows="3" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="e.g. Customer paid off the balance in full on this date"></textarea>
+      </div>
+      <p id="ms-error" class="hidden text-xs text-red-600"></p>
+      <div class="flex gap-2 justify-end">
+        <button id="btn-ms-cancel" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+        <button id="btn-ms-submit" class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700">Queue for Uninstallation</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/app.js?v=202607011016"></script>
+  <script src="assets/layout.js?v=202607011016"></script>
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const { requirePageAccess, apiFetch, showToast, getSession } = window.FINEMARK_APP || {};
+    requirePageAccess?.();
+
+    const vehicleId = new URLSearchParams(location.search).get('id');
+    if (!vehicleId) { showError('No vehicle ID specified.'); return; }
+
+    let vehicleData = null;
+
+    function showError(msg) {
+      document.getElementById('v360-loading').classList.add('hidden');
+      document.getElementById('v360-error').classList.remove('hidden');
+      document.getElementById('v360-error-msg').textContent = msg;
+    }
+
+    function fmtDate(d, full = false) {
+      if (!d) return '—';
+      const opts = full
+        ? { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }
+        : { day:'2-digit', month:'short', year:'numeric' };
+      return new Date(d).toLocaleDateString('en-GB', opts);
+    }
+
+    function badgeStatus(status) {
+      const map = { Completed:'badge-green', Assigned:'badge-blue', Acknowledged:'badge-violet', 'In Progress':'badge-amber', Cancelled:'badge-rose', Active:'badge-green', Inactive:'badge-slate' };
+      return `<span class="badge ${map[status]||'badge-slate'}">${status||'Unknown'}</span>`;
+    }
+
+    function fieldRow(label, val, rawKey) {
+      const display = val === undefined || val === null || val === '' ? '<span class="text-slate-400">—</span>' : `<span>${val}</span>`;
+      return `<div class="field-row" data-key="${rawKey||''}">
+        <span class="field-label">${label}</span>
+        <span class="field-val">${display}</span>
+      </div>`;
+    }
+
+    // Tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`tab-${btn.dataset.tab}`)?.classList.add('active');
+      });
+    });
+
+    function renderHeader(v) {
+      const reg = v.registration || '—';
+      document.getElementById('veh-initials').textContent = reg.slice(0,3).toUpperCase();
+      document.getElementById('veh-reg').textContent = reg;
+      document.getElementById('veh-make-badge').textContent = [v.make, v.model].filter(Boolean).join(' ');
+      document.title = `Finemark | ${reg}`;
+
+      const deviceBadge = v.completed_ticket_count > 0
+        ? '<span class="badge badge-green">✓ Device Installed</span>'
+        : v.open_ticket_count > 0
+          ? '<span class="badge badge-amber">⟳ Installation Pending</span>'
+          : '<span class="badge badge-slate">No Device</span>';
+      document.getElementById('veh-device-badge').innerHTML = deviceBadge;
+
+      const desc = [v.body_type, v.color, v.year_of_manufacture ? `${v.year_of_manufacture}` : '', v.fuel_type].filter(Boolean).join(' · ');
+      document.getElementById('veh-desc').textContent = desc || 'Vehicle profile';
+
+      const meta = [];
+      if (v.customer_account_no) meta.push(`<span class="badge badge-blue">🏢 ${v.customer_account_no}</span>`);
+      if (v.partner_name) meta.push(`<span class="badge badge-violet">🤝 ${v.partner_name}</span>`);
+      if (v.customer_region) meta.push(`<span class="badge badge-slate">📍 ${v.customer_region}</span>`);
+      document.getElementById('veh-meta-badges').innerHTML = meta.join('');
+    }
+
+    function renderDetails(v) {
+      document.getElementById('vd-identification').innerHTML = [
+        fieldRow('Registration', v.registration),
+        fieldRow('Vehicle No / Fleet', v.vehicle_no),
+        fieldRow('Chassis No', v.chassis_number),
+        fieldRow('Engine No', v.engine_number),
+        fieldRow('VIN', v.vin),
+        fieldRow('Year', v.year_of_manufacture),
+      ].join('');
+
+      document.getElementById('vd-specs').innerHTML = [
+        fieldRow('Make', v.make),
+        fieldRow('Model', v.model),
+        fieldRow('Trim / Variant', v.trim || v.model_number),
+        fieldRow('Body Type', v.body_type),
+        fieldRow('Color', v.color),
+        fieldRow('Fuel Type', v.fuel_type),
+        fieldRow('Transmission', v.transmission),
+        fieldRow('Odometer', v.odometer ? `${Number(v.odometer).toLocaleString()} km` : null),
+      ].join('');
+    }
+
+    const UNINSTALL_STATUS_BADGE = { Scheduled: 'badge-amber', TicketRaised: 'badge-blue', Completed: 'badge-green', Cancelled: 'badge-slate' };
+
+    function renderUninstallSection(v, queueRows) {
+      const el = document.getElementById('uninstall-section');
+      const role = getSession?.()?.user?.role || '';
+      const active = (queueRows || []).find(q => ['Scheduled', 'TicketRaised'].includes(q.status));
+
+      if (active) {
+        const raiseUrl = `crm-ticket-new.html?categoryName=Uninstallation&customerId=${v.customer_id || ''}&customerName=${encodeURIComponent(v.customer_account_no || '')}&vehicleId=${vehicleId}&queueId=${active.id}`;
+        el.innerHTML = [
+          fieldRow('Trigger', active.triggerType === 'EarlyRepayment' ? 'Loan Settled Early' : 'Loan Term Ended'),
+          fieldRow('Eligible Since', fmtDate(active.eligibleDate)),
+          fieldRow('Status', `<span class="badge ${UNINSTALL_STATUS_BADGE[active.status] || 'badge-slate'}">${active.status}</span>`),
+        ].join('') + `<div class="mt-3">` + (
+          active.status === 'Scheduled'
+            ? `<a href="${raiseUrl}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg px-3.5 py-2 transition">Raise Uninstallation Ticket</a>`
+            : `<a href="crm-ticket-detail.html?id=${active.linkedTicketId}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:underline">View Ticket ${active.linkedTicketNo || ''} →</a>`
+        ) + `</div>`;
+        return;
+      }
+
+      let loanNote = '<p class="text-sm text-slate-400">No loan data on record.</p>';
+      if (v.loan_start_date && v.loan_tenure_months) {
+        const expiry = new Date(v.loan_start_date);
+        expiry.setMonth(expiry.getMonth() + Number(v.loan_tenure_months));
+        const daysLeft = Math.ceil((expiry - new Date()) / 86400000);
+        loanNote = [
+          fieldRow('Loan Start', fmtDate(v.loan_start_date)),
+          fieldRow('Loan Tenure', `${v.loan_tenure_months} months`),
+          fieldRow('Loan End (est.)', fmtDate(expiry.toISOString())),
+        ].join('') + (daysLeft <= 90 ? `<p class="text-xs text-amber-600 font-semibold mt-2">${daysLeft <= 0 ? 'Loan term has ended' : `Loan ends in ${daysLeft} day(s)`} — will be auto-queued for uninstallation.</p>` : '');
+      }
+
+      const settleBtn = ['Finance', 'Admin'].includes(role)
+        ? `<div class="mt-3"><button id="btn-open-mark-settled" class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 border border-slate-200 hover:bg-slate-50 rounded-lg px-3.5 py-2 transition">Mark Loan Settled Early</button></div>`
+        : '';
+      el.innerHTML = loanNote + settleBtn;
+
+      document.getElementById('btn-open-mark-settled')?.addEventListener('click', openMarkSettled);
+    }
+
+    function openMarkSettled() {
+      document.getElementById('ms-date').value = new Date().toISOString().slice(0, 10);
+      document.getElementById('ms-reason').value = '';
+      document.getElementById('ms-error').classList.add('hidden');
+      document.getElementById('modal-mark-settled').classList.remove('hidden');
+    }
+    document.getElementById('btn-ms-cancel').addEventListener('click', () => document.getElementById('modal-mark-settled').classList.add('hidden'));
+    document.getElementById('btn-ms-submit').addEventListener('click', async () => {
+      const reason = document.getElementById('ms-reason').value.trim();
+      if (!reason) {
+        document.getElementById('ms-error').textContent = 'A reason is required.';
+        document.getElementById('ms-error').classList.remove('hidden');
+        return;
+      }
+      try {
+        await apiFetch('/gps-uninstall-queue/mark-settled-early', {
+          method: 'POST',
+          body: { vehicleId, settlementDate: document.getElementById('ms-date').value, reason },
+        });
+        document.getElementById('modal-mark-settled').classList.add('hidden');
+        showToast?.('Vehicle queued for uninstallation.', 'success');
+        await loadVehicle();
+      } catch (e) {
+        document.getElementById('ms-error').textContent = e?.message || 'Failed to queue vehicle.';
+        document.getElementById('ms-error').classList.remove('hidden');
+      }
+    });
+
+    function renderCustomer(v, contacts) {
+      document.getElementById('cust-account').innerHTML = [
+        fieldRow('Account No', v.customer_account_no),
+        fieldRow('Type', v.customer_type),
+        fieldRow('Segment', v.customer_segment),
+        fieldRow('Status', v.customer_status ? badgeStatus(v.customer_status) : null),
+        fieldRow('Region', v.customer_region),
+        fieldRow('Partner', v.partner_name || 'Direct'),
+        fieldRow('Partner Tier', v.partner_tier),
+        v.customer_id ? `<div class="mt-3"><a href="crm-customer-360.html?id=${v.customer_id}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:underline">View Customer 360° →</a></div>` : '',
+      ].join('');
+
+      const contactsEl = document.getElementById('cust-contacts');
+      if (!contacts?.length) { contactsEl.innerHTML = '<p class="text-sm text-slate-400">No contacts on record.</p>'; return; }
+      contactsEl.innerHTML = contacts.map(c => `
+        <div class="border border-slate-100 rounded-lg p-3 mb-2">
+          <div class="flex items-center justify-between">
+            <div class="font-semibold text-sm text-slate-800">${[c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}</div>
+            ${c.is_primary ? '<span class="badge badge-blue">Primary</span>' : ''}
+          </div>
+          ${c.email ? `<div class="text-xs text-slate-500 mt-0.5">✉️ ${c.email}</div>` : ''}
+          ${c.phone ? `<div class="text-xs text-slate-500">📞 ${c.phone}</div>` : ''}
+          ${c.contact_type ? `<div class="text-[10px] text-slate-400 mt-0.5">${c.contact_type}</div>` : ''}
+        </div>`).join('');
+    }
+
+    function renderTickets(tickets, devices) {
+      const el = document.getElementById('tickets-list');
+      if (!tickets?.length) {
+        el.innerHTML = '<div class="text-center py-12 text-slate-400 text-sm">No installation tickets for this vehicle.</div>';
+        return;
+      }
+      const stageNames = ['Check-In','Devices','Vehicle','Pre-Check','Electrical','Install','Activate','Post-Check','Photos','Sign-off','Done'];
+      el.innerHTML = tickets.map(t => {
+        const statusMap = { Completed:'badge-green', Assigned:'badge-blue', Acknowledged:'badge-violet', 'In Progress':'badge-amber', Cancelled:'badge-rose' };
+        const stageName = stageNames[t.stage] || `Stage ${t.stage}`;
+        const devInfo = (devices || []).filter(d => d.ticket_id === t.id).map(d => d.imei).filter(Boolean).join(', ');
+        return `
+        <div class="ticket-card">
+          <div class="flex flex-wrap items-start gap-3 justify-between">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <a href="job-details.html?ticket=${t.id}" class="font-bold text-blue-700 hover:underline text-sm">${t.ticket_no||t.id.slice(0,8)}</a>
+                <span class="badge ${statusMap[t.status]||'badge-slate'}">${t.status||'—'}</span>
+                <span class="stage-pill">${stageName}</span>
+              </div>
+              <div class="text-xs text-slate-500 space-y-0.5">
+                ${t.assigned_to_email ? `<div>👷 ${t.assigned_to_email}</div>` : ''}
+                ${t.co_technician_name ? `<div>👷 Co-tech: ${t.co_technician_name}</div>` : ''}
+                ${devInfo ? `<div>📡 IMEI: ${devInfo}</div>` : ''}
+                ${t.installation_location ? `<div>📍 ${t.installation_location}</div>` : ''}
+              </div>
+            </div>
+            <div class="text-right text-xs text-slate-400 space-y-0.5 flex-shrink-0">
+              <div>Created: ${fmtDate(t.created_at)}</div>
+              ${t.arrived_at ? `<div>Arrived: ${fmtDate(t.arrived_at)}</div>` : ''}
+              ${t.technician_signed_off_at ? `<div class="text-emerald-600 font-semibold">✓ Signed off: ${fmtDate(t.technician_signed_off_at)}</div>` : ''}
+            </div>
+          </div>
+          ${t.sla_start_hours ? `
+          <div class="mt-3 pt-3 border-t border-slate-100">
+            <div class="flex gap-4 text-xs text-slate-500">
+              <span>SLA Start: <b class="text-slate-700">${t.sla_start_hours}h</b></span>
+              ${t.sla_ack_hours ? `<span>ACK: <b>${t.sla_ack_hours}h</b></span>` : ''}
+              ${t.sla_signoff_hours ? `<span>Sign-off: <b>${t.sla_signoff_hours}h</b></span>` : ''}
+            </div>
+          </div>` : ''}
+        </div>`;
+      }).join('');
+    }
+
+    function renderDevices(devices) {
+      const el = document.getElementById('devices-list');
+      const deviceRows = devices || [];
+
+      if (!deviceRows.length) {
+        el.innerHTML = '<div class="text-center py-12 text-slate-400 text-sm">No devices recorded for this vehicle yet.</div>';
+        return;
+      }
+      el.innerHTML = `
+        <div class="info-section">
+          <div class="info-section-title"><svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01"/></svg>Installed Devices (${deviceRows.length})</div>
+          ${deviceRows.map(d => `
+            <div class="border border-slate-100 rounded-xl p-4 mb-3">
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div><div class="text-[10px] font-bold uppercase text-slate-400">Model</div><div class="text-sm font-bold text-slate-800">${d.device_model||d.product_name||'—'}</div></div>
+                <div><div class="text-[10px] font-bold uppercase text-slate-400">Serial No.</div><div class="font-mono text-sm text-slate-700">${d.serial_number||'—'}</div></div>
+                <div><div class="text-[10px] font-bold uppercase text-slate-400">IMEI</div><div class="font-mono text-sm font-bold text-slate-800">${d.imei||'—'}</div></div>
+                <div><div class="text-[10px] font-bold uppercase text-slate-400">SIM ICCID</div><div class="font-mono text-sm text-slate-700">${d.sim_iccid||'—'}</div></div>
+                <div><div class="text-[10px] font-bold uppercase text-slate-400">MSISDN</div><div class="text-sm text-slate-700">${d.msisdn||'—'}</div></div>
+                <div><div class="text-[10px] font-bold uppercase text-slate-400">Ticket</div><div class="text-sm text-slate-700">${d.ticket_no||'—'}</div></div>
+                <div><div class="text-[10px] font-bold uppercase text-slate-400">Status</div><div>${badgeStatus(d.ticket_status)}</div></div>
+                <div><div class="text-[10px] font-bold uppercase text-slate-400">Install Date</div><div class="text-sm text-slate-700">${fmtDate(d.install_date)}</div></div>
+              </div>
+            </div>`).join('')}
+        </div>`;
+    }
+
+    function renderCerts(certs) {
+      const el = document.getElementById('certs-list');
+      if (!certs?.length) {
+        el.innerHTML = '<div class="text-center py-12 text-slate-400 text-sm">No certificates issued for this vehicle.</div>';
+        return;
+      }
+      el.innerHTML = certs.map(c => `
+        <div class="cert-card">
+          <div class="flex flex-wrap items-start gap-3 justify-between">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-sm text-slate-800">${c.serial_no||'—'}</span>
+                <span class="badge badge-green">${c.system_type||'GPS'}</span>
+              </div>
+              <div class="text-xs text-slate-500 space-y-0.5">
+                ${c.name ? `<div>👤 ${c.name}</div>` : ''}
+                ${c.imei_1 ? `<div>📡 IMEI: ${c.imei_1}${c.imei_2?', '+c.imei_2:''}</div>` : ''}
+                ${c.tracker_no_1 ? `<div>🔑 Tracker: ${c.tracker_no_1}</div>` : ''}
+              </div>
+            </div>
+            <div class="text-right text-xs flex-shrink-0">
+              <div class="text-slate-400">Valid: ${fmtDate(c.start_date)} – ${fmtDate(c.end_date)}</div>
+              <div class="text-slate-400 mt-0.5">Issued: ${fmtDate(c.created_at)}</div>
+              <div class="mt-2">
+                <a href="certificate-dashboard.html" class="text-blue-600 text-xs font-semibold hover:underline">View Certificate →</a>
+              </div>
+            </div>
+          </div>
+        </div>`).join('');
+    }
+
+    function buildTimeline(v, tickets, queueRows) {
+      const events = [];
+
+      events.push({ dt: v.created_at, icon:'🚗', color:'bg-blue-100 text-blue-600', title:'Vehicle Registered', desc:`Registration: ${v.registration}` });
+
+      (tickets || []).forEach(t => {
+        if (t.created_at) events.push({ dt: t.created_at, icon:'📋', color:'bg-indigo-100 text-indigo-600', title:`Ticket Created: ${t.ticket_no||''}`, desc:`Assigned to ${t.assigned_to_email||'technician'}` });
+        if (t.arrived_at) events.push({ dt: t.arrived_at, icon:'📍', color:'bg-amber-100 text-amber-600', title:'Technician Arrived', desc:`GPS check-in recorded` });
+        if (t.technician_signed_off_at) events.push({ dt: t.technician_signed_off_at, icon:'✅', color:'bg-emerald-100 text-emerald-600', title:'Installation Signed Off', desc:`Ticket: ${t.ticket_no||''}` });
+      });
+
+      (queueRows || []).forEach(q => {
+        events.push({ dt: q.createdAt, icon:'🛠️', color:'bg-rose-100 text-rose-600', title:`Queued for Uninstallation`, desc:q.triggerType === 'EarlyRepayment' ? `Loan settled early — ${q.reason||''}` : 'Loan term ended' });
+        if (q.linkedTicketId) events.push({ dt: q.updatedAt, icon:'🎫', color:'bg-blue-100 text-blue-600', title:`Uninstallation Ticket Raised`, desc:q.linkedTicketNo || '' });
+        if (q.status === 'Completed' && q.completedAt) events.push({ dt: q.completedAt, icon:'✅', color:'bg-emerald-100 text-emerald-600', title:'Uninstallation Completed', desc:'Device returned to inventory' });
+        if (q.status === 'Cancelled' && q.cancelledAt) events.push({ dt: q.cancelledAt, icon:'✖️', color:'bg-slate-100 text-slate-600', title:'Uninstallation Queue Entry Cancelled', desc:q.cancelledReason || '' });
+      });
+
+      events.sort((a,b) => new Date(b.dt) - new Date(a.dt));
+
+      const el = document.getElementById('timeline-items');
+      if (!events.length) { el.innerHTML = '<p class="text-sm text-slate-400">No history events yet.</p>'; return; }
+      el.innerHTML = events.map(e => `
+        <div class="timeline-item">
+          <div class="tl-dot ${e.color}">${e.icon}</div>
+          <div class="tl-content">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-semibold text-slate-800">${e.title}</span>
+              <span class="text-xs text-slate-400">${fmtDate(e.dt, true)}</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-0.5">${e.desc||''}</p>
+          </div>
+        </div>`).join('');
+    }
+
+    // Edit form
+    const EDITABLE_FIELDS = [
+      { key:'registration',    label:'Registration (leave blank if not yet registered)' },
+      { key:'vehicle_no',      label:'Fleet / Vehicle No' },
+      { key:'make',            label:'Make' },
+      { key:'model',           label:'Model' },
+      { key:'trim',            label:'Trim / Variant' },
+      { key:'body_type',       label:'Body Type' },
+      { key:'color',           label:'Color' },
+      { key:'year_of_manufacture', label:'Year', type:'number' },
+      { key:'chassis_number',  label:'Chassis No' },
+      { key:'engine_number',   label:'Engine No' },
+      { key:'fuel_type',       label:'Fuel Type' },
+      { key:'transmission',    label:'Transmission' },
+      { key:'odometer',        label:'Odometer (km)', type:'number' },
+    ];
+
+    document.getElementById('btn-edit-toggle').addEventListener('click', () => {
+      const form = document.getElementById('edit-form');
+      if (form.classList.contains('hidden')) {
+        form.classList.remove('hidden');
+        form.scrollIntoView({ behavior:'smooth', block:'start' });
+        const v = vehicleData?.vehicle || {};
+        document.getElementById('edit-fields').innerHTML = EDITABLE_FIELDS.map(f => `
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1">${f.label}</label>
+            <input type="${f.type||'text'}" class="edit-input w-full" name="${f.key}" value="${v[f.key]||''}" />
+          </div>`).join('');
+      } else {
+        form.classList.add('hidden');
+      }
+    });
+
+    document.getElementById('btn-cancel-edit').addEventListener('click', () => {
+      document.getElementById('edit-form').classList.add('hidden');
+    });
+
+    document.getElementById('btn-save-edit').addEventListener('click', async () => {
+      const inputs = document.querySelectorAll('#edit-fields input');
+      const body = {};
+      inputs.forEach(inp => { if(inp.value !== '') body[inp.name] = inp.value; });
+      try {
+        await apiFetch(`/vehicles/${vehicleId}`, { method:'PATCH', body });
+        showToast?.('Vehicle updated successfully', 'success');
+        document.getElementById('edit-form').classList.add('hidden');
+        await loadVehicle();
+      } catch(e) {
+        showToast?.(e?.message || 'Failed to update vehicle', 'error');
+      }
+    });
+
+    async function loadVehicle() {
+      try {
+        const data = await apiFetch(`/vehicles/${vehicleId}`);
+        vehicleData = data;
+        const { vehicle: v, tickets, certificates, contacts, devices } = data;
+
+        document.getElementById('v360-loading').classList.add('hidden');
+        document.getElementById('v360-main').classList.remove('hidden');
+
+        // Count tickets
+        v.ticket_count = tickets?.length || 0;
+        v.completed_ticket_count = tickets?.filter(t=>t.status==='Completed').length || 0;
+        v.open_ticket_count = tickets?.filter(t=>!['Completed','Cancelled'].includes(t.status)).length || 0;
+
+        let queueRows = [];
+        try { queueRows = (await apiFetch(`/gps-uninstall-queue/vehicle/${vehicleId}`)).data || []; } catch {}
+
+        renderHeader(v);
+        renderDetails(v);
+        renderCustomer(v, contacts);
+        renderTickets(tickets, devices);
+        renderDevices(devices);
+        renderCerts(certificates);
+        renderUninstallSection(v, queueRows);
+        buildTimeline(v, tickets, queueRows);
+      } catch(e) {
+        showError(e?.message || 'Vehicle not found.');
+      }
+    }
+
+    loadVehicle();
+  });
+  </script>
+</body>
+</html>

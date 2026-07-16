@@ -1,0 +1,2967 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Customer 360° View</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-7xl mx-auto space-y-6">
+          <!-- Header -->
+          <div id="customer-header" class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm flex flex-wrap items-start gap-4">
+            <div class="flex-1 min-w-0">
+              <div class="flex flex-wrap items-center gap-3">
+                <h1 id="cust-name" class="text-2xl font-bold text-slate-900">Loading…</h1>
+                <span id="cust-type-badge" class=""></span>
+                <span id="cust-status-badge" class=""></span>
+              </div>
+              <div class="mt-1 flex flex-wrap gap-4 text-sm text-slate-500">
+                <span>Account: <span id="cust-account-no" class="font-mono font-semibold text-slate-700"></span></span>
+                <span>Manager: <span id="cust-mgr" class="text-slate-700"></span></span>
+                <span>Region: <span id="cust-region" class="text-slate-700"></span></span>
+                <span>Source: <span id="cust-source" class="text-slate-700"></span></span>
+                <span id="cust-segment-wrap" class="hidden">Segment: <span id="cust-segment" class="text-slate-700 font-medium"></span></span>
+                <!-- Partner fields -->
+                <span id="cust-primary-partner-wrap" class="flex items-center gap-1.5">
+                  <span class="text-slate-500">Primary Partner:</span>
+                  <span id="cust-primary-partner-display" class="text-slate-700 font-medium">—</span>
+                  <button id="btn-edit-partner" title="Edit affiliated partners"
+                    class="hidden w-5 h-5 rounded hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-blue-600 transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536M9 11l6-6 3 3-6 6H9v-3z"/></svg>
+                  </button>
+                </span>
+                <span id="cust-secondary-partner-wrap" class="hidden flex items-center gap-1.5">
+                  <span class="text-slate-500">Secondary Partner:</span>
+                  <span id="cust-secondary-partner-display" class="text-slate-700 font-medium">—</span>
+                </span>
+              </div>
+            </div>
+            <div class="flex gap-2 flex-shrink-0">
+              <a id="btn-edit" href="#" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors">Edit</a>
+              <button id="btn-new-quote" class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 transition-colors">+ New Quote</button>
+              <a href="crm-tickets.html?new=1" id="btn-new-ticket" class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 transition-colors">+ New Ticket</a>
+            </div>
+          </div>
+
+          <!-- Tabs Navigation -->
+          <div class="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1 text-sm shadow-sm flex-wrap gap-1">
+            <button class="tab-btn active-tab rounded-md px-4 py-2 bg-white shadow-sm text-slate-900 font-medium" data-tab="profile">Profile</button>
+            <button class="tab-btn rounded-md px-4 py-2 text-slate-600 hover:bg-white" data-tab="contacts">Contacts</button>
+            <button class="tab-btn rounded-md px-4 py-2 text-slate-600 hover:bg-white" data-tab="subscriptions">Subscriptions</button>
+            <button class="tab-btn rounded-md px-4 py-2 text-slate-600 hover:bg-white" data-tab="devices">Devices</button>
+            <button class="tab-btn rounded-md px-4 py-2 text-slate-600 hover:bg-white" data-tab="tickets">Tickets</button>
+            <button class="tab-btn rounded-md px-4 py-2 text-slate-600 hover:bg-white" data-tab="comms">Communications</button>
+            <button class="tab-btn rounded-md px-4 py-2 text-slate-600 hover:bg-white" data-tab="invoices">Invoices</button>
+            <button class="tab-btn rounded-md px-4 py-2 text-slate-600 hover:bg-white" data-tab="campaigns">Campaigns</button>
+            <button class="tab-btn rounded-md px-4 py-2 text-slate-600 hover:bg-white" data-tab="vehicles">Vehicles</button>
+            <button class="tab-btn rounded-md px-4 py-2 text-slate-600 hover:bg-white" data-tab="installations">Installations</button>
+            <button class="tab-btn rounded-md px-4 py-2 text-slate-600 hover:bg-white" data-tab="install-tickets">Install Tickets</button>
+            <button class="tab-btn rounded-md px-4 py-2 text-slate-600 hover:bg-white" data-tab="leads">Leads</button>
+            <button class="tab-btn rounded-md px-4 py-2 text-slate-600 hover:bg-white" data-tab="quotes">Quotes</button>
+            <button class="tab-btn rounded-md px-4 py-2 text-slate-600 hover:bg-white" data-tab="proforma">Proforma</button>
+            <button class="tab-btn rounded-md px-4 py-2 text-slate-600 hover:bg-white" data-tab="survey">Survey</button>
+            <button class="tab-btn rounded-md px-4 py-2 text-slate-600 hover:bg-white" data-tab="certificates">Certificates</button>
+          </div>
+
+          <!-- Tab Panels -->
+          <div id="tab-profile" class="tab-panel bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm"></div>
+          <div id="tab-contacts" class="tab-panel hidden bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm"></div>
+          <div id="tab-subscriptions" class="tab-panel hidden bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm"></div>
+          <div id="tab-devices" class="tab-panel hidden bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm"></div>
+          <div id="tab-tickets" class="tab-panel hidden bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm"></div>
+          <div id="tab-comms" class="tab-panel hidden bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm"></div>
+          <div id="tab-invoices" class="tab-panel hidden bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm"></div>
+          <div id="tab-campaigns" class="tab-panel hidden bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm"></div>
+          <div id="tab-vehicles" class="tab-panel hidden bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm"></div>
+          <div id="tab-installations" class="tab-panel hidden bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm"></div>
+          <div id="tab-install-tickets" class="tab-panel hidden bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm"><p class="text-slate-400 text-sm">Click tab to load installation tickets.</p></div>
+          <div id="tab-leads" class="tab-panel hidden bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm"><p class="text-slate-400 text-sm">Click tab to load leads.</p></div>
+          <div id="tab-quotes" class="tab-panel hidden bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm"><p class="text-slate-400 text-sm">Click tab to load quotes.</p></div>
+          <div id="tab-proforma" class="tab-panel hidden bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm"><p class="text-slate-400 text-sm">Click tab to load proforma invoices.</p></div>
+          <div id="tab-survey" class="tab-panel hidden bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm"><p class="text-slate-400 text-sm">Click tab to load surveys.</p></div>
+          <div id="tab-certificates" class="tab-panel hidden bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm"></div>
+        </div>
+      </main>
+    </div>
+
+<div id="fm-footer"></div>
+
+<script src="assets/vehicleCatalog.js"></script>
+<script src="assets/contracts.js"></script>
+    <script src="assets/app.js"></script>
+    <script src="assets/layout.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => window.FINEMARK_APP?.requirePageAccess?.());
+
+      const customerId = new URLSearchParams(location.search).get("id");
+      if (!customerId) { location.href = "crm-customers.html"; }
+
+      let view360 = null;
+
+      function field(label, value, mono = false) {
+        return `<div><p class="text-xs text-slate-400 font-medium uppercase tracking-wide">${label}</p>
+                <p class="mt-0.5 text-sm font-medium text-slate-800 ${mono ? 'font-mono' : ''}">${value || "—"}</p></div>`;
+      }
+
+      function renderProfile(profile, type, segment, partnerData, contacts) {
+        const segmentField = segment ? [["Segment", segment]] : [];
+        const primaryPartnerField = partnerData?.affiliatePartnerName ? [["Primary Partner", partnerData.affiliatePartnerName]] : [];
+        const secondaryPartnerField = partnerData?.secondaryPartnerName ? [["Secondary Partner", partnerData.secondaryPartnerName]] : [];
+        const primaryContact = contacts?.find(c => c.isPrimary) || contacts?.[0] || null;
+        const phone = profile?.phone || primaryContact?.phone || null;
+        const email = profile?.email || primaryContact?.email || null;
+        const fields = type === "individual"
+          ? [
+              ...segmentField,
+              ...primaryPartnerField,
+              ...secondaryPartnerField,
+              ["Full Name", profile.fullName],
+              ["National ID", profile.nationalId],
+              ["Passport No", profile.passportNo],
+              ["KRA PIN", profile.kraPin, true],
+              ["Phone", phone],
+              ["Email", email],
+              ["Address", profile.address],
+              ["Industry", profile.industry],
+              ["Date of Birth", profile.dateOfBirth],
+              ["Gender", profile.gender],
+              ...(partnerData?.fleetSize ? [["Fleet Size", `${Number(partnerData.fleetSize).toLocaleString()} vehicles`]] : []),
+            ]
+          : [
+              ...segmentField,
+              ...primaryPartnerField,
+              ...secondaryPartnerField,
+              ["Company Name", profile.companyName],
+              ["Reg Number", profile.regNumber, true],
+              ["KRA PIN", profile.kraPin, true],
+              ["Industry", profile.industry],
+              ["Physical Address", profile.physicalAddress],
+              ["Website", profile.website],
+              ["Phone", phone],
+              ["Email", email],
+              ...(partnerData?.fleetSize ? [["Fleet Size", `${Number(partnerData.fleetSize).toLocaleString()} vehicles`]] : []),
+            ];
+        return `<div class="grid grid-cols-2 sm:grid-cols-3 gap-5">${fields.map(([l, v, m]) => field(l, v, m)).join("")}</div>`;
+      }
+
+      function renderBadge(status, map) {
+        return (map && map[status]) || `<span class="text-xs text-slate-500">${status}</span>`;
+      }
+
+      const PRIORITY_BADGES = {
+        Critical: `<span class="inline-flex rounded-full bg-red-50 px-2 text-xs font-semibold text-red-600 border border-red-100">Critical</span>`,
+        High: `<span class="inline-flex rounded-full bg-orange-50 px-2 text-xs font-semibold text-orange-600 border border-orange-100">High</span>`,
+        Normal: `<span class="inline-flex rounded-full bg-blue-50 px-2 text-xs font-semibold text-blue-600 border border-blue-100">Normal</span>`,
+        Low: `<span class="inline-flex rounded-full bg-slate-100 px-2 text-xs font-semibold text-slate-500 border border-slate-200">Low</span>`,
+      };
+      const STATUS_TICKET = {
+        Open: `<span class="inline-flex rounded-full bg-amber-50 px-2 text-xs font-semibold text-amber-600 border border-amber-100">Open</span>`,
+        "In Progress": `<span class="inline-flex rounded-full bg-blue-50 px-2 text-xs font-semibold text-blue-700 border border-blue-100">In Progress</span>`,
+        Resolved: `<span class="inline-flex rounded-full bg-green-50 px-2 text-xs font-semibold text-green-700 border border-green-100">Resolved</span>`,
+        Closed: `<span class="inline-flex rounded-full bg-slate-100 px-2 text-xs font-semibold text-slate-500 border border-slate-200">Closed</span>`,
+      };
+      const SUB_STATUS = {
+        Active: `<span class="inline-flex rounded-full bg-green-50 px-2 text-xs font-semibold text-green-700 border border-green-100">Active</span>`,
+        Expired: `<span class="inline-flex rounded-full bg-red-50 px-2 text-xs font-semibold text-red-600 border border-red-100">Expired</span>`,
+        Cancelled: `<span class="inline-flex rounded-full bg-slate-100 px-2 text-xs font-semibold text-slate-500 border border-slate-200">Cancelled</span>`,
+      };
+
+      // ── Installed Devices Tab ─────────────────────────────────────────────────
+      function renderDevicesTab(devices) {
+        const panel = document.getElementById("tab-devices");
+        if (!devices.length) {
+          panel.innerHTML = `<h2 class="font-semibold text-slate-800 mb-3">Installed Devices</h2>
+            <p class="text-slate-400 text-sm">No installed devices found for this customer.</p>`;
+          return;
+        }
+
+        // Group by vehicle registration
+        const byVehicle = {};
+        devices.forEach(d => {
+          const veh = d.vehicleRegistration || 'Unknown Vehicle';
+          if (!byVehicle[veh]) byVehicle[veh] = { vehicleId: d.vehicleId, devices: [] };
+          byVehicle[veh].devices.push(d);
+        });
+
+        const statusCls = (s) => s === 'Installed'
+          ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+          : 'bg-slate-100 text-slate-500 border-slate-200';
+
+        const vehicleSections = Object.entries(byVehicle).map(([reg, group]) => `
+          <div class="mb-6 last:mb-0">
+            <div class="flex items-center gap-2 mb-2">
+              <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 6H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-3M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2M8 6h8"/>
+              </svg>
+              <span class="font-mono font-bold text-sm text-blue-700">${reg}</span>
+              <span class="text-xs text-slate-400">${group.devices.length} device${group.devices.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div class="overflow-x-auto rounded-xl border border-slate-200">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="bg-slate-50 text-xs text-slate-400 uppercase tracking-wide border-b border-slate-100">
+                    <th class="py-2 pl-4 pr-3 text-left">Device / Model</th>
+                    <th class="py-2 pr-3 text-left">Serial No.</th>
+                    <th class="py-2 pr-3 text-left">IMEI</th>
+                    <th class="py-2 pr-3 text-left">SIM</th>
+                    <th class="py-2 pr-3 text-left">Status</th>
+                    <th class="py-2 pr-3 text-left">Installed</th>
+                    <th class="py-2 pr-3 text-left">Ticket</th>
+                    <th class="py-2 pr-3 text-left"></th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50">
+                  ${group.devices.map(d => `
+                  <tr class="hover:bg-slate-50/60">
+                    <td class="py-2.5 pl-4 pr-3">
+                      <p class="font-semibold text-slate-800 text-xs">${d.deviceModel || d.productName || '—'}</p>
+                      <p class="text-xs text-slate-400 font-mono">${d.productCode || ''}</p>
+                    </td>
+                    <td class="py-2.5 pr-3 font-mono text-xs text-slate-700">${d.serialNumber || '—'}</td>
+                    <td class="py-2.5 pr-3 font-mono text-xs text-slate-600">${d.imei || '—'}</td>
+                    <td class="py-2.5 pr-3 font-mono text-xs text-slate-600">${d.simPhone || '—'}</td>
+                    <td class="py-2.5 pr-3">
+                      <span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${statusCls(d.status)}">${d.status || '—'}</span>
+                    </td>
+                    <td class="py-2.5 pr-3 text-xs text-slate-500">${d.deployedAt ? d.deployedAt.slice(0,10) : '—'}</td>
+                    <td class="py-2.5 pr-3 font-mono text-xs text-blue-700">${d.ticketNo || '—'}</td>
+                    <td class="py-2.5 pr-3">
+                      ${d.viInstallationId
+                        ? `<a href="job-details.html?id=${d.viInstallationId}" class="text-xs text-blue-600 hover:underline font-medium whitespace-nowrap">View Job →</a>`
+                        : d.ticketId
+                          ? `<a href="job-details.html?ticketId=${d.ticketId}" class="text-xs text-blue-600 hover:underline font-medium whitespace-nowrap">View Job →</a>`
+                          : ''}
+                    </td>
+                  </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>`).join('');
+
+        panel.innerHTML = `
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="font-semibold text-slate-800">Installed Devices (${devices.length})</h2>
+            <span class="text-xs text-slate-400">${Object.keys(byVehicle).length} vehicle${Object.keys(byVehicle).length !== 1 ? 's' : ''}</span>
+          </div>
+          ${vehicleSections}`;
+      }
+
+      // ── Certificates Tab ──────────────────────────────────────────────────────
+      function renderCertificatesTab(certs) {
+        const panel = document.getElementById("tab-certificates");
+        if (!certs || !certs.length) {
+          panel.innerHTML = `
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="font-semibold text-slate-800">Certificates (0)</h2>
+              <a href="certificate-generator.html" class="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 transition-colors">+ Generate Certificate</a>
+            </div>
+            <p class="text-slate-400 text-sm">No certificates found for this customer's vehicles.</p>`;
+          return;
+        }
+
+        const certStatusCls = (s) => ({
+          Active:        "bg-green-50 text-green-700 border-green-100",
+          NearingExpiry: "bg-amber-50 text-amber-700 border-amber-100",
+          Expired:       "bg-red-50 text-red-600 border-red-100",
+          Unknown:       "bg-slate-100 text-slate-500 border-slate-200",
+        }[s] || "bg-slate-100 text-slate-500 border-slate-200");
+
+        const certStatusLabel = (s) => ({
+          Active: "Active", NearingExpiry: "Expiring Soon", Expired: "Expired", Unknown: "Unknown",
+        }[s] || s);
+
+        panel.innerHTML = `
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="font-semibold text-slate-800">Certificates (${certs.length})</h2>
+            <a href="certificate-generator.html" class="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 transition-colors">+ Generate Certificate</a>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-xs text-slate-400 uppercase tracking-wide border-b border-slate-100">
+                  <th class="pb-2 pr-4 text-left">Serial No.</th>
+                  <th class="pb-2 pr-4 text-left">Registration</th>
+                  <th class="pb-2 pr-4 text-left">System Type</th>
+                  <th class="pb-2 pr-4 text-left">Model</th>
+                  <th class="pb-2 pr-4 text-left">IMEI 1</th>
+                  <th class="pb-2 pr-4 text-left">Tracker</th>
+                  <th class="pb-2 pr-4 text-left">Valid</th>
+                  <th class="pb-2 pr-4 text-left">Status</th>
+                  <th class="pb-2 pr-4 text-left">Loan (yrs)</th>
+                  <th class="pb-2 pr-4"></th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-50">
+                ${certs.map(c => `
+                <tr class="hover:bg-slate-50/50">
+                  <td class="py-2.5 pr-4 font-mono font-semibold text-xs text-indigo-700">${c.serialNo}</td>
+                  <td class="py-2.5 pr-4 font-mono font-bold text-xs text-blue-700">${c.carRegistration}</td>
+                  <td class="py-2.5 pr-4 text-xs text-slate-700">${c.systemType}</td>
+                  <td class="py-2.5 pr-4 text-xs text-slate-600">${c.model || '—'}</td>
+                  <td class="py-2.5 pr-4 font-mono text-xs text-slate-500">${c.imei1 || '—'}</td>
+                  <td class="py-2.5 pr-4 font-mono text-xs text-slate-500">${c.trackerNo1 || '—'}</td>
+                  <td class="py-2.5 pr-4 text-xs text-slate-500 whitespace-nowrap">${c.startDate || '—'} → ${c.endDate || '—'}</td>
+                  <td class="py-2.5 pr-4">
+                    <span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${certStatusCls(c.status)}">${certStatusLabel(c.status)}</span>
+                  </td>
+                  <td class="py-2.5 pr-4 text-xs text-slate-500">${c.loanDurationYears || '—'}</td>
+                  <td class="py-2.5 pr-4">
+                    <a href="certificate-generator.html?certId=${c.id}" class="text-xs text-indigo-600 hover:underline font-medium whitespace-nowrap">View →</a>
+                  </td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>`;
+      }
+
+      function renderAllTabs(v) {
+        // Profile
+        document.getElementById("tab-profile").innerHTML = v.profile
+          ? `<h2 class="font-semibold text-slate-800 mb-4">Profile Details</h2>${renderProfile(v.profile, v.customer.type, v.customer.segment, v.customer, v.contacts)}
+             <div id="profile-docs-section" class="mt-8"><p class="text-xs text-slate-400 animate-pulse">Loading documents…</p></div>`
+          : `<p class="text-slate-400 text-sm">No profile data.</p><div id="profile-docs-section" class="mt-6"></div>`;
+        loadCustomerDocuments();
+
+        // Contacts
+        renderContactsTab(v.contacts);
+
+        // Subscriptions
+        document.getElementById("tab-subscriptions").innerHTML = v.subscriptions.length
+          ? `<h2 class="font-semibold text-slate-800 mb-4">Subscriptions (${v.subscriptions.length})</h2>
+             <div class="overflow-x-auto"><table class="w-full text-sm"><thead>
+               <tr class="text-xs text-slate-400 uppercase tracking-wide border-b border-slate-100">
+                 <th class="pb-2 pr-4 text-left">Service</th><th class="pb-2 pr-4 text-left">Plan</th>
+                 <th class="pb-2 pr-4 text-left">Status</th><th class="pb-2 pr-4 text-left">Start</th>
+                 <th class="pb-2 pr-4 text-left">End</th><th class="pb-2 pr-4 text-right">Monthly</th>
+               </tr></thead><tbody class="divide-y divide-slate-50">${v.subscriptions.map(s => `
+               <tr class="hover:bg-slate-50/40">
+                 <td class="py-2 pr-4 font-medium text-slate-800">${s.serviceType}</td>
+                 <td class="py-2 pr-4 text-slate-600">${s.planName}</td>
+                 <td class="py-2 pr-4">${SUB_STATUS[s.status] || s.status}</td>
+                 <td class="py-2 pr-4 text-slate-500 text-xs">${s.startDate || "—"}</td>
+                 <td class="py-2 pr-4 text-slate-500 text-xs">${s.endDate || "Ongoing"}</td>
+                 <td class="py-2 pr-4 text-right font-mono text-slate-700">${s.monthlyFee ? (s.currency + ' ' + Number(s.monthlyFee).toLocaleString()) : "—"}</td>
+               </tr>`).join("")}</tbody></table></div>`
+          : `<p class="text-slate-400 text-sm">No subscriptions.</p>`;
+
+        // Devices — from inventory (inv_items via installation_tickets)
+        renderDevicesTab(v.installedDevices || []);
+
+        // Tickets
+        document.getElementById("tab-tickets").innerHTML = v.tickets.length
+          ? `<div class="flex items-center justify-between mb-4">
+               <h2 class="font-semibold text-slate-800">Support Tickets (${v.tickets.length})</h2>
+               <div class="flex items-center gap-3">
+                 <a href="crm-tickets.html?customerId=${customerId}" class="text-xs text-blue-600 hover:underline">View all →</a>
+                 <a href="crm-tickets.html?new=1&customerId=${customerId}" class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors">+ New Ticket</a>
+               </div>
+             </div>
+             <div class="overflow-x-auto">
+               <table class="w-full text-sm">
+                 <thead><tr class="text-xs text-slate-400 uppercase tracking-wide border-b border-slate-100">
+                   <th class="pb-2 pr-4 text-left">Ticket #</th>
+                   <th class="pb-2 pr-4 text-left">Subject</th>
+                   <th class="pb-2 pr-4 text-left">Category</th>
+                   <th class="pb-2 pr-4 text-left">Priority</th>
+                   <th class="pb-2 pr-4 text-left">Status</th>
+                   <th class="pb-2 pr-4 text-left">Assignee</th>
+                   <th class="pb-2 pr-4 text-left">Opened</th>
+                   <th class="pb-2 pr-4"></th>
+                 </tr></thead>
+                 <tbody class="divide-y divide-slate-50">${v.tickets.map(t => `
+                   <tr class="hover:bg-slate-50/50">
+                     <td class="py-2.5 pr-4 font-mono text-xs font-semibold text-blue-700">${t.ticketNo}</td>
+                     <td class="py-2.5 pr-4 font-medium text-slate-800 max-w-xs truncate">${t.subject}</td>
+                     <td class="py-2.5 pr-4 text-xs text-slate-500">${t.category || '—'}</td>
+                     <td class="py-2.5 pr-4">${PRIORITY_BADGES[t.priority] || `<span class="text-xs text-slate-500">${t.priority || '—'}</span>`}</td>
+                     <td class="py-2.5 pr-4">${STATUS_TICKET[t.status] || `<span class="text-xs text-slate-500">${t.status}</span>`}</td>
+                     <td class="py-2.5 pr-4 text-xs text-slate-500">${t.assigneeEmail || 'Unassigned'}</td>
+                     <td class="py-2.5 pr-4 text-xs text-slate-400">${t.openedAt ? t.openedAt.slice(0,10) : '—'}</td>
+                     <td class="py-2.5 pr-4"><a href="crm-tickets.html?id=${t.id}" class="text-xs text-blue-600 hover:underline font-medium whitespace-nowrap">View →</a></td>
+                   </tr>`).join('')}
+                 </tbody>
+               </table>
+             </div>`
+          : `<div class="flex items-center justify-between mb-4">
+               <h2 class="font-semibold text-slate-800">Support Tickets (0)</h2>
+               <a href="crm-tickets.html?new=1&customerId=${customerId}" class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors">+ New Ticket</a>
+             </div>
+             <p class="text-slate-400 text-sm">No tickets yet for this customer.</p>`;
+
+        // Communications
+        renderCommsTab(v.communicationLogs);
+
+        // Invoices
+        document.getElementById("tab-invoices").innerHTML = v.invoices.length
+          ? `<h2 class="font-semibold text-slate-800 mb-4">Invoices (${v.invoices.length})</h2>
+             <div class="overflow-x-auto"><table class="w-full text-sm"><thead>
+               <tr class="text-xs text-slate-400 uppercase tracking-wide border-b border-slate-100">
+                 <th class="pb-2 pr-4 text-left">Invoice #</th><th class="pb-2 pr-4 text-left">Amount</th>
+                 <th class="pb-2 pr-4 text-left">Status</th><th class="pb-2 pr-4 text-left">Issued</th><th class="pb-2 pr-4"></th>
+               </tr></thead><tbody class="divide-y divide-slate-50">${v.invoices.map(i => `
+               <tr class="hover:bg-slate-50/40"><td class="py-2 pr-4 font-mono text-xs font-semibold text-blue-700">${i.invoiceNumber}</td>
+               <td class="py-2 pr-4">${i.currency} ${Number(i.amount).toLocaleString()}</td>
+               <td class="py-2 pr-4 text-xs text-slate-600">${i.status}</td>
+               <td class="py-2 pr-4 text-xs text-slate-500">${i.issuedOn || "—"}</td>
+               <td class="py-2 pr-4"><a href="invoice-detail.html?id=${i.id}" class="text-xs text-blue-600 hover:underline font-medium">View →</a></td></tr>`).join("")}
+             </tbody></table></div>`
+          : `<p class="text-slate-400 text-sm">No invoices found.</p>`;
+
+        // Campaigns
+        document.getElementById("tab-campaigns").innerHTML = v.campaignMemberships.length
+          ? `<h2 class="font-semibold text-slate-800 mb-4">Campaign Memberships (${v.campaignMemberships.length})</h2>
+             <div class="space-y-2">${v.campaignMemberships.map(cm => `
+               <div class="rounded-lg border border-slate-100 px-4 py-3 flex justify-between items-center">
+                 <div>
+                   <p class="text-sm font-semibold text-slate-800">${cm.campaignName}</p>
+                   <p class="text-xs text-slate-400">${cm.campaignType} · ${cm.sentAt ? 'Sent ' + cm.sentAt.slice(0, 10) : 'Not sent'}</p>
+                 </div>
+                 <span class="text-xs font-medium text-slate-600">${cm.outcome || cm.status}</span>
+               </div>`).join("")}</div>`
+          : `<p class="text-slate-400 text-sm">No campaign memberships.</p>`;
+
+        // Vehicles
+        renderVehiclesTab(v.vehicles || []);
+
+        // Certificates
+        renderCertificatesTab(v.certificates || []);
+
+        // Installations
+        loadInstallationsTab(customerId);
+      }
+
+      // ── Installations Tab ─────────────────────────────────────────────────────
+      async function loadInstallationsTab(custId) {
+        const panel = document.getElementById("tab-installations");
+        panel.innerHTML = '<p class="text-slate-400 text-sm animate-pulse">Loading installations…</p>';
+        try {
+          const json = await window.FINEMARK_APP.apiFetch(`/vehicle-installations?customerId=${custId}&pageSize=100`);
+          const items = json?.data || [];
+          if (items.length === 0) {
+            panel.innerHTML = `
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="font-semibold text-slate-800">Installations (0)</h2>
+              <a href="vehicle-installation.html?customerId=${custId}" class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">+ New Installation</a>
+              </div>
+              <p class="text-slate-400 text-sm">No installation records found for this customer.</p>`;
+            return;
+          }
+          const statusColor = (s) => ({
+            Pending:    "bg-slate-100 text-slate-600",
+            Assigned:   "bg-blue-50 text-blue-700",
+            InProgress: "bg-amber-50 text-amber-700",
+            Completed:  "bg-teal-50 text-teal-700",
+            Cancelled:  "bg-rose-50 text-rose-700",
+          }[s] || "bg-slate-100 text-slate-600");
+          panel.innerHTML = `
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="font-semibold text-slate-800">Installations (${items.length})</h2>
+              <a href="vehicle-installation.html?customerId=${custId}" class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">+ New Installation</a>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead><tr class="border-b border-slate-100 text-left">
+                  <th class="py-2 pr-4 text-xs font-medium text-slate-400">Registration</th>
+                  <th class="py-2 pr-4 text-xs font-medium text-slate-400">Vehicle</th>
+                  <th class="py-2 pr-4 text-xs font-medium text-slate-400">Status</th>
+                  <th class="py-2 pr-4 text-xs font-medium text-slate-400">Stage</th>
+                  <th class="py-2 pr-4 text-xs font-medium text-slate-400">Technician</th>
+                  <th class="py-2 pr-4 text-xs font-medium text-slate-400">Created</th>
+                  <th class="py-2 pr-4"></th>
+                </tr></thead>
+                <tbody>${items.map(i => `
+                  <tr class="border-b border-slate-50 hover:bg-slate-50/40">
+                    <td class="py-2 pr-4 font-mono font-semibold text-blue-700 text-xs">${i.registration || "—"}</td>
+                    <td class="py-2 pr-4 text-slate-700">${[i.vehicleMake, i.vehicleModel].filter(Boolean).join(" ") || "—"}</td>
+                    <td class="py-2 pr-4"><span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(i.status)}">${i.status}</span></td>
+                    <td class="py-2 pr-4 text-slate-500 text-xs">${i.stage} / 7 — ${i.stageName}</td>
+                    <td class="py-2 pr-4 text-slate-500 text-xs">${i.assignedTechnicianEmail || "Unassigned"}</td>
+                    <td class="py-2 pr-4 text-slate-400 text-xs">${i.createdAt ? i.createdAt.slice(0,10) : "—"}</td>
+                    <td class="py-2 pr-4"><a href="job-details.html?id=${i.id}" class="text-xs text-blue-600 hover:underline font-medium">View Job →</a></td>
+                  </tr>`).join("")}
+                </tbody>
+              </table>
+            </div>`;
+        } catch(e) {
+          panel.innerHTML = '<p class="text-rose-500 text-sm">Failed to load installations.</p>';
+        }
+      }
+
+      // ── Vehicles Tab ──────────────────────────────────────────────────────────
+      function renderVehiclesTab(vehicles) {
+        const panel = document.getElementById("tab-vehicles");
+
+        const vehicleRows = vehicles.length
+          ? vehicles.map(v => {
+              _vehicleMap[v.id] = v;
+              const loanBadge = (() => {
+                if (!v.loanTenureMonths) return '<span class="text-slate-300 text-xs">—</span>';
+                const tenureLabel = v.loanTenureMonths % 12 === 0
+                  ? `${v.loanTenureMonths / 12} yr${v.loanTenureMonths / 12 !== 1 ? "s" : ""}`
+                  : `${v.loanTenureMonths} mo`;
+                if (!v.loanStartDate) {
+                  return `<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">${tenureLabel}</span>`;
+                }
+                const exp = new Date(v.loanStartDate);
+                exp.setMonth(exp.getMonth() + v.loanTenureMonths);
+                const days = Math.ceil((exp - new Date()) / 86400000);
+                const cls = days <= 0 ? "bg-red-100 text-red-700" : days <= 30 ? "bg-orange-100 text-orange-700" : days <= 90 ? "bg-yellow-100 text-yellow-700" : "bg-emerald-50 text-emerald-700";
+                const label = days <= 0 ? "Expired" : `${days}d left`;
+                return `<span class="px-1.5 py-0.5 rounded text-xs font-medium ${cls}" title="${tenureLabel} loan">${label}</span>
+                        <div class="text-xs text-slate-400 mt-0.5">${tenureLabel}</div>`;
+              })();
+              const _role360 = window.FINEMARK_APP?.getSession?.()?.user?.role;
+              const activeQueue = (_uninstallQueueByVehicle[v.id] || []).find(q => ["Scheduled", "TicketRaised"].includes(q.status));
+              const UNINSTALL_PILL = { Scheduled: "bg-amber-100 text-amber-700", TicketRaised: "bg-blue-100 text-blue-700" };
+              const uninstallPill = activeQueue ? `<div class="mt-0.5"><span class="px-1.5 py-0.5 rounded text-xs font-medium ${UNINSTALL_PILL[activeQueue.status] || "bg-slate-100 text-slate-600"}">Uninstall: ${activeQueue.status === "TicketRaised" ? "Ticket Raised" : "Scheduled"}</span></div>` : "";
+              const uninstallAction = activeQueue
+                ? (activeQueue.status === "Scheduled"
+                    ? `<a href="crm-ticket-new.html?categoryName=Uninstallation&customerId=${customerId}&customerName=${encodeURIComponent(document.getElementById("cust-name")?.textContent || "")}&vehicleId=${v.id}&queueId=${activeQueue.id}"
+                        class="invisible group-hover:visible text-xs text-rose-600 hover:underline font-semibold px-2 py-0.5 rounded">
+                        Raise Uninstall Ticket
+                      </a>`
+                    : `<a href="crm-ticket-detail.html?id=${activeQueue.linkedTicketId}"
+                        class="invisible group-hover:visible text-xs text-blue-600 hover:underline font-semibold px-2 py-0.5 rounded">
+                        Ticket Raised →
+                      </a>`)
+                : (["Admin", "Finance"].includes(_role360)
+                    ? `<button onclick="openMarkSettled('${v.id}')"
+                        class="invisible group-hover:visible text-xs text-slate-600 hover:text-rose-700 font-semibold px-2 py-0.5 rounded hover:bg-rose-50">
+                        Mark Settled Early
+                      </button>`
+                    : "");
+              return `
+              <tr class="hover:bg-slate-50/40 group">
+                <td class="py-2 pr-4 font-mono font-semibold text-blue-700 text-xs">${v.registration}</td>
+                <td class="py-2 pr-4 font-medium text-slate-800">${[v.make, v.model].filter(Boolean).join(" ") || "—"}</td>
+                <td class="py-2 pr-4 text-slate-500 text-xs">${v.bodyType || "—"}</td>
+                <td class="py-2 pr-4 text-slate-500 text-xs">${v.color || "—"}</td>
+                <td class="py-2 pr-4 text-slate-500 text-xs">${v.yearOfManufacture || "—"}</td>
+                <td class="py-2 pr-4 text-slate-500 text-xs">${v.chassisNumber || "—"}</td>
+                <td class="py-2 pr-4 text-slate-500 text-xs">${v.partnerName || (v.partnerId ? v.partnerId.slice(0,8)+"…" : "—")}</td>
+                <td class="py-2 pr-4 text-xs">${loanBadge}${uninstallPill}</td>
+                <td class="py-2 pr-4 flex items-center gap-2">
+                  <a href="vehicle-installation.html?vehicleId=${v.id}" onclick="openInstallationForVehicle(event,'${v.id}')"
+                    class="invisible group-hover:visible text-xs text-blue-600 hover:underline font-medium px-2 py-0.5 rounded">
+                    Installs
+                  </a>
+                  <button onclick="openEditVehicle('${v.id}')"
+                    class="invisible group-hover:visible text-xs text-slate-600 hover:text-blue-700 font-semibold px-2 py-0.5 rounded hover:bg-blue-50">
+                    Edit
+                  </button>
+                  <button onclick="removeVehicle('${v.id}')"
+                    class="invisible group-hover:visible text-xs text-rose-500 hover:text-rose-700 font-semibold px-2 py-0.5 rounded hover:bg-rose-50">
+                    Remove
+                  </button>
+                  ${uninstallAction}
+                </td>
+              </tr>`;
+            }).join("")
+          : `<tr><td colspan="9" class="py-6 text-center text-slate-400 text-sm">No vehicles registered.</td></tr>`;
+
+        panel.innerHTML = `
+          <div class="flex items-center justify-between mb-5">
+            <h2 class="font-semibold text-slate-800">Vehicles (${vehicles.length})</h2>
+            <button id="btn-add-vehicle"
+              class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 transition-colors">
+              + Add Vehicle
+            </button>
+          </div>
+
+          <!-- Add Vehicle Form (hidden by default) -->
+          <div id="vehicle-form-wrap" class="hidden mb-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
+            <p id="vf-form-title" class="text-sm font-semibold text-slate-700 mb-4">Register Vehicle</p>
+            <div id="vehicle-form-error" class="hidden mb-3 rounded-lg bg-red-50 border border-red-200 p-3 text-xs text-red-700"></div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label class="text-xs font-medium text-slate-600 mb-1 block">Registration *</label>
+                <input id="vf-registration" type="text" placeholder="e.g. KDG 123A"
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm uppercase focus:outline-none focus:border-blue-400" />
+              </div>
+              <div>
+                <label class="text-xs font-medium text-slate-600 mb-1 block">Category</label>
+                <select id="vf-category" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-400"></select>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-slate-600 mb-1 block">Vehicle Make *</label>
+                <select id="vf-make" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-400">
+                  <option value="">— Select make</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-slate-600 mb-1 block">Model</label>
+                <select id="vf-model" disabled class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-400 disabled:bg-slate-100">
+                  <option value="">— Select make first</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-slate-600 mb-1 block">Model Number</label>
+                <select id="vf-model-number" disabled class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-400 disabled:bg-slate-100">
+                  <option value="">— Select model first</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-slate-600 mb-1 block">Body Type</label>
+                <input id="vf-body-type" type="text" readonly placeholder="Auto-filled"
+                  class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 cursor-default focus:outline-none" />
+              </div>
+              <div>
+                <label class="text-xs font-medium text-slate-600 mb-1 block">Color</label>
+                <input id="vf-color" type="text" placeholder="e.g. Silver"
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+              </div>
+              <div>
+                <label class="text-xs font-medium text-slate-600 mb-1 block">Year of Manufacture</label>
+                <input id="vf-year" type="number" min="1950" max="2030" placeholder="e.g. 2020"
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+              </div>
+              <div>
+                <label class="text-xs font-medium text-slate-600 mb-1 block">Chassis Number</label>
+                <input id="vf-chassis" type="text" placeholder="VIN / Chassis No"
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm uppercase focus:outline-none focus:border-blue-400" />
+              </div>
+              <div>
+                <label class="text-xs font-medium text-slate-600 mb-1 block">Engine Number</label>
+                <input id="vf-engine" type="text" placeholder="Engine No"
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm uppercase focus:outline-none focus:border-blue-400" />
+              </div>
+              <div class="sm:col-span-2 lg:col-span-3">
+                <label class="text-xs font-medium text-slate-600 mb-1 block">Notes</label>
+                <input id="vf-notes" type="text" placeholder="Optional notes"
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+              </div>
+              <div>
+                <label class="text-xs font-medium text-slate-600 mb-1 block">Partner (optional)</label>
+                <select id="vf-partner-id" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-400">
+                  <option value="">— None (Direct)</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-slate-600 mb-1 block">
+                  Loan Tenure: <span id="vf-tenure-label" class="font-semibold text-blue-700">None</span>
+                </label>
+                <input id="vf-loan-tenure" type="range" min="0" max="84" step="1" value="0"
+                  class="w-full accent-blue-600 mt-1" />
+                <div class="flex justify-between text-xs text-slate-400 mt-0.5"><span>None</span><span>84 months</span></div>
+              </div>
+              <div id="vf-loan-start-wrap" class="hidden">
+                <label class="text-xs font-medium text-slate-600 mb-1 block">Loan Start Date</label>
+                <input id="vf-loan-start" type="date"
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+              </div>
+            </div>
+            <div class="flex gap-3 mt-4">
+              <button id="btn-vehicle-save"
+                class="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 transition-colors">
+                Save Vehicle
+              </button>
+              <button id="btn-vehicle-cancel"
+                class="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+
+          <!-- Vehicles Table -->
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-xs text-slate-400 uppercase tracking-wide border-b border-slate-100">
+                  <th class="pb-2 pr-4 text-left">Registration</th>
+                  <th class="pb-2 pr-4 text-left">Make / Model</th>
+                  <th class="pb-2 pr-4 text-left">Body Type</th>
+                  <th class="pb-2 pr-4 text-left">Color</th>
+                  <th class="pb-2 pr-4 text-left">Year</th>
+                  <th class="pb-2 pr-4 text-left">Chassis</th>
+                  <th class="pb-2 pr-4 text-left">Partner</th>
+                  <th class="pb-2 pr-4 text-left">Loan</th>
+                  <th class="pb-2 pr-4"></th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-50">${vehicleRows}</tbody>
+            </table>
+          </div>`;
+
+        // Wire up form toggle
+        document.getElementById("btn-add-vehicle").addEventListener("click", () => {
+          _editVehicleId = null;
+          document.getElementById("vehicle-form-wrap").classList.remove("hidden");
+          document.getElementById("btn-add-vehicle").classList.add("hidden");
+          const titleEl = document.getElementById("vf-form-title");
+          if (titleEl) titleEl.textContent = "Register Vehicle";
+          document.getElementById("btn-vehicle-save").textContent = "Save Vehicle";
+          // Reset all fields
+          ["vf-registration","vf-color","vf-year","vf-chassis","vf-engine","vf-notes"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+          ["vf-make","vf-model","vf-model-number","vf-partner-id"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+          const catEl = document.getElementById("vf-category");
+          if (catEl) catEl.value = "motor_vehicle";
+          const tenureEl = document.getElementById("vf-loan-tenure");
+          if (tenureEl) { tenureEl.value = "0"; tenureEl.dispatchEvent(new Event("input")); }
+          initVehicleForm();
+        });
+        document.getElementById("btn-vehicle-cancel").addEventListener("click", () => {
+          _editVehicleId = null;
+          document.getElementById("vehicle-form-wrap").classList.add("hidden");
+          document.getElementById("btn-add-vehicle").classList.remove("hidden");
+        });
+        document.getElementById("btn-vehicle-save").addEventListener("click", saveVehicle);
+      }
+
+      let _editVehicleId = null;
+      let _vehicleMap = {};
+      let _uninstallQueueByVehicle = {};
+      let _msVehicleId = null;
+
+      // Extracted so both the interactive change-cascade AND openEditVehicle's
+      // pre-fill can reliably wait for the live catalog fetch to finish —
+      // the old dispatchEvent("change") + setTimeout(50) guess-the-latency
+      // approach only worked because car-models.js was a synchronous local
+      // array; it can't be trusted now that this is a real network call.
+      async function vfRefreshMakeSelect(category) {
+        const makeEl = document.getElementById("vf-make");
+        const current = makeEl.value;
+        makeEl.innerHTML = '<option value="">— Select make</option>';
+        const makes = await vehicleCatalogMakes(category);
+        makes.forEach(m => {
+          const o = document.createElement("option"); o.value = m; o.textContent = m; makeEl.appendChild(o);
+        });
+        if (current && makes.includes(current)) makeEl.value = current;
+      }
+
+      async function vfRefreshModelSelect(make, category) {
+        const modelEl = document.getElementById("vf-model");
+        const modelNumEl = document.getElementById("vf-model-number");
+        const bodyTypeEl = document.getElementById("vf-body-type");
+        modelEl.innerHTML = '<option value="">— Select model</option>';
+        modelNumEl.innerHTML = '<option value="">— Select model first</option>';
+        modelNumEl.disabled = true; bodyTypeEl.value = "";
+        if (!make) { modelEl.disabled = true; return; }
+        const models = await vehicleCatalogModels(make, category);
+        models.forEach(({ model: m }) => {
+          const o = document.createElement("option"); o.value = m; o.textContent = m; modelEl.appendChild(o);
+        });
+        modelEl.disabled = false;
+      }
+
+      async function vfRefreshModelNumberSelect(make, model, category) {
+        const modelNumEl = document.getElementById("vf-model-number");
+        const bodyTypeEl = document.getElementById("vf-body-type");
+        modelNumEl.innerHTML = '<option value="">— None / N/A</option>';
+        bodyTypeEl.value = await vehicleCatalogBodyType(make, model, category);
+        if (!make || !model) { modelNumEl.disabled = true; return; }
+        const nums = await vehicleCatalogModelNumbers(make, model, category);
+        if (!nums.length) { modelNumEl.disabled = true; return; }
+        nums.forEach(({ modelNumber: n }) => {
+          const o = document.createElement("option"); o.value = n; o.textContent = n; modelNumEl.appendChild(o);
+        });
+        modelNumEl.disabled = false;
+      }
+
+      async function openEditVehicle(id) {
+        const v = _vehicleMap[id];
+        if (!v) return;
+        _editVehicleId = id;
+        const wrap = document.getElementById("vehicle-form-wrap");
+        const titleEl = document.getElementById("vf-form-title");
+        document.getElementById("btn-add-vehicle").classList.add("hidden");
+        wrap.classList.remove("hidden");
+        if (titleEl) titleEl.textContent = "Edit Vehicle";
+        document.getElementById("btn-vehicle-save").textContent = "Update Vehicle";
+        initVehicleForm();
+        // Populate fields
+        document.getElementById("vf-registration").value = v.registration || "";
+        document.getElementById("vf-color").value = v.color || "";
+        document.getElementById("vf-year").value = v.yearOfManufacture || "";
+        document.getElementById("vf-chassis").value = v.chassisNumber || "";
+        document.getElementById("vf-engine").value = v.engineNumber || "";
+        document.getElementById("vf-notes").value = v.notes || "";
+        // Category first — the make list below is scoped to whatever category
+        // this vehicle was saved under (defaults to motor_vehicle for anything
+        // saved before categories existed).
+        const category = v.vehicleCategory || "motor_vehicle";
+        const categoryEl = document.getElementById("vf-category");
+        if (categoryEl) categoryEl.value = category;
+        // Set make then model then model number — awaiting each cascade step
+        // directly rather than guessing at timing, and injecting a synthetic
+        // option for a saved value the live catalog doesn't have (a historical
+        // or hand-typed entry), so it's never silently dropped or blanked.
+        const makeEl = document.getElementById("vf-make");
+        await vfRefreshMakeSelect(category);
+        if (makeEl && v.make) {
+          if (![...makeEl.options].some(o => o.value === v.make)) {
+            const o = document.createElement("option"); o.value = v.make; o.textContent = v.make; makeEl.appendChild(o);
+          }
+          makeEl.value = v.make;
+          await vfRefreshModelSelect(v.make, category);
+          const modelEl = document.getElementById("vf-model");
+          if (modelEl && v.model) {
+            if (![...modelEl.options].some(o => o.value === v.model)) {
+              const o = document.createElement("option"); o.value = v.model; o.textContent = v.model; modelEl.appendChild(o);
+            }
+            modelEl.value = v.model;
+            await vfRefreshModelNumberSelect(v.make, v.model, category);
+            const mnEl = document.getElementById("vf-model-number");
+            if (mnEl && v.modelNumber) {
+              if (![...mnEl.options].some(o => o.value === v.modelNumber)) {
+                const o = document.createElement("option"); o.value = v.modelNumber; o.textContent = v.modelNumber; mnEl.appendChild(o);
+              }
+              mnEl.value = v.modelNumber;
+            }
+          }
+        }
+        // Partner
+        const pEl = document.getElementById("vf-partner-id");
+        if (pEl && v.partnerId) setTimeout(() => { pEl.value = v.partnerId; }, 300);
+        // Loan
+        const tenureEl = document.getElementById("vf-loan-tenure");
+        if (tenureEl) {
+          tenureEl.value = v.loanTenureMonths || 0;
+          tenureEl.dispatchEvent(new Event("input"));
+          if (v.loanStartDate) {
+            setTimeout(() => { const ls = document.getElementById("vf-loan-start"); if (ls) ls.value = v.loanStartDate.slice(0,10); }, 50);
+          }
+        }
+        wrap.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      function initVehicleForm() {
+        const categoryEl = document.getElementById("vf-category");
+        const makeEl = document.getElementById("vf-make");
+        const modelEl = document.getElementById("vf-model");
+
+        // Populate category options once, then always (re)populate makes for
+        // whichever category is currently selected — from the live Vehicle
+        // Master catalog, not the static car-models.js snapshot.
+        if (!categoryEl.options.length) {
+          categoryEl.innerHTML = window.VEHICLE_CATEGORIES.map(c => `<option value="${c.value}">${c.label}</option>`).join("");
+        }
+        vfRefreshMakeSelect(categoryEl.value);
+
+        // initVehicleForm() runs on every Add/Edit open — guard against
+        // stacking duplicate change listeners across repeated opens.
+        if (!makeEl.dataset.cascadeBound) {
+          makeEl.dataset.cascadeBound = "1";
+          categoryEl.addEventListener("change", async () => {
+            await vfRefreshMakeSelect(categoryEl.value);
+            await vfRefreshModelSelect("", categoryEl.value);
+          });
+          makeEl.addEventListener("change", async () => {
+            await vfRefreshModelSelect(makeEl.value, categoryEl.value);
+          });
+          modelEl.addEventListener("change", async () => {
+            await vfRefreshModelNumberSelect(makeEl.value, modelEl.value, categoryEl.value);
+          });
+        }
+
+        // Loan tenure slider
+        const tenureEl = document.getElementById("vf-loan-tenure");
+        const tenureLabelEl = document.getElementById("vf-tenure-label");
+        const loanStartWrap = document.getElementById("vf-loan-start-wrap");
+        tenureEl.addEventListener("input", () => {
+          const val = parseInt(tenureEl.value);
+          tenureLabelEl.textContent = val === 0 ? "None" : `${val} month${val === 1 ? "" : "s"}`;
+          loanStartWrap.classList.toggle("hidden", val === 0);
+        });
+
+        // Load partners into dropdown (only if not yet loaded)
+        const partnerEl = document.getElementById("vf-partner-id");
+        if (partnerEl.options.length <= 1) {
+          window.FINEMARK_APP.apiFetch("/partners?status=Active&pageSize=200").then(resp => {
+            const list = resp?.data || resp || [];
+            list.forEach(p => {
+              const o = document.createElement("option"); o.value = p.id; o.textContent = `${p.name} (${p.tier || "Standard"})`; partnerEl.appendChild(o);
+            });
+          }).catch(() => {});
+        }
+      }
+
+      async function saveVehicle() {
+        const btn = document.getElementById("btn-vehicle-save");
+        const errEl = document.getElementById("vehicle-form-error");
+        const registration = document.getElementById("vf-registration").value.trim().toUpperCase();
+        if (!registration) { errEl.textContent = "Registration is required."; errEl.classList.remove("hidden"); return; }
+        errEl.classList.add("hidden");
+        const isEdit = !!_editVehicleId;
+        btn.disabled = true; btn.textContent = isEdit ? "Updating…" : "Saving…";
+        const body = {
+          registration,
+          vehicleCategory: document.getElementById("vf-category").value || "motor_vehicle",
+          make: document.getElementById("vf-make").value || undefined,
+          model: document.getElementById("vf-model").value || undefined,
+          modelNumber: document.getElementById("vf-model-number").value || undefined,
+          bodyType: document.getElementById("vf-body-type").value || undefined,
+          color: document.getElementById("vf-color").value.trim() || undefined,
+          yearOfManufacture: document.getElementById("vf-year").value ? Number(document.getElementById("vf-year").value) : undefined,
+          chassisNumber: document.getElementById("vf-chassis").value.trim().toUpperCase() || undefined,
+          engineNumber: document.getElementById("vf-engine").value.trim().toUpperCase() || undefined,
+          notes: document.getElementById("vf-notes").value.trim() || undefined,
+          partnerId: document.getElementById("vf-partner-id").value || undefined,
+          loanTenureMonths: parseInt(document.getElementById("vf-loan-tenure").value) || undefined,
+          loanStartDate: document.getElementById("vf-loan-start").value || undefined,
+        };
+        try {
+          const url = isEdit
+            ? `/crm/customers/${customerId}/vehicles/${_editVehicleId}`
+            : `/crm/customers/${customerId}/vehicles`;
+          await window.FINEMARK_APP.apiFetch(url, { method: isEdit ? "PUT" : "POST", body });
+          _editVehicleId = null;
+          // Reload vehicles tab
+          const v = await window.FINEMARK_APP.apiFetch(`/crm/customers/${customerId}/360`);
+          view360 = v;
+          renderVehiclesTab(v.vehicles || []);
+          document.querySelector('[data-tab="vehicles"]').click();
+        } catch (e) {
+          errEl.textContent = e?.message || "Failed to save vehicle.";
+          errEl.classList.remove("hidden");
+          btn.disabled = false; btn.textContent = isEdit ? "Update Vehicle" : "Save Vehicle";
+        }
+      }
+
+      function openInstallationForVehicle(e, vehicleId) {
+        // Switch to Installations tab (already loaded for the full customer)
+        e.preventDefault();
+        const instBtn = document.querySelector('[data-tab="installations"]');
+        if (instBtn) instBtn.click();
+      }
+
+      async function removeVehicle(vehicleId) {
+        if (!confirm("Remove this vehicle?")) return;
+        try {
+          await window.FINEMARK_APP.apiFetch(`/crm/customers/${customerId}/vehicles/${vehicleId}`, { method: "DELETE" });
+          const v = await window.FINEMARK_APP.apiFetch(`/crm/customers/${customerId}/360`);
+          view360 = v;
+          renderVehiclesTab(v.vehicles || []);
+        } catch (e) {
+          alert(e?.message || "Failed to remove vehicle.");
+        }
+      }
+
+      // ── Supporting Documents (Profile tab) ─────────────────────────────────
+      const DOC_TYPES = [
+        { type: "loan_approval_form", label: "Loan Approval Form",  desc: "Official bank letter confirming loan approval",                           iconColor: "text-blue-500",   iconPath: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" },
+        { type: "log_book",           label: "Log Book",            desc: "Vehicle registration certificate — original or certified copy",            iconColor: "text-emerald-500", iconPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
+        { type: "loan_offer_letter",  label: "Loan Offer Letter",   desc: "Formal offer letter from the financing institution",                       iconColor: "text-violet-500", iconPath: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" },
+        { type: "kra_pin",            label: "KRA PIN",             desc: "Kenya Revenue Authority PIN certificate for the customer",                  iconColor: "text-amber-500",  iconPath: "M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z" },
+        { type: "id_form_a",          label: "ID / Form A",         desc: "National ID (individual) or Form A / CR12 (company)",                      iconColor: "text-rose-500",   iconPath: "M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" },
+      ];
+
+      function docBadgeHtml(status) {
+        if (status === "attached")  return `<span class="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700">File Attached</span>`;
+        if (status === "collected") return `<span class="text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-100 text-emerald-700">✓ Collected</span>`;
+        return `<span class="text-xs px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-500">Pending</span>`;
+      }
+
+      async function loadCustomerDocuments() {
+        const section = document.getElementById("profile-docs-section");
+        if (!section) return;
+        let existing = [];
+        try {
+          const r = await window.FINEMARK_APP.apiFetch(`/crm/customers/${customerId}/documents`);
+          existing = r.data || [];
+        } catch { /* non-critical */ }
+
+        // Build a map: docType → record
+        const byType = {};
+        existing.forEach(d => { byType[d.docType] = d; });
+
+        const cards = DOC_TYPES.map(dt => {
+          const saved = byType[dt.type];
+          const badge = docBadgeHtml(saved?.status || "pending");
+          const fileLink = saved?.filePath
+            ? `<a href="${saved.filePath}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline font-medium">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                 ${saved.fileName || "View file"}
+               </a>` : "";
+          const notesHtml = saved?.notes
+            ? `<p class="text-xs text-slate-400 italic mt-1">${saved.notes}</p>` : "";
+          const uploadedBy = saved?.uploadedBy
+            ? `<p class="text-xs text-slate-400 mt-0.5">By ${saved.uploadedBy} · ${(saved.createdAt||"").slice(0,10)}</p>` : "";
+          const deleteBtn = saved
+            ? `<button onclick="deleteCustomerDoc('${saved.id}','${dt.type}')" class="text-xs text-red-400 hover:text-red-600 transition-colors ml-2" title="Remove">✕</button>` : "";
+
+          return `<div class="doc-view-card rounded-lg border ${saved ? (saved.status === 'attached' ? 'border-blue-100 bg-blue-50/30' : 'border-emerald-100 bg-emerald-50/30') : 'border-slate-100 bg-slate-50/60'} p-4" data-doc-type="${dt.type}">
+            <div class="flex items-start gap-3">
+              <div class="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 ${dt.iconColor}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${dt.iconPath}"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-2 mb-0.5">
+                  <p class="text-sm font-semibold text-slate-800">${dt.label}</p>
+                  <div class="flex items-center gap-1">${badge}${deleteBtn}</div>
+                </div>
+                <p class="text-xs text-slate-400 mb-2">${dt.desc}</p>
+                ${fileLink}${notesHtml}${uploadedBy}
+                ${!saved ? `
+                <div class="mt-3 flex flex-wrap items-center gap-2">
+                  <label class="inline-flex items-center gap-1.5 cursor-pointer rounded-md bg-white border border-blue-200 px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                    Attach file
+                    <input type="file" class="doc-upload-input hidden" data-doc-type="${dt.type}" data-doc-label="${dt.label}" accept="image/jpeg,image/png,image/webp,application/pdf,.doc,.docx" />
+                  </label>
+                  <button onclick="markDocCollected('${dt.type}','${dt.label}')" class="rounded-md bg-white border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">✓ Mark collected</button>
+                  <input type="text" class="doc-notes-input flex-1 min-w-[140px] rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs placeholder-slate-400 focus:outline-none focus:border-blue-400" placeholder="Add notes…" data-doc-type="${dt.type}" />
+                </div>` : ``}
+              </div>
+            </div>
+          </div>`;
+        }).join("");
+
+        section.innerHTML = `
+          <div class="border-t border-slate-100 pt-6 mt-2">
+            <h3 class="text-sm font-bold text-slate-800 mb-3">Supporting Documents</h3>
+            <div class="space-y-3">${cards}</div>
+          </div>`;
+
+        // Wire up file inputs
+        section.querySelectorAll(".doc-upload-input").forEach(inp => {
+          inp.addEventListener("change", async function() {
+            if (!this.files || !this.files.length) return;
+            const docType  = this.dataset.docType;
+            const docLabel = this.dataset.docLabel;
+            const notesEl  = section.querySelector(`.doc-notes-input[data-doc-type="${docType}"]`);
+            const notes    = notesEl ? notesEl.value.trim() : "";
+            const fd = new FormData();
+            fd.append("docType", docType);
+            fd.append("label",   docLabel);
+            fd.append("status",  "attached");
+            if (notes) fd.append("notes", notes);
+            fd.append("file", this.files[0]);
+            try {
+              const token = window.FINEMARK_APP.getSession()?.accessToken;
+              const r = await fetch(`/api/crm/customers/${customerId}/documents`, {
+                method: "POST", headers: { "Authorization": `Bearer ${token}` }, body: fd
+              });
+              if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e?.error?.message || "Upload failed."); }
+              loadCustomerDocuments();
+            } catch(e) { alert(e?.message || "Upload failed."); }
+          });
+        });
+      }
+
+      async function markDocCollected(docType, docLabel) {
+        const notesEl = document.querySelector(`.doc-notes-input[data-doc-type="${docType}"]`);
+        const notes   = notesEl ? notesEl.value.trim() : "";
+        const fd = new FormData();
+        fd.append("docType", docType);
+        fd.append("label",   docLabel);
+        fd.append("status",  "collected");
+        if (notes) fd.append("notes", notes);
+        try {
+          const token = window.FINEMARK_APP.getSession()?.accessToken;
+          const r = await fetch(`/api/crm/customers/${customerId}/documents`, {
+            method: "POST", headers: { "Authorization": `Bearer ${token}` }, body: fd
+          });
+          if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e?.error?.message || "Failed."); }
+          loadCustomerDocuments();
+        } catch(e) { alert(e?.message || "Failed to mark document."); }
+      }
+
+      async function deleteCustomerDoc(docId) {
+        if (!confirm("Remove this document record?")) return;
+        try {
+          await window.FINEMARK_APP.apiFetch(`/crm/customers/${customerId}/documents/${docId}`, { method: "DELETE" });
+          loadCustomerDocuments();
+        } catch(e) { alert(e?.message || "Failed to delete document."); }
+      }
+
+      async function load360() {
+        try {
+          const v = await window.FINEMARK_APP.apiFetch(`/crm/customers/${customerId}/360`);
+          view360 = v;
+          const c = v.customer;
+
+          document.getElementById("cust-name").textContent = c.displayName || "(no name)";
+          document.getElementById("cust-account-no").textContent = c.accountNo;
+          document.getElementById("cust-mgr").textContent = c.accountManagerEmail || "—";
+          document.getElementById("cust-region").textContent = c.region || "—";
+          document.getElementById("cust-source").textContent = c.source || "—";
+          if (c.segment) {
+            document.getElementById("cust-segment").textContent = c.segment;
+            document.getElementById("cust-segment-wrap").classList.remove("hidden");
+          }
+
+          // Partner display + inline edit
+          const primaryDisplay = document.getElementById("cust-primary-partner-display");
+          const secondaryDisplay = document.getElementById("cust-secondary-partner-display");
+          const secondaryWrap = document.getElementById("cust-secondary-partner-wrap");
+          const editPartnerBtn = document.getElementById("btn-edit-partner");
+          const partnerBadge = (name) => `<span class="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-full px-2 py-0.5 text-xs font-semibold">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            ${name}</span>`;
+          primaryDisplay.innerHTML = c.affiliatePartnerName ? partnerBadge(c.affiliatePartnerName) : "—";
+          if (c.secondaryPartnerName) {
+            secondaryDisplay.innerHTML = partnerBadge(c.secondaryPartnerName);
+            secondaryWrap.classList.remove("hidden");
+          } else {
+            secondaryWrap.classList.add("hidden");
+          }
+          const userRole = window.FINEMARK_APP?.getSession?.()?.user?.role;
+          if (["Admin", "Sales"].includes(userRole)) {
+            editPartnerBtn.classList.remove("hidden");
+            editPartnerBtn.onclick = () => openPartnerEditModal(c.affiliatePartnerId || "", c.affiliatePartnerName || "", c.secondaryPartnerId || "", c.secondaryPartnerName || "");
+          }
+
+          document.title = `Finemark | ${c.displayName || "Customer"} 360°`;
+          document.getElementById("btn-edit").href = `crm-register.html?edit=${customerId}`;
+          document.getElementById("btn-new-quote").addEventListener("click", () => openQuoteModal());
+          document.getElementById("btn-new-ticket").href = `crm-tickets.html?new=1&customerId=${customerId}`;
+
+          const typeBadgeMap = {
+            individual: `<span class="inline-flex rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700 border border-indigo-100">Individual</span>`,
+            corporate: `<span class="inline-flex rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-700 border border-teal-100">Corporate</span>`,
+          };
+          const statusBadgeMap = {
+            Active: `<span class="inline-flex rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700 border border-green-100">Active</span>`,
+            Inactive: `<span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500 border border-slate-200">Inactive</span>`,
+            Suspended: `<span class="inline-flex rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600 border border-red-100">Suspended</span>`,
+          };
+          document.getElementById("cust-type-badge").innerHTML = typeBadgeMap[c.type] || c.type;
+          document.getElementById("cust-status-badge").innerHTML = statusBadgeMap[c.status] || c.status;
+
+          _uninstallQueueByVehicle = {};
+          try {
+            const qRows = (await window.FINEMARK_APP.apiFetch(`/gps-uninstall-queue/customer/${customerId}`)).data || [];
+            qRows.forEach(q => {
+              if (!_uninstallQueueByVehicle[q.vehicleId]) _uninstallQueueByVehicle[q.vehicleId] = [];
+              _uninstallQueueByVehicle[q.vehicleId].push(q);
+            });
+          } catch {}
+
+          renderAllTabs(v);
+        } catch (e) {
+          console.error("[360] load360 failed:", e);
+          if (e?.status === 401 || e?.code === "UNAUTHORIZED" || e?.code === "SESSION_EXPIRED") {
+            window.FINEMARK_APP?.clearSession?.();
+            const returnPage = encodeURIComponent(`crm-customer-360.html?id=${customerId}`);
+            window.location.href = `login.html?reason=unauthorized&page=${returnPage}`;
+            return;
+          }
+          document.getElementById("cust-name").textContent = "Error loading customer";
+          const errMsg = e?.message || e?.code || String(e);
+          document.getElementById("cust-account-no").textContent = errMsg;
+          // Show visible error banner
+          const hdr = document.getElementById("customer-header");
+          if (hdr) {
+            const banner = document.createElement("div");
+            banner.className = "w-full mt-3 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700";
+            banner.innerHTML = `<strong>Could not load customer data.</strong> ${errMsg} &nbsp;–&nbsp; <a href="javascript:location.reload()" class="underline font-medium">Retry</a>`;
+            hdr.appendChild(banner);
+          }
+        }
+      }
+
+      // Tab switching
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".tab-btn").forEach(b => {
+            b.classList.remove("active-tab", "bg-white", "shadow-sm", "text-slate-900", "font-medium");
+            b.classList.add("text-slate-600");
+          });
+          btn.classList.add("active-tab", "bg-white", "shadow-sm", "text-slate-900", "font-medium");
+          btn.classList.remove("text-slate-600");
+
+          document.querySelectorAll(".tab-panel").forEach(p => p.classList.add("hidden"));
+          document.getElementById(`tab-${btn.dataset.tab}`).classList.remove("hidden");
+        });
+      });
+
+      // ── Leads Tab ────────────────────────────────────────────────────────────
+      let _leadsLoaded = false;
+      async function loadLeadsTab(custId) {
+        if (_leadsLoaded) return; _leadsLoaded = true;
+        const panel = document.getElementById('tab-leads');
+        panel.innerHTML = '<p class="text-slate-400 text-sm animate-pulse">Loading leads…</p>';
+        try {
+          const r = await window.FINEMARK_APP.apiFetch(`/crm/leads?customerId=${custId}&pageSize=100`);
+          const data = r?.data;
+          if (!data?.length) { panel.innerHTML = `<h2 class="font-semibold text-slate-800 mb-2">Leads</h2><p class="text-slate-400 text-sm">No leads found.</p><a href="crm-leads.html" class="mt-2 inline-block text-xs text-blue-600 hover:underline">Go to Leads</a>`; return; }
+          const sc = { New:'bg-sky-50 text-sky-700', Qualified:'bg-green-50 text-green-700', Converted:'bg-blue-50 text-blue-700', Disqualified:'bg-red-50 text-red-700' };
+          panel.innerHTML = `<div class="flex justify-between mb-3"><h2 class="font-semibold text-slate-800">Leads (${data.length})</h2><a href="crm-leads.html" class="text-xs text-blue-600 hover:underline">View All</a></div>
+            <div class="space-y-2">${data.map(l => `<div class="rounded-lg border border-slate-100 px-4 py-2.5 flex justify-between items-center">
+              <div><p class="text-sm font-medium text-slate-800">${l.leadNo}</p><p class="text-xs text-slate-400">${l.leadSource} · ${l.leadDate ? l.leadDate.slice(0,10) : '—'}</p></div>
+              <span class="inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${sc[l.status] || 'bg-slate-100 text-slate-600'}">${l.status}</span>
+            </div>`).join('')}</div>`;
+        } catch(e) { panel.innerHTML = `<p class="text-red-500 text-sm">${e.message}</p>`; }
+      }
+
+      // ── Quotes Tab ───────────────────────────────────────────────────────────
+      let _quotesLoaded = false;
+      async function loadQuotesTab(custId) {
+        if (_quotesLoaded) return; _quotesLoaded = true;
+        await refreshQuotesTab(custId);
+      }
+      async function refreshQuotesTab(custId) {
+        const panel = document.getElementById('tab-quotes');
+        panel.innerHTML = '<p class="text-slate-400 text-sm animate-pulse">Loading quotes…</p>';
+        try {
+          const r = await window.FINEMARK_APP.apiFetch(`/crm/quotes?customerId=${custId}&pageSize=100`);
+          const data = r?.data;
+          const sc = { Draft:'bg-slate-100 text-slate-600', Sent:'bg-sky-50 text-sky-700', Accepted:'bg-green-50 text-green-700', Rejected:'bg-red-50 text-red-700', Expired:'bg-amber-50 text-amber-700', Superseded:'bg-purple-50 text-purple-700' };
+          panel.innerHTML = `
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="font-semibold text-slate-800">Quotes (${data?.length || 0})</h2>
+              <div class="flex gap-2">
+                <a href="crm-quotes.html?customerId=${custId}" class="text-xs text-blue-600 hover:underline">View All</a>
+                <button onclick="openQuoteModal()" class="px-3 py-1.5 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">+ New Quote</button>
+              </div>
+            </div>
+            ${data?.length ? `<div class="space-y-2">${data.map(q => `<div class="rounded-lg border border-slate-100 px-4 py-2.5 flex justify-between items-center">
+              <div>
+                <a href="crm-quote-detail.html?id=${q.id}" class="text-sm font-medium text-blue-700 hover:underline">${q.quoteNo}</a>
+                <p class="text-xs text-slate-400">${q.serviceType || '—'} · KES ${q.totalAmount ? Number(q.totalAmount).toLocaleString() : '—'}</p>
+              </div>
+              <span class="inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${sc[q.status] || 'bg-slate-100 text-slate-600'}">${q.status}</span>
+            </div>`).join('')}</div>`
+            : '<p class="text-slate-400 text-sm">No quotes yet. Click + New Quote to create one.</p>'}`;
+        } catch(e) { panel.innerHTML = `<p class="text-red-500 text-sm">${e.message}</p>`; }
+      }
+
+      // ── Proforma Tab ─────────────────────────────────────────────────────────
+      let _pfLoaded = false;
+      async function loadProformaTab(custId) {
+        if (_pfLoaded) return; _pfLoaded = true;
+        const panel = document.getElementById('tab-proforma');
+        panel.innerHTML = '<p class="text-slate-400 text-sm animate-pulse">Loading proforma invoices…</p>';
+        try {
+          const r = await window.FINEMARK_APP.apiFetch(`/crm/proforma?customerId=${custId}&pageSize=100`);
+          const data = r?.data;
+          if (!data?.length) { panel.innerHTML = `<h2 class="font-semibold text-slate-800 mb-2">Proforma Invoices</h2><p class="text-slate-400 text-sm">No proforma invoices found.</p>`; return; }
+          const sc = { Draft:'bg-slate-100 text-slate-600', 'Pending Approval':'bg-amber-50 text-amber-700', Approved:'bg-green-50 text-green-700', Rejected:'bg-red-50 text-red-700', Converted:'bg-blue-50 text-blue-700' };
+          panel.innerHTML = `<div class="flex justify-between mb-3"><h2 class="font-semibold text-slate-800">Proforma Invoices (${data.length})</h2><a href="crm-proforma.html" class="text-xs text-blue-600 hover:underline">View All</a></div>
+            <div class="space-y-2">${data.map(p => `<div class="rounded-lg border border-slate-100 px-4 py-2.5 flex justify-between items-center">
+              <div><a href="crm-proforma.html?id=${p.id}" class="text-sm font-medium text-blue-600 hover:underline">${p.proformaNo}</a><p class="text-xs text-slate-400">KES ${p.totalAmount ? Number(p.totalAmount).toLocaleString() : '—'} · ${p.createdAt ? p.createdAt.slice(0,10) : '—'}</p></div>
+              <span class="inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${sc[p.status] || 'bg-slate-100 text-slate-600'}">${p.status}</span>
+            </div>`).join('')}</div>`;
+        } catch(e) { panel.innerHTML = `<p class="text-red-500 text-sm">${e.message}</p>`; }
+      }
+
+      // ── Survey Tab ───────────────────────────────────────────────────────────
+      let _surveyLoaded = false;
+      async function loadSurveyTab(custId) {
+        if (_surveyLoaded) return; _surveyLoaded = true;
+        const panel = document.getElementById('tab-survey');
+        panel.innerHTML = '<p class="text-slate-400 text-sm animate-pulse">Loading surveys…</p>';
+        try {
+          const r = await window.FINEMARK_APP.apiFetch(`/crm/surveys?customerId=${custId}&pageSize=50`);
+          const data = r?.data;
+          if (!data?.length) { panel.innerHTML = `<h2 class="font-semibold text-slate-800 mb-2">Installation Surveys</h2><p class="text-slate-400 text-sm">No surveys found for this customer.</p>`; return; }
+          panel.innerHTML = `<h2 class="font-semibold text-slate-800 mb-3">Installation Surveys (${data.length})</h2>
+            <div class="space-y-3">${data.map(s => `<div class="rounded-xl border border-slate-100 px-4 py-3">
+              <div class="flex justify-between items-center mb-2">
+                <p class="text-sm font-medium text-slate-800">Installation: <span class="font-mono text-xs">${s.installationId}</span></p>
+                <span class="text-xs text-slate-400">${s.submittedAt ? 'Submitted ' + s.submittedAt.slice(0,10) : 'Not submitted yet'}</span>
+              </div>
+              ${s.installationRating ? `<div class="flex gap-4 text-xs text-slate-600">
+                <span>Install: <strong>${s.installationRating}/5</strong></span>
+                <span>Technician: <strong>${s.technicianRating}/5</strong></span>
+                <span>Service: <strong>${s.serviceQualityRating}/5</strong></span>
+              </div>` : '<p class="text-xs text-slate-400">Awaiting customer response.</p>'}
+              ${s.comments ? `<p class="mt-1 text-xs text-slate-500 italic">&quot;${s.comments}&quot;</p>` : ''}
+            </div>`).join('')}</div>`;
+        } catch(e) { panel.innerHTML = `<p class="text-red-500 text-sm">${e.message}</p>`; }
+      }
+
+      // ── Installation Tickets Tab ──────────────────────────────────────────────
+      async function loadInstallTicketsTab(custId) {
+        const panel = document.getElementById('tab-install-tickets');
+        panel.innerHTML = '<p class="text-slate-400 text-sm animate-pulse">Loading installation tickets…</p>';
+        try {
+          const json = await window.FINEMARK_APP.apiFetch(`/installation-tickets/for-customer/${custId}`);
+          const items = json?.data || [];
+          const statusColor = (s) => ({
+            Open:       "bg-amber-50 text-amber-700",
+            Assigned:   "bg-blue-50 text-blue-700",
+            InProgress: "bg-purple-50 text-purple-700",
+            Completed:  "bg-teal-50 text-teal-700",
+            Cancelled:  "bg-rose-50 text-rose-700",
+          }[s] || "bg-slate-100 text-slate-600");
+          if (!items.length) {
+            panel.innerHTML = `<h2 class="font-semibold text-slate-800 mb-2">Installation Tickets (0)</h2>
+              <p class="text-slate-400 text-sm">No installation tickets for this customer.</p>`;
+            return;
+          }
+          panel.innerHTML = `
+            <h2 class="font-semibold text-slate-800 mb-4">Installation Tickets (${items.length})</h2>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead><tr class="border-b border-slate-100 text-left">
+                  <th class="py-2 pr-4 text-xs font-medium text-slate-400">Ticket #</th>
+                  <th class="py-2 pr-4 text-xs font-medium text-slate-400">Vehicle</th>
+                  <th class="py-2 pr-4 text-xs font-medium text-slate-400">Status</th>
+                  <th class="py-2 pr-4 text-xs font-medium text-slate-400">Stage</th>
+                  <th class="py-2 pr-4 text-xs font-medium text-slate-400">Assigned To</th>
+                  <th class="py-2 pr-4 text-xs font-medium text-slate-400">Raised</th>
+                  <th class="py-2 pr-4"></th>
+                </tr></thead>
+                <tbody>${items.map(t => `
+                  <tr class="border-b border-slate-50 hover:bg-slate-50/40">
+                    <td class="py-2 pr-4 font-mono font-semibold text-blue-700 text-xs">${t.ticketNo}</td>
+                    <td class="py-2 pr-4 text-slate-700 text-xs">${t.vehicleRegistration || '—'}</td>
+                    <td class="py-2 pr-4"><span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(t.status)}">${t.status}</span></td>
+                    <td class="py-2 pr-4 text-slate-500 text-xs">${t.stage} / 7</td>
+                    <td class="py-2 pr-4 text-slate-500 text-xs">${t.assignedToEmail || 'Unassigned'}</td>
+                    <td class="py-2 pr-4 text-slate-400 text-xs">${t.createdAt ? t.createdAt.slice(0,10) : '—'}</td>
+                    <td class="py-2 pr-4 flex items-center gap-3">
+                      ${t.viInstallationId
+                        ? `<a href="job-details.html?id=${t.viInstallationId}" class="text-xs text-blue-600 hover:underline font-medium">View Job →</a>`
+                        : `<a href="job-details.html?ticketId=${t.id}" class="text-xs text-blue-600 hover:underline font-medium">View Job →</a>`}
+                      ${t.invoiceId ? `<a href="invoice-detail.html?id=${t.invoiceId}" class="text-xs text-purple-600 hover:underline font-medium">Invoice →</a>` : ''}
+                    </td>
+                  </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>`;
+        } catch(e) {
+          panel.innerHTML = '<p class="text-rose-500 text-sm">Failed to load installation tickets.</p>';
+        }
+      }
+
+      // ── Contacts Tab ──────────────────────────────────────────────────────────
+      function renderCommsTab(logs) {
+        const panel = document.getElementById('tab-comms');
+        const header = `<div class="flex items-center justify-between mb-4">
+             <h2 class="font-semibold text-slate-800">Communication Timeline (${logs.length})</h2>
+             <div class="flex items-center gap-2">
+               <button onclick="openSmsModal()" class="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 transition-colors">📱 SMS</button>
+               <button onclick="openWhatsAppModal()" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 transition-colors">💬 WhatsApp</button>
+               <button onclick="openBookMeetingModal()" class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors">📅 Book Meeting</button>
+             </div>
+           </div>`;
+        panel.innerHTML = logs.length
+          ? `${header}
+             <div class="space-y-3">${logs.map(l => `
+               <div class="border-l-2 ${l.direction === 'Inbound' ? 'border-teal-400' : 'border-blue-400'} pl-4 py-1">
+                 <p class="text-xs font-semibold text-slate-600 uppercase tracking-wide">${l.channel} · ${l.direction}</p>
+                 <p class="text-sm font-medium text-slate-800 mt-0.5">${l.subject || "(no subject)"}</p>
+                 <p class="text-xs text-slate-400 mt-0.5">${l.byEmail} · ${l.contactedAt ? l.contactedAt.slice(0, 16).replace("T", " ") : "—"}</p>
+               </div>`).join("")}</div>`
+          : `${header}<p class="text-slate-400 text-sm">No communication logs.</p>`;
+      }
+
+      function renderContactsTab(contacts) {
+        const panel = document.getElementById('tab-contacts');
+        panel.innerHTML = `
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="font-semibold text-slate-800">Contact Persons (${contacts.length})</h2>
+            <button onclick="openContactModal(null)" class="px-3 py-1.5 text-xs font-medium bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">+ Add Contact</button>
+          </div>
+          ${contacts.length ? `<div class="space-y-3">${contacts.map(c => contactCard(c)).join('')}</div>`
+            : '<p class="text-slate-400 text-sm">No contacts on file.</p>'}`;
+      }
+
+      function contactCard(c) {
+        const badges = [
+          c.isPrimary    ? '<span class="bg-blue-50 text-blue-600 border border-blue-100 rounded px-2 py-0.5">Primary</span>' : '',
+          c.isBilling    ? '<span class="bg-amber-50 text-amber-600 border border-amber-100 rounded px-2 py-0.5">Billing</span>' : '',
+          c.isOperations ? '<span class="bg-teal-50 text-teal-600 border border-teal-100 rounded px-2 py-0.5">Operations</span>' : '',
+          c.isConcierge  ? '<span class="bg-purple-50 text-purple-700 border border-purple-100 rounded px-2 py-0.5">Concierge</span>' : '',
+        ].filter(Boolean).join('');
+        const selfNote = c.isConcierge && c.selfNominatedAt
+          ? `<p class="text-xs text-purple-400 mt-0.5">Self-nominated via portal &middot; ${c.selfNominatedAt.slice(0,10)}</p>` : '';
+        return `<div class="rounded-lg border border-slate-100 p-4">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            ${field('Name', c.name)}${field('Role', c.roleLabel)}${field('Phone', c.phone)}${field('Email', c.email)}
+          </div>
+          ${badges ? `<div class="flex flex-wrap gap-2 mt-2 text-xs">${badges}</div>` : ''}
+          ${selfNote}
+          <div class="flex gap-2 mt-3">
+            <button onclick='openContactModal(${JSON.stringify(c)})'
+              class="px-2.5 py-1 text-xs rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors">Edit</button>
+            <button onclick="deleteContact(${c.id})"
+              class="px-2.5 py-1 text-xs rounded-md bg-red-50 hover:bg-red-100 text-red-600 transition-colors">Delete</button>
+          </div>
+        </div>`;
+      }
+
+      // Contact modal state
+      let _contactEditing = null; // null = new, object = existing
+
+      function openContactModal(contact) {
+        _contactEditing = contact;
+        const m = document.getElementById('contact-modal');
+        document.getElementById('cm-title').textContent = contact ? 'Edit Contact' : 'Add Contact';
+        document.getElementById('cm-name').value        = contact?.name     || '';
+        document.getElementById('cm-role').value        = contact?.roleLabel || '';
+        document.getElementById('cm-phone').value       = contact?.phone    || '';
+        document.getElementById('cm-email').value       = contact?.email    || '';
+        document.getElementById('cm-primary').checked    = !!contact?.isPrimary;
+        document.getElementById('cm-billing').checked    = !!contact?.isBilling;
+        document.getElementById('cm-operations').checked = !!contact?.isOperations;
+        document.getElementById('cm-concierge').checked  = !!contact?.isConcierge;
+        document.getElementById('cm-error').textContent = '';
+        m.classList.remove('hidden');
+      }
+
+      function closeContactModal() {
+        document.getElementById('contact-modal').classList.add('hidden');
+        _contactEditing = null;
+      }
+
+      async function saveContact() {
+        const name = document.getElementById('cm-name').value.trim();
+        if (!name) { document.getElementById('cm-error').textContent = 'Name is required.'; return; }
+        const body = {
+          name,
+          roleLabel:    document.getElementById('cm-role').value.trim(),
+          phone:        document.getElementById('cm-phone').value.trim(),
+          email:        document.getElementById('cm-email').value.trim(),
+          isPrimary:    document.getElementById('cm-primary').checked,
+          isBilling:    document.getElementById('cm-billing').checked,
+          isOperations: document.getElementById('cm-operations').checked,
+          isConcierge:  document.getElementById('cm-concierge').checked,
+        };
+        try {
+          document.getElementById('cm-save-btn').disabled = true;
+          if (_contactEditing) {
+            await window.FINEMARK_APP.apiFetch(`/crm/customers/${customerId}/contacts/${_contactEditing.id}`, { method: 'PATCH', body });
+          } else {
+            await window.FINEMARK_APP.apiFetch(`/crm/customers/${customerId}/contacts`, { method: 'POST', body });
+          }
+          closeContactModal();
+          const v = await window.FINEMARK_APP.apiFetch(`/crm/customers/${customerId}/360`);
+          renderContactsTab(v.contacts);
+        } catch(e) {
+          document.getElementById('cm-error').textContent = e.message || 'Save failed.';
+        } finally {
+          document.getElementById('cm-save-btn').disabled = false;
+        }
+      }
+
+      async function deleteContact(contactId) {
+        if (!confirm('Delete this contact? This cannot be undone.')) return;
+        try {
+          await window.FINEMARK_APP.apiFetch(`/crm/customers/${customerId}/contacts/${contactId}`, { method: 'DELETE' });
+          const v = await window.FINEMARK_APP.apiFetch(`/crm/customers/${customerId}/360`);
+          renderContactsTab(v.contacts);
+        } catch(e) { alert('Delete failed: ' + e.message); }
+      }
+
+      // Hook new tabs into click handlers
+      document.querySelectorAll('.tab-btn[data-tab="leads"]').forEach(btn => btn.addEventListener('click', () => { const id = new URLSearchParams(location.search).get('id'); if (id) loadLeadsTab(id); }));
+      document.querySelectorAll('.tab-btn[data-tab="quotes"]').forEach(btn => btn.addEventListener('click', () => { const id = new URLSearchParams(location.search).get('id'); if (id) loadQuotesTab(id); }));
+      document.querySelectorAll('.tab-btn[data-tab="proforma"]').forEach(btn => btn.addEventListener('click', () => { const id = new URLSearchParams(location.search).get('id'); if (id) loadProformaTab(id); }));
+      document.querySelectorAll('.tab-btn[data-tab="survey"]').forEach(btn => btn.addEventListener('click', () => { const id = new URLSearchParams(location.search).get('id'); if (id) loadSurveyTab(id); }));
+      document.querySelectorAll('.tab-btn[data-tab="install-tickets"]').forEach(btn => btn.addEventListener('click', () => { const id = new URLSearchParams(location.search).get('id'); if (id) loadInstallTicketsTab(id); }));
+
+      load360().then(() => {
+        // Show vehicle registration reminder for newly created customers
+        const isNewCustomer = new URLSearchParams(location.search).get("new") === "1";
+        const vehicleCount = (view360?.vehicles || []).length;
+        if (isNewCustomer && vehicleCount === 0) {
+          setTimeout(() => {
+            const toast = document.createElement("div");
+            toast.id = "toast-new-customer";
+            toast.style.cssText = "position:fixed;top:72px;right:20px;z-index:9999;max-width:360px;animation:slideInToast .3s ease;";
+            toast.innerHTML = `
+              <div style="background:#fff;border:1px solid #e2e8f0;border-left:4px solid #f59e0b;border-radius:12px;padding:14px 16px;box-shadow:0 8px 24px rgba(0,0,0,.12);display:flex;gap:12px;align-items:flex-start;">
+                <span style="font-size:1.3rem;line-height:1;">🚗</span>
+                <div style="flex:1;">
+                  <p style="margin:0 0 3px;font-size:.85rem;font-weight:700;color:#1e293b;">Register a Vehicle</p>
+                  <p style="margin:0 0 10px;font-size:.78rem;color:#64748b;line-height:1.4;">This customer has no vehicles yet. Add a vehicle to link installations and start tracking.</p>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button onclick="document.getElementById('toast-new-customer').remove();document.querySelector('.tab-btn[data-tab=vehicles]')?.click();setTimeout(()=>document.getElementById('btn-add-vehicle')?.click(),150);" style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:.75rem;font-weight:700;cursor:pointer;">Add Vehicle →</button>
+                    <button onclick="document.getElementById('toast-new-customer').remove()" style="background:#f1f5f9;color:#475569;border:none;border-radius:6px;padding:5px 12px;font-size:.75rem;font-weight:600;cursor:pointer;">Dismiss</button>
+                  </div>
+                </div>
+              </div>`;
+            const style = document.createElement("style");
+            style.textContent = "@keyframes slideInToast{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}";
+            document.head.appendChild(style);
+            document.body.appendChild(toast);
+          }, 800);
+        }
+
+        // Deep-link from vehicle-register.html's post-capture toast — open the
+        // quote modal pre-scoped to the vehicle just registered.
+        const params = new URLSearchParams(location.search);
+        if (params.get("openQuote") === "1") {
+          const vehicleId = params.get("vehicleId") || null;
+          openQuoteModal(vehicleId);
+        }
+        const tabParam = params.get("tab");
+        if (tabParam) document.querySelector(`.tab-btn[data-tab="${tabParam}"]`)?.click();
+      });
+
+      // ── Affiliate Partner inline edit ──────────────────────────────────────
+      (function() {
+        const modal = document.createElement("div");
+        modal.id = "modal-cust-partner";
+        modal.className = "hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4";
+        modal.innerHTML = `
+          <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold text-slate-900">Affiliated Partners</h3>
+              <button id="cp-close" class="w-7 h-7 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1.5">Primary Partner</label>
+              <select id="cp-primary-select" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition">
+                <option value="">— None / Unlink —</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1.5">Secondary Partner <span class="font-normal text-slate-400">(optional)</span></label>
+              <select id="cp-secondary-select" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition">
+                <option value="">— None —</option>
+              </select>
+            </div>
+            <div id="cp-error" class="hidden text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2"></div>
+            <div class="flex justify-end gap-2">
+              <button id="cp-cancel" class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition">Cancel</button>
+              <button id="cp-save" class="rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-2 text-sm font-semibold text-white transition flex items-center gap-2">Save</button>
+            </div>
+          </div>`;
+        document.body.appendChild(modal);
+
+        const close = () => modal.classList.add("hidden");
+        modal.querySelector("#cp-close").onclick = close;
+        modal.querySelector("#cp-cancel").onclick = close;
+
+        modal.querySelector("#cp-save").onclick = async () => {
+          const primarySel = modal.querySelector("#cp-primary-select");
+          const secondarySel = modal.querySelector("#cp-secondary-select");
+          const affiliatePartnerId = primarySel.value || null;
+          const secondaryPartnerId = secondarySel.value || null;
+          const errEl = modal.querySelector("#cp-error");
+          errEl.classList.add("hidden");
+          const btn = modal.querySelector("#cp-save");
+          btn.disabled = true; btn.textContent = "Saving…";
+          try {
+            await window.FINEMARK_APP.apiFetch(`/crm/customers/${customerId}`, {
+              method: "PATCH",
+              body: { affiliatePartnerId, secondaryPartnerId },
+            });
+            close();
+            load360();
+            window.FINEMARK_APP?.showToast?.("Partners updated", "success");
+          } catch(err) {
+            errEl.textContent = err.message || "Failed to save."; errEl.classList.remove("hidden");
+          } finally {
+            btn.disabled = false; btn.textContent = "Save";
+          }
+        };
+
+        window.openPartnerEditModal = async (currentPrimaryId, currentPrimaryName, currentSecondaryId, currentSecondaryName) => {
+          const primarySel = modal.querySelector("#cp-primary-select");
+          const secondarySel = modal.querySelector("#cp-secondary-select");
+          modal.querySelector("#cp-error").classList.add("hidden");
+          primarySel.innerHTML = `<option value="">— None / Unlink —</option><option disabled>Loading…</option>`;
+          secondarySel.innerHTML = `<option value="">— None —</option><option disabled>Loading…</option>`;
+          modal.classList.remove("hidden");
+          try {
+            const r = await window.FINEMARK_APP.apiFetch("/partners?status=Active&pageSize=200");
+            const partners = (r?.data ?? []);
+            const primaryOpts = partners.map(p => `<option value="${p.id}" ${p.id === currentPrimaryId ? "selected" : ""}>${p.name}${p.tier ? ` (${p.tier})` : ""}</option>`).join("");
+            const secondaryOpts = partners.map(p => `<option value="${p.id}" ${p.id === currentSecondaryId ? "selected" : ""}>${p.name}${p.tier ? ` (${p.tier})` : ""}</option>`).join("");
+            primarySel.innerHTML = `<option value="">— None / Unlink —</option>` + primaryOpts;
+            secondarySel.innerHTML = `<option value="">— None —</option>` + secondaryOpts;
+          } catch {
+            primarySel.innerHTML = `<option value="">— Failed to load partners —</option>`;
+            secondarySel.innerHTML = `<option value="">— Failed to load partners —</option>`;
+          }
+        };
+      })();
+    </script>
+
+    <!-- Contact Person Modal -->
+    <div id="contact-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(15,23,42,0.45)">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div class="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100">
+          <h3 id="cm-title" class="font-semibold text-slate-800 text-base">Add Contact</h3>
+          <button onclick="closeContactModal()" class="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+        </div>
+        <div class="px-6 py-4 space-y-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Name <span class="text-red-500">*</span></label>
+            <input id="cm-name" type="text" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" placeholder="Full name" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Role / Label</label>
+            <input id="cm-role" type="text" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" placeholder="e.g. Finance Manager" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Phone</label>
+              <input id="cm-phone" type="text" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" placeholder="+254…" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Email</label>
+              <input id="cm-email" type="email" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" placeholder="email@…" />
+            </div>
+          </div>
+          <div class="pt-1">
+            <p class="text-xs font-medium text-slate-600 mb-2">Designations</p>
+            <div class="flex flex-wrap gap-x-5 gap-y-2">
+              <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                <input id="cm-primary" type="checkbox" class="rounded accent-blue-600" /> Primary
+              </label>
+              <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                <input id="cm-billing" type="checkbox" class="rounded accent-amber-500" /> Billing
+              </label>
+              <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                <input id="cm-operations" type="checkbox" class="rounded accent-teal-600" /> Operations
+              </label>
+              <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                <input id="cm-concierge" type="checkbox" class="rounded accent-purple-600" />
+                <span>Concierge <span class="text-purple-500 text-xs">(authorized contact)</span></span>
+              </label>
+            </div>
+          </div>
+          <p id="cm-error" class="text-red-500 text-xs min-h-[1rem]"></p>
+        </div>
+        <div class="px-6 pb-5 flex justify-end gap-3">
+          <button onclick="closeContactModal()" class="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">Cancel</button>
+          <button id="cm-save-btn" onclick="saveContact()" class="px-4 py-2 text-sm rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50">Save Contact</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         New Quote Modal
+    ══════════════════════════════════════════════════════════════════════════ -->
+    <div id="quote-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style="background:rgba(15,23,42,0.5)">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl my-6">
+
+        <!-- Header -->
+        <div class="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100">
+          <div>
+            <h3 class="font-semibold text-slate-900 text-base">New Quotation</h3>
+            <p id="qm-cust-label" class="text-xs text-slate-400 mt-0.5"></p>
+          </div>
+          <button onclick="closeQuoteModal()" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
+        </div>
+
+        <div class="px-6 py-5 space-y-5">
+
+          <!-- Row 1: Service Category + Expiry -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Service Category</label>
+              <select id="qm-service" onchange="onQmCategoryChange()" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                <option value="">— Loading categories… —</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Validity <span class="text-slate-400 font-normal">(days)</span></label>
+              <div class="flex items-center gap-2">
+                <input id="qm-validity-days" type="number" min="1" max="365" placeholder="e.g. 30"
+                  oninput="onQmValidityChange()"
+                  class="w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                <span id="qm-expiry-display" class="text-xs text-slate-500">— Valid by: —</span>
+                <input id="qm-expiry" type="hidden" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Vehicle Picker -->
+          <div id="qm-vehicle-wrap">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Vehicle <span class="text-slate-400 font-normal">(optional)</span></label>
+            <select id="qm-vehicle-sel" onchange="onQmVehicleChange()" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
+              <option value="">— Loading vehicles… —</option>
+            </select>
+          </div>
+
+          <!-- Partner selector -->
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Partner <span class="text-slate-400 font-normal">(for pricing)</span></label>
+            <select id="qm-partner-sel" onchange="onQmPartnerChange()" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
+              <option value="">— Loading partners… —</option>
+            </select>
+          </div>
+
+          <!-- Partner Pricing Loan Term (only visible when selected partner has pricing) -->
+          <div id="qm-loan-term-wrap" class="hidden">
+            <label class="block text-xs font-medium text-slate-600 mb-1">
+              Loan Term <span class="text-blue-600 font-normal">(partner pricing — <span id="qm-partner-name-label">—</span>)</span>
+            </label>
+            <select id="qm-loan-term-sel" onchange="onQmLoanTermChange()" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white"></select>
+            <p class="text-xs text-slate-400 mt-1">Products and prices below are restricted to this partner's configured pricing for the selected term.</p>
+          </div>
+
+          <!-- Line Items -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-xs font-semibold text-slate-700 uppercase tracking-wide">Line Items</p>
+              <button type="button" onclick="addQuoteItem()" class="text-xs text-emerald-600 hover:text-emerald-800 font-medium">+ Add Item</button>
+            </div>
+
+            <!-- Header row -->
+            <div class="hidden sm:grid grid-cols-12 gap-2 text-xs font-medium text-slate-400 uppercase tracking-wide mb-1 px-1">
+              <div class="col-span-4">Product</div>
+              <div class="col-span-3">Selected Devices</div>
+              <div class="col-span-1 text-center">Qty</div>
+              <div class="col-span-2 text-right">Unit Price</div>
+              <div class="col-span-2 text-right">Total</div>
+            </div>
+
+            <div id="qm-items" class="space-y-2"></div>
+
+            <!-- Subtotal bar -->
+            <div class="mt-3 pt-3 border-t border-slate-100">
+              <div class="flex justify-end">
+                <div class="w-full max-w-xs space-y-1 text-sm">
+                  <div class="flex justify-between text-slate-500">
+                    <span>Subtotal</span><span id="qm-subtotal" class="font-mono">KES 0</span>
+                  </div>
+                  <div class="flex justify-between items-center text-slate-500">
+                    <label class="flex items-center gap-1.5">
+                      Tax
+                      <input id="qm-tax" type="number" min="0" max="100" value="16" class="w-14 border border-slate-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:border-emerald-400" /> %
+                      <button type="button" id="btn-qm-vat" onclick="toggleQmVAT()" class="ml-1 px-2 py-0.5 text-xs rounded border border-slate-300 text-slate-600 hover:bg-slate-100">Remove VAT</button>
+                    </label>
+                    <span id="qm-tax-amount" class="font-mono">KES 0</span>
+                  </div>
+                  <div class="flex justify-between items-center text-slate-500">
+                    <label class="flex items-center gap-1.5">
+                      Discount
+                      <input id="qm-discount" type="number" min="0" value="0" class="w-20 border border-slate-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:border-emerald-400" />
+                    </label>
+                    <span id="qm-discount-display" class="font-mono">KES 0</span>
+                  </div>
+                  <div class="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-1">
+                    <span>Total</span><span id="qm-total" class="font-mono text-emerald-700">KES 0</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Notes / Terms</label>
+            <textarea id="qm-notes" rows="2" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none" placeholder="Validity, payment terms, special conditions…"></textarea>
+          </div>
+
+          <p id="qm-error" class="text-red-500 text-xs min-h-[1rem]"></p>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 pb-5 flex justify-end gap-3 border-t border-slate-100 pt-4">
+          <button onclick="closeQuoteModal()" class="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">Cancel</button>
+          <button id="qm-save-btn" onclick="submitQuote()" class="px-5 py-2 text-sm font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">Create Quote</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Book Meeting Modal -->
+    <div id="bm-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div class="bg-white w-full max-w-lg rounded-2xl shadow-xl border border-slate-200 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-base font-semibold text-slate-900">📅 Book Meeting with Customer</h3>
+          <button onclick="closeBookMeetingModal()" class="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+        </div>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Subject <span class="text-red-500">*</span></label>
+            <input id="bm-subject" type="text" placeholder="e.g. Fleet review meeting" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium mb-1.5 text-slate-700">Date &amp; Time <span class="text-red-500">*</span></label>
+              <input id="bm-when" type="datetime-local" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1.5 text-slate-700">Duration</label>
+              <select id="bm-duration" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500">
+                <option value="30">30 minutes</option>
+                <option value="60" selected>1 hour</option>
+                <option value="90">1.5 hours</option>
+                <option value="120">2 hours</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Invite Contact</label>
+            <select id="bm-contact-sel" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500">
+              <option value="">— No specific contact —</option>
+            </select>
+            <p class="text-xs text-slate-400 mt-1">Sends a real calendar invite to this contact's email, with you as organizer.</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Notes</label>
+            <textarea id="bm-notes" rows="3" placeholder="Agenda or notes…" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-blue-500"></textarea>
+          </div>
+          <div id="bm-error" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5"></div>
+        </div>
+        <div class="flex justify-end gap-3 pt-4 mt-2 border-t border-slate-100">
+          <button onclick="closeBookMeetingModal()" class="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">Cancel</button>
+          <button id="bm-submit-btn" onclick="submitBookMeeting()" class="px-5 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">Book Meeting</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- WhatsApp Modal -->
+    <div id="wa-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div class="bg-white w-full max-w-lg rounded-2xl shadow-xl border border-slate-200 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-base font-semibold text-slate-900">💬 Send WhatsApp Message</h3>
+          <button onclick="closeWhatsAppModal()" class="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+        </div>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Contact <span class="text-red-500">*</span></label>
+            <select id="wa-contact-sel" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500">
+              <option value="">— Select contact —</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Phone Number <span class="text-red-500">*</span></label>
+            <input id="wa-phone" type="text" placeholder="e.g. 0712345678" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500" />
+            <p class="text-xs text-slate-400 mt-1">Pre-filled from the selected contact — edit if needed.</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Message <span class="text-red-500">*</span></label>
+            <textarea id="wa-message" rows="4" placeholder="Type your message…" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-blue-500"></textarea>
+          </div>
+          <div id="wa-error" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5"></div>
+          <p class="text-xs text-slate-400">Opens WhatsApp with the message pre-filled — you send it from there, then it's logged here as a WhatsApp communication.</p>
+        </div>
+        <div class="flex justify-end gap-3 pt-4 mt-2 border-t border-slate-100">
+          <button onclick="closeWhatsAppModal()" class="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">Cancel</button>
+          <button id="wa-submit-btn" onclick="submitWhatsApp()" class="px-5 py-2 text-sm font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">Open WhatsApp &amp; Log</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="ms-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div class="bg-white w-full max-w-sm rounded-2xl shadow-xl border border-slate-200 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-base font-semibold text-slate-900">Mark Loan Settled Early</h3>
+          <button onclick="closeMarkSettled()" class="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+        </div>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Settlement Date</label>
+            <input id="ms-date" type="date" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Reason <span class="text-red-500">*</span></label>
+            <textarea id="ms-reason" rows="3" placeholder="e.g. Customer paid off the balance in full on this date" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-blue-500"></textarea>
+          </div>
+          <div id="ms-error" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5"></div>
+        </div>
+        <div class="flex justify-end gap-3 pt-4 mt-2 border-t border-slate-100">
+          <button onclick="closeMarkSettled()" class="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">Cancel</button>
+          <button id="ms-submit-btn" onclick="submitMarkSettled()" class="px-5 py-2 text-sm font-semibold rounded-lg bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50">Queue for Uninstallation</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="sms-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div class="bg-white w-full max-w-lg rounded-2xl shadow-xl border border-slate-200 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-base font-semibold text-slate-900">📱 Send SMS</h3>
+          <button onclick="closeSmsModal()" class="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+        </div>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Contact <span class="text-red-500">*</span></label>
+            <select id="sms-contact-sel" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500">
+              <option value="">— Select contact —</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Phone Number <span class="text-red-500">*</span></label>
+            <input id="sms-phone" type="text" placeholder="e.g. 0712345678" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500" />
+            <p class="text-xs text-slate-400 mt-1">Pre-filled from the selected contact — edit if needed.</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Message <span class="text-red-500">*</span></label>
+            <textarea id="sms-message" rows="4" placeholder="Type your message…" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-blue-500"></textarea>
+          </div>
+          <div id="sms-error" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5"></div>
+          <p class="text-xs text-slate-400">Sent directly via the SMS gateway and logged here automatically.</p>
+        </div>
+        <div class="flex justify-end gap-3 pt-4 mt-2 border-t border-slate-100">
+          <button onclick="closeSmsModal()" class="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">Cancel</button>
+          <button id="sms-submit-btn" onclick="submitSms()" class="px-5 py-2 text-sm font-semibold rounded-lg bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50">Send SMS</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ── Quote Modal ───────────────────────────────────────────────────────────
+      // item: {id, productId, productName, productCode, deviceModel, description, unitPrice, selectedDevices:[{id,serial,imei}]}
+      let _qmItems = [];
+      let _qmNextId = 0;
+      let _qmProductCache = null;  // all products
+      let _qmDeviceCache = {};     // productId → [{id,serial,imei}]
+      let _qmCategoryId = '';      // selected category id
+
+      // ── Partner pricing state ──
+      let _qmPartnerId = '';                 // selected partner id
+      let _qmPartnerName = '';
+      let _qmPartnerPricing = [];            // [{partnerId, productId, loanTermMonths, devicePrice, installationFee}]
+      let _qmLoanTerm = null;                // selected loan term (number) when partner pricing active
+      let _qmAllPartners = [];               // [{id, name}] — loaded once
+
+      // True iff the customer has a primary partner AND that partner has at least one pricing row.
+      function isPartnerPricingActive() {
+        return !!(_qmPartnerId && _qmPartnerPricing.length);
+      }
+
+      // Returns the set of productIds available for the currently selected (partner, loan term).
+      function partnerProductIdsForTerm() {
+        if (!isPartnerPricingActive() || _qmLoanTerm == null) return null;
+        return new Set(
+          _qmPartnerPricing
+            .filter(p => Number(p.loanTermMonths) === Number(_qmLoanTerm))
+            .map(p => p.productId)
+        );
+      }
+
+      function partnerPricingFor(productId) {
+        if (!isPartnerPricingActive() || _qmLoanTerm == null) return null;
+        return _qmPartnerPricing.find(
+          p => p.productId === productId && Number(p.loanTermMonths) === Number(_qmLoanTerm)
+        ) || null;
+      }
+
+      async function loadQmPartners() {
+        if (_qmAllPartners.length) return; // cached
+        try {
+          const r = await window.FINEMARK_APP.apiFetch('/partners?status=Active&pageSize=500');
+          _qmAllPartners = (r.data || []).map(p => ({ id: String(p.id), name: p.name }));
+        } catch { _qmAllPartners = []; }
+      }
+
+      async function onQmVehicleChange() {
+        const sel = document.getElementById('qm-vehicle-sel');
+        const opt = sel.options[sel.selectedIndex];
+        const partnerId   = opt?.dataset.partnerId   || '';
+        const partnerName = opt?.dataset.partnerName  || '';
+        const loanTerm    = opt?.dataset.loanTerm ? Number(opt.dataset.loanTerm) : null;
+
+        // Ensure partner list is loaded, then sync the partner dropdown
+        await loadQmPartners();
+        const partnerSel = document.getElementById('qm-partner-sel');
+        if (partnerSel && partnerId) {
+          // Add the partner as an option if it isn't already present
+          if (![...partnerSel.options].some(o => o.value === partnerId)) {
+            const o = document.createElement('option');
+            o.value = partnerId; o.textContent = partnerName;
+            partnerSel.appendChild(o);
+          }
+          partnerSel.value = partnerId;
+        } else if (partnerSel) {
+          partnerSel.value = '';
+        }
+
+        _qmPartnerId   = partnerId;
+        _qmPartnerName = partnerName;
+        _qmItems.forEach(item => { item.unitPrice = 0; item.installationPrice = 0; item.selectedDevices = []; });
+
+        await loadQmPartnerPricing();
+
+        // Auto-select the vehicle's loan term if the pricing has a matching entry
+        if (loanTerm) {
+          const termSel = document.getElementById('qm-loan-term-sel');
+          if (termSel && [...termSel.options].some(o => Number(o.value) === loanTerm)) {
+            termSel.value = String(loanTerm);
+            _qmLoanTerm = loanTerm;
+          }
+        }
+        renderQmItems();
+        recalcQmTotals();
+      }
+
+      async function onQmPartnerChange() {
+        const sel = document.getElementById('qm-partner-sel');
+        const pid = sel.value;
+        const partner = _qmAllPartners.find(p => p.id === pid);
+        _qmPartnerId   = pid;
+        _qmPartnerName = partner?.name || '';
+        // Reset item prices since pricing changes with partner
+        _qmItems.forEach(item => {
+          item.unitPrice = 0; item.installationPrice = 0;
+          item.selectedDevices = [];
+        });
+        await loadQmPartnerPricing();
+        renderQmItems();
+        recalcQmTotals();
+      }
+
+      async function loadQmPartnerPricing() {
+        const wrap = document.getElementById('qm-loan-term-wrap');
+        const sel = document.getElementById('qm-loan-term-sel');
+        const nameLabel = document.getElementById('qm-partner-name-label');
+        _qmPartnerPricing = [];
+        _qmLoanTerm = null;
+        if (!_qmPartnerId) { wrap.classList.add('hidden'); return; }
+        try {
+          const r = await window.FINEMARK_APP.apiFetch(`/partner-pricing?partnerId=${encodeURIComponent(_qmPartnerId)}&pageSize=500`);
+          _qmPartnerPricing = (r.data || []).map(p => ({
+            partnerId: p.partnerId,
+            productId: p.productId,
+            productName: p.productName,
+            productCode: p.productCode,
+            loanTermMonths: Number(p.loanTermMonths),
+            devicePrice: Number(p.devicePrice || 0),
+            installationFee: Number(p.installationFee || 0),
+          }));
+        } catch { _qmPartnerPricing = []; }
+
+        if (!_qmPartnerPricing.length) {
+          wrap.classList.add('hidden');
+          return;
+        }
+
+        // Distinct loan terms, sorted ascending
+        const terms = Array.from(new Set(_qmPartnerPricing.map(p => p.loanTermMonths))).sort((a, b) => a - b);
+        sel.innerHTML = terms.map(t => `<option value="${t}">${t === 0 ? 'Cash' : `${t} months`}</option>`).join('');
+        _qmLoanTerm = terms[0];
+        sel.value = String(_qmLoanTerm);
+        nameLabel.textContent = _qmPartnerName || 'Partner';
+        wrap.classList.remove('hidden');
+      }
+
+      function onQmLoanTermChange() {
+        const sel = document.getElementById('qm-loan-term-sel');
+        _qmLoanTerm = Number(sel.value);
+        // Reset all line items because available products & prices change with term
+        _qmItems.forEach(item => {
+          item.productId = ''; item.productName = ''; item.productCode = '';
+          item.deviceModel = ''; item.description = '';
+          item.unitPrice = 0; item.installationPrice = 0; item.subscriptionPrice = 0;
+          item.selectedDevices = [];
+        });
+        renderQmItems();
+        recalcQmTotals();
+      }
+
+      async function loadQmCategories() {
+        const sel = document.getElementById('qm-service');
+        if (sel.options.length > 1) return; // already loaded
+        try {
+          const r = await window.FINEMARK_APP.apiFetch('/inventory/catalog/categories');
+          sel.innerHTML = '<option value="">— Select category —</option>';
+          (r.data || []).forEach(cat => {
+            const o = document.createElement('option');
+            o.value = cat.id;
+            o.dataset.name = cat.name;
+            o.textContent = cat.name;
+            sel.appendChild(o);
+          });
+          // "Other" isn't a real inventory category — it exists so a quote can
+          // be created for a custom/one-off listing without forcing a category match.
+          const otherOpt = document.createElement('option');
+          otherOpt.value = '__other__';
+          otherOpt.textContent = 'Other';
+          sel.appendChild(otherOpt);
+        } catch {
+          sel.innerHTML = '<option value="">— Could not load categories —</option>';
+        }
+      }
+
+      function onQmCategoryChange() {
+        const sel = document.getElementById('qm-service');
+        _qmCategoryId = sel.value;
+        // reset product selections on all items when category changes
+        _qmItems.forEach(item => {
+          item.productId = ''; item.productName = ''; item.productCode = '';
+          item.deviceModel = ''; item.description = '';
+          item.unitPrice = 0; item.installationPrice = 0; item.subscriptionPrice = 0;
+          item.selectedDevices = [];
+        });
+        renderQmItems();
+      }
+
+      async function loadQmProducts() {
+        if (_qmProductCache) return _qmProductCache;
+        try {
+          const r = await window.FINEMARK_APP.apiFetch('/inventory/catalog?pageSize=500');
+          _qmProductCache = (r.data || []).map(p => ({
+            id: p.id,
+            categoryId: p.categoryId || p.category_id || '',
+            categoryName: p.categoryName || p.category_name || '',
+            productCode: p.productCode || p.product_code || '',
+            productName: p.productName || p.product_name || p.name || '',
+            deviceModel: p.deviceModel || p.device_model || '',
+            description: p.description || '',
+            quotationDescription: p.quotationDescription || p.quotation_description || '',
+            keyFeatures: p.keyFeatures || p.key_features || '',
+            salePrice:         Number(p.salePrice         ?? p.sale_price         ?? 0),
+            installationPrice: Number(p.installationPrice ?? p.installation_price ?? 0),
+            subscriptionPrice: Number(p.subscriptionPrice ?? p.subscription_price ?? 0),
+          }));
+        } catch { _qmProductCache = []; }
+        return _qmProductCache;
+      }
+
+      async function loadQmDevices(productId) {
+        if (_qmDeviceCache[productId]) return _qmDeviceCache[productId];
+        try {
+          const r = await window.FINEMARK_APP.apiFetch(`/inventory/items?status=In+Stock&productId=${productId}&pageSize=200`);
+          _qmDeviceCache[productId] = (r.data || []).map(d => ({
+            id: d.id,
+            serial: d.serial_number || d.serialNumber || '—',
+            imei: d.imei || '—',
+            location: d.warehouse_location || d.warehouseLocation || '',
+          }));
+        } catch { _qmDeviceCache[productId] = []; }
+        return _qmDeviceCache[productId];
+      }
+
+      function openQuoteModal(preselectVehicleId) {
+        _qmItems = [];
+        _qmNextId = 0;
+        _qmDeviceCache = {};
+        _qmCategoryId = '';
+        document.getElementById('qm-service').value = '';
+        document.getElementById('qm-validity-days').value = '';
+        document.getElementById('qm-expiry-display').textContent = '— Valid by: —';
+        document.getElementById('qm-expiry').value = '';
+        document.getElementById('qm-tax').value = '16';
+        document.getElementById('qm-discount').value = '0';
+        document.getElementById('qm-notes').value = '';
+        document.getElementById('qm-error').textContent = '';
+        document.getElementById('qm-vehicle-sel').innerHTML = '<option value="">— Loading vehicles… —</option>';
+        const name = document.getElementById('cust-name').textContent;
+        const acct = document.getElementById('cust-account-no').textContent;
+        document.getElementById('qm-cust-label').textContent = `${name} · ${acct}`;
+
+        // Capture customer's primary partner from already-loaded view360 as default
+        _qmPartnerId   = view360?.customer?.affiliatePartnerId   || '';
+        _qmPartnerName = view360?.customer?.affiliatePartnerName || '';
+
+        addQuoteItem();
+        document.getElementById('quote-modal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        loadQmCategories();
+        loadQmProducts(); // pre-warm
+        // Load partners, populate dropdown, then load pricing
+        loadQmPartners().then(() => {
+          const partnerSel = document.getElementById('qm-partner-sel');
+          partnerSel.innerHTML = '<option value="">— No partner / cash —</option>' +
+            _qmAllPartners.map(p =>
+              `<option value="${p.id}"${p.id === _qmPartnerId ? ' selected' : ''}>${p.name}</option>`
+            ).join('');
+          return loadQmPartnerPricing();
+        }).then(() => renderQmItems());
+        // Load customer vehicles
+        window.FINEMARK_APP.apiFetch(`/crm/customers/${customerId}/vehicles`).then(resp => {
+          const vArr = Array.isArray(resp) ? resp : (Array.isArray(resp?.data) ? resp.data : []);
+          const sel = document.getElementById('qm-vehicle-sel');
+          if (!sel) return;
+          sel.innerHTML = '<option value="">— No specific vehicle —</option>' +
+            vArr.map(v => {
+              const label = [v.registration, v.make && v.model ? `${v.make} ${v.model}` : (v.make || ''), v.yearOfManufacture ? `(${v.yearOfManufacture})` : ''].filter(Boolean).join(' — ');
+              return `<option value="${v.id}" data-partner-id="${v.partnerId || ''}" data-partner-name="${(v.partnerName || '').replace(/"/g, '&quot;')}" data-loan-term="${v.loanTenureMonths || ''}">${label}</option>`;
+            }).join('');
+          if (!vArr.length) sel.innerHTML = '<option value="">— No vehicles registered —</option>';
+          if (preselectVehicleId && vArr.some(v => v.id === preselectVehicleId)) {
+            sel.value = preselectVehicleId;
+            onQmVehicleChange();
+          }
+        }).catch(() => {
+          const sel = document.getElementById('qm-vehicle-sel');
+          if (sel) sel.innerHTML = '<option value="">— Could not load vehicles —</option>';
+        });
+      }
+
+      function closeQuoteModal() {
+        document.getElementById('quote-modal').classList.add('hidden');
+        document.body.style.overflow = '';
+        // close any open device dropdowns
+        document.querySelectorAll('.qm-dev-dropdown').forEach(el => el.classList.add('hidden'));
+      }
+
+      function addQuoteItem() {
+        const id = _qmNextId++;
+        _qmItems.push({ id, type: 'product', productId: '', productName: '', productCode: '', deviceModel: '', description: '',
+          descriptionMode: 'quotation',
+          unitPrice: 0, installationPrice: 0, subscriptionPrice: 0, discountPct: 0, qty: 1, selectedDevices: [],
+          customName: '', customDescription: '', customPrice: 0 });
+        renderQmItems();
+        // focus the new product select
+        setTimeout(() => {
+          const sel = document.getElementById(`qm-prod-${_qmItems[_qmItems.length-1].id}`);
+          if (sel) sel.focus();
+        }, 50);
+      }
+
+      function setQmItemType(id, type) {
+        const item = _qmItems.find(i => i.id === id);
+        if (!item || item.type === type) return;
+        item.type = type;
+        if (type === 'custom') {
+          item.productId = ''; item.productName = ''; item.productCode = '';
+          item.deviceModel = ''; item.description = '';
+          item.unitPrice = 0; item.installationPrice = 0; item.subscriptionPrice = 0;
+          item.selectedDevices = [];
+        } else {
+          item.customName = ''; item.customDescription = ''; item.customPrice = 0;
+        }
+        renderQmItems(); recalcQmTotals();
+      }
+
+      function updateQmCustomField(id, field, val) {
+        const item = _qmItems.find(i => i.id === id);
+        if (!item) return;
+        item[field] = (field === 'customPrice') ? (parseFloat(val) || 0) : val;
+        if (field === 'customPrice') {
+          const rowTot = document.getElementById(`qm-row-total-${id}`);
+          if (rowTot) rowTot.textContent = 'KES ' + fmtN(item.customPrice);
+          recalcQmTotals();
+        }
+      }
+
+      function removeQuoteItem(id) {
+        _qmItems = _qmItems.filter(i => i.id !== id);
+        renderQmItems();
+      }
+
+      function updateQmItemPrice(id, field, val) {
+        const item = _qmItems.find(i => i.id === id);
+        if (!item) return;
+        item[field] = parseFloat(val) || 0;
+        _refreshRowTotal(item);
+        recalcQmTotals();
+      }
+
+      function _refreshRowTotal(item) {
+        const rowTot = document.getElementById(`qm-row-total-${item.id}`);
+        if (!rowTot) return;
+        const qty = item.qty || (item.type === 'custom' ? 1 : Math.max(item.selectedDevices.length, 1));
+        if (item.type === 'custom') {
+          rowTot.textContent = 'KES ' + fmtN((item.customPrice || 0) * qty);
+        } else {
+          const base = (item.unitPrice + item.installationPrice + item.subscriptionPrice) * qty;
+          const disc = base * ((item.discountPct || 0) / 100);
+          rowTot.textContent = 'KES ' + fmtN(base - disc);
+        }
+      }
+
+      function updateQmItemQty(id, val) {
+        const item = _qmItems.find(i => i.id === id);
+        if (!item) return;
+        item.qty = Math.max(parseInt(val, 10) || 1, 1);
+        _refreshRowTotal(item);
+        recalcQmTotals();
+      }
+
+      async function onProductChange(id, productId) {
+        const item = _qmItems.find(i => i.id === id);
+        if (!item) return;
+        item.selectedDevices = [];
+        if (!productId) {
+          item.productId = ''; item.productName = ''; item.productCode = '';
+          item.deviceModel = ''; item.description = ''; item.descriptionMode = 'quotation'; item.unitPrice = 0;
+          renderQmItems(); return;
+        }
+        const products = await loadQmProducts();
+        const prod = products.find(p => p.id === productId);
+        if (prod) {
+          item.productId        = prod.id;
+          item.productName      = prod.productName;
+          item.productCode      = prod.productCode;
+          item.categoryName     = prod.categoryName;
+          item.deviceModel      = prod.deviceModel;
+          item.description      = prod.quotationDescription || prod.description || prod.productName;
+          item.descriptionMode  = 'quotation';
+          item.unitPrice        = prod.salePrice         || 0;
+          item.installationPrice = prod.installationPrice || 0;
+          item.subscriptionPrice = prod.subscriptionPrice || 0;
+
+          // Override device price + installation fee from partner pricing if active
+          const ppr = partnerPricingFor(prod.id);
+          if (ppr) {
+            item.unitPrice         = ppr.devicePrice;
+            item.installationPrice = ppr.installationFee;
+          }
+        }
+        // force device cache refresh
+        delete _qmDeviceCache[productId];
+        renderQmItems();
+        recalcQmTotals();
+      }
+
+      function removeDevice(itemId, deviceId) {
+        const item = _qmItems.find(i => i.id === itemId);
+        if (!item) return;
+        item.selectedDevices = item.selectedDevices.filter(d => d.id !== deviceId);
+        item.qty = Math.max(item.selectedDevices.length, 1);
+        renderQmItems();
+        recalcQmTotals();
+      }
+
+      async function toggleDeviceDropdown(itemId) {
+        const dd = document.getElementById(`qm-dev-dd-${itemId}`);
+        if (!dd) return;
+        if (!dd.classList.contains('hidden')) { dd.classList.add('hidden'); return; }
+        const item = _qmItems.find(i => i.id === itemId);
+        if (!item || !item.productId) return;
+        dd.innerHTML = '<li class="px-3 py-2 text-xs text-slate-400">Loading…</li>';
+        dd.classList.remove('hidden');
+        const devices = await loadQmDevices(item.productId);
+        const available = devices.filter(d => !item.selectedDevices.find(s => s.id === d.id));
+        if (!available.length) {
+          dd.innerHTML = '<li class="px-3 py-2 text-xs text-slate-400">No In-Stock devices available.</li>';
+          return;
+        }
+        dd.innerHTML = available.map(d => `
+          <li class="px-3 py-2.5 hover:bg-blue-50 cursor-pointer border-b border-slate-100 last:border-0"
+              data-id="${d.id}" data-serial="${escAttr(d.serial)}" data-imei="${escAttr(d.imei)}">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <span class="text-xs font-mono font-semibold text-slate-700">SN: ${escAttr(d.serial)}</span>
+                <span class="mx-1.5 text-slate-300">·</span>
+                <span class="text-xs font-mono text-slate-500">IMEI: ${escAttr(d.imei)}</span>
+              </div>
+              ${d.location ? `<span class="text-xs text-slate-400 shrink-0">${escAttr(d.location)}</span>` : ''}
+            </div>
+          </li>`).join('');
+        dd.querySelectorAll('li[data-id]').forEach(li => {
+          li.addEventListener('mousedown', e => {
+            e.preventDefault();
+            const itm = _qmItems.find(i => i.id === itemId);
+            if (itm) {
+              itm.selectedDevices.push({ id: li.dataset.id, serial: li.dataset.serial, imei: li.dataset.imei });
+              itm.qty = itm.selectedDevices.length;
+            }
+            dd.classList.add('hidden');
+            renderQmItems();
+            recalcQmTotals();
+          });
+        });
+      }
+
+      function renderQmItems() {
+        const container = document.getElementById('qm-items');
+        const products = _qmProductCache || [];
+        container.innerHTML = _qmItems.map(item => {
+          const isCustom = item.type === 'custom';
+          const qty = item.qty || (isCustom ? 1 : Math.max(item.selectedDevices.length, 1));
+          const baseTotal = isCustom ? (item.customPrice || 0) * qty
+            : (item.unitPrice + item.installationPrice + item.subscriptionPrice) * qty;
+          const rowTotal = isCustom ? baseTotal
+            : baseTotal * (1 - (item.discountPct || 0) / 100);
+
+          const typeToggle = `
+            <div class="flex rounded overflow-hidden border border-slate-200 text-xs">
+              <button type="button" onclick="setQmItemType(${item.id},'product')"
+                class="px-2.5 py-0.5 ${!isCustom ? 'bg-emerald-500 text-white font-semibold' : 'bg-white text-slate-500 hover:bg-slate-50'}">Product</button>
+              <button type="button" onclick="setQmItemType(${item.id},'custom')"
+                class="px-2.5 py-0.5 border-l border-slate-200 ${isCustom ? 'bg-emerald-500 text-white font-semibold' : 'bg-white text-slate-500 hover:bg-slate-50'}">Custom Service</button>
+            </div>`;
+
+          if (isCustom) {
+            return `
+            <div class="bg-slate-50 rounded-xl px-3 py-3 space-y-2.5 border border-slate-100">
+              <div class="flex items-center gap-2">
+                ${typeToggle}
+                <div class="flex-1"></div>
+                <div class="shrink-0 flex items-center gap-1">
+                  <label class="text-xs text-slate-500 font-semibold">Qty:</label>
+                  <input type="number" min="1" step="1" value="${qty}"
+                    oninput="updateQmItemQty(${item.id}, this.value)"
+                    class="w-14 border border-slate-200 rounded px-1.5 py-0.5 text-xs text-center focus:outline-none focus:border-emerald-400 bg-white" />
+                </div>
+                <button type="button" onclick="removeQuoteItem(${item.id})" class="shrink-0 text-red-400 hover:text-red-600 text-xl leading-none">&times;</button>
+              </div>
+              <div class="grid grid-cols-1 gap-2">
+                <div>
+                  <label class="block text-xs text-slate-500 mb-0.5">Service Name <span class="text-red-400">*</span></label>
+                  <input type="text" placeholder="e.g. Speed Governor Installation"
+                    value="${escAttr(item.customName || '')}"
+                    oninput="updateQmCustomField(${item.id},'customName',this.value)"
+                    class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-400 bg-white" />
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-500 mb-0.5">Description</label>
+                  <input type="text" placeholder="Additional details (optional)"
+                    value="${escAttr(item.customDescription || '')}"
+                    oninput="updateQmCustomField(${item.id},'customDescription',this.value)"
+                    class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-400 bg-white" />
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-500 mb-0.5">Amount (KES)</label>
+                  <input type="number" min="0" step="0.01" placeholder="0.00"
+                    value="${item.customPrice || ''}"
+                    oninput="updateQmCustomField(${item.id},'customPrice',this.value)"
+                    class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:border-emerald-400 bg-white" />
+                </div>
+              </div>
+              <div class="flex items-center justify-between pt-0.5 border-t border-slate-200">
+                <div id="qm-row-total-${item.id}" class="text-sm font-semibold text-emerald-700">KES ${fmtN(rowTotal)}</div>
+                <div class="text-xs text-slate-400">${qty > 1 ? `flat × ${qty}` : 'flat rate'}</div>
+              </div>
+            </div>`;
+          }
+
+          // Product mode
+          const chips = item.selectedDevices.map(d => `
+            <span class="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-xs font-medium whitespace-nowrap">
+              <span class="font-mono">SN:${escAttr(d.serial)}</span>
+              <span class="text-indigo-400 mx-0.5">·</span>
+              <span class="font-mono">IMEI:${escAttr(d.imei)}</span>
+              <button type="button" onmousedown="event.preventDefault();removeDevice(${item.id},'${d.id}')"
+                class="ml-0.5 rounded-full hover:bg-indigo-200 w-4 h-4 flex items-center justify-center text-indigo-600 leading-none text-sm">&times;</button>
+            </span>`).join('');
+
+          const addDevBtn = item.productId ? `
+            <div class="relative inline-block">
+              <button type="button" onclick="toggleDeviceDropdown(${item.id})"
+                class="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium border border-blue-200 rounded-full px-2 py-0.5 hover:bg-blue-50">
+                + Add Device
+              </button>
+              <ul id="qm-dev-dd-${item.id}"
+                class="qm-dev-dropdown hidden absolute z-50 left-0 mt-1 w-80 bg-white border border-slate-200 rounded-xl shadow-xl max-h-52 overflow-y-auto text-sm">
+              </ul>
+            </div>` : '';
+
+          const filteredProds = (_qmCategoryId && _qmCategoryId !== '__other__')
+            ? products.filter(p => p.categoryId === _qmCategoryId)
+            : products;
+          const allowedIds = partnerProductIdsForTerm();
+          const visibleProds = allowedIds
+            ? filteredProds.filter(p => allowedIds.has(p.id))
+            : filteredProds;
+          const prodOpts = visibleProds.map(p =>
+            `<option value="${p.id}" ${p.id === item.productId ? 'selected' : ''}>${p.productCode ? p.productCode + ' — ' : ''}${escAttr(p.productName)}</option>`
+          ).join('');
+
+          return `
+          <div class="bg-slate-50 rounded-xl px-3 py-3 space-y-2.5 border border-slate-100">
+            <div class="flex items-center gap-2">
+              ${typeToggle}
+              <div class="flex-1"></div>
+              <div class="shrink-0 flex items-center gap-1">
+                <label class="text-xs text-slate-500 font-semibold">Qty:</label>
+                <input type="number" min="1" step="1" value="${qty}"
+                  oninput="updateQmItemQty(${item.id}, this.value)"
+                  class="w-14 border border-slate-200 rounded px-1.5 py-0.5 text-xs text-center focus:outline-none focus:border-emerald-400 bg-white" />
+              </div>
+              <button type="button" onclick="removeQuoteItem(${item.id})" class="shrink-0 text-red-400 hover:text-red-600 text-xl leading-none">&times;</button>
+            </div>
+            <select id="qm-prod-${item.id}"
+              onchange="onProductChange(${item.id}, this.value)"
+              class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-400 bg-white">
+              <option value="">— Select product —</option>
+              ${prodOpts}
+            </select>
+            <div class="grid grid-cols-4 gap-2">
+              <div>
+                <label class="block text-xs text-slate-500 mb-0.5">Device Price (KES)</label>
+                <input type="number" min="0" step="0.01" placeholder="0.00"
+                  value="${item.unitPrice || ''}"
+                  oninput="updateQmItemPrice(${item.id},'unitPrice',this.value)"
+                  class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:border-emerald-400 bg-white" />
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-0.5">Discount %</label>
+                <input type="number" min="0" max="100" step="0.01" placeholder="0.00"
+                  value="${item.discountPct || ''}"
+                  oninput="updateQmItemPrice(${item.id},'discountPct',this.value)"
+                  class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:border-emerald-400 bg-white" />
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-0.5">Installation (KES)</label>
+                <input type="number" min="0" step="0.01" placeholder="0.00"
+                  value="${item.installationPrice || ''}"
+                  oninput="updateQmItemPrice(${item.id},'installationPrice',this.value)"
+                  class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:border-emerald-400 bg-white" />
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-0.5">Subscription /mo (KES)</label>
+                <input type="number" min="0" step="0.01" placeholder="0.00"
+                  value="${item.subscriptionPrice || ''}"
+                  oninput="updateQmItemPrice(${item.id},'subscriptionPrice',this.value)"
+                  class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:border-emerald-400 bg-white" />
+              </div>
+            </div>
+            <div class="flex items-center justify-between">
+              <div id="qm-row-total-${item.id}" class="text-sm font-semibold text-emerald-700">KES ${fmtN(rowTotal)}</div>
+              <div class="text-xs text-slate-400">${item.discountPct > 0 ? `after ${item.discountPct}% disc, ` : ''}(device + install + sub) × ${qty}</div>
+            </div>
+            <div class="flex flex-wrap items-center gap-1.5 min-h-[1.75rem] pt-0.5 border-t border-slate-200">
+              ${chips}
+              ${addDevBtn}
+              ${!item.productId ? '<span class="text-xs text-slate-400 italic">Select a product above to pick devices</span>' : ''}
+            </div>
+            ${item.productId ? qmDescriptionBlock(item, products) : ''}
+          </div>`;
+        }).join('');
+        recalcQmTotals();
+      }
+
+      // ── Quotation description + features (per line item) ─────────────────────
+      function qmDescriptionBlock(item, products) {
+        const prod = products.find(p => p.id === item.productId);
+        const isCustomMode = item.descriptionMode === 'custom';
+        const features = ((prod && prod.keyFeatures) || '').split('\n').map(s => s.trim()).filter(Boolean);
+        return `
+        <div class="border-t border-slate-200 pt-2 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <label class="text-xs text-slate-500 font-semibold">Quotation Description</label>
+            <label class="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer select-none">
+              <input type="checkbox" ${isCustomMode ? 'checked' : ''} onchange="toggleQmDescriptionMode(${item.id}, this.checked)" class="accent-emerald-600" />
+              Edit description
+            </label>
+          </div>
+          <textarea rows="2" ${isCustomMode ? '' : 'readonly'}
+            oninput="updateQmDescription(${item.id}, this.value)"
+            class="w-full border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-400 resize-y ${isCustomMode ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-100 text-slate-500'}">${escAttr(item.description || '')}</textarea>
+          ${features.length ? `
+          <div class="flex flex-wrap gap-1.5 pt-0.5">
+            ${features.map((f, idx) => `
+              <button type="button" onclick="addQmFeatureToDescription(${item.id}, ${idx})" ${isCustomMode ? '' : 'disabled'}
+                class="text-xs px-2 py-0.5 rounded-full border border-slate-200 text-slate-600 hover:bg-emerald-50 hover:border-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed">+ ${escAttr(f)}</button>
+            `).join('')}
+          </div>` : ''}
+        </div>`;
+      }
+
+      function toggleQmDescriptionMode(id, editing) {
+        const item = _qmItems.find(i => i.id === id);
+        if (!item) return;
+        item.descriptionMode = editing ? 'custom' : 'quotation';
+        if (!editing) {
+          const prod = (_qmProductCache || []).find(p => p.id === item.productId);
+          item.description = prod ? (prod.quotationDescription || prod.description || prod.productName) : item.description;
+        }
+        renderQmItems();
+      }
+
+      function updateQmDescription(id, value) {
+        const item = _qmItems.find(i => i.id === id);
+        if (!item) return;
+        item.description = value;
+      }
+
+      function addQmFeatureToDescription(id, featureIdx) {
+        const item = _qmItems.find(i => i.id === id);
+        if (!item || item.descriptionMode !== 'custom') return;
+        const prod = (_qmProductCache || []).find(p => p.id === item.productId);
+        if (!prod) return;
+        const features = (prod.keyFeatures || '').split('\n').map(s => s.trim()).filter(Boolean);
+        const feature = features[featureIdx];
+        if (!feature) return;
+        item.description = item.description ? `${item.description}\n${feature}` : feature;
+        renderQmItems();
+      }
+
+      function onQmValidityChange() {
+        const days = parseInt(document.getElementById('qm-validity-days').value, 10);
+        const display = document.getElementById('qm-expiry-display');
+        const hidden = document.getElementById('qm-expiry');
+        if (!days || days < 1) {
+          display.textContent = '— Valid by: —';
+          hidden.value = '';
+          return;
+        }
+        const d = new Date();
+        d.setDate(d.getDate() + days);
+        hidden.value = d.toISOString().slice(0, 10);
+        display.textContent = 'Valid by: ' + d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      }
+
+      function toggleQmVAT() {
+        const inp = document.getElementById('qm-tax');
+        inp.value = parseFloat(inp.value) > 0 ? '0' : '16';
+        recalcQmTotals();
+      }
+
+      function recalcQmTotals() {
+        const subtotal = _qmItems.reduce((s, i) => {
+          const qty = i.qty || (i.type === 'custom' ? 1 : Math.max(i.selectedDevices.length, 1));
+          if (i.type === 'custom') return s + (i.customPrice || 0) * qty;
+          const base = (i.unitPrice + i.installationPrice + i.subscriptionPrice) * qty;
+          return s + base * (1 - (i.discountPct || 0) / 100);
+        }, 0);
+        const taxRate = parseFloat(document.getElementById('qm-tax').value) || 0;
+        const discount = parseFloat(document.getElementById('qm-discount').value) || 0;
+        const afterDiscount = Math.max(0, subtotal - discount);
+        const taxAmt = afterDiscount * (taxRate / 100);
+        const total = afterDiscount + taxAmt;
+        document.getElementById('qm-subtotal').textContent = 'KES ' + fmtN(subtotal);
+        document.getElementById('qm-tax-amount').textContent = 'KES ' + fmtN(taxAmt);
+        document.getElementById('qm-discount-display').textContent = 'KES ' + fmtN(discount);
+        document.getElementById('qm-total').textContent = 'KES ' + fmtN(total);
+        // Update toggle button label
+        const btn = document.getElementById('btn-qm-vat');
+        if (btn) btn.textContent = taxRate > 0 ? 'Remove VAT' : 'Add VAT (16%)';
+      }
+
+      function fmtN(n) { return (Math.round((n||0)*100)/100).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}); }
+      function escAttr(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+      // Live recalc when tax/discount inputs change
+      document.getElementById('quote-modal').addEventListener('input', e => {
+        if (e.target.id === 'qm-tax' || e.target.id === 'qm-discount') recalcQmTotals();
+      });
+
+      // Close device dropdowns on outside click
+      document.addEventListener('click', e => {
+        document.querySelectorAll('.qm-dev-dropdown').forEach(dd => {
+          if (!dd.contains(e.target) && !e.target.closest('button[onclick*="toggleDeviceDropdown"]')) {
+            dd.classList.add('hidden');
+          }
+        });
+      });
+
+      async function submitQuote() {
+        const errEl = document.getElementById('qm-error');
+        errEl.textContent = '';
+        if (_qmItems.length === 0) { errEl.textContent = 'Add at least one line item.'; return; }
+        const hasProduct = _qmItems.some(i => i.type !== 'custom' && i.productId);
+        const hasCustom = _qmItems.some(i => i.type === 'custom' && i.customName);
+        if (!hasProduct && !hasCustom) { errEl.textContent = 'Add at least one product or custom service.'; return; }
+        const missingName = _qmItems.some(i => i.type === 'custom' && !i.customName);
+        if (missingName) { errEl.textContent = 'All custom service items must have a Service Name.'; return; }
+
+        const items = [
+          ..._qmItems.filter(i => i.type !== 'custom' && i.productId).map(i => ({
+            productId: i.productId,
+            deviceModel: i.productName || i.deviceModel,
+            description: i.description || i.productName,
+            deviceType: i.categoryName || null,
+            quantity: i.qty || Math.max(i.selectedDevices.length, 1),
+            unitPrice: i.unitPrice + i.installationPrice + i.subscriptionPrice,
+            devicePrice: i.unitPrice,
+            installationPrice: i.installationPrice,
+            subscriptionPrice: i.subscriptionPrice,
+            discountPct: i.discountPct || 0,
+            stockItemIds: i.selectedDevices.map(d => d.id),
+            stockItemId: i.selectedDevices[0]?.id || null,
+          })),
+          ..._qmItems.filter(i => i.type === 'custom' && i.customName).map(i => ({
+            productId: null,
+            deviceModel: i.customName,
+            description: i.customDescription || i.customName,
+            deviceType: 'custom',
+            quantity: i.qty || 1,
+            unitPrice: i.customPrice || 0,
+            devicePrice: 0,
+            installationPrice: 0,
+            subscriptionPrice: 0,
+            stockItemIds: [],
+            stockItemId: null,
+          })),
+        ];
+
+        const _catSel = document.getElementById('qm-service');
+        const _catName = _catSel.selectedIndex >= 0 && _catSel.value
+          ? _catSel.options[_catSel.selectedIndex].textContent.trim()
+          : (_catSel.value || null);
+
+        const body = {
+          customerId,
+          serviceType: _catName,
+          items,
+          taxRate: parseFloat(document.getElementById('qm-tax').value) || 0,
+          discountAmount: parseFloat(document.getElementById('qm-discount').value) || 0,
+          expiryDate: document.getElementById('qm-expiry').value || null,
+          notes: document.getElementById('qm-notes').value || null,
+          vehicleId: document.getElementById('qm-vehicle-sel').value || null,
+        };
+
+        const btn = document.getElementById('qm-save-btn');
+        btn.disabled = true; btn.textContent = 'Creating…';
+        try {
+          const d = await window.FINEMARK_APP.apiFetch('/crm/quotes', { method: 'POST', body });
+          closeQuoteModal();
+          const quoteId = d?.data?.id;
+          if (quoteId) {
+            window.location.href = `crm-quote-detail.html?id=${quoteId}`;
+            return;
+          }
+          const reservedCount = items.reduce((s, i) => s + i.stockItemIds.length, 0);
+          const msg = reservedCount > 0
+            ? `Quote ${d?.data?.quoteNo} created! ${reservedCount} device(s) reserved for 24h.`
+            : `Quote ${d?.data?.quoteNo} created!`;
+          window.FINEMARK_APP.showToast(msg, 'success');
+          _quotesLoaded = false;
+          const quotesPanel = document.getElementById('tab-quotes');
+          if (quotesPanel && !quotesPanel.classList.contains('hidden')) {
+            await refreshQuotesTab(customerId);
+            _quotesLoaded = true;
+          }
+        } catch(err) {
+          errEl.textContent = err.message || 'Failed to create quote.';
+        } finally {
+          btn.disabled = false; btn.textContent = 'Create Quote';
+        }
+      }
+
+      // Close modal on backdrop click
+      document.getElementById('quote-modal').addEventListener('click', e => {
+        if (e.target === e.currentTarget) closeQuoteModal();
+      });
+
+      // ── Book Meeting Modal ───────────────────────────────────────────────────
+      function openBookMeetingModal() {
+        document.getElementById('bm-subject').value = '';
+        document.getElementById('bm-when').value = '';
+        document.getElementById('bm-duration').value = '60';
+        document.getElementById('bm-notes').value = '';
+        document.getElementById('bm-error').classList.add('hidden');
+
+        const contacts = view360?.contacts || [];
+        const customerEmail = view360?.profile?.email || null;
+        const sel = document.getElementById('bm-contact-sel');
+        sel.innerHTML = '<option value="">— No specific contact —</option>' +
+          (customerEmail ? `<option value="__customer__" data-email="${customerEmail.replace(/"/g, '&quot;')}" data-name="${(view360?.customer?.displayName || 'Customer').replace(/"/g, '&quot;')}">${view360?.customer?.displayName || 'Customer'} (Customer email) — ${customerEmail}</option>` : '') +
+          contacts.map(c => `<option value="${c.id}" data-email="${(c.email || '').replace(/"/g, '&quot;')}" data-name="${(c.name || '').replace(/"/g, '&quot;')}">${c.name}${c.isPrimary ? ' (Primary)' : ''}${c.email ? ` — ${c.email}` : ' — no email'}</option>`).join('');
+
+        const primaryContact = contacts.find(c => c.isPrimary && c.email) || contacts.find(c => c.email);
+        if (customerEmail) sel.value = '__customer__';
+        else if (primaryContact) sel.value = primaryContact.id;
+
+        document.getElementById('bm-modal').classList.remove('hidden');
+      }
+      function closeBookMeetingModal() { document.getElementById('bm-modal').classList.add('hidden'); }
+      document.getElementById('bm-modal').addEventListener('click', e => {
+        if (e.target === e.currentTarget) closeBookMeetingModal();
+      });
+
+      async function submitBookMeeting() {
+        const errEl = document.getElementById('bm-error');
+        errEl.classList.add('hidden');
+
+        const subject = document.getElementById('bm-subject').value.trim();
+        const when = document.getElementById('bm-when').value;
+        if (!subject) { errEl.textContent = 'Subject is required.'; errEl.classList.remove('hidden'); return; }
+        if (!when) { errEl.textContent = 'Date & time is required.'; errEl.classList.remove('hidden'); return; }
+
+        const contactSel = document.getElementById('bm-contact-sel');
+        const opt = contactSel.selectedOptions[0];
+        const attendeeEmail = opt?.dataset.email || '';
+        const attendeeName = opt?.dataset.name || '';
+        if (contactSel.value && !attendeeEmail) {
+          errEl.textContent = 'Selected contact has no email on file — pick another contact or leave unselected.';
+          errEl.classList.remove('hidden');
+          return;
+        }
+
+        const body = {
+          customerId,
+          subject,
+          scheduledAt: new Date(when).toISOString(),
+          durationMinutes: parseInt(document.getElementById('bm-duration').value, 10) || 60,
+          attendeeEmail: attendeeEmail || undefined,
+          attendeeName: attendeeName || undefined,
+          notes: document.getElementById('bm-notes').value.trim() || undefined,
+        };
+
+        const btn = document.getElementById('bm-submit-btn');
+        btn.disabled = true; btn.textContent = 'Booking…';
+        try {
+          const d = await window.FINEMARK_APP.apiFetch('/crm/communications/book-meeting', { method: 'POST', body });
+          closeBookMeetingModal();
+          window.FINEMARK_APP.showToast(d?.message || 'Meeting booked.', 'success');
+          const v = await window.FINEMARK_APP.apiFetch(`/crm/customers/${customerId}/360`);
+          view360 = v;
+          renderCommsTab(v.communicationLogs);
+        } catch (err) {
+          errEl.textContent = err.message || 'Failed to book meeting.';
+          errEl.classList.remove('hidden');
+        } finally {
+          btn.disabled = false; btn.textContent = 'Book Meeting';
+        }
+      }
+
+      // ── WhatsApp Modal ────────────────────────────────────────────────────────
+      // Accepts 07XXXXXXXX, 01XXXXXXXX, 254XXXXXXXXX, +254XXXXXXXXX — matches the
+      // normalisation smsService.ts uses server-side, kept in sync deliberately.
+      function normalisePhoneKe(phone) {
+        const digits = (phone || '').replace(/\D/g, '');
+        if (digits.startsWith('254')) return digits;
+        if (digits.startsWith('0')) return '254' + digits.slice(1);
+        return digits ? '254' + digits : '';
+      }
+
+      function openWhatsAppModal() {
+        document.getElementById('wa-phone').value = '';
+        document.getElementById('wa-message').value = '';
+        document.getElementById('wa-error').classList.add('hidden');
+
+        const contacts = view360?.contacts || [];
+        const customerPhone = view360?.profile?.phone || null;
+        const sel = document.getElementById('wa-contact-sel');
+        sel.innerHTML = '<option value="">— Select contact —</option>' +
+          (customerPhone ? `<option value="__customer__" data-phone="${customerPhone.replace(/"/g, '&quot;')}" data-name="${(view360?.customer?.displayName || 'Customer').replace(/"/g, '&quot;')}">${view360?.customer?.displayName || 'Customer'} (Customer number) — ${customerPhone}</option>` : '') +
+          contacts.map(c => `<option value="${c.id}" data-phone="${(c.phone || '').replace(/"/g, '&quot;')}" data-name="${(c.name || '').replace(/"/g, '&quot;')}">${c.name}${c.isPrimary ? ' (Primary)' : ''}${c.phone ? ` — ${c.phone}` : ' — no phone'}</option>`).join('');
+
+        const primaryContact = contacts.find(c => c.isPrimary && c.phone) || contacts.find(c => c.phone);
+        if (customerPhone) {
+          sel.value = '__customer__';
+          document.getElementById('wa-phone').value = customerPhone;
+        } else if (primaryContact) {
+          sel.value = primaryContact.id;
+          document.getElementById('wa-phone').value = primaryContact.phone || '';
+        }
+
+        document.getElementById('wa-modal').classList.remove('hidden');
+      }
+      function closeWhatsAppModal() { document.getElementById('wa-modal').classList.add('hidden'); }
+      document.getElementById('wa-modal').addEventListener('click', e => {
+        if (e.target === e.currentTarget) closeWhatsAppModal();
+      });
+      document.getElementById('wa-contact-sel').addEventListener('change', e => {
+        const opt = e.target.selectedOptions[0];
+        document.getElementById('wa-phone').value = opt?.dataset.phone || '';
+      });
+
+      async function submitWhatsApp() {
+        const errEl = document.getElementById('wa-error');
+        errEl.classList.add('hidden');
+
+        const phoneRaw = document.getElementById('wa-phone').value.trim();
+        const message = document.getElementById('wa-message').value.trim();
+        const phone = normalisePhoneKe(phoneRaw);
+        if (!phone || phone.length < 12) { errEl.textContent = 'A valid phone number is required.'; errEl.classList.remove('hidden'); return; }
+        if (!message) { errEl.textContent = 'Message is required.'; errEl.classList.remove('hidden'); return; }
+
+        const contactSel = document.getElementById('wa-contact-sel');
+        const contactName = contactSel.selectedOptions[0]?.dataset.name || null;
+
+        // Open WhatsApp with the message pre-filled — the user sends it from
+        // there; there's no API step here to confirm delivery, so log intent now.
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+
+        const btn = document.getElementById('wa-submit-btn');
+        btn.disabled = true; btn.textContent = 'Logging…';
+        try {
+          await window.FINEMARK_APP.apiFetch('/crm/communications', {
+            method: 'POST',
+            body: {
+              customerId,
+              channel: 'WhatsApp',
+              direction: 'Outbound',
+              subject: message.length > 80 ? message.slice(0, 77) + '…' : message,
+              body: message,
+              contactName: contactName || undefined,
+            },
+          });
+          closeWhatsAppModal();
+          window.FINEMARK_APP.showToast('WhatsApp opened and message logged.', 'success');
+          const v = await window.FINEMARK_APP.apiFetch(`/crm/customers/${customerId}/360`);
+          view360 = v;
+          renderCommsTab(v.communicationLogs);
+        } catch (err) {
+          errEl.textContent = err.message || 'Failed to log the message.';
+          errEl.classList.remove('hidden');
+        } finally {
+          btn.disabled = false; btn.textContent = 'Open WhatsApp & Log';
+        }
+      }
+
+      // ── Mark Loan Settled Early Modal (GPS Uninstall Queue) ─────────────────────
+      function openMarkSettled(vehicleId) {
+        _msVehicleId = vehicleId;
+        document.getElementById('ms-date').value = new Date().toISOString().slice(0, 10);
+        document.getElementById('ms-reason').value = '';
+        document.getElementById('ms-error').classList.add('hidden');
+        document.getElementById('ms-modal').classList.remove('hidden');
+      }
+      function closeMarkSettled() { document.getElementById('ms-modal').classList.add('hidden'); }
+      document.getElementById('ms-modal').addEventListener('click', e => {
+        if (e.target === e.currentTarget) closeMarkSettled();
+      });
+
+      async function submitMarkSettled() {
+        const errEl = document.getElementById('ms-error');
+        errEl.classList.add('hidden');
+        const reason = document.getElementById('ms-reason').value.trim();
+        if (!reason) { errEl.textContent = 'A reason is required.'; errEl.classList.remove('hidden'); return; }
+
+        const btn = document.getElementById('ms-submit-btn');
+        btn.disabled = true; btn.textContent = 'Queuing…';
+        try {
+          await window.FINEMARK_APP.apiFetch('/gps-uninstall-queue/mark-settled-early', {
+            method: 'POST',
+            body: { vehicleId: _msVehicleId, settlementDate: document.getElementById('ms-date').value, reason },
+          });
+          closeMarkSettled();
+          window.FINEMARK_APP.showToast('Vehicle queued for GPS uninstallation.', 'success');
+          await load360();
+        } catch (err) {
+          errEl.textContent = err.message || 'Failed to queue vehicle.';
+          errEl.classList.remove('hidden');
+        } finally {
+          btn.disabled = false; btn.textContent = 'Queue for Uninstallation';
+        }
+      }
+
+      // ── SMS Modal ─────────────────────────────────────────────────────────────
+      function openSmsModal() {
+        document.getElementById('sms-phone').value = '';
+        document.getElementById('sms-message').value = '';
+        document.getElementById('sms-error').classList.add('hidden');
+
+        const contacts = view360?.contacts || [];
+        const customerPhone = view360?.profile?.phone || null;
+        const sel = document.getElementById('sms-contact-sel');
+        sel.innerHTML = '<option value="">— Select contact —</option>' +
+          (customerPhone ? `<option value="__customer__" data-phone="${customerPhone.replace(/"/g, '&quot;')}" data-name="${(view360?.customer?.displayName || 'Customer').replace(/"/g, '&quot;')}">${view360?.customer?.displayName || 'Customer'} (Customer number) — ${customerPhone}</option>` : '') +
+          contacts.map(c => `<option value="${c.id}" data-phone="${(c.phone || '').replace(/"/g, '&quot;')}" data-name="${(c.name || '').replace(/"/g, '&quot;')}">${c.name}${c.isPrimary ? ' (Primary)' : ''}${c.phone ? ` — ${c.phone}` : ' — no phone'}</option>`).join('');
+
+        const primaryContact = contacts.find(c => c.isPrimary && c.phone) || contacts.find(c => c.phone);
+        if (customerPhone) {
+          sel.value = '__customer__';
+          document.getElementById('sms-phone').value = customerPhone;
+        } else if (primaryContact) {
+          sel.value = primaryContact.id;
+          document.getElementById('sms-phone').value = primaryContact.phone || '';
+        }
+
+        document.getElementById('sms-modal').classList.remove('hidden');
+      }
+      function closeSmsModal() { document.getElementById('sms-modal').classList.add('hidden'); }
+      document.getElementById('sms-modal').addEventListener('click', e => {
+        if (e.target === e.currentTarget) closeSmsModal();
+      });
+      document.getElementById('sms-contact-sel').addEventListener('change', e => {
+        const opt = e.target.selectedOptions[0];
+        document.getElementById('sms-phone').value = opt?.dataset.phone || '';
+      });
+
+      async function submitSms() {
+        const errEl = document.getElementById('sms-error');
+        errEl.classList.add('hidden');
+
+        const phoneRaw = document.getElementById('sms-phone').value.trim();
+        const message = document.getElementById('sms-message').value.trim();
+        const phone = normalisePhoneKe(phoneRaw);
+        if (!phone || phone.length < 12) { errEl.textContent = 'A valid phone number is required.'; errEl.classList.remove('hidden'); return; }
+        if (!message) { errEl.textContent = 'Message is required.'; errEl.classList.remove('hidden'); return; }
+
+        const contactSel = document.getElementById('sms-contact-sel');
+        const contactName = contactSel.selectedOptions[0]?.dataset.name || null;
+
+        const btn = document.getElementById('sms-submit-btn');
+        btn.disabled = true; btn.textContent = 'Sending…';
+        try {
+          await window.FINEMARK_APP.apiFetch('/crm/communications/send-sms', {
+            method: 'POST',
+            body: {
+              customerId,
+              phoneNumbers: [phone],
+              message,
+              contactName: contactName || undefined,
+            },
+          });
+          closeSmsModal();
+          window.FINEMARK_APP.showToast('SMS sent and logged.', 'success');
+          const v = await window.FINEMARK_APP.apiFetch(`/crm/customers/${customerId}/360`);
+          view360 = v;
+          renderCommsTab(v.communicationLogs);
+        } catch (err) {
+          errEl.textContent = err.message || 'Failed to send the message.';
+          errEl.classList.remove('hidden');
+        } finally {
+          btn.disabled = false; btn.textContent = 'Send SMS';
+        }
+      }
+    </script>
+  </body>
+</html>

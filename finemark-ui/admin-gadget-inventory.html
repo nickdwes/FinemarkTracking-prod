@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Gadget Inventory</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-6xl mx-auto space-y-6">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Gadget Inventory</h1>
+              <p class="text-sm text-slate-600">Manage gadget batches and devices.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <a href="admin-add-gadgets.html" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                Add New Gadgets
+              </a>
+              <button id="download-template" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                Download IMEI Template
+              </button>
+              <button id="bulk-import" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                Bulk Import CSV
+              </button>
+              <button id="export-csv" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+                Export CSV
+              </button>
+            </div>
+          </div>
+
+          <nav class="text-xs text-slate-500">
+            <span class="font-medium text-slate-600">Admin</span> / <span>Gadget Inventory</span>
+          </nav>
+
+          <section class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm shadow-slate-200/60 space-y-4">
+            <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1" for="search-imei">Search by IMEI</label>
+                <input
+                  id="search-imei"
+                  type="text"
+                  placeholder="Search by IMEI (full or partial)"
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1" for="filter-type">Gadget Type</label>
+                <select id="filter-type" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="all">All</option>
+                  <option value="Trackers">Trackers</option>
+                  <option value="Fuel Sensors">Fuel Sensors</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1" for="filter-batch">Batch Number</label>
+                <select id="filter-batch" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="all">All</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1" for="filter-start">Start Date</label>
+                <input id="filter-start" type="date" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1" for="filter-end">End Date</label>
+                <input id="filter-end" type="date" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+              </div>
+              <div class="flex items-end gap-2">
+                <button id="apply-filters" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                  Apply
+                </button>
+                <button id="reset-filters" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                  Reset
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <div class="flex items-center gap-3">
+            <button id="tab-batches" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Batches</button>
+            <button id="tab-devices" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+              Devices
+            </button>
+          </div>
+
+          <section id="inventory-content" class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm shadow-slate-200/60">
+            <div id="inventory-loading" class="hidden"></div>
+            <div id="inventory-empty" class="hidden text-center py-12">
+              <p class="text-sm text-slate-600">No gadgets found. Add a new batch to get started.</p>
+              <a href="admin-add-gadgets.html" class="mt-4 inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+                Add New Gadgets
+              </a>
+            </div>
+
+            <div id="batches-view">
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm min-w-[920px]">
+                  <thead class="text-left text-slate-500">
+                    <tr>
+                      <th class="py-2">Batch ID</th>
+                      <th class="py-2">Gadget Type</th>
+                      <th class="py-2">Batch Number</th>
+                      <th class="py-2">Price</th>
+                      <th class="py-2">Devices</th>
+                      <th class="py-2">Created At</th>
+                      <th class="py-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="batches-body" class="divide-y divide-slate-200"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div id="devices-view" class="hidden">
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm min-w-[920px]">
+                  <thead class="text-left text-slate-500">
+                    <tr>
+                      <th class="py-2">IMEI</th>
+                      <th class="py-2">Gadget Type</th>
+                      <th class="py-2">Batch Number</th>
+                      <th class="py-2">Price</th>
+                      <th class="py-2">Created At</th>
+                    </tr>
+                  </thead>
+                  <tbody id="devices-body" class="divide-y divide-slate-200"></tbody>
+                </table>
+              </div>
+              <div class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+                <div>
+                  Showing <span id="page-range">0-0</span> of <span id="page-total">0</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <label class="text-xs text-slate-500">Page size</label>
+                  <select id="page-size" class="rounded-lg border border-slate-200 px-2 py-1 text-sm">
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                  </select>
+                  <button id="page-prev" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50">Prev</button>
+                  <button id="page-next" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50">Next</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+
+    <div id="drawer-overlay" class="fixed inset-0 bg-slate-900/40 hidden"></div>
+    <div id="drawer-panel" class="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-xl border-l border-slate-200 hidden">
+      <div class="h-full flex flex-col">
+        <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+          <div>
+            <p class="text-xs text-slate-500">Batch</p>
+            <h3 id="drawer-title" class="text-lg font-semibold text-slate-900">Devices</h3>
+          </div>
+          <button id="drawer-close" class="text-slate-500 hover:text-slate-700">Close ✕</button>
+        </div>
+        <div class="p-5 space-y-3 overflow-y-auto">
+          <div class="flex items-center justify-between">
+            <p class="text-sm text-slate-600">IMEI list</p>
+            <button id="copy-imeis" class="text-xs text-blue-600 hover:underline">Copy IMEIs</button>
+          </div>
+          <div id="drawer-meta" class="text-xs text-slate-500"></div>
+          <div id="drawer-list" class="text-sm text-slate-700 space-y-2"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="import-modal" class="fixed inset-0 z-40 hidden">
+      <div id="import-overlay" class="absolute inset-0 bg-slate-900/40"></div>
+      <div class="relative mx-auto mt-24 w-full max-w-lg rounded-xl bg-white shadow-xl border border-slate-200">
+        <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+          <div>
+            <h3 class="text-lg font-semibold text-slate-900">Bulk Import CSV</h3>
+            <p class="text-xs text-slate-500">Create a new batch from a CSV file.</p>
+          </div>
+          <button id="import-close" class="text-slate-500 hover:text-slate-700">Close ✕</button>
+        </div>
+        <div class="px-5 py-4 space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1" for="import-type">Gadget Type</label>
+            <select id="import-type" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm">
+              <option value="" selected disabled>Select Gadget Type</option>
+              <option value="Trackers">Trackers</option>
+              <option value="Fuel Sensors">Fuel Sensors</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1" for="import-price">Gadget Price</label>
+            <input id="import-price" type="number" min="0" step="0.01" placeholder="0.00" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1" for="import-batch">Select batch</label>
+            <select id="import-batch" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm">
+              <option value="" selected disabled>Select batch</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1" for="import-file">CSV file</label>
+            <input id="import-file" type="file" accept=".csv,text/csv" class="w-full text-sm" />
+          </div>
+        </div>
+        <div class="px-5 py-4 border-t border-slate-200 flex items-center justify-end gap-3">
+          <button id="import-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+            Cancel
+          </button>
+          <button id="import-submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+            Import & Create Batch
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="assets/contracts.js"></script>
+    <script src="assets/csvUtils.js"></script>
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const {
+          requirePageAccess,
+          requireRole,
+          apiFetch,
+          showToast,
+          renderSkeleton,
+          formatKES,
+        } = window.FINEMARK_APP || {};
+
+        requirePageAccess?.();
+        requireRole?.(["Admin"]);
+
+        const state = {
+          view: "batches",
+          batches: [],
+          filteredBatches: [],
+          devices: [],
+          filteredDevices: [],
+          source: "local",
+          filters: { search: "", type: "all", batch: "all", start: "", end: "" },
+          pagination: { page: 1, pageSize: 25 },
+        };
+
+        const searchInput = document.getElementById("search-imei");
+        const typeSelect = document.getElementById("filter-type");
+        const batchSelect = document.getElementById("filter-batch");
+        const startInput = document.getElementById("filter-start");
+        const endInput = document.getElementById("filter-end");
+        const applyBtn = document.getElementById("apply-filters");
+        const resetBtn = document.getElementById("reset-filters");
+        const exportBtn = document.getElementById("export-csv");
+        const downloadTemplateBtn = document.getElementById("download-template");
+        const bulkImportBtn = document.getElementById("bulk-import");
+        const batchesBody = document.getElementById("batches-body");
+        const devicesBody = document.getElementById("devices-body");
+        const batchesView = document.getElementById("batches-view");
+        const devicesView = document.getElementById("devices-view");
+        const tabBatches = document.getElementById("tab-batches");
+        const tabDevices = document.getElementById("tab-devices");
+        const emptyState = document.getElementById("inventory-empty");
+        const loadingEl = document.getElementById("inventory-loading");
+        const pageSizeSelect = document.getElementById("page-size");
+        const pagePrev = document.getElementById("page-prev");
+        const pageNext = document.getElementById("page-next");
+        const pageRange = document.getElementById("page-range");
+        const pageTotal = document.getElementById("page-total");
+        const drawerOverlay = document.getElementById("drawer-overlay");
+        const drawerPanel = document.getElementById("drawer-panel");
+        const drawerTitle = document.getElementById("drawer-title");
+        const drawerList = document.getElementById("drawer-list");
+        const drawerMeta = document.getElementById("drawer-meta");
+        const drawerClose = document.getElementById("drawer-close");
+        const copyImeisBtn = document.getElementById("copy-imeis");
+        const importModal = document.getElementById("import-modal");
+        const importClose = document.getElementById("import-close");
+        const importCancel = document.getElementById("import-cancel");
+        const importSubmit = document.getElementById("import-submit");
+        const importType = document.getElementById("import-type");
+        const importPrice = document.getElementById("import-price");
+        const importBatch = document.getElementById("import-batch");
+        const importFile = document.getElementById("import-file");
+        const importOverlay = document.getElementById("import-overlay");
+
+        for (let i = 1; i <= 100; i += 1) {
+          const option = document.createElement("option");
+          option.value = String(i);
+          option.textContent = String(i);
+          batchSelect.appendChild(option);
+        }
+        for (let i = 1; i <= 100; i += 1) {
+          const option = document.createElement("option");
+          option.value = String(i);
+          option.textContent = String(i);
+          importBatch.appendChild(option);
+        }
+
+        const formatDate = (value) => {
+          if (!value) return "--";
+          const date = new Date(value);
+          return Number.isNaN(date.getTime()) ? "--" : date.toLocaleString();
+        };
+
+        const formatPrice = (value) => {
+          if (formatKES) return formatKES(value);
+          return `KES ${Number(value || 0).toLocaleString("en-KE")}`;
+        };
+
+        const escapeCsv = (value) => {
+          const text = value === null || value === undefined ? "" : String(value);
+          if (/[",\n]/.test(text)) {
+            return `"${text.replace(/"/g, '""')}"`;
+          }
+          return text;
+        };
+
+        const exportToCSV = (rows, filename) => {
+          const csv = rows.map((row) => row.map(escapeCsv).join(",")).join("\n");
+          window.FINEMARK_CSV_UTILS?.downloadCsv?.(filename, csv);
+        };
+
+        const ensureIds = (items, shouldPersist) => {
+          const counts = new Map();
+          items.forEach((item) => {
+            if (!item.createdAt) {
+              item.createdAt = new Date().toISOString();
+            }
+            if (item.id && item.id.startsWith("GB-")) {
+              const key = item.id.split("-").slice(1, 2)[0];
+              const seq = parseInt(item.id.split("-").pop(), 10) || 0;
+              counts.set(key, Math.max(counts.get(key) || 0, seq));
+            }
+          });
+
+          items.forEach((item) => {
+            if (item.id) return;
+            const date = new Date(item.createdAt);
+            const key = Number.isNaN(date.getTime())
+              ? new Date().toISOString().slice(0, 10).replace(/-/g, "")
+              : date.toISOString().slice(0, 10).replace(/-/g, "");
+            const next = (counts.get(key) || 0) + 1;
+            counts.set(key, next);
+            item.id = `GB-${key}-${String(next).padStart(4, "0")}`;
+          });
+
+          if (shouldPersist) {
+            localStorage.setItem("finemark_gadget_batches", JSON.stringify(items));
+          }
+        };
+
+        const loadBatches = async () => {
+          try {
+            const response = await apiFetch?.("/gadgets/batches");
+            const data = Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : [];
+            state.source = "api";
+            return data;
+          } catch (error) {
+            state.source = "local";
+            const stored = JSON.parse(localStorage.getItem("finemark_gadget_batches") || "[]");
+            return Array.isArray(stored) ? stored : [];
+          }
+        };
+
+        const buildDevices = (batches) => {
+          return batches.flatMap((batch) =>
+            (batch.imeis || []).map((imei) => ({
+              imei,
+              gadgetType: batch.gadgetType,
+              batchNumber: batch.batchNumber,
+              price: batch.price,
+              createdAt: batch.createdAt,
+              batchId: batch.id,
+            }))
+          );
+        };
+
+        const applyFilters = () => {
+          const search = state.filters.search.toLowerCase();
+          state.filteredBatches = state.batches.filter((batch) => {
+            const matchesType = state.filters.type === "all" || batch.gadgetType === state.filters.type;
+            const matchesBatch = state.filters.batch === "all" || String(batch.batchNumber) === state.filters.batch;
+            const createdAt = batch.createdAt ? new Date(batch.createdAt) : null;
+            const matchesStart =
+              !state.filters.start || (createdAt && createdAt >= new Date(state.filters.start));
+            const endDate = state.filters.end
+              ? new Date(new Date(state.filters.end).setHours(23, 59, 59, 999))
+              : null;
+            const matchesEnd = !endDate || (createdAt && createdAt <= endDate);
+            const matchesSearch =
+              !search ||
+              (batch.imeis || []).some((imei) => String(imei).toLowerCase().includes(search));
+            return matchesType && matchesBatch && matchesStart && matchesEnd && matchesSearch;
+          });
+          state.devices = buildDevices(state.batches);
+          state.filteredDevices = state.devices.filter((device) => {
+            const matchesType = state.filters.type === "all" || device.gadgetType === state.filters.type;
+            const matchesBatch = state.filters.batch === "all" || String(device.batchNumber) === state.filters.batch;
+            const createdAt = device.createdAt ? new Date(device.createdAt) : null;
+            const matchesStart =
+              !state.filters.start || (createdAt && createdAt >= new Date(state.filters.start));
+            const endDate = state.filters.end
+              ? new Date(new Date(state.filters.end).setHours(23, 59, 59, 999))
+              : null;
+            const matchesEnd = !endDate || (createdAt && createdAt <= endDate);
+            const matchesSearch =
+              !search || String(device.imei).toLowerCase().includes(search);
+            return matchesType && matchesBatch && matchesStart && matchesEnd && matchesSearch;
+          });
+        };
+
+        const renderEmptyState = () => {
+          const hasData =
+            state.view === "batches"
+              ? state.filteredBatches.length > 0
+              : state.filteredDevices.length > 0;
+          emptyState.classList.toggle("hidden", hasData);
+        };
+
+        const renderBatches = () => {
+          batchesBody.innerHTML = "";
+          state.filteredBatches.forEach((batch) => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+              <td class="py-2 font-medium text-slate-900">${batch.id || "--"}</td>
+              <td class="py-2">
+                <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">${batch.gadgetType || "--"}</span>
+              </td>
+              <td class="py-2">${batch.batchNumber ?? "--"}</td>
+              <td class="py-2">${formatPrice(batch.price)}</td>
+              <td class="py-2">${batch.numberOfDevices ?? (batch.imeis || []).length}</td>
+              <td class="py-2">${formatDate(batch.createdAt)}</td>
+              <td class="py-2 space-x-2">
+                <button data-action="view" data-id="${batch.id}" class="text-xs text-blue-600 hover:underline">View Devices</button>
+                <button data-action="export" data-id="${batch.id}" class="text-xs text-slate-600 hover:underline">Export Batch CSV</button>
+                <button data-action="delete" data-id="${batch.id}" class="text-xs text-rose-600 hover:underline">Delete</button>
+              </td>
+            `;
+            batchesBody.appendChild(row);
+          });
+        };
+
+        const renderDevices = () => {
+          devicesBody.innerHTML = "";
+          const total = state.filteredDevices.length;
+          const start = (state.pagination.page - 1) * state.pagination.pageSize;
+          const end = Math.min(start + state.pagination.pageSize, total);
+          const slice = state.filteredDevices.slice(start, end);
+          slice.forEach((device) => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+              <td class="py-2 font-medium text-slate-900">${device.imei}</td>
+              <td class="py-2">${device.gadgetType}</td>
+              <td class="py-2">${device.batchNumber}</td>
+              <td class="py-2">${formatPrice(device.price)}</td>
+              <td class="py-2">${formatDate(device.createdAt)}</td>
+            `;
+            devicesBody.appendChild(row);
+          });
+          pageRange.textContent = total ? `${start + 1}-${end}` : "0-0";
+          pageTotal.textContent = String(total);
+          pagePrev.disabled = state.pagination.page === 1;
+          pageNext.disabled = end >= total;
+        };
+
+        const renderTabs = () => {
+          const isBatches = state.view === "batches";
+          batchesView.classList.toggle("hidden", !isBatches);
+          devicesView.classList.toggle("hidden", isBatches);
+          tabBatches.className = isBatches
+            ? "rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+            : "rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50";
+          tabDevices.className = !isBatches
+            ? "rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+            : "rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50";
+        };
+
+        const showDrawer = (batch) => {
+          drawerTitle.textContent = batch.id || "Batch Devices";
+          drawerMeta.textContent = `${batch.gadgetType} • Batch ${batch.batchNumber} • ${batch.numberOfDevices || batch.imeis.length} devices`;
+          drawerList.innerHTML = (batch.imeis || [])
+            .map((imei) => `<div class="rounded-md border border-slate-200 px-3 py-2">${imei}</div>`)
+            .join("");
+          drawerOverlay.classList.remove("hidden");
+          drawerPanel.classList.remove("hidden");
+          copyImeisBtn.onclick = async () => {
+            const text = (batch.imeis || []).join("\n");
+            try {
+              await navigator.clipboard.writeText(text);
+              showToast?.("IMEIs copied to clipboard", "success");
+            } catch (error) {
+              showToast?.("Unable to copy IMEIs", "error");
+            }
+          };
+        };
+
+        const closeDrawer = () => {
+          drawerOverlay.classList.add("hidden");
+          drawerPanel.classList.add("hidden");
+        };
+
+        const downloadTemplate = () => {
+          const csv = ["imei", "123456789012345", "123456789012346", "123456789012347"].join("\n");
+          window.FINEMARK_CSV_UTILS?.downloadCsv?.("imei_template.csv", csv);
+        };
+
+        const openImportModal = () => {
+          importModal.classList.remove("hidden");
+        };
+
+        const closeImportModal = () => {
+          importModal.classList.add("hidden");
+          importFile.value = "";
+          importType.value = "";
+          importPrice.value = "";
+          importBatch.value = "";
+        };
+
+        const withLoading = async (fn) => {
+          loadingEl.classList.remove("hidden");
+          renderSkeleton?.(loadingEl, "table");
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          await fn();
+          loadingEl.classList.add("hidden");
+        };
+
+        const render = () => {
+          applyFilters();
+          renderTabs();
+          renderEmptyState();
+          renderBatches();
+          renderDevices();
+        };
+
+        const initialize = async () => {
+          await withLoading(async () => {
+            state.batches = await loadBatches();
+            ensureIds(state.batches, state.source === "local");
+            render();
+          });
+        };
+
+        applyBtn.addEventListener("click", () => {
+          state.filters = {
+            search: searchInput.value.trim(),
+            type: typeSelect.value,
+            batch: batchSelect.value,
+            start: startInput.value,
+            end: endInput.value,
+          };
+          state.pagination.page = 1;
+          withLoading(render);
+        });
+
+        resetBtn.addEventListener("click", () => {
+          searchInput.value = "";
+          typeSelect.value = "all";
+          batchSelect.value = "all";
+          startInput.value = "";
+          endInput.value = "";
+          state.filters = { search: "", type: "all", batch: "all", start: "", end: "" };
+          state.pagination.page = 1;
+          withLoading(render);
+        });
+
+        tabBatches.addEventListener("click", () => {
+          state.view = "batches";
+          renderTabs();
+          renderEmptyState();
+        });
+        tabDevices.addEventListener("click", () => {
+          state.view = "devices";
+          renderTabs();
+          renderEmptyState();
+        });
+
+        pageSizeSelect.addEventListener("change", () => {
+          state.pagination.pageSize = Number(pageSizeSelect.value);
+          state.pagination.page = 1;
+          renderDevices();
+        });
+
+        pagePrev.addEventListener("click", () => {
+          if (state.pagination.page > 1) {
+            state.pagination.page -= 1;
+            renderDevices();
+          }
+        });
+
+        pageNext.addEventListener("click", () => {
+          const totalPages = Math.ceil(state.filteredDevices.length / state.pagination.pageSize) || 1;
+          if (state.pagination.page < totalPages) {
+            state.pagination.page += 1;
+            renderDevices();
+          }
+        });
+
+        batchesBody.addEventListener("click", (event) => {
+          const target = event.target;
+          const action = target?.dataset?.action;
+          const id = target?.dataset?.id;
+          if (!action || !id) return;
+          const batch = state.filteredBatches.find((item) => item.id === id);
+          if (!batch) return;
+          if (action === "view") {
+            showDrawer(batch);
+          }
+          if (action === "export") {
+            const rows = [["imei", "gadgetType", "batchNumber", "price", "createdAt"]];
+            (batch.imeis || []).forEach((imei) => {
+              rows.push([imei, batch.gadgetType, batch.batchNumber, batch.price, batch.createdAt]);
+            });
+            exportToCSV(rows, `${batch.id || "batch"}-devices.csv`);
+          }
+          if (action === "delete") {
+            const confirmDelete = window.confirm("Delete this batch? This cannot be undone.");
+            if (!confirmDelete) return;
+            if (state.source !== "local") {
+              showToast?.("Delete is only supported for local batches.", "info");
+              return;
+            }
+            state.batches = state.batches.filter((item) => item.id !== id);
+            localStorage.setItem("finemark_gadget_batches", JSON.stringify(state.batches));
+            render();
+          }
+        });
+
+        exportBtn.addEventListener("click", () => {
+          if (state.view === "devices") {
+            const rows = [["imei", "gadgetType", "batchNumber", "price", "createdAt"]];
+            state.filteredDevices.forEach((device) => {
+              rows.push([device.imei, device.gadgetType, device.batchNumber, device.price, device.createdAt]);
+            });
+            exportToCSV(rows, "gadget-devices.csv");
+          } else {
+            const rows = [["batchId", "gadgetType", "batchNumber", "price", "numberOfDevices", "createdAt"]];
+            state.filteredBatches.forEach((batch) => {
+              rows.push([
+                batch.id,
+                batch.gadgetType,
+                batch.batchNumber,
+                batch.price,
+                batch.numberOfDevices || batch.imeis.length,
+                batch.createdAt,
+              ]);
+            });
+            exportToCSV(rows, "gadget-batches.csv");
+          }
+        });
+
+        downloadTemplateBtn.addEventListener("click", downloadTemplate);
+        bulkImportBtn.addEventListener("click", openImportModal);
+        importClose.addEventListener("click", closeImportModal);
+        importCancel.addEventListener("click", closeImportModal);
+        importOverlay.addEventListener("click", closeImportModal);
+
+        importSubmit.addEventListener("click", async () => {
+          const file = importFile.files?.[0];
+          if (!file) {
+            showToast?.("Please select a CSV file.", "error");
+            return;
+          }
+          if (!importType.value || !importBatch.value || Number(importPrice.value) <= 0) {
+            showToast?.("Fill gadget type, price, and batch number.", "error");
+            return;
+          }
+          try {
+            const result = await window.FINEMARK_CSV_UTILS?.parseImeiCsv?.(file);
+            if (!result) return;
+            const payload = {
+              gadgetType: importType.value,
+              batchNumber: Number(importBatch.value),
+              price: Number(importPrice.value),
+              imeis: result.valid,
+              numberOfDevices: result.valid.length,
+              createdAt: new Date().toISOString(),
+            };
+            if (!payload.numberOfDevices) {
+              showToast?.("No valid IMEIs found in CSV.", "error");
+              return;
+            }
+            try {
+              await apiFetch?.("/gadgets/batches", { method: "POST", body: payload });
+            } catch (error) {
+              const existing = JSON.parse(localStorage.getItem("finemark_gadget_batches") || "[]");
+              existing.unshift(payload);
+              localStorage.setItem("finemark_gadget_batches", JSON.stringify(existing));
+            }
+            showToast?.(`Batch created from CSV: ${payload.numberOfDevices} devices`, "success");
+            closeImportModal();
+            await initialize();
+            state.view = "batches";
+            renderTabs();
+          } catch (error) {
+            showToast?.(error?.message || "Failed to import CSV.", "error");
+          }
+        });
+
+        drawerOverlay.addEventListener("click", closeDrawer);
+        drawerClose.addEventListener("click", closeDrawer);
+
+        initialize();
+      });
+    </script>
+  </body>
+</html>

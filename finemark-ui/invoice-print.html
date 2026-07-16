@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Invoice | Finemark</title>
+  <style>
+    /* ── Base ─────────────────────────────────────────────────────────── */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; background: #f0f0f0; color: #1a1a1a; }
+
+    /* ── Screen controls bar ──────────────────────────────────────────── */
+    .controls-bar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: #2f3c93; color: white;
+      display: flex; align-items: center; gap: 10px; padding: 10px 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+    .controls-bar h2 { font-size: 15px; font-weight: 700; flex: 1; }
+    .btn-print {
+      background: white; color: #2f3c93; border: none; border-radius: 6px;
+      padding: 8px 18px; font-weight: 700; font-size: 13px; cursor: pointer;
+    }
+    .btn-print:hover { background: #e0e7ff; }
+    .btn-close {
+      background: transparent; color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.4);
+      border-radius: 6px; padding: 7px 14px; font-size: 13px; cursor: pointer;
+    }
+    .btn-close:hover { background: rgba(255,255,255,0.12); }
+
+    /* ── Document wrapper (screen) ─────────────────────────────────────── */
+    .page-wrapper { padding: 70px 20px 30px; min-height: 100vh; }
+    .document {
+      background: white; width: 210mm; margin: 0 auto;
+      padding: 15mm 14mm 12mm;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+    }
+
+    /* ── Brand accent bar ─────────────────────────────────────────────── */
+    .brand-bar {
+      height: 5px; border-radius: 2px; margin-bottom: 18px;
+      background: linear-gradient(90deg, #2f3c93 0%, #2fa9df 100%);
+    }
+
+    /* ── Header ───────────────────────────────────────────────────────── */
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+    .company-block { display: flex; gap: 10px; align-items: flex-start; }
+    .company-logo svg { display: block; }
+    .company-text { }
+    .company-name { font-size: 17px; font-weight: 800; color: #2f3c93; letter-spacing: -0.3px; line-height: 1.1; }
+    .company-sub { font-size: 9px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+    .company-contact { font-size: 9.5px; color: #555; line-height: 1.7; }
+
+    .doc-meta-block { text-align: right; }
+    .doc-title {
+      font-size: 26px; font-weight: 900; color: #2f3c93;
+      letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px;
+    }
+    .meta-table { border-collapse: collapse; margin-left: auto; }
+    .meta-table td { padding: 2px 5px; font-size: 10.5px; }
+    .meta-table td:first-child { color: #64748b; text-align: right; white-space: nowrap; }
+    .meta-table td:last-child { font-weight: 700; color: #1a1a1a; min-width: 120px; }
+
+    /* ── Divider ──────────────────────────────────────────────────────── */
+    .divider { border: none; border-top: 1.5px solid #2f3c93; margin: 14px 0 10px; }
+    .divider-light { border: none; border-top: 1px solid #e2e8f0; margin: 10px 0; }
+
+    /* ── Customer section ─────────────────────────────────────────────── */
+    .customer-section {
+      display: flex; justify-content: space-between; gap: 24px;
+      margin-bottom: 14px;
+    }
+    .customer-block { flex: 1; }
+    .customer-label { font-size: 9px; font-weight: 700; color: #2f3c93; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px; }
+    .customer-name { font-size: 13px; font-weight: 700; color: #1a1a1a; }
+    .customer-detail { font-size: 10px; color: #555; line-height: 1.6; }
+
+    .status-block { text-align: right; min-width: 130px; }
+    .status-badge {
+      display: inline-block; padding: 3px 10px; border-radius: 20px;
+      font-size: 10px; font-weight: 700; background: #f0fdf4; color: #166534;
+      border: 1px solid #bbf7d0; letter-spacing: 0.3px;
+    }
+    .status-badge.unpaid { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+    .status-badge.partial { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+    .status-badge.overdue { background: #fff7ed; color: #9a3412; border-color: #fdba74; }
+    .status-badge.cancelled { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+
+    /* ── Info bar (PIN / Payment ref line) ─────────────────────────────── */
+    .info-bar {
+      background: #f8fafc; border-radius: 5px; padding: 5px 10px;
+      display: flex; gap: 24px; font-size: 10px; color: #475569;
+      margin-bottom: 12px; border: 1px solid #e2e8f0;
+    }
+    .info-bar span strong { color: #2f3c93; }
+
+    /* ── Items table ──────────────────────────────────────────────────── */
+    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
+    .items-table thead tr { background: #2f3c93; color: white; }
+    .items-table th {
+      padding: 7px 8px; font-size: 9.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.4px; border: none;
+    }
+    .items-table td { padding: 6px 8px; font-size: 10.5px; border-bottom: 1px solid #e8ecf0; vertical-align: top; }
+    .items-table tbody tr:nth-child(even) td { background: #fafafa; }
+    .items-table tbody tr:last-child td { border-bottom: 2px solid #2f3c93; }
+    .items-table .num { text-align: right; white-space: nowrap; }
+    .items-table .center { text-align: center; }
+    .col-code { width: 60px; }
+    .col-desc { }
+    .col-qty { width: 45px; }
+    .col-price { width: 90px; }
+    .col-vat { width: 80px; }
+    .col-amount { width: 90px; }
+
+    /* ── Totals ───────────────────────────────────────────────────────── */
+    .totals-section { display: flex; justify-content: flex-end; margin: 4px 0 14px; }
+    .totals-table { border-collapse: collapse; min-width: 260px; }
+    .totals-table td { padding: 5px 8px; font-size: 11px; }
+    .totals-table td:first-child { color: #475569; font-weight: 600; text-align: right; }
+    .totals-table td:last-child { font-weight: 700; text-align: right; color: #1a1a1a; min-width: 110px; }
+    .totals-table tr.grand-total td { font-size: 13px; color: #2f3c93; border-top: 2px solid #2f3c93; padding-top: 7px; }
+    .totals-table tr.subtotal-row td { border-top: 1px solid #e2e8f0; padding-top: 7px; }
+
+    /* ── Remarks / Notes ──────────────────────────────────────────────── */
+    .remarks-section { margin-bottom: 12px; }
+    .section-label { font-size: 9px; font-weight: 700; color: #2f3c93; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px; }
+    .remarks-text { font-size: 10px; color: #475569; line-height: 1.6; }
+
+    /* ── Vehicle table ─────────────────────────────────────────────────── */
+    .vehicle-section { margin-bottom: 12px; }
+    .vehicle-table { width: 100%; border-collapse: collapse; }
+    .vehicle-table thead tr { background: #2f3c93; color: white; }
+    .vehicle-table th { padding: 5px 8px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
+    .vehicle-table td { padding: 6px 8px; font-size: 10.5px; font-weight: 700; color: #1a1a1a; border: 1px solid #e2e8f0; }
+
+    /* ── Payment table (matches PDF) ─────────────────────────────────── */
+    .payment-section { margin-bottom: 12px; }
+    .payment-table { border-collapse: collapse; }
+    .payment-table thead tr { background: #2f3c93; color: white; }
+    .payment-table th { padding: 5px 10px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
+    .payment-table td { padding: 5px 10px; font-size: 10.5px; border: 1px solid #e2e8f0; }
+    .payment-table td:first-child { color: #2f3c93; font-weight: 700; background: #f0f4fb; }
+
+    /* ── eTIMS badge ──────────────────────────────────────────────────── */
+    .etims-badge {
+      background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 5px;
+      padding: 8px 12px; margin-bottom: 10px; font-size: 9.5px; color: #166534;
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    .etims-badge-text { flex: 1; }
+    .etims-badge-text strong { color: #15803d; }
+    .etims-badge-logo { opacity: 0.45; flex-shrink: 0; }
+
+    /* ── Footer ───────────────────────────────────────────────────────── */
+    .footer {
+      margin-top: 14px; border-top: 1px solid #e2e8f0; padding-top: 8px;
+      text-align: center; font-size: 9px; color: #94a3b8; letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+
+    /* ── Loading / error states ───────────────────────────────────────── */
+    .state-msg { padding: 40px; text-align: center; color: #64748b; font-size: 14px; }
+
+    /* ── Print styles ─────────────────────────────────────────────────── */
+    @media print {
+      body { background: white; }
+      .controls-bar { display: none !important; }
+      .page-wrapper { padding: 0; }
+      .document { width: 100%; margin: 0; padding: 10mm 10mm 8mm; box-shadow: none; }
+    }
+    @page { size: A4 portrait; margin: 8mm 10mm; }
+  </style>
+</head>
+<body>
+
+<!-- Controls bar (hidden when printing) -->
+<div class="controls-bar">
+  <h2 id="ctrl-title">Invoice</h2>
+  <button class="btn-print" onclick="window.print()">&#128438; Print / Save as PDF</button>
+  <button class="btn-close" onclick="window.close ? window.close() : history.back()">&#x2715; Close</button>
+</div>
+
+<div class="page-wrapper">
+  <div class="document" id="doc-root">
+    <div class="state-msg" id="state-msg">Loading invoice&hellip;</div>
+  </div>
+</div>
+
+<script>
+(async () => {
+  const params = new URLSearchParams(location.search);
+  const id = params.get("id");
+  const msgEl = document.getElementById("state-msg");
+  const root = document.getElementById("doc-root");
+
+  if (!id) { msgEl.textContent = "No invoice ID provided."; return; }
+
+  const session = JSON.parse(localStorage.getItem("finemark_session") || "{}");
+  const token = session?.accessToken;
+  if (!token) {
+    msgEl.innerHTML = 'Not authenticated. Please <a href="login.html">log in</a>.';
+    return;
+  }
+
+  let payload;
+  try {
+    const r = await fetch(`/api/invoices/${encodeURIComponent(id)}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!r.ok) throw new Error(`Server returned ${r.status}`);
+    payload = await r.json();
+  } catch (e) {
+    msgEl.textContent = "Failed to load invoice: " + e.message;
+    return;
+  }
+
+  const inv = payload.data?.invoice || payload.data || payload;
+  const items = payload.data?.items || inv.items || [];
+
+  // Update page / controls title
+  const invNo = inv.invoiceNumber || inv.invoice_number || "Invoice";
+  const isVat = Number(inv.vatTotal || inv.vat_total || 0) > 0;
+  const docTitle = isVat ? "TAX INVOICE" : "INVOICE";
+  document.title = `${docTitle} ${invNo} | Finemark`;
+  document.getElementById("ctrl-title").textContent = `${docTitle} ${invNo}`;
+
+  const fmt = (d) => d ? new Date(d).toLocaleDateString("en-KE", { year:"numeric", month:"short", day:"numeric" }) : "—";
+  const kes = (v) => "Ksh " + Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits:2, maximumFractionDigits:2 });
+
+  const status = (inv.status || "Unpaid");
+  const statusClass = { Paid:"", Unpaid:"unpaid", Partial:"partial", Overdue:"overdue", Cancelled:"cancelled" }[status] || "unpaid";
+
+  const etimsSigned = inv.etimsSigned || inv.etims_signed;
+  const etimsCtrl  = inv.etimsControlNo  || inv.etims_control_no  || "";
+  const etimsRcpt  = inv.etimsReceiptNo  || inv.etims_receipt_no  || inv.etrReceiptNo || "";
+
+  root.innerHTML = `
+    <div class="brand-bar"></div>
+
+    <!-- ── Header ── -->
+    <div class="header">
+      <div class="company-block">
+        <div class="company-logo">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="48" height="48">
+            <path d="M44 60c40-36 128-36 168 0" fill="none" stroke="#2f3c93" stroke-width="12" stroke-linecap="round"/>
+            <path d="M56 84c32-28 112-28 144 0" fill="none" stroke="#2fa9df" stroke-width="16" stroke-linecap="round"/>
+            <text x="28" y="190" font-family="Arial,sans-serif" font-size="120" font-weight="700" fill="#2f3c93">F</text>
+            <text x="118" y="190" font-family="Arial,sans-serif" font-size="120" font-weight="700" fill="#2fa9df">M</text>
+            <path fill="#2f3c93" d="M168 104c0-22.1-17.9-40-40-40s-40 17.9-40 40c0 30 40 78 40 78s40-48 40-78z"/>
+            <circle fill="#2fa9df" cx="128" cy="104" r="18"/>
+          </svg>
+        </div>
+        <div class="company-text">
+          <div class="company-name">Fine Mark Tracking Limited</div>
+          <div class="company-sub">Staff Portal</div>
+          <div class="company-contact">
+            Nairobi, Kenya<br>
+            support@finemarktracking.co.ke<br>
+            +254 (0) 795-123-456
+          </div>
+        </div>
+      </div>
+
+      <div class="doc-meta-block">
+        <div class="doc-title">${docTitle}</div>
+        <table class="meta-table">
+          <tr><td>Invoice No:</td><td>${escHtml(invNo)}</td></tr>
+          <tr><td>Invoice Date:</td><td>${fmt(inv.taxDate || inv.issuedOn || inv.issued_on)}</td></tr>
+          <tr><td>Due Date:</td><td>${fmt(inv.dueOn || inv.due_on)}</td></tr>
+          ${(inv.salesRepName || inv.representative) ? `<tr><td>Sales Representative:</td><td>${escHtml(inv.salesRepName || inv.representative)}</td></tr>` : ""}
+          ${inv.technicianName ? `<tr><td>Technician:</td><td>${escHtml(inv.technicianName)}</td></tr>` : ""}
+          ${(inv.jobCardNo || inv.ticketNo) ? `<tr><td>Job Card No:</td><td>${escHtml(inv.jobCardNo || inv.ticketNo)}</td></tr>` : ""}
+          ${inv.jobCardStatus ? `<tr><td>Job Card Status:</td><td>${escHtml(inv.jobCardStatus)}</td></tr>` : ""}
+          ${inv.installationDate ? `<tr><td>Installation Date:</td><td>${escHtml(inv.installationDate)}${inv.installationTime ? " " + escHtml(inv.installationTime) : ""}</td></tr>` : ""}
+        </table>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- ── Customer + status ── -->
+    <div class="customer-section">
+      <div class="customer-block">
+        <div class="customer-label">Bill To</div>
+        <div class="customer-name">${escHtml(inv.customer || "—")}</div>
+        ${inv.representative ? `<div class="customer-detail">Attn: ${escHtml(inv.representative)}</div>` : ""}
+      </div>
+      <div class="status-block">
+        <div class="customer-label">Status</div>
+        <span class="status-badge ${statusClass}">${escHtml(status)}</span>
+        ${etimsSigned ? `<div style="margin-top:6px;font-size:9.5px;color:#166534;font-weight:700;">&#10003; KRA eTIMS Signed</div>` : ""}
+      </div>
+    </div>
+
+    <!-- ── Info bar ── -->
+    <div class="info-bar">
+      <span>PIN No: <strong>${escHtml(inv.pinNo || inv.pin_no || "P051961922E")}</strong></span>
+      ${inv.bank || inv.bankName ? `<span>Bank: <strong>${escHtml(inv.bankName || inv.bank_name || inv.bank || "")}</strong></span>` : ""}
+      ${inv.vatMode ? `<span>VAT Mode: <strong>${escHtml(inv.vatMode || inv.vat_mode || "")}</strong></span>` : ""}
+    </div>
+
+    <!-- ── Vehicle table (when vehicle data is present) ── -->
+    ${inv.vehicle && (inv.vehicle.registration || inv.vehicle.make || inv.vehicle.model) ? `
+    <div class="vehicle-section">
+      <table class="vehicle-table">
+        <thead><tr>
+          <th style="width:28%">Vehicle Reg.</th>
+          <th style="width:28%">Make</th>
+          <th>Make &amp; Model</th>
+        </tr></thead>
+        <tbody><tr>
+          <td>${escHtml(inv.vehicle.registration || "—")}</td>
+          <td>${escHtml(inv.vehicle.make || "—")}</td>
+          <td>${escHtml([inv.vehicle.make, inv.vehicle.model].filter(Boolean).join(" | ") || "—")}</td>
+        </tr></tbody>
+      </table>
+    </div>` : ""}
+
+    <!-- ── Line items table ── -->
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th class="col-code">Code</th>
+          <th class="col-desc">Description</th>
+          <th class="col-qty center">Qty</th>
+          <th class="col-price num">Unit Price</th>
+          <th class="col-vat num">VAT</th>
+          <th class="col-amount num">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${items.length ? items.map(it => `
+          <tr>
+            <td class="col-code">${escHtml(it.item || "—")}</td>
+            <td class="col-desc">${escHtml(it.description || "")}</td>
+            <td class="col-qty center">${Number(it.qty || 0).toLocaleString("en-KE")}</td>
+            <td class="col-price num">${kes(it.rate)}</td>
+            <td class="col-vat num">${kes(it.vat)}</td>
+            <td class="col-amount num">${kes(it.amount)}</td>
+          </tr>`).join("") : `<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:12px;">No line items</td></tr>`}
+      </tbody>
+    </table>
+
+    <!-- ── Totals ── -->
+    <div class="totals-section">
+      <table class="totals-table">
+        <tr class="subtotal-row">
+          <td>SUB TOTAL :</td>
+          <td>${kes(inv.subtotal)}</td>
+        </tr>
+        <tr>
+          <td>VAT (16%) :</td>
+          <td>${kes(inv.vatTotal || inv.vat_total)}</td>
+        </tr>
+        <tr class="grand-total">
+          <td>GRAND TOTAL :</td>
+          <td>${kes(inv.total || inv.amount)}</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- ── eTIMS badge ── -->
+    ${etimsSigned && etimsCtrl ? `
+    <div class="etims-badge">
+      <div class="etims-badge-text">
+        <div style="font-weight:700;font-size:10px;color:#15803d;letter-spacing:0.3px;">KRA eTIMS VERIFIED</div>
+        <div style="margin-top:3px;">Control No: <strong>${escHtml(etimsCtrl)}</strong></div>
+        ${etimsRcpt ? `<div>Receipt No: <strong>${escHtml(etimsRcpt)}</strong></div>` : ""}
+        ${(inv.etimsSignedAt || inv.etims_signed_at) ? `<div style="color:#166534;">Signed: ${escHtml(String(inv.etimsSignedAt || inv.etims_signed_at))}</div>` : ""}
+      </div>
+      <img class="etims-badge-logo" src="/assets/kra-logo.png" alt="KRA" style="height:52px;width:auto;">
+    </div>` : ""}
+
+    <!-- ── Payment details ── -->
+    <div class="payment-section">
+      <table class="payment-table">
+        <thead><tr><th colspan="2">Mode of Payments</th></tr></thead>
+        <tbody>
+          ${(() => {
+            const paybill = inv.paymentPaybill || inv.payment_paybill || "4048569";
+            const vehicleRef = (inv.vehicle && inv.vehicle.registration) ? inv.vehicle.registration : (inv.paymentAccountHint || inv.payment_account_hint || "Finemark Tracking");
+            const ba = inv.bankAccount;
+            let rows = `
+              <tr><td>MPESA PAYBILL</td><td>Paybill: ${escHtml(paybill)} | Account: ${escHtml(vehicleRef)}</td></tr>
+              <tr><td>MPESA TILL NUMBER</td><td>Till: 5620852</td></tr>
+            `;
+            if (inv.bankName || inv.bank_name) {
+              rows += `<tr><td>${escHtml(inv.bankName || inv.bank_name)}</td><td>${escHtml(inv.bankAccountNo || inv.bank_account_no || "—")}</td></tr>`;
+            } else if (ba) {
+              rows += `<tr><td>${escHtml(ba.bankName)} \u2014 ${escHtml(ba.accountName)}</td><td>${escHtml(ba.accountNumber)}</td></tr>`;
+            }
+            return rows;
+          })()}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── Footer ── -->
+    <div class="footer">
+      GPS Tracking &bull; Fleet Management &bull; Vehicle Monitoring &bull; Fuel Management
+    </div>
+  `;
+
+  function escHtml(s) {
+    return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+})();
+</script>
+</body>
+</html>

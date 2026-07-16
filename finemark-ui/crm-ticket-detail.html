@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Ticket Detail</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    .card{background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;padding:1.25rem;}
+    .info-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:.65rem;padding:.85rem;}
+    .badge{display:inline-flex;align-items:center;border-radius:9999px;padding:.15rem .6rem;font-size:.7rem;font-weight:600;border-width:1px;}
+    .badge-open{background:#fffbeb;color:#b45309;border-color:#fde68a;}
+    .badge-inprogress{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+    .badge-resolved{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}
+    .badge-closed{background:#f1f5f9;color:#475569;border-color:#e2e8f0;}
+    .badge-merged{background:#fdf4ff;color:#86198f;border-color:#f5d0fe;}
+    .pri-critical{background:#fff1f2;color:#be123c;border-color:#fecdd3;}
+    .pri-high{background:#fff7ed;color:#c2410c;border-color:#fed7aa;}
+    .pri-normal{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+    .pri-low{background:#f1f5f9;color:#475569;border-color:#e2e8f0;}
+    .team-technical{background:#ecfdf5;color:#065f46;border-color:#a7f3d0;}
+    .team-finance{background:#fef9c3;color:#713f12;border-color:#fde68a;}
+    .team-support{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+    .modal{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:60;padding:1rem;}
+    .modal.show{display:flex;}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-3 sm:p-6 min-w-0 max-w-4xl mx-auto space-y-5">
+
+    <div>
+      <a href="crm-tickets.html" class="text-xs text-slate-500 hover:text-slate-700">← Back to Tickets</a>
+    </div>
+
+    <div id="loading" class="text-center py-16 text-slate-400">Loading…</div>
+
+    <div id="content" class="hidden space-y-5">
+      <!-- Header -->
+      <div class="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <div id="ticket-no" class="font-mono font-bold text-blue-700 text-sm"></div>
+          <h1 id="subject" class="font-bold text-slate-900 text-xl mt-0.5"></h1>
+        </div>
+        <div id="badges" class="flex flex-wrap gap-2"></div>
+      </div>
+
+      <div id="parent-banner" class="hidden info-card text-sm"></div>
+
+      <!-- Info grid -->
+      <div class="card">
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm" id="info-grid"></div>
+      </div>
+
+      <!-- Vehicle / device / SIM / invoice -->
+      <div id="linked-section" class="hidden card space-y-3">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Linked Vehicle & Equipment</p>
+        <div id="linked-body" class="text-sm space-y-2"></div>
+      </div>
+
+      <!-- Description -->
+      <div id="desc-card" class="hidden card">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Description</p>
+        <p id="description" class="text-sm text-slate-700 leading-relaxed whitespace-pre-line"></p>
+      </div>
+
+      <!-- SLA -->
+      <div id="sla-card" class="hidden card space-y-1.5">
+        <div class="flex justify-between text-xs text-slate-500"><span>SLA</span><span id="sla-label"></span></div>
+        <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden"><div id="sla-bar" class="h-2 rounded-full transition-all"></div></div>
+      </div>
+
+      <!-- Attachments -->
+      <div class="card space-y-3">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Attachments</p>
+          <label class="text-xs font-semibold text-blue-600 hover:text-blue-800 cursor-pointer">
+            + Add file<input id="upload-input" type="file" accept="image/*,application/pdf" class="hidden" />
+          </label>
+        </div>
+        <div id="attachments" class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs"></div>
+      </div>
+
+      <!-- Linked children -->
+      <div id="children-card" class="hidden card space-y-2">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Linked Tickets (merged)</p>
+        <div id="children-list" class="space-y-1.5 text-sm"></div>
+      </div>
+
+      <!-- Actions -->
+      <div class="card space-y-3">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Actions</p>
+        <div class="flex flex-wrap gap-2" id="action-buttons"></div>
+        <div class="flex gap-2 pt-2 border-t border-slate-100">
+          <input id="comment-input" type="text" placeholder="Add a comment…" class="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40" />
+          <button id="btn-comment" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Comment</button>
+        </div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="card">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Activity</p>
+        <div id="timeline" class="space-y-3 text-xs text-slate-600"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Transfer Modal -->
+<div id="modal-transfer" class="modal">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm space-y-4">
+    <h2 class="font-semibold text-slate-900">Transfer Ticket</h2>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Team</label>
+      <select id="tr-team" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"><option>Technical</option><option>Finance</option><option>Support</option></select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Comment</label>
+      <input id="tr-comment" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Optional" />
+    </div>
+    <div class="flex justify-end gap-2"><button id="tr-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button><button id="tr-submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Transfer</button></div>
+  </div>
+</div>
+
+<!-- Merge Modal -->
+<div id="modal-merge" class="modal">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm space-y-4">
+    <h2 class="font-semibold text-slate-900">Merge Another Ticket Into This One</h2>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Ticket No.</label>
+      <input id="mg-ticket-no" type="text" placeholder="e.g. TKT-00007" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+      <p id="mg-error" class="hidden text-xs text-red-600 mt-1"></p>
+    </div>
+    <div class="flex justify-end gap-2"><button id="mg-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button><button id="mg-submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Merge</button></div>
+  </div>
+</div>
+
+<!-- Consult Modal -->
+<div id="modal-consult" class="modal">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm space-y-4">
+    <h2 class="font-semibold text-slate-900">Consult a Technician</h2>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Technician</label>
+      <select id="cs-technician" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"><option value="">Loading…</option></select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Comment</label>
+      <input id="cs-comment" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Optional" />
+    </div>
+    <div class="flex justify-end gap-2"><button id="cs-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button><button id="cs-submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Consult</button></div>
+  </div>
+</div>
+
+<!-- Reassign Modal -->
+<div id="modal-reassign" class="modal">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm space-y-4">
+    <h2 class="font-semibold text-slate-900">Reassign Ticket</h2>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">New Assignee</label>
+      <select id="ra-technician" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"><option value="">Loading…</option></select>
+    </div>
+    <div class="flex justify-end gap-2"><button id="ra-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button><button id="ra-submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Reassign</button></div>
+  </div>
+</div>
+
+<!-- Swap Device Modal -->
+<div id="modal-swap" class="modal">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md space-y-4">
+    <h2 class="font-semibold text-slate-900">Swap Defective Device</h2>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Device Being Removed</label>
+      <select id="sw-old-device" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"><option value="">Loading…</option></select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Replacement Device (In Stock)</label>
+      <select id="sw-new-device" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"><option value="">Loading…</option></select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Reason</label>
+      <textarea id="sw-reason" rows="2" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Why is this device being replaced?"></textarea>
+    </div>
+    <label class="flex items-center gap-2 text-xs font-medium text-slate-600">
+      <input id="sw-sim-toggle" type="checkbox" class="rounded border-slate-300" /> Also swap the SIM
+    </label>
+    <div id="sw-sim-fields" class="hidden space-y-3">
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">SIM Being Removed</label>
+        <select id="sw-old-sim" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"><option value="">Loading…</option></select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Replacement SIM (Available)</label>
+        <select id="sw-new-sim" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"><option value="">Loading…</option></select>
+      </div>
+    </div>
+    <p id="sw-error" class="hidden text-xs text-red-600"></p>
+    <div class="flex justify-end gap-2"><button id="sw-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button><button id="sw-submit" class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white">Swap Device</button></div>
+  </div>
+</div>
+
+<!-- Resolve Billing Modal -->
+<div id="modal-resolve-billing" class="modal">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
+    <h2 class="font-semibold text-slate-900">Resolve Billing Issue</h2>
+
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Decision</label>
+      <select id="rb-decision" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+        <option value="approved">Approve claim</option>
+        <option value="rejected">Reject claim</option>
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Reason</label>
+      <textarea id="rb-reason" rows="2" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Finance's determination and rationale"></textarea>
+    </div>
+
+    <div id="rb-invoice-note" class="hidden text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+      No invoice is linked to this ticket — a reimbursement cannot be issued from here.
+    </div>
+
+    <label id="rb-reimb-row" class="hidden items-center gap-2 text-xs font-medium text-slate-600">
+      <input id="rb-reimb-toggle" type="checkbox" class="rounded border-slate-300" /> Reimbursement needed
+    </label>
+
+    <div id="rb-reimb-fields" class="hidden space-y-3 border-t border-slate-100 pt-3">
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Method</label>
+        <select id="rb-method" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+          <option value="CreditNote">Credit Note</option>
+          <option value="ChequePayment">Cheque Payment</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Claim Amount (KES)</label>
+        <input id="rb-claim" type="number" min="0" step="0.01" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Commission Fee (KES)</label>
+        <input id="rb-commission" type="number" min="0" step="0.01" value="0" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Tax Amount (KES)</label>
+        <input id="rb-tax" type="number" min="0" step="0.01" value="0" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+      </div>
+      <div class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 flex justify-between text-sm">
+        <span class="text-slate-500">Net reimbursement</span>
+        <span id="rb-net" class="font-mono font-semibold text-slate-800">KES 0.00</span>
+      </div>
+      <div id="rb-cheque-field" class="hidden">
+        <label class="block text-xs font-medium text-slate-600 mb-1">Cheque Number</label>
+        <input id="rb-cheque" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+      </div>
+    </div>
+
+    <p id="rb-error" class="hidden text-xs text-red-600"></p>
+    <div class="flex justify-end gap-2">
+      <button id="rb-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button>
+      <button id="rb-submit" class="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white">Submit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Complete Uninstallation Modal -->
+<div id="modal-complete-uninstall" class="modal">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md space-y-4">
+    <h2 class="font-semibold text-slate-900">Complete Uninstallation</h2>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Devices Being Removed</label>
+      <div id="cu-devices" class="space-y-1.5 text-sm"></div>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">SIMs Being Removed</label>
+      <div id="cu-sims" class="space-y-1.5 text-sm"></div>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Notes</label>
+      <textarea id="cu-notes" rows="2" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Optional completion notes"></textarea>
+    </div>
+    <p id="cu-error" class="hidden text-xs text-red-600"></p>
+    <div class="flex justify-end gap-2"><button id="cu-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button><button id="cu-submit" class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white">Complete Uninstallation</button></div>
+  </div>
+</div>
+
+<div id="fm-footer"></div>
+
+<script src="assets/app.js?v=202607141000"></script>
+<script src="assets/layout.js?v=202607141000"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  window.FINEMARK_APP?.requirePageAccess?.();
+  init();
+});
+
+const APP = window.FINEMARK_APP;
+const $ = (id) => document.getElementById(id);
+const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const ticketId = new URLSearchParams(location.search).get("id");
+function currentUser() { return APP?.getSession?.()?.user || {}; }
+function authHeaders() { const t = APP?.getSession?.()?.accessToken; return t ? { Authorization: `Bearer ${t}` } : {}; }
+
+const PRIORITY_BADGE = { Critical: "pri-critical", High: "pri-high", Normal: "pri-normal", Low: "pri-low" };
+const STATUS_BADGE = { "Open": "badge-open", "In Progress": "badge-inprogress", "Resolved": "badge-resolved", "Closed": "badge-closed", "Merged": "badge-merged" };
+const TEAM_BADGE = { Technical: "team-technical", Finance: "team-finance", Support: "team-support" };
+
+function timeAgo(iso) {
+  if (!iso) return null;
+  const diffMs = Date.now() - new Date(iso);
+  if (isNaN(diffMs)) return null;
+  const mins = Math.floor(diffMs / 60000), hours = Math.floor(diffMs / 3600000), days = Math.floor(diffMs / 86400000);
+  if (mins < 2) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
+  return `${Math.floor(days / 7)}w ago`;
+}
+
+let _ticket = null;
+
+async function load() {
+  if (!ticketId) { $("loading").textContent = "No ticket specified."; return; }
+  try {
+    const res = await APP.apiFetch(`/crm/tickets/${ticketId}`);
+    _ticket = res.ticket;
+    render(res);
+    $("loading").classList.add("hidden");
+    $("content").classList.remove("hidden");
+  } catch (e) {
+    $("loading").textContent = e?.message || "Failed to load ticket.";
+  }
+}
+
+function render(res) {
+  const t = res.ticket;
+  $("ticket-no").textContent = t.ticketNo;
+  $("subject").textContent = t.subject;
+  document.title = `Finemark | ${t.ticketNo}`;
+
+  $("badges").innerHTML = [
+    `<span class="badge ${PRIORITY_BADGE[t.priority] || ""}">${escapeHtml(t.priority)}</span>`,
+    `<span class="badge ${STATUS_BADGE[t.status] || ""}">${escapeHtml(t.status)}</span>`,
+    `<span class="badge">${escapeHtml(t.category)}</span>`,
+    t.team ? `<span class="badge ${TEAM_BADGE[t.team] || ""}">${escapeHtml(t.team)} Team</span>` : "",
+  ].join(" ");
+
+  if (res.parentTicket) {
+    $("parent-banner").classList.remove("hidden");
+    $("parent-banner").innerHTML = `This ticket was merged into <a href="crm-ticket-detail.html?id=${res.parentTicket.id}" class="font-semibold text-blue-600 hover:underline">${escapeHtml(res.parentTicket.ticketNo)}</a> — ${escapeHtml(res.parentTicket.subject)}`;
+  }
+
+  const now = new Date();
+  const slaBreached = t.slaBreachAt && new Date(t.slaBreachAt) < now && !["Resolved", "Closed", "Merged"].includes(t.status);
+  $("info-grid").innerHTML = `
+    <div><p class="text-xs text-slate-400 font-medium">Customer</p><p class="font-semibold text-slate-800 mt-0.5">${escapeHtml(t.customerName || "—")}</p></div>
+    <div><p class="text-xs text-slate-400 font-medium">Assignee</p><p class="font-semibold text-slate-800 mt-0.5">${escapeHtml(t.assigneeEmail || "Unassigned")}</p></div>
+    ${t.consultedEmail ? `<div><p class="text-xs text-slate-400 font-medium">Consulted</p><p class="font-semibold text-slate-800 mt-0.5">${escapeHtml(t.consultedEmail)}</p></div>` : ""}
+    <div><p class="text-xs text-slate-400 font-medium">Opened</p><p class="font-medium text-slate-700 mt-0.5">${t.openedAt ? t.openedAt.slice(0, 16).replace("T", " ") : "—"}</p></div>
+    <div><p class="text-xs text-slate-400 font-medium">SLA Breach</p><p class="font-medium mt-0.5 ${slaBreached ? "text-red-600 font-bold" : "text-slate-700"}">${t.slaBreachAt ? t.slaBreachAt.slice(0, 16).replace("T", " ") : "—"}</p></div>
+    ${t.resolvedAt ? `<div><p class="text-xs text-slate-400 font-medium">Resolved</p><p class="font-medium text-slate-700 mt-0.5">${t.resolvedAt.slice(0, 16).replace("T", " ")}</p></div>` : ""}
+  `;
+
+  // Linked vehicle/equipment
+  if (t.vehicleRegistration || t.linkedDeviceItemIds?.length || t.linkedSimIds?.length || t.linkedItNo || t.linkedInvoice) {
+    $("linked-section").classList.remove("hidden");
+    $("linked-body").innerHTML = `
+      ${t.vehicleRegistration ? `<p><span class="text-slate-400">Vehicle:</span> <span class="font-medium">${escapeHtml(t.vehicleRegistration)}</span></p>` : ""}
+      ${t.linkedItNo ? `<p><span class="text-slate-400">Installation Ticket:</span> <a href="job-details.html?ticketId=${t.linkedItId}" class="font-medium text-blue-600 hover:underline">${escapeHtml(t.linkedItNo)}</a> (${escapeHtml(t.linkedItStatus || "")})</p>` : ""}
+      ${t.linkedDeviceItemIds?.length ? `<p><span class="text-slate-400">Devices linked:</span> ${t.linkedDeviceItemIds.length}</p>` : ""}
+      ${t.linkedSimIds?.length ? `<p><span class="text-slate-400">SIMs linked:</span> ${t.linkedSimIds.length}</p>` : ""}
+      ${t.linkedInvoice ? `<p><span class="text-slate-400">Invoice:</span> <a href="invoice-detail.html?id=${t.linkedInvoice.id}" class="font-medium text-blue-600 hover:underline">${escapeHtml(t.linkedInvoice.invoiceNumber || t.linkedInvoiceId)}</a> — KES ${Number(t.linkedInvoice.total || 0).toLocaleString()} <span class="badge ml-1">${escapeHtml(t.linkedInvoice.status || "")}</span></p>` : ""}
+    `;
+  }
+
+  if (t.description) { $("description").textContent = t.description; $("desc-card").classList.remove("hidden"); }
+
+  if (t.openedAt && t.slaBreachAt && t.status !== "Merged") {
+    const opened = new Date(t.openedAt).getTime(), breach = new Date(t.slaBreachAt).getTime();
+    const pct = Math.min(100, Math.round(((Date.now() - opened) / (breach - opened)) * 100));
+    $("sla-label").textContent = slaBreached ? "BREACHED" : `${pct}% elapsed`;
+    $("sla-bar").style.width = pct + "%";
+    $("sla-bar").className = `h-2 rounded-full transition-all ${pct >= 100 ? "bg-red-500" : pct >= 75 ? "bg-amber-400" : "bg-blue-500"}`;
+    $("sla-card").classList.remove("hidden");
+  }
+
+  renderAttachments(res.attachments || []);
+
+  if (res.linkedChildren?.length) {
+    $("children-card").classList.remove("hidden");
+    $("children-list").innerHTML = res.linkedChildren.map((c) => `
+      <a href="crm-ticket-detail.html?id=${c.id}" class="block rounded-lg border border-slate-200 px-3 py-2 hover:bg-slate-50">
+        <span class="font-mono text-xs text-blue-700 font-bold">${escapeHtml(c.ticket_no)}</span>
+        <span class="text-slate-600 ml-2">${escapeHtml(c.subject)}</span>
+        <span class="badge ${STATUS_BADGE[c.status] || ""} ml-2">${escapeHtml(c.status)}</span>
+      </a>`).join("");
+  }
+
+  renderActions(t, res.actions || []);
+  renderTimeline(res.actions || []);
+}
+
+function renderAttachments(attachments) {
+  $("attachments").innerHTML = attachments.length ? attachments.map((a) => {
+    const isImage = (a.mimetype || "").startsWith("image/");
+    return `<a href="${a.url}" target="_blank" class="block rounded-lg border border-slate-200 overflow-hidden hover:shadow-sm">
+      ${isImage ? `<img src="${a.url}" class="w-full h-20 object-cover" />` : `<div class="w-full h-20 flex items-center justify-center bg-slate-50 text-slate-400 text-2xl">📄</div>`}
+      <p class="px-2 py-1 truncate text-slate-600">${escapeHtml(a.filename)}</p>
+    </a>`;
+  }).join("") : `<p class="text-slate-400 italic col-span-4">No attachments.</p>`;
+}
+
+$("upload-input").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    await fetch(`${APP.API_BASE}/crm/tickets/${ticketId}/upload`, { method: "POST", headers: authHeaders(), body: fd });
+    load();
+  } catch (err) { alert("Upload failed."); }
+  e.target.value = "";
+});
+
+const TEAM_TECHNICAL_ROLES = ["Admin", "Technical", "Technician", "InstallOffice"];
+const TEAM_FINANCE_ROLES = ["Admin", "Finance"];
+
+function renderActions(t, actions) {
+  const role = currentUser().role || "";
+  const buttons = [];
+  const alreadyBillingResolved = (actions || []).some((a) => a.action_type === "BillingResolved");
+  const alreadyUninstalled = (actions || []).some((a) => a.action_type === "UninstallationCompleted");
+  if (t.status !== "Merged") {
+    if (t.status !== "Resolved") buttons.push(`<button class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100" onclick="setStatus('Resolved')">Mark Resolved</button>`);
+    if (t.status !== "Closed") buttons.push(`<button class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50" onclick="setStatus('Closed')">Close</button>`);
+    if (["Resolved", "Closed"].includes(t.status)) buttons.push(`<button class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100" onclick="setStatus('Open')">Reopen</button>`);
+    buttons.push(`<button class="rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100" onclick="openTransfer()">Transfer</button>`);
+    buttons.push(`<button class="rounded-lg border border-purple-300 bg-purple-50 px-3 py-2 text-xs font-semibold text-purple-800 hover:bg-purple-100" onclick="openMerge()">Merge Another Ticket In</button>`);
+    if (t.team === "Technical" && (role === "Admin" || role === "Technical")) {
+      buttons.push(`<button class="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-800 hover:bg-teal-100" onclick="openConsult()">Consult Technician</button>`);
+    }
+    if (t.team === "Technical" && t.linkedDeviceItemIds?.length && TEAM_TECHNICAL_ROLES.includes(role)) {
+      buttons.push(`<button class="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800 hover:bg-rose-100" onclick="openSwap()">Swap Device</button>`);
+    }
+    if (t.team === "Finance" && !alreadyBillingResolved && TEAM_FINANCE_ROLES.includes(role)) {
+      buttons.push(`<button class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100" onclick="openResolveBilling()">Resolve Billing</button>`);
+    }
+    if (t.category === "Uninstallation" && t.team === "Technical" && t.linkedDeviceItemIds?.length && !alreadyUninstalled && TEAM_TECHNICAL_ROLES.includes(role)) {
+      buttons.push(`<button class="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800 hover:bg-rose-100" onclick="openCompleteUninstall()">Complete Uninstallation</button>`);
+    }
+    buttons.push(`<button class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50" onclick="openReassign()">Reassign</button>`);
+    if (t.category === "Installation" && !t.linkedItNo && (role === "Technical" || role === "Admin")) {
+      buttons.push(`<a href="installation-ticket.html?crmTicketId=${t.id}&customerId=${t.customerId || ""}&subject=${encodeURIComponent(t.subject)}" class="rounded-lg bg-violet-600 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-700">Raise Installation Ticket</a>`);
+    }
+  }
+  $("action-buttons").innerHTML = buttons.join("");
+}
+
+function renderTimeline(actions) {
+  $("timeline").innerHTML = actions.length ? actions.map((a) => `
+    <div class="flex gap-3">
+      <div class="shrink-0 w-2 h-2 mt-1.5 rounded-full bg-blue-400"></div>
+      <div>
+        <span class="font-semibold text-slate-700">${escapeHtml(a.action_type)}</span>
+        ${a.to_team ? `<span class="text-slate-400"> → ${escapeHtml(a.to_team)}</span>` : ""}
+        ${a.comment ? `<p class="text-slate-500 mt-0.5">${escapeHtml(a.comment)}</p>` : ""}
+        <p class="text-slate-400 mt-0.5">${escapeHtml(a.by_user_email || "")} · ${(a.created_at || "").slice(0, 16).replace("T", " ")}</p>
+      </div>
+    </div>`).join("") : `<p class="text-slate-400 italic">No activity yet.</p>`;
+}
+
+async function setStatus(newStatus) {
+  try {
+    await APP.apiFetch(`/crm/tickets/${ticketId}/actions`, { method: "POST", body: { actionType: newStatus === "Open" ? "Reopened" : newStatus === "Resolved" ? "Resolved" : "Closed", newStatus } });
+    load();
+  } catch (e) { alert(e?.message || "Failed to update status."); }
+}
+window.setStatus = setStatus;
+
+$("btn-comment").addEventListener("click", async () => {
+  const comment = $("comment-input").value.trim();
+  if (!comment) return;
+  try {
+    await APP.apiFetch(`/crm/tickets/${ticketId}/actions`, { method: "POST", body: { actionType: "Comment", comment } });
+    $("comment-input").value = "";
+    load();
+  } catch (e) { alert(e?.message || "Failed to add comment."); }
+});
+
+// ── Transfer ──────────────────────────────────────────────────────────────
+function openTransfer() { $("tr-team").value = "Technical"; $("tr-comment").value = ""; $("modal-transfer").classList.add("show"); }
+window.openTransfer = openTransfer;
+$("tr-cancel").addEventListener("click", () => $("modal-transfer").classList.remove("show"));
+$("tr-submit").addEventListener("click", async () => {
+  try {
+    await APP.apiFetch(`/crm/tickets/${ticketId}/transfer`, { method: "POST", body: { toTeam: $("tr-team").value, comment: $("tr-comment").value.trim() || undefined } });
+    $("modal-transfer").classList.remove("show");
+    load();
+  } catch (e) { alert(e?.message || "Transfer failed."); }
+});
+
+// ── Merge ─────────────────────────────────────────────────────────────────
+function openMerge() { $("mg-ticket-no").value = ""; $("mg-error").classList.add("hidden"); $("modal-merge").classList.add("show"); }
+window.openMerge = openMerge;
+$("mg-cancel").addEventListener("click", () => $("modal-merge").classList.remove("show"));
+$("mg-submit").addEventListener("click", async () => {
+  const no = $("mg-ticket-no").value.trim();
+  if (!no) return;
+  try {
+    const list = await APP.apiFetch(`/crm/tickets?search=${encodeURIComponent(no)}&pageSize=5`);
+    const match = (list.data || []).find((t) => t.ticketNo.toLowerCase() === no.toLowerCase());
+    if (!match) { $("mg-error").textContent = "Ticket not found."; $("mg-error").classList.remove("hidden"); return; }
+    await APP.apiFetch(`/crm/tickets/${ticketId}/merge`, { method: "POST", body: { childTicketId: match.id } });
+    $("modal-merge").classList.remove("show");
+    load();
+  } catch (e) { $("mg-error").textContent = e?.message || "Merge failed."; $("mg-error").classList.remove("hidden"); }
+});
+
+// ── Consult ───────────────────────────────────────────────────────────────
+async function openConsult() {
+  $("modal-consult").classList.add("show");
+  try {
+    const res = await APP.apiFetch("/technical-team/members?role=all");
+    const members = (res.data || []).filter((m) => m.hasUserAccount);
+    $("cs-technician").innerHTML = members.map((m) => `<option value="${m.id}">${escapeHtml(m.fullName)} (${escapeHtml(m.jobRoleTitle)})</option>`).join("") || `<option value="">No technicians found</option>`;
+  } catch { $("cs-technician").innerHTML = `<option value="">Failed to load</option>`; }
+}
+window.openConsult = openConsult;
+$("cs-cancel").addEventListener("click", () => $("modal-consult").classList.remove("show"));
+$("cs-submit").addEventListener("click", async () => {
+  const technicianUserId = $("cs-technician").value;
+  if (!technicianUserId) return;
+  try {
+    await APP.apiFetch(`/crm/tickets/${ticketId}/consult`, { method: "POST", body: { technicianUserId, comment: $("cs-comment").value.trim() || undefined } });
+    $("modal-consult").classList.remove("show");
+    load();
+  } catch (e) { alert(e?.message || "Consult failed."); }
+});
+
+// ── Reassign ──────────────────────────────────────────────────────────────
+async function openReassign() {
+  $("modal-reassign").classList.add("show");
+  try {
+    const res = await APP.apiFetch("/technical-team/members?role=all");
+    const members = (res.data || []).filter((m) => m.hasUserAccount);
+    $("ra-technician").innerHTML = members.map((m) => `<option value="${m.id}">${escapeHtml(m.fullName)} (${escapeHtml(m.jobRoleTitle)})</option>`).join("") || `<option value="">No technicians found</option>`;
+  } catch { $("ra-technician").innerHTML = `<option value="">Failed to load</option>`; }
+}
+window.openReassign = openReassign;
+$("ra-cancel").addEventListener("click", () => $("modal-reassign").classList.remove("show"));
+$("ra-submit").addEventListener("click", async () => {
+  const assignedToUserId = $("ra-technician").value;
+  if (!assignedToUserId) return;
+  try {
+    await APP.apiFetch(`/crm/tickets/${ticketId}/actions`, { method: "POST", body: { actionType: "Reassigned", assignedToUserId, comment: "Reassigned" } });
+    $("modal-reassign").classList.remove("show");
+    load();
+  } catch (e) { alert(e?.message || "Reassign failed."); }
+});
+
+// ── Swap Device ───────────────────────────────────────────────────────────
+$("sw-sim-toggle").addEventListener("change", (e) => {
+  $("sw-sim-fields").classList.toggle("hidden", !e.target.checked);
+});
+
+async function openSwap() {
+  $("sw-reason").value = "";
+  $("sw-sim-toggle").checked = false;
+  $("sw-sim-fields").classList.add("hidden");
+  $("sw-error").classList.add("hidden");
+  $("sw-old-device").innerHTML = `<option value="">Loading…</option>`;
+  $("sw-new-device").innerHTML = `<option value="">Loading…</option>`;
+  $("sw-old-sim").innerHTML = `<option value="">Loading…</option>`;
+  $("sw-new-sim").innerHTML = `<option value="">Loading…</option>`;
+  $("modal-swap").classList.add("show");
+
+  try {
+    const [oldDevices, newDevicesRes] = await Promise.all([
+      Promise.all((_ticket.linkedDeviceItemIds || []).map((id) =>
+        APP.apiFetch(`/device-custody/devices/${id}`).then((d) => ({ ...d, id })).catch(() => null))),
+      APP.apiFetch("/inventory/items?status=In+Stock&pageSize=200"),
+    ]);
+    const validOld = oldDevices.filter(Boolean);
+    $("sw-old-device").innerHTML = validOld.length
+      ? validOld.map((d) => `<option value="${d.id}">${escapeHtml(d.serialNumber || d.id)} — ${escapeHtml(d.deviceModel || d.productName || "")}</option>`).join("")
+      : `<option value="">No linked devices found</option>`;
+    const newDevices = newDevicesRes.data || [];
+    $("sw-new-device").innerHTML = newDevices.length
+      ? newDevices.map((d) => `<option value="${d.id}">${escapeHtml(d.serial_number || d.id)} — ${escapeHtml(d.device_model || d.product_name || "")}</option>`).join("")
+      : `<option value="">No devices in stock</option>`;
+  } catch {
+    $("sw-old-device").innerHTML = `<option value="">Failed to load</option>`;
+    $("sw-new-device").innerHTML = `<option value="">Failed to load</option>`;
+  }
+
+  if ((_ticket.linkedSimIds || []).length) {
+    try {
+      const [oldSims, newSimsRes] = await Promise.all([
+        Promise.all(_ticket.linkedSimIds.map((id) => APP.apiFetch(`/inventory/sims/${id}`).then((r) => r.data).catch(() => null))),
+        APP.apiFetch("/inventory/sims?status=available&pageSize=200"),
+      ]);
+      const validOldSims = oldSims.filter(Boolean);
+      $("sw-old-sim").innerHTML = validOldSims.length
+        ? validOldSims.map((s) => `<option value="${s.id}">${escapeHtml(s.iccid)} (${escapeHtml(s.msisdn || "—")})</option>`).join("")
+        : `<option value="">No linked SIMs found</option>`;
+      const newSims = newSimsRes.data || [];
+      $("sw-new-sim").innerHTML = newSims.length
+        ? newSims.map((s) => `<option value="${s.id}">${escapeHtml(s.iccid)} (${escapeHtml(s.msisdn || "—")})</option>`).join("")
+        : `<option value="">No SIMs available</option>`;
+    } catch {
+      $("sw-old-sim").innerHTML = `<option value="">Failed to load</option>`;
+      $("sw-new-sim").innerHTML = `<option value="">Failed to load</option>`;
+    }
+  } else {
+    $("sw-sim-toggle").disabled = true;
+    $("sw-old-sim").innerHTML = `<option value="">No SIMs linked to this ticket</option>`;
+    $("sw-new-sim").innerHTML = `<option value="">No SIMs linked to this ticket</option>`;
+  }
+  $("sw-sim-toggle").disabled = !(_ticket.linkedSimIds || []).length;
+}
+window.openSwap = openSwap;
+$("sw-cancel").addEventListener("click", () => $("modal-swap").classList.remove("show"));
+$("sw-submit").addEventListener("click", async () => {
+  const oldDeviceItemId = $("sw-old-device").value;
+  const newDeviceItemId = $("sw-new-device").value;
+  const reason = $("sw-reason").value.trim();
+  const swapSim = $("sw-sim-toggle").checked;
+  const oldSimId = swapSim ? $("sw-old-sim").value : undefined;
+  const newSimId = swapSim ? $("sw-new-sim").value : undefined;
+
+  if (!oldDeviceItemId || !newDeviceItemId) { $("sw-error").textContent = "Select both the device being removed and its replacement."; $("sw-error").classList.remove("hidden"); return; }
+  if (!reason) { $("sw-error").textContent = "A reason is required."; $("sw-error").classList.remove("hidden"); return; }
+  if (swapSim && (!oldSimId || !newSimId)) { $("sw-error").textContent = "Select both SIMs, or uncheck “Also swap the SIM”."; $("sw-error").classList.remove("hidden"); return; }
+
+  try {
+    await APP.apiFetch(`/crm/tickets/${ticketId}/swap-device`, { method: "POST", body: { oldDeviceItemId, newDeviceItemId, reason, oldSimId, newSimId } });
+    $("modal-swap").classList.remove("show");
+    load();
+  } catch (e) { $("sw-error").textContent = e?.message || "Swap failed."; $("sw-error").classList.remove("hidden"); }
+});
+
+// ── Resolve Billing ───────────────────────────────────────────────────────
+function openResolveBilling() {
+  $("rb-decision").value = "approved";
+  $("rb-reason").value = "";
+  $("rb-error").classList.add("hidden");
+  $("rb-cheque").value = "";
+  $("rb-method").value = "CreditNote";
+  $("rb-commission").value = "0";
+  $("rb-tax").value = _ticket.linkedInvoice ? String(_ticket.linkedInvoice.vatTotal ?? 0) : "0";
+  $("rb-claim").value = _ticket.linkedInvoice ? String(_ticket.linkedInvoice.total ?? 0) : "0";
+  $("rb-reimb-toggle").checked = false;
+  $("rb-reimb-fields").classList.add("hidden");
+  $("rb-cheque-field").classList.add("hidden");
+
+  const hasInvoice = !!_ticket.linkedInvoice;
+  $("rb-invoice-note").classList.toggle("hidden", hasInvoice);
+  $("rb-reimb-toggle").disabled = !hasInvoice;
+
+  updateRbDecisionVisibility();
+  updateRbNet();
+  $("modal-resolve-billing").classList.add("show");
+}
+window.openResolveBilling = openResolveBilling;
+$("rb-cancel").addEventListener("click", () => $("modal-resolve-billing").classList.remove("show"));
+
+function updateRbDecisionVisibility() {
+  const approved = $("rb-decision").value === "approved";
+  const hasInvoice = !!_ticket.linkedInvoice;
+  const show = approved && hasInvoice;
+  $("rb-reimb-row").classList.toggle("hidden", !show);
+  $("rb-reimb-row").classList.toggle("flex", show);
+  if (!approved) {
+    $("rb-reimb-toggle").checked = false;
+    $("rb-reimb-fields").classList.add("hidden");
+  }
+}
+$("rb-decision").addEventListener("change", updateRbDecisionVisibility);
+
+$("rb-reimb-toggle").addEventListener("change", (e) => {
+  $("rb-reimb-fields").classList.toggle("hidden", !e.target.checked);
+});
+
+$("rb-method").addEventListener("change", () => {
+  $("rb-cheque-field").classList.toggle("hidden", $("rb-method").value !== "ChequePayment");
+});
+
+function updateRbNet() {
+  const claim = parseFloat($("rb-claim").value) || 0;
+  const commission = parseFloat($("rb-commission").value) || 0;
+  const tax = parseFloat($("rb-tax").value) || 0;
+  const net = claim - commission - tax;
+  $("rb-net").textContent = `KES ${net.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  $("rb-net").classList.toggle("text-red-600", net < 0);
+}
+["rb-claim", "rb-commission", "rb-tax"].forEach((id) => $(id).addEventListener("input", updateRbNet));
+
+$("rb-submit").addEventListener("click", async () => {
+  const approved = $("rb-decision").value === "approved";
+  const reason = $("rb-reason").value.trim();
+  if (!reason) { $("rb-error").textContent = "A reason is required."; $("rb-error").classList.remove("hidden"); return; }
+
+  const body = { approved, reason };
+  const reimbursementNeeded = approved && !$("rb-reimb-toggle").disabled && $("rb-reimb-toggle").checked;
+  body.reimbursementNeeded = reimbursementNeeded;
+
+  if (reimbursementNeeded) {
+    const claimAmount = parseFloat($("rb-claim").value);
+    const commissionFee = parseFloat($("rb-commission").value) || 0;
+    const taxAmount = parseFloat($("rb-tax").value) || 0;
+    const method = $("rb-method").value;
+    if (!(claimAmount > 0)) { $("rb-error").textContent = "Claim amount must be greater than zero."; $("rb-error").classList.remove("hidden"); return; }
+    if (claimAmount - commissionFee - taxAmount < 0) { $("rb-error").textContent = "Net amount cannot be negative — reduce the commission/tax or increase the claim amount."; $("rb-error").classList.remove("hidden"); return; }
+    if (method === "ChequePayment" && !$("rb-cheque").value.trim()) { $("rb-error").textContent = "Cheque number is required for a cheque reimbursement."; $("rb-error").classList.remove("hidden"); return; }
+    Object.assign(body, { method, claimAmount, commissionFee, taxAmount, chequeNumber: method === "ChequePayment" ? $("rb-cheque").value.trim() : undefined });
+  }
+
+  try {
+    await APP.apiFetch(`/crm/tickets/${ticketId}/resolve-billing`, { method: "POST", body });
+    $("modal-resolve-billing").classList.remove("show");
+    load();
+  } catch (e) { $("rb-error").textContent = e?.message || "Failed to resolve billing issue."; $("rb-error").classList.remove("hidden"); }
+});
+
+// ── Complete Uninstallation ──────────────────────────────────────────────
+async function openCompleteUninstall() {
+  $("cu-error").classList.add("hidden");
+  $("cu-notes").value = "";
+  $("cu-devices").innerHTML = `<p class="text-slate-400 text-xs">Loading…</p>`;
+  $("cu-sims").innerHTML = `<p class="text-slate-400 text-xs">Loading…</p>`;
+  $("modal-complete-uninstall").classList.add("show");
+
+  try {
+    const devices = await Promise.all((_ticket.linkedDeviceItemIds || []).map((id) =>
+      APP.apiFetch(`/device-custody/devices/${id}`).then((d) => ({ ...d, id })).catch(() => null)));
+    const validDevices = devices.filter(Boolean);
+    $("cu-devices").innerHTML = validDevices.length
+      ? validDevices.map((d) => `<label class="flex items-center gap-2"><input type="checkbox" class="cu-dev-cb rounded border-slate-300" value="${d.id}" checked /> ${escapeHtml(d.serialNumber || d.id)} — ${escapeHtml(d.deviceModel || d.productName || "")}</label>`).join("")
+      : `<p class="text-slate-400 text-xs">No linked devices found.</p>`;
+  } catch {
+    $("cu-devices").innerHTML = `<p class="text-slate-400 text-xs">Failed to load.</p>`;
+  }
+
+  if ((_ticket.linkedSimIds || []).length) {
+    try {
+      const sims = await Promise.all(_ticket.linkedSimIds.map((id) => APP.apiFetch(`/inventory/sims/${id}`).then((r) => r.data).catch(() => null)));
+      const validSims = sims.filter(Boolean);
+      $("cu-sims").innerHTML = validSims.length
+        ? validSims.map((s) => `<label class="flex items-center gap-2"><input type="checkbox" class="cu-sim-cb rounded border-slate-300" value="${s.id}" checked /> ${escapeHtml(s.iccid)}</label>`).join("")
+        : `<p class="text-slate-400 text-xs">No linked SIMs found.</p>`;
+    } catch {
+      $("cu-sims").innerHTML = `<p class="text-slate-400 text-xs">Failed to load.</p>`;
+    }
+  } else {
+    $("cu-sims").innerHTML = `<p class="text-slate-400 text-xs">No SIMs linked to this ticket.</p>`;
+  }
+}
+window.openCompleteUninstall = openCompleteUninstall;
+$("cu-cancel").addEventListener("click", () => $("modal-complete-uninstall").classList.remove("show"));
+$("cu-submit").addEventListener("click", async () => {
+  const deviceItemIds = [...document.querySelectorAll(".cu-dev-cb:checked")].map((el) => el.value);
+  const simIds = [...document.querySelectorAll(".cu-sim-cb:checked")].map((el) => el.value);
+  if (!deviceItemIds.length) { $("cu-error").textContent = "Select at least one device to remove."; $("cu-error").classList.remove("hidden"); return; }
+
+  try {
+    await APP.apiFetch(`/crm/tickets/${ticketId}/complete-uninstallation`, { method: "POST", body: { deviceItemIds, simIds, notes: $("cu-notes").value.trim() || undefined } });
+    $("modal-complete-uninstall").classList.remove("show");
+    load();
+  } catch (e) { $("cu-error").textContent = e?.message || "Failed to complete uninstallation."; $("cu-error").classList.remove("hidden"); }
+});
+
+function init() { load(); }
+</script>
+</body>
+</html>

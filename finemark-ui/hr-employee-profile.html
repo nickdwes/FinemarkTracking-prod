@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Employee Profile</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-5xl mx-auto space-y-6">
+
+          <!-- Breadcrumb -->
+          <nav class="text-xs text-slate-400">
+            <a href="hr-dashboard.html" class="hover:text-teal-600">HR</a> /
+            <a href="hr-employees.html" class="hover:text-teal-600">Employees</a> /
+            <span id="emp-breadcrumb">Profile</span>
+          </nav>
+
+          <!-- Profile header -->
+          <div id="profile-header" class="bg-white border border-slate-200/80 rounded-2xl shadow-sm p-6 flex flex-wrap items-start gap-5">
+            <div class="flex-shrink-0 w-14 h-14 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xl font-bold" id="avatar">—</div>
+            <div class="flex-1 min-w-0">
+              <h1 id="emp-name" class="text-xl font-semibold text-slate-900">Loading…</h1>
+              <p id="emp-meta" class="text-sm text-slate-500 mt-0.5">—</p>
+              <div class="flex flex-wrap gap-2 mt-2">
+                <span id="emp-empno-tag" class="hidden inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-teal-50 border border-teal-200 text-xs font-mono text-teal-700">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2"/></svg>
+                  <span id="emp-empno-val">—</span>
+                </span>
+                <span id="emp-pfn-tag" class="hidden inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-mono text-slate-600" title="Personal File Number — unique identifier, does not change with employment type transitions">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                  PF <span id="emp-pfn-val">—</span>
+                </span>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <span id="emp-status-badge" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border">—</span>
+              <span id="erp-badge" class="hidden inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border bg-violet-50 text-violet-700 border-violet-200">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                ERP ✓
+              </span>
+              <a id="edit-btn" href="#" class="inline-flex items-center gap-1 px-3 py-1.5 border border-slate-200 text-sm text-slate-600 rounded-lg hover:bg-slate-50">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                Edit
+              </a>
+            </div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="flex gap-1 border-b border-slate-200">
+            <button data-tab="overview" class="tab-btn px-4 py-2 text-sm font-medium text-teal-600 border-b-2 border-teal-500">Overview</button>
+            <button data-tab="career" class="tab-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent">Career</button>
+            <button data-tab="performance" class="tab-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent">Performance</button>
+            <button data-tab="documents" class="tab-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent">Documents</button>
+            <button id="m365-tab-btn" data-tab="m365" class="tab-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent hidden">Microsoft 365</button>
+          </div>
+
+          <!-- ── OVERVIEW ────────────── -->
+          <div id="tab-overview" class="tab-panel space-y-4">
+            <div class="grid sm:grid-cols-2 gap-4">
+              <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm space-y-3">
+                <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400">Contact</h3>
+                <div id="contact-fields" class="space-y-2 text-sm"></div>
+              </div>
+              <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm space-y-3">
+                <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400">Employment</h3>
+                <div id="employment-fields" class="space-y-2 text-sm"></div>
+              </div>
+              <!-- Direct Reports – shown only when this employee manages others -->
+              <div id="direct-reports-block" class="hidden bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm space-y-3 col-span-2">
+                <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400">Direct Reports</h3>
+                <div id="direct-reports-list" class="divide-y divide-slate-100"></div>
+              </div>
+              <!-- Sensitive – admin only -->
+              <div id="sensitive-block" class="hidden bg-white border border-amber-200/60 rounded-xl p-5 shadow-sm space-y-3 col-span-2">
+                <h3 class="text-xs font-semibold uppercase tracking-wide text-amber-500 flex items-center gap-1">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                  Sensitive – HR Admin Only
+                </h3>
+                <div id="sensitive-fields" class="grid sm:grid-cols-3 gap-4 text-sm"></div>
+              </div>
+              <!-- Emergency contacts -->
+              <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm space-y-3 col-span-2">
+                <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400">Emergency Contacts</h3>
+                <div id="emergency-contacts" class="space-y-2 text-sm text-slate-500">—</div>
+              </div>
+
+              <!-- ERP Access – admin only -->
+              <div id="erp-block" class="hidden bg-white border border-violet-200/60 rounded-xl p-5 shadow-sm space-y-4 col-span-2">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                  <h3 class="text-xs font-semibold uppercase tracking-wide text-violet-600 flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    ERP Portal Access
+                  </h3>
+                  <button id="btn-create-erp-user" class="hidden text-xs bg-violet-600 hover:bg-violet-700 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">Create ERP User</button>
+                </div>
+
+                <!-- Work email row -->
+                <div class="flex items-center gap-3 flex-wrap">
+                  <span class="text-sm text-slate-500 w-28 shrink-0">Work Email</span>
+                  <div id="work-email-display" class="flex items-center gap-2">
+                    <span id="work-email-val" class="text-sm font-medium text-slate-800">—</span>
+                    <button id="btn-edit-work-email" class="text-xs text-teal-600 hover:underline">Edit</button>
+                  </div>
+                  <div id="work-email-edit" class="hidden flex items-center gap-2">
+                    <input id="work-email-input" type="email" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:border-teal-400" placeholder="user@finemarktracking.co.ke" />
+                    <button id="btn-save-work-email" class="text-xs bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 rounded-lg">Save</button>
+                    <button id="btn-cancel-work-email" class="text-xs text-slate-500 hover:underline">Cancel</button>
+                  </div>
+                </div>
+
+                <!-- Existing ERP user info -->
+                <div id="erp-user-info" class="hidden text-sm space-y-1">
+                  <div class="flex flex-wrap gap-4">
+                    <span class="text-slate-500">Login Email: <span id="erp-login-email" class="font-medium text-slate-800">—</span></span>
+                    <span class="text-slate-500">Role: <span id="erp-role" class="font-medium text-slate-800">—</span></span>
+                    <span class="text-slate-500">Status: <span id="erp-status" class="font-medium">—</span></span>
+                  </div>
+                </div>
+                <p id="erp-none-msg" class="text-sm text-slate-400">No ERP account linked. Set a work email and create an account below.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── CAREER ──────────────── -->
+          <div id="tab-career" class="tab-panel hidden space-y-4">
+            <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
+              <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-slate-700">Promotion &amp; Role History</h3>
+                <button id="btn-add-promo" class="text-xs text-teal-600 hover:underline">+ Add Promotion</button>
+              </div>
+              <div id="promotions-list" class="p-5 space-y-3"></div>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
+              <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-slate-700">Training &amp; Certifications</h3>
+                <button id="btn-add-training" class="text-xs text-teal-600 hover:underline">+ Add Training</button>
+              </div>
+              <div id="training-list" class="p-5 space-y-3"></div>
+            </div>
+          </div>
+
+          <!-- ── PERFORMANCE ─────────── -->
+          <div id="tab-performance" class="tab-panel hidden space-y-4">
+            <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
+              <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-slate-700">Performance Reviews</h3>
+                <button id="btn-add-review" class="text-xs text-teal-600 hover:underline">+ Add Review</button>
+              </div>
+              <div id="performance-list" class="divide-y divide-slate-100"></div>
+            </div>
+          </div>
+
+          <!-- ── DOCUMENTS ──────────── -->
+          <div id="tab-documents" class="tab-panel hidden space-y-4">
+            <div class="flex items-center justify-between">
+              <p class="text-sm text-slate-500">Upload CV, certificates, signed contracts, and other required documents.</p>
+              <button onclick="openDocUpload()" class="px-3 py-1.5 bg-teal-600 text-white text-xs rounded-lg hover:bg-teal-700">Upload Document</button>
+            </div>
+            <div id="documents-list" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+          </div>
+
+          <!-- ── MICROSOFT 365 ──────── -->
+          <div id="tab-m365" class="tab-panel hidden space-y-4">
+            <!-- Not configured banner -->
+            <div id="m365-not-configured" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-5 text-sm text-amber-800">
+              <p class="font-semibold mb-1">Microsoft Graph integration is not configured.</p>
+              <p>Set <code class="bg-amber-100 rounded px-1">GRAPH_TENANT_ID</code>, <code class="bg-amber-100 rounded px-1">GRAPH_CLIENT_ID</code> and <code class="bg-amber-100 rounded px-1">GRAPH_CLIENT_SECRET</code> in the backend <code class="bg-amber-100 rounded px-1">.env</code> file, then restart the server.</p>
+            </div>
+
+            <!-- Account status card -->
+            <div id="m365-status-card" class="hidden bg-white border border-slate-200/80 rounded-2xl shadow-sm p-6 space-y-4">
+              <div class="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <h3 class="text-sm font-semibold text-slate-700 mb-1">Microsoft 365 Account</h3>
+                  <p id="m365-upn" class="text-base font-mono text-teal-700">—</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <span id="m365-acct-badge" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border">—</span>
+                  <span id="m365-lic-badge" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border bg-slate-50 text-slate-600 border-slate-200">License: —</span>
+                </div>
+              </div>
+              <div class="grid sm:grid-cols-3 gap-3 text-xs text-slate-500">
+                <div><span class="font-medium text-slate-600 block">Entra Object ID</span><span id="m365-object-id" class="font-mono">—</span></div>
+                <div><span class="font-medium text-slate-600 block">Provisioned By</span><span id="m365-prov-by">—</span></div>
+                <div><span class="font-medium text-slate-600 block">Provisioned At</span><span id="m365-prov-at">—</span></div>
+                <div><span class="font-medium text-slate-600 block">Last Synced</span><span id="m365-synced-at">—</span></div>
+              </div>
+              <div class="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
+                <button onclick="syncM365Account()" id="btn-m365-sync" class="px-3 py-1.5 text-xs border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50">Sync from Entra ID</button>
+              </div>
+            </div>
+
+            <!-- Provisioning panel (shown when not provisioned) -->
+            <div id="m365-provision-panel" class="hidden bg-white border border-slate-200/80 rounded-2xl shadow-sm p-6 space-y-5">
+              <h3 class="text-sm font-semibold text-slate-700">Provision Microsoft 365 Account</h3>
+
+              <!-- Email suggestion -->
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-2">Suggested Email Addresses</label>
+                <div class="flex gap-2 mb-3">
+                  <button onclick="loadEmailSuggestions()" id="btn-check-emails" class="px-3 py-1.5 bg-teal-600 text-white text-xs rounded-lg hover:bg-teal-700 disabled:opacity-50">Check Availability</button>
+                  <span id="email-check-spinner" class="hidden text-xs text-slate-400 self-center">Checking…</span>
+                </div>
+                <div id="email-candidates" class="space-y-2"></div>
+                <p id="email-check-hint" class="text-xs text-slate-400 mt-1">Click &ldquo;Check Availability&rdquo; to see which addresses are free.</p>
+              </div>
+
+              <!-- Selected UPN display -->
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Selected Email (UPN)</label>
+                <input id="m365-selected-upn" type="email" placeholder="Select from suggestions above or type manually…"
+                  class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+              </div>
+
+              <div id="m365-provision-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2"></div>
+              <div id="m365-provision-success" class="hidden text-xs bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg px-4 py-3 space-y-1"></div>
+
+              <div class="flex justify-end gap-3">
+                <button onclick="provisionM365Account()" id="btn-m365-provision"
+                  class="px-4 py-2 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50">
+                  Create Microsoft 365 Account
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+
+    <!-- Promotion Modal -->
+    <div id="promo-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <h3 class="text-base font-semibold text-slate-800">Record Promotion / Role Change</h3>
+          <button onclick="document.getElementById('promo-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+        <form id="promo-form" class="px-6 py-5 space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">New Role *</label>
+            <select id="promo-to-role" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+              <option value="">Select role…</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Effective Date *</label>
+            <input id="promo-date" type="date" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Notes</label>
+            <textarea id="promo-notes" rows="2" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm resize-none"></textarea>
+          </div>
+          <div id="promo-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2"></div>
+          <div class="flex justify-end gap-3">
+            <button type="button" onclick="document.getElementById('promo-modal').classList.add('hidden')" class="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600">Cancel</button>
+            <button type="submit" class="px-4 py-2 text-sm rounded-lg bg-teal-600 text-white hover:bg-teal-700">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Training Modal -->
+    <div id="training-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <h3 class="text-base font-semibold text-slate-800">Add Training Record</h3>
+          <button onclick="document.getElementById('training-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+        <form id="training-form" class="px-6 py-5 space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Course Name *</label>
+            <input id="tr-name" type="text" required maxlength="200" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Provider</label>
+              <input id="tr-provider" type="text" maxlength="200" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Completion Date *</label>
+              <input id="tr-date" type="date" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Certificate No.</label>
+            <input id="tr-cert" type="text" maxlength="100" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div id="training-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2"></div>
+          <div class="flex justify-end gap-3">
+            <button type="button" onclick="document.getElementById('training-modal').classList.add('hidden')" class="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600">Cancel</button>
+            <button type="submit" class="px-4 py-2 text-sm rounded-lg bg-teal-600 text-white hover:bg-teal-700">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Document Upload Modal -->
+    <div id="doc-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <h3 class="text-base font-semibold text-slate-800">Upload Document</h3>
+          <button onclick="document.getElementById('doc-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+        <form id="doc-form" class="px-6 py-5 space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Document Type *</label>
+            <select id="doc-type" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+              <option value="">Select…</option>
+              <option>CV</option><option>Certificate</option><option>Contract</option><option>ID</option><option>Other</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">File *</label>
+            <input id="doc-file" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" required class="w-full text-sm text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100" />
+            <p class="mt-1 text-xs text-slate-400">PDF, Word, or image. Max 5 MB.</p>
+          </div>
+          <div id="doc-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2"></div>
+          <div class="flex justify-end gap-3">
+            <button type="button" onclick="document.getElementById('doc-modal').classList.add('hidden')" class="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600">Cancel</button>
+            <button type="submit" class="px-4 py-2 text-sm rounded-lg bg-teal-600 text-white hover:bg-teal-700">Upload</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      const generatePassword = () => {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$";
+        let p = "";
+        while (p.length < 12 || !/[A-Z]/.test(p) || !/[0-9]/.test(p) || !/[!@#$]/.test(p)) {
+          p = Array.from({ length: 12 }, () => chars[Math.random() * chars.length | 0]).join("");
+        }
+        return p;
+      };
+      const params = new URLSearchParams(window.location.search);
+      const empId = params.get("id");
+      let empData = null;
+      let isAdmin = false;
+
+      const field = (label, value) => value
+        ? `<div class="flex items-start justify-between gap-2"><span class="text-slate-500 whitespace-nowrap">${label}</span><span class="font-medium text-slate-800 text-right">${value}</span></div>`
+        : "";
+
+      const statusColor = s => ({ Active: "bg-emerald-50 text-emerald-700 border-emerald-100", Inactive: "bg-amber-50 text-amber-700 border-amber-100", Terminated: "bg-rose-50 text-rose-700 border-rose-100" }[s] || "bg-slate-100 text-slate-600");
+
+      // ── TAB SWITCHING ────────────────────────────────────────────────────
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".tab-btn").forEach(b => {
+            b.classList.remove("text-teal-600", "border-teal-500");
+            b.classList.add("text-slate-500", "border-transparent");
+          });
+          btn.classList.add("text-teal-600", "border-teal-500");
+          btn.classList.remove("text-slate-500", "border-transparent");
+          document.querySelectorAll(".tab-panel").forEach(p => p.classList.add("hidden"));
+          document.getElementById("tab-" + btn.dataset.tab).classList.remove("hidden");
+          if (btn.dataset.tab === "m365") loadM365Panel(empId);
+        });
+      });
+
+      // ── LOAD EMPLOYEE ────────────────────────────────────────────────────
+      const loadEmployee = async () => {
+        let resp;
+        try {
+          resp = await window.FINEMARK_APP.apiFetch(`/hr/employees/${empId}`);
+        } catch (err) {
+          document.getElementById("emp-name").textContent = "Failed to load employee";
+          document.getElementById("emp-meta").textContent = err?.message || "An error occurred";
+          return;
+        }
+        // The endpoint returns the employee object at the root level (no .data wrapper)
+        const data = resp?.data ?? resp;
+        if (!data || !data.fullName) {
+          document.getElementById("emp-name").textContent = "Employee not found";
+          document.getElementById("emp-meta").textContent = "";
+          return;
+        }
+        empData = data;
+        document.title = `Finemark | ${data.fullName}`;
+        document.getElementById("emp-breadcrumb").textContent = data.fullName;
+        document.getElementById("avatar").textContent = data.fullName.charAt(0).toUpperCase();
+        document.getElementById("emp-name").textContent = data.fullName;
+        document.getElementById("emp-meta").textContent = `${data.jobRoleTitle || "No role assigned"} · ${data.orgUnitName || "No unit"}`;
+        if (data.employeeNo) {
+          document.getElementById("emp-empno-val").textContent = data.employeeNo;
+          document.getElementById("emp-empno-tag").classList.remove("hidden");
+          document.getElementById("emp-empno-tag").classList.add("inline-flex");
+        }
+        if (data.personalFileNo) {
+          document.getElementById("emp-pfn-val").textContent = data.personalFileNo;
+          document.getElementById("emp-pfn-tag").classList.remove("hidden");
+          document.getElementById("emp-pfn-tag").classList.add("inline-flex");
+        }
+        const sb = document.getElementById("emp-status-badge");
+        sb.textContent = data.status;
+        sb.className = `inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${statusColor(data.status)}`;
+        document.getElementById("edit-btn").href = `hr-onboarding.html?id=${empId}`;
+
+        // Contact
+        document.getElementById("contact-fields").innerHTML = [
+          field("Phone", data.phone), field("Email", data.email),
+          field("Address", data.residentialAddress),
+        ].join("") || "<span class='text-slate-400'>—</span>";
+
+        // Employment
+        document.getElementById("employment-fields").innerHTML = [
+          field("Employee No", `<span class='font-mono text-teal-700'>${data.employeeNo || "—"}</span>`),
+          field("Personal File No", `<span class='font-mono text-slate-600'>${data.personalFileNo || "—"}</span>`),
+          field("Type", data.employmentType), field("Start Date", data.startDate),
+          field("Manager", data.managerName), field("Cadre", data.cadreName),
+          field("Department", data.orgUnitName),
+        ].join("") || "<span class='text-slate-400'>—</span>";
+
+        // Direct Reports (managers/team leads only — hidden when this employee has none)
+        const reports = data.directReports || [];
+        if (reports.length > 0) {
+          document.getElementById("direct-reports-block").classList.remove("hidden");
+          document.getElementById("direct-reports-list").innerHTML = reports.map(r => `
+            <a href="hr-employee-profile.html?id=${r.id}" class="flex items-center justify-between gap-3 py-2.5 hover:bg-slate-50 -mx-2 px-2 rounded-lg transition-colors">
+              <div class="min-w-0">
+                <p class="text-sm font-medium text-slate-800 truncate">${r.fullName}</p>
+                <p class="text-xs text-slate-500 truncate">${[r.jobRoleTitle, r.orgUnitName].filter(Boolean).join(" · ") || "—"}</p>
+              </div>
+              <span class="shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${statusColor(r.status)}">${r.status}</span>
+            </a>
+          `).join("");
+        }
+
+        // Sensitive fields (admin only)
+        if (isAdmin) {
+          document.getElementById("sensitive-block").classList.remove("hidden");
+          document.getElementById("sensitive-fields").innerHTML = [
+            field("National ID", data.nationalId ? `<span class='font-mono'>${data.nationalId}</span>` : null),
+            field("KRA PIN", data.kraPin ? `<span class='font-mono'>${data.kraPin}</span>` : null),
+            field("Date of Birth", data.dateOfBirth),
+            data.salary != null ? field("Salary (KES)", `${Number(data.salary).toLocaleString()}`) : "",
+          ].join("") || "—";
+
+          // ERP Access block
+          document.getElementById("erp-block").classList.remove("hidden");
+          const workEmailVal = document.getElementById("work-email-val");
+          const workEmailInput = document.getElementById("work-email-input");
+          workEmailVal.textContent = data.workEmail || "—";
+          workEmailInput.value = data.workEmail || "";
+
+          if (data.userAccountId) {
+            // Has ERP account
+            document.getElementById("erp-badge").classList.remove("hidden");
+            document.getElementById("erp-user-info").classList.remove("hidden");
+            document.getElementById("erp-none-msg").classList.add("hidden");
+            document.getElementById("erp-login-email").textContent = data.workEmail || data.email || "—";
+            document.getElementById("erp-role").textContent = "(see Users page)";
+            document.getElementById("erp-status").textContent = "Active";
+          } else {
+            document.getElementById("erp-none-msg").classList.remove("hidden");
+            document.getElementById("erp-user-info").classList.add("hidden");
+            document.getElementById("btn-create-erp-user").classList.remove("hidden");
+          }
+        }
+
+        // Emergency contacts
+        const ecEl = document.getElementById("emergency-contacts");
+        if (data.emergencyContacts?.length) {
+          ecEl.innerHTML = data.emergencyContacts.map(c => `
+            <div class="flex items-start justify-between text-sm border border-slate-100 rounded-lg px-4 py-3">
+              <div><p class="font-medium text-slate-800">${c.name}</p><p class="text-xs text-slate-400">${c.relationship} · ${c.phone}</p></div>
+              <span class="text-xs ${c.consent_given ? 'text-emerald-500' : 'text-amber-500'}">${c.consent_given ? 'Consent ✓' : 'No consent'}</span>
+            </div>`).join("");
+        } else { ecEl.textContent = "No emergency contacts on file."; }
+
+        // Career tab
+        renderPromotions(data.promotions || []);
+        renderTraining(data.trainings || []);
+        renderPerformance(data.performance || []);
+        renderDocuments(data.documents || []);
+      };
+
+      const renderPromotions = rows => {
+        const el = document.getElementById("promotions-list");
+        if (!rows.length) { el.innerHTML = `<p class="text-sm text-slate-400">No promotion history.</p>`; return; }
+        el.innerHTML = rows.map(p => `
+          <div class="flex items-start gap-4 relative pl-5 border-l-2 border-teal-100 pb-4">
+            <div class="absolute -left-2 top-0 w-3.5 h-3.5 rounded-full bg-teal-400 border-2 border-white"></div>
+            <div>
+              <p class="text-sm font-medium text-slate-800">${p.to_role_title || "New Role"}</p>
+              <p class="text-xs text-slate-400">${p.effective_date} ${p.notes ? `· ${p.notes}` : ""}</p>
+            </div>
+          </div>`).join("");
+      };
+      const renderTraining = rows => {
+        const el = document.getElementById("training-list");
+        if (!rows.length) { el.innerHTML = `<p class="text-sm text-slate-400">No training records.</p>`; return; }
+        el.innerHTML = rows.map(t => `
+          <div class="flex items-start gap-3 border border-slate-100 rounded-lg px-4 py-3">
+            <svg class="w-4 h-4 text-teal-400 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+            <div>
+              <p class="text-sm font-medium text-slate-800">${t.course_name}</p>
+              <p class="text-xs text-slate-400">${t.provider || ""} · ${t.completion_date} ${t.certification_no ? `· ${t.certification_no}` : ""}</p>
+            </div>
+          </div>`).join("");
+      };
+      const RATING_COLOR = { Outstanding: "bg-emerald-50 text-emerald-700 border-emerald-200", "Exceeds Expectations": "bg-teal-50 text-teal-700 border-teal-200", "Meets Expectations": "bg-blue-50 text-blue-700 border-blue-200", "Needs Improvement": "bg-amber-50 text-amber-700 border-amber-200", Unsatisfactory: "bg-rose-50 text-rose-700 border-rose-200" };
+      const renderPerformance = rows => {
+        const el = document.getElementById("performance-list");
+        if (!rows.length) { el.innerHTML = `<p class="text-sm text-slate-400 p-5">No performance reviews on file.</p>`; return; }
+        el.innerHTML = rows.map(r => `
+          <div class="px-5 py-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+              <p class="text-sm font-medium text-slate-800">${r.review_cycle}</p>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${RATING_COLOR[r.rating] || "bg-slate-100 text-slate-600"}">${r.rating}</span>
+            </div>
+            <p class="text-xs text-slate-400 mb-2">${r.review_date}</p>
+            ${r.comments ? `<p class="text-xs text-slate-600">${r.comments}</p>` : ""}
+            ${r.outcomes ? `<p class="text-xs text-slate-500 mt-1"><span class="font-medium">Outcomes:</span> ${r.outcomes}</p>` : ""}
+          </div>`).join("");
+      };
+      const renderDocuments = rows => {
+        const el = document.getElementById("documents-list");
+        if (!rows.length) { el.innerHTML = `<p class="text-sm text-slate-400">No documents uploaded.</p>`; return; }
+        const docIcon = t => `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`;
+        el.innerHTML = rows.map(d => `
+          <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm flex items-start gap-3">
+            <span class="text-slate-400">${docIcon(d.document_type)}</span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-slate-800 truncate">${d.file_name}</p>
+              <p class="text-xs text-slate-400">${d.document_type} · ${d.created_at?.slice(0,10)}</p>
+            </div>
+          </div>`).join("");
+      };
+
+      // ── ADD PROMOTION ────────────────────────────────────────────────────
+      const openDocUpload = () => document.getElementById("doc-modal").classList.remove("hidden");
+      document.getElementById("btn-add-promo").onclick = async () => {
+        const { data } = await window.FINEMARK_APP.apiFetch("/hr/org/roles");
+        const sel = document.getElementById("promo-to-role");
+        sel.innerHTML = `<option value="">Select role…</option>` + (data || []).map(r => `<option value="${r.id}">${r.title}</option>`).join("");
+        document.getElementById("promo-modal").classList.remove("hidden");
+      };
+      document.getElementById("promo-form").onsubmit = async e => {
+        e.preventDefault();
+        const errEl = document.getElementById("promo-error"); errEl.classList.add("hidden");
+        try {
+          await window.FINEMARK_APP.apiFetch(`/hr/performance/employees/${empId}/promotions`, {
+            method: "POST",
+            body: { toRoleId: document.getElementById("promo-to-role").value, effectiveDate: document.getElementById("promo-date").value, notes: document.getElementById("promo-notes").value.trim() || undefined },
+          });
+          document.getElementById("promo-modal").classList.add("hidden");
+          loadEmployee();
+        } catch (err) { errEl.textContent = err?.message || "Failed to save"; errEl.classList.remove("hidden"); }
+      };
+
+      // ── ADD TRAINING ─────────────────────────────────────────────────────
+      document.getElementById("btn-add-training").onclick = () => document.getElementById("training-modal").classList.remove("hidden");
+      document.getElementById("training-form").onsubmit = async e => {
+        e.preventDefault();
+        const errEl = document.getElementById("training-error"); errEl.classList.add("hidden");
+        try {
+          await window.FINEMARK_APP.apiFetch(`/hr/performance/employees/${empId}/training`, {
+            method: "POST",
+            body: { courseName: document.getElementById("tr-name").value.trim(), provider: document.getElementById("tr-provider").value.trim() || undefined, completionDate: document.getElementById("tr-date").value, certificationNo: document.getElementById("tr-cert").value.trim() || undefined },
+          });
+          document.getElementById("training-modal").classList.add("hidden");
+          loadEmployee();
+        } catch (err) { errEl.textContent = err?.message || "Failed"; errEl.classList.remove("hidden"); }
+      };
+
+      // ── ADD REVIEW ───────────────────────────────────────────────────────
+      document.getElementById("btn-add-review").onclick = () => window.location.href = `hr-performance.html?employeeId=${empId}`;
+
+      // ── UPLOAD DOCUMENT ──────────────────────────────────────────────────
+      document.getElementById("doc-form").onsubmit = async e => {
+        e.preventDefault();
+        const errEl = document.getElementById("doc-error"); errEl.classList.add("hidden");
+        const file = document.getElementById("doc-file").files[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) { errEl.textContent = "File exceeds 5 MB."; errEl.classList.remove("hidden"); return; }
+        const reader = new FileReader();
+        reader.onload = async ev => {
+          try {
+            const base64 = ev.target.result.split(",")[1];
+            await window.FINEMARK_APP.apiFetch(`/hr/employees/${empId}/documents`, {
+              method: "POST",
+              body: { documentType: document.getElementById("doc-type").value, fileName: file.name, fileBase64: base64 },
+            });
+            document.getElementById("doc-modal").classList.add("hidden");
+            loadEmployee();
+          } catch (err) { errEl.textContent = err?.message || "Upload failed"; errEl.classList.remove("hidden"); }
+        };
+        reader.readAsDataURL(file);
+      };
+
+      // ── MICROSOFT 365 PANEL ──────────────────────────────────────────────
+      const ACCT_STATUS_COLOR = {
+        "Provisioned": "bg-emerald-50 text-emerald-700 border-emerald-200",
+        "Not Provisioned": "bg-slate-50 text-slate-600 border-slate-200",
+        "Suspended": "bg-rose-50 text-rose-700 border-rose-200",
+        "Error": "bg-amber-50 text-amber-700 border-amber-200",
+      };
+
+      let m365Loaded = false;
+
+      const loadM365Panel = async (eid) => {
+        if (!eid) return;
+        let resp;
+        try {
+          resp = await window.FINEMARK_APP.apiFetch(`/hr/m365/status/${eid}`);
+        } catch (err) {
+          console.error("[m365] status error", err);
+          return;
+        }
+
+        const { account, graphConfigured } = resp;
+
+        document.getElementById("m365-not-configured").classList.toggle("hidden", graphConfigured !== false);
+
+        const provisioned = account?.accountStatus === "Provisioned" && account?.entraObjectId;
+        document.getElementById("m365-status-card").classList.toggle("hidden", !provisioned);
+        document.getElementById("m365-provision-panel").classList.toggle("hidden", !!provisioned);
+
+        if (provisioned) {
+          document.getElementById("m365-upn").textContent = account.upn || "—";
+          const ab = document.getElementById("m365-acct-badge");
+          ab.textContent = account.accountStatus;
+          ab.className = `inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${ACCT_STATUS_COLOR[account.accountStatus] || "bg-slate-100 text-slate-600 border-slate-200"}`;
+          const lb = document.getElementById("m365-lic-badge");
+          lb.textContent = `License: ${account.licenseStatus}`;
+          lb.className = `inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${
+            account.licenseStatus === "Assigned" ? "bg-teal-50 text-teal-700 border-teal-200" : "bg-slate-50 text-slate-500 border-slate-200"
+          }`;
+          document.getElementById("m365-object-id").textContent = account.entraObjectId || "—";
+          document.getElementById("m365-prov-by").textContent = account.provisionedBy || "—";
+          document.getElementById("m365-prov-at").textContent = account.provisionedAt ? account.provisionedAt.slice(0, 10) : "—";
+          document.getElementById("m365-synced-at").textContent = account.lastSyncedAt ? account.lastSyncedAt.slice(0, 10) : "Never";
+        }
+        m365Loaded = true;
+      };
+
+      const loadEmailSuggestions = async () => {
+        const btn = document.getElementById("btn-check-emails");
+        const spinner = document.getElementById("email-check-spinner");
+        const container = document.getElementById("email-candidates");
+        const hint = document.getElementById("email-check-hint");
+        btn.disabled = true;
+        spinner.classList.remove("hidden");
+        container.innerHTML = "";
+        try {
+          const resp = await window.FINEMARK_APP.apiFetch(`/hr/m365/suggest-email?employeeId=${empId}`);
+          const { candidates, graphConfigured } = resp;
+          if (!candidates?.length) {
+            container.innerHTML = `<p class="text-xs text-slate-400">No suggestions available.</p>`;
+            return;
+          }
+          hint.classList.add("hidden");
+          container.innerHTML = candidates.map((c, i) => `
+            <label class="flex items-center gap-3 border rounded-lg px-4 py-2.5 cursor-pointer hover:bg-teal-50 ${
+              c.available === true ? 'border-teal-200 bg-teal-50/40' : c.available === false ? 'border-rose-100 opacity-60' : 'border-slate-200'
+            }">
+              <input type="radio" name="upn-choice" value="${c.email}" ${c.available === false ? 'disabled' : ''}
+                onchange="document.getElementById('m365-selected-upn').value=this.value"
+                ${i === 0 && c.available !== false ? 'checked' : ''}>
+              <div class="flex-1">
+                <span class="text-sm font-mono ${c.available === false ? 'line-through text-slate-400' : 'text-slate-800'}">${c.email}</span>
+              </div>
+              ${c.available === true ? '<span class="text-xs text-emerald-600 font-medium">Available ✓</span>' : c.available === false ? '<span class="text-xs text-rose-500">Taken</span>' : '<span class="text-xs text-slate-400">Not checked</span>'}
+            </label>
+          `).join("");
+          // Pre-select first available
+          const first = candidates.find(c => c.available !== false);
+          if (first) document.getElementById("m365-selected-upn").value = first.email;
+        } catch (err) {
+          container.innerHTML = `<p class="text-xs text-rose-500">${err?.message || 'Failed to check emails'}</p>`;
+        } finally {
+          btn.disabled = false;
+          spinner.classList.add("hidden");
+        }
+      };
+
+      const provisionM365Account = async () => {
+        const upn = document.getElementById("m365-selected-upn").value.trim();
+        const errEl = document.getElementById("m365-provision-error");
+        const successEl = document.getElementById("m365-provision-success");
+        const btn = document.getElementById("btn-m365-provision");
+        errEl.classList.add("hidden");
+        successEl.classList.add("hidden");
+        if (!upn) { errEl.textContent = "Please select or enter an email address."; errEl.classList.remove("hidden"); return; }
+        if (!confirm(`Create a Microsoft 365 account for '${upn}'?\n\nA temporary password will be shown once — store it securely.`)) return;
+        btn.disabled = true;
+        btn.textContent = "Creating account…";
+        try {
+          const resp = await window.FINEMARK_APP.apiFetch("/hr/m365/provision", {
+            method: "POST",
+            body: { employeeId: empId, upn },
+          });
+          successEl.innerHTML = `
+            <p class="font-semibold">Microsoft 365 account created successfully!</p>
+            <p>Email: <span class="font-mono">${resp.upn}</span></p>
+            <p class="mt-2 bg-amber-50 border border-amber-200 text-amber-900 rounded px-3 py-2">
+              <strong>Temporary password (shown once):</strong><br/>
+              <span class="font-mono text-base tracking-widest select-all">${resp.tempPassword}</span>
+            </p>
+            <p class="text-xs mt-1">Share this password securely (e.g. via a password manager or encrypted email). The employee must change it on first sign-in.</p>
+          `;
+          successEl.classList.remove("hidden");
+          document.getElementById("m365-provision-panel").classList.add("hidden");
+          // Reload status card
+          await loadM365Panel(empId);
+          document.getElementById("m365-status-card").classList.remove("hidden");
+        } catch (err) {
+          errEl.textContent = err?.message || "Provisioning failed.";
+          errEl.classList.remove("hidden");
+          btn.disabled = false;
+          btn.textContent = "Create Microsoft 365 Account";
+        }
+      };
+
+      const syncM365Account = async () => {
+        const btn = document.getElementById("btn-m365-sync");
+        btn.disabled = true;
+        btn.textContent = "Syncing…";
+        try {
+          await window.FINEMARK_APP.apiFetch(`/hr/m365/sync/${empId}`, { method: "POST" });
+          await loadM365Panel(empId);
+        } catch (err) {
+          alert(err?.message || "Sync failed.");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Sync from Entra ID";
+        }
+      };
+
+      // Populate the ERP-role select from role_configs — the same authoritative
+      // data admin-access-control.html / admin-users.html use — instead of a
+      // hardcoded, stale list. Defaults to HR selected, as before.
+      async function populateErpRoleSelect() {
+        const sel = document.getElementById("erp-modal-role");
+        if (!sel) return;
+        try {
+          const data = await window.FINEMARK_APP.RoleConfigService.list();
+          const roles = (data.roles || []).filter(r => r.role_key !== "Sales" && r.role_key !== "Management");
+          const systemRoles = roles.filter(r => r.is_system);
+          const customRoles = roles.filter(r => !r.is_system);
+          const optionHtml = (r) => `<option value="${r.role_key}">${r.display_name}</option>`;
+          const groupHtml = (label, list) => list.length
+            ? `<optgroup label="${label}">${list.map(optionHtml).join("")}</optgroup>` : "";
+          sel.innerHTML = groupHtml("System Roles", systemRoles) + groupHtml("Custom Roles", customRoles);
+        } catch (e) {
+          // Non-critical — select just stays empty if role configs unavailable
+        }
+      }
+
+      // ── INIT ─────────────────────────────────────────────────────────────
+      (async () => {
+        await window.FINEMARK_APP.requirePageAccess();
+        isAdmin = window.FINEMARK_APP.getSession()?.user?.role === "Admin";
+        if (!empId) { window.location.href = "hr-employees.html"; return; }
+        await loadEmployee();
+        // Show M365 tab to admins only
+        if (isAdmin) {
+          document.getElementById("m365-tab-btn").classList.remove("hidden");
+          await populateErpRoleSelect();
+
+          // Work email edit
+          document.getElementById("btn-edit-work-email").addEventListener("click", () => {
+            document.getElementById("work-email-display").classList.add("hidden");
+            document.getElementById("work-email-edit").classList.remove("hidden");
+            document.getElementById("work-email-input").focus();
+          });
+          document.getElementById("btn-cancel-work-email").addEventListener("click", () => {
+            document.getElementById("work-email-edit").classList.add("hidden");
+            document.getElementById("work-email-display").classList.remove("hidden");
+          });
+          document.getElementById("btn-save-work-email").addEventListener("click", async () => {
+            const btn = document.getElementById("btn-save-work-email");
+            const email = document.getElementById("work-email-input").value.trim();
+            btn.disabled = true; btn.textContent = "Saving…";
+            try {
+              await window.FINEMARK_APP.apiFetch(`/hr/employees/${empId}/work-email`, {
+                method: "PATCH",
+                body: { workEmail: email || null },
+              });
+              document.getElementById("work-email-val").textContent = email || "—";
+              empData.workEmail = email || null;
+              document.getElementById("work-email-edit").classList.add("hidden");
+              document.getElementById("work-email-display").classList.remove("hidden");
+              // Show/hide create button
+              if (!empData.userAccountId && email) {
+                document.getElementById("btn-create-erp-user").classList.remove("hidden");
+              } else if (!email) {
+                document.getElementById("btn-create-erp-user").classList.add("hidden");
+              }
+            } catch (err) {
+              alert(err?.message || "Failed to update work email.");
+            } finally {
+              btn.disabled = false; btn.textContent = "Save";
+            }
+          });
+
+          // Create ERP User button → open modal
+          document.getElementById("btn-create-erp-user").addEventListener("click", () => {
+            const modal = document.getElementById("erp-user-modal");
+            document.getElementById("erp-modal-email").textContent = empData.workEmail || empData.email || "—";
+            document.getElementById("erp-modal-name").textContent = empData.fullName || "—";
+            document.getElementById("erp-modal-role").value = "HR";
+            document.getElementById("erp-modal-password").value = generatePassword();
+            document.getElementById("erp-modal-error").textContent = "";
+            modal.classList.remove("hidden");
+          });
+          document.getElementById("erp-modal-cancel").addEventListener("click", () => {
+            document.getElementById("erp-user-modal").classList.add("hidden");
+          });
+          document.getElementById("erp-modal-cancel2").addEventListener("click", () => {
+            document.getElementById("erp-user-modal").classList.add("hidden");
+          });
+          document.getElementById("erp-modal-generate").addEventListener("click", () => {
+            document.getElementById("erp-modal-password").value = generatePassword();
+          });
+          document.getElementById("erp-modal-copy").addEventListener("click", () => {
+            navigator.clipboard.writeText(document.getElementById("erp-modal-password").value);
+          });
+          document.getElementById("erp-modal-submit").addEventListener("click", async () => {
+            const btn = document.getElementById("erp-modal-submit");
+            const role = document.getElementById("erp-modal-role").value;
+            const tempPassword = document.getElementById("erp-modal-password").value.trim();
+            const forceReset = document.getElementById("erp-modal-force-reset").checked;
+            const errEl = document.getElementById("erp-modal-error");
+            errEl.textContent = "";
+            if (!tempPassword || tempPassword.length < 8) { errEl.textContent = "Password must be at least 8 characters."; return; }
+            btn.disabled = true; btn.textContent = "Creating…";
+            try {
+              const result = await window.FINEMARK_APP.apiFetch(`/hr/employees/${empId}/create-user`, {
+                method: "POST",
+                body: { role, tempPassword, forcePasswordReset: forceReset },
+              });
+              document.getElementById("erp-user-modal").classList.add("hidden");
+              // Update UI
+              empData.userAccountId = result.userId || true;
+              document.getElementById("erp-badge").classList.remove("hidden");
+              document.getElementById("btn-create-erp-user").classList.add("hidden");
+              document.getElementById("erp-none-msg").classList.add("hidden");
+              document.getElementById("erp-user-info").classList.remove("hidden");
+              document.getElementById("erp-login-email").textContent = result.loginEmail || empData.workEmail || empData.email;
+              document.getElementById("erp-role").textContent = result.role || role;
+              document.getElementById("erp-status").textContent = "Active";
+              // Show success with temp password
+              const banner = document.getElementById("erp-success-banner");
+              document.getElementById("erp-success-email").textContent = result.loginEmail || empData.workEmail;
+              document.getElementById("erp-success-password").textContent = tempPassword;
+              banner.classList.remove("hidden");
+            } catch (err) {
+              errEl.textContent = err?.message || "Failed to create ERP user.";
+            } finally {
+              btn.disabled = false; btn.textContent = "Create Account";
+            }
+          });
+          document.getElementById("erp-success-close").addEventListener("click", () => {
+            document.getElementById("erp-success-banner").classList.add("hidden");
+          });
+        }
+      })();
+    </script>
+    <!-- ── ERP USER CREATION MODAL ──────────────────────────── -->
+    <div id="erp-user-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-base font-semibold text-slate-900">Create ERP User Account</h2>
+          <button id="erp-modal-cancel" class="text-slate-400 hover:text-slate-600">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="space-y-1 text-sm bg-slate-50 rounded-lg px-4 py-3">
+          <div><span class="text-slate-500">Employee:</span> <span id="erp-modal-name" class="font-medium text-slate-800">—</span></div>
+          <div><span class="text-slate-500">Login Email:</span> <span id="erp-modal-email" class="font-medium text-violet-700">—</span></div>
+        </div>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">ERP Role</label>
+            <!-- Options populated dynamically by populateErpRoleSelect() from role_configs -->
+            <select id="erp-modal-role" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-violet-400">
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-slate-700">Temporary Password</label>
+            <div class="flex flex-wrap items-center gap-2">
+              <input id="erp-modal-password" type="text" class="flex-1 rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-violet-400" placeholder="At least 8 characters" />
+              <button id="erp-modal-generate" type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">Generate</button>
+              <button id="erp-modal-copy" type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">Copy</button>
+            </div>
+          </div>
+          <label class="flex items-center gap-2 text-sm text-slate-600">
+            <input id="erp-modal-force-reset" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-violet-600" checked />
+            Require password reset on first login
+          </label>
+        </div>
+        <p id="erp-modal-error" class="text-xs text-rose-600"></p>
+        <div class="flex justify-end gap-3 pt-2">
+          <button id="erp-modal-cancel2" type="button" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
+          <button id="erp-modal-submit" type="button" class="rounded-lg bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 text-sm font-medium transition-colors">Create Account</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ERP creation success banner -->
+    <div id="erp-success-banner" class="hidden fixed bottom-6 right-6 z-50 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 shadow-lg max-w-sm space-y-2">
+      <div class="flex items-center justify-between gap-3">
+        <p class="text-sm font-semibold text-emerald-800">ERP Account Created</p>
+        <button id="erp-success-close" class="text-emerald-500 hover:text-emerald-700">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <p class="text-xs text-emerald-700">Login: <strong id="erp-success-email"></strong></p>
+      <p class="text-xs text-emerald-700">Temp Password: <code id="erp-success-password" class="font-mono bg-emerald-100 px-1 rounded"></code></p>
+      <p class="text-xs text-emerald-600 italic">Save this password — it won't be shown again.</p>
+    </div>
+
+  </body>
+</html>

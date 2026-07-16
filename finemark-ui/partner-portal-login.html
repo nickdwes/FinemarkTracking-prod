@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark Partner Portal</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen flex items-center justify-center p-4 antialiased">
+
+    <div class="w-full max-w-md">
+      <!-- Logo / Branding -->
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600 shadow-lg mb-4">
+          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+        </div>
+        <h1 class="text-2xl font-bold text-white">Partner Portal</h1>
+        <p class="text-slate-400 text-sm mt-1">Finemark Tracking Systems</p>
+      </div>
+
+      <!-- Card -->
+      <div class="bg-white rounded-2xl shadow-2xl overflow-hidden">
+
+        <!-- Step 1: Password -->
+        <div id="step-password" class="p-8">
+          <h2 class="text-xl font-semibold text-slate-900 mb-1">Sign in</h2>
+          <p class="text-sm text-slate-500 mb-6">Enter your portal credentials.</p>
+
+          <form id="form-password" class="space-y-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1.5">Email address</label>
+              <input id="email" type="email" required autocomplete="email"
+                class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition"
+                placeholder="you@partnerorg.com" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1.5">Password</label>
+              <input id="password" type="password" required autocomplete="current-password"
+                class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition"
+                placeholder="••••••••" />
+              <div class="mt-1.5 text-right">
+                <a href="partner-portal-forgot-password.html" class="text-xs font-medium text-blue-600 hover:text-blue-700">Forgot password?</a>
+              </div>
+            </div>
+            <div id="err-password" class="hidden rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700"></div>
+            <button type="submit" id="btn-login"
+              class="w-full rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors shadow disabled:opacity-60">
+              Continue →
+            </button>
+          </form>
+        </div>
+
+        <!-- Step 2: OTP -->
+        <div id="step-otp" class="hidden p-8">
+          <h2 class="text-xl font-semibold text-slate-900 mb-1">Verify your identity</h2>
+          <p id="otp-hint" class="text-sm text-slate-500 mb-6">Enter the 6-digit code sent to your email.</p>
+
+          <form id="form-otp" class="space-y-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1.5">Verification Code</label>
+              <input id="otp" type="text" required inputmode="numeric" maxlength="6" pattern="\d{6}"
+                class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-center text-xl tracking-[0.5em] font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition"
+                placeholder="000000" />
+              <p id="dev-otp-hint" class="hidden text-xs text-amber-600 mt-1.5 text-center font-medium"></p>
+            </div>
+            <div id="dev-otp-banner" class="hidden rounded-xl border-2 border-dashed border-amber-400 bg-amber-50 px-4 py-3">
+              <p class="text-xs font-bold text-amber-700 uppercase tracking-wide mb-1">⚠ Dev Mode — OTP Code</p>
+              <p class="font-mono text-2xl font-bold text-amber-800 tracking-[0.4em] text-center" id="dev-otp-code">——————</p>
+              <p class="text-xs text-amber-600 text-center mt-1">This banner is only shown in test mode</p>
+            </div>
+            <div id="err-otp" class="hidden rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700"></div>
+            <button type="submit" id="btn-verify"
+              class="w-full rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors shadow disabled:opacity-60">
+              Verify & Sign In
+            </button>
+            <button type="button" id="btn-back"
+              class="w-full rounded-xl border border-slate-200 py-3 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+              ← Back
+            </button>
+          </form>
+        </div>
+
+      </div>
+
+      <p class="text-center text-xs text-slate-500 mt-6">
+        &copy; 2025 Finemark Tracking Systems · Secure Partner Access
+      </p>
+    </div>
+
+    <script>
+      const API = "/api";
+
+      // Redirect if already logged in
+      const existing = localStorage.getItem("finemark_partner_session");
+      if (existing) {
+        try {
+          const s = JSON.parse(existing);
+          if (s.accessToken && new Date(s.expiresAt) > new Date()) {
+            location.href = "partner-portal-dashboard.html";
+          }
+        } catch (_) { localStorage.removeItem("finemark_partner_session"); }
+      }
+
+      let pendingUserId = null;
+
+      document.getElementById("form-password").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const errEl = document.getElementById("err-password");
+        errEl.classList.add("hidden");
+        const btn = document.getElementById("btn-login");
+        btn.disabled = true;
+        btn.textContent = "Signing in…";
+
+        try {
+          const r = await fetch(`${API}/partner-portal/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: document.getElementById("email").value.trim(),
+              password: document.getElementById("password").value,
+            }),
+          });
+          const data = await r.json();
+          if (!r.ok) throw new Error(data.message || "Invalid credentials");
+
+          pendingUserId = data.data?.userId || data.userId;
+          document.getElementById("otp-hint").textContent = data.data?.message || data.message || "Enter the 6-digit code sent to your email.";
+
+          // Dev mode: show OTP banner
+          const devOtp = data.data?.devOtp || data.devOtp;
+          if (devOtp) {
+            document.getElementById("dev-otp-hint").textContent = `[DEV] OTP: ${devOtp}`;
+            document.getElementById("dev-otp-hint").classList.remove("hidden");
+            document.getElementById("dev-otp-code").textContent = devOtp;
+            document.getElementById("dev-otp-banner").classList.remove("hidden");
+            // Auto-fill the input for convenience
+            document.getElementById("otp").value = devOtp;
+          }
+
+          document.getElementById("step-password").classList.add("hidden");
+          document.getElementById("step-otp").classList.remove("hidden");
+          document.getElementById("otp").focus();
+        } catch (err) {
+          errEl.textContent = err.message || "Sign in failed. Please try again.";
+          errEl.classList.remove("hidden");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Continue →";
+        }
+      });
+
+      document.getElementById("form-otp").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const errEl = document.getElementById("err-otp");
+        errEl.classList.add("hidden");
+        const btn = document.getElementById("btn-verify");
+        btn.disabled = true;
+        btn.textContent = "Verifying…";
+
+        try {
+          const r = await fetch(`${API}/partner-portal/auth/verify-otp`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: pendingUserId,
+              otp: document.getElementById("otp").value.trim(),
+            }),
+          });
+          const data = await r.json();
+          if (!r.ok) throw new Error(data.message || "Invalid or expired code");
+
+          const session = data.data || data;
+          localStorage.setItem("finemark_partner_session", JSON.stringify({
+            accessToken: session.accessToken,
+            expiresAt: session.expiresAt,
+            user: session.user,
+          }));
+
+          location.href = "partner-portal-dashboard.html";
+        } catch (err) {
+          errEl.textContent = err.message || "Verification failed.";
+          errEl.classList.remove("hidden");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Verify & Sign In";
+        }
+      });
+
+      document.getElementById("btn-back").addEventListener("click", () => {
+        pendingUserId = null;
+        document.getElementById("otp").value = "";
+        document.getElementById("dev-otp-hint").classList.add("hidden");
+        document.getElementById("err-otp").classList.add("hidden");
+        document.getElementById("step-otp").classList.add("hidden");
+        document.getElementById("step-password").classList.remove("hidden");
+      });
+    </script>
+  </body>
+</html>

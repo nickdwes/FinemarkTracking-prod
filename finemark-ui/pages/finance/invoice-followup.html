@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invoice Follow-up - FineMark Tracking</title>
+    <link rel="icon" href="../../assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="../../assets/tailwind.css" />
+    <link rel="stylesheet" href="../../assets/font-awesome.min.css" />
+    <style>
+      .hover-lift {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      .hover-lift:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+      }
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 9999px;
+        padding: 2px 8px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .status-completed {
+        background: #dcfce7;
+        color: #166534;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+
+        <div class="max-w-6xl mx-auto space-y-6">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 class="text-2xl font-semibold text-slate-900">Invoice Follow-up</h1>
+              <p class="text-sm text-slate-600">Monitor overdue invoices and outreach.</p>
+            </div>
+            <a href="finance-dashboard.html" class="text-sm text-blue-600 hover:underline">← Back to Finance Dashboard</a>
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+            <div class="flex flex-wrap gap-3 items-center">
+              <input
+                type="search"
+                aria-label="Search invoices"
+                placeholder="Search invoice, client"
+                id="invoice-search"
+                class="w-full sm:w-64 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+              />
+              <select
+                aria-label="Filter by status"
+                id="invoice-status"
+                class="w-full sm:w-48 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+              >
+                <option value="all">All Statuses</option>
+                <option value="Overdue">Overdue</option>
+                <option value="Pending">Pending</option>
+                <option value="Paid">Paid</option>
+              </select>
+              <select
+                aria-label="Filter by age bucket"
+                id="invoice-age"
+                class="w-full sm:w-48 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+              >
+                <option value="all">All Ages</option>
+                <option value="0-30">0-30 days</option>
+                <option value="31-60">31-60 days</option>
+                <option value="61-90">61-90 days</option>
+                <option value="90+">90+ days</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100">
+              <h2 class="text-sm font-semibold text-slate-900">All Invoices</h2>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="text-xs text-slate-500 uppercase bg-slate-50">
+                  <tr>
+                    <th class="py-3 px-4 text-left font-semibold">Invoice ID</th>
+                    <th class="py-3 px-4 text-left font-semibold">Client</th>
+                    <th class="py-3 px-4 text-left font-semibold">Amount</th>
+                    <th class="py-3 px-4 text-left font-semibold">Due Date</th>
+                    <th class="py-3 px-4 text-left font-semibold">Age</th>
+                    <th class="py-3 px-4 text-left font-semibold">Status</th>
+                    <th class="py-3 px-4 text-left font-semibold">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="invoice-body" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      
+  </main>
+</div>
+<div id="fm-footer"></div>
+<script src="../../assets/contracts.js"></script>
+<script src="../../assets/app.js"></script>
+<script src="../../assets/layout.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    window.FINEMARK_APP?.requirePageAccess?.();
+  });
+</script>
+<script>
+      const formatKES = (value) =>
+        window.FINEMARK_APP?.formatKES ? window.FINEMARK_APP.formatKES(value) : `KES ${Number(value || 0).toLocaleString("en-KE")}`;
+
+      const searchInput = document.getElementById("invoice-search");
+      const statusFilter = document.getElementById("invoice-status");
+      const ageFilter = document.getElementById("invoice-age");
+      const tableBody = document.getElementById("invoice-body");
+
+      const statusBadge = (status) => {
+        const styles = {
+          Paid: "bg-emerald-50 text-emerald-700",
+          Overdue: "bg-rose-50 text-rose-700",
+          Issued: "bg-amber-50 text-amber-700",
+          PartiallyPaid: "bg-amber-50 text-amber-700",
+          Draft: "bg-slate-100 text-slate-700",
+          Cancelled: "bg-slate-100 text-slate-600",
+        };
+        const cls = styles[status] || "bg-slate-100 text-slate-700";
+        const label = status === "Issued" ? "Pending" : status;
+        return `<span class="status-badge ${cls}">${label}</span>`;
+      };
+
+      const getAgeDays = (dueOn) => {
+        if (!dueOn) return 0;
+        const due = new Date(dueOn);
+        const now = new Date();
+        const diff = Math.floor((now.getTime() - due.getTime()) / 86400000);
+        return Math.max(diff, 0);
+      };
+
+      const matchesAgeBucket = (days, bucket) => {
+        if (bucket === "all") return true;
+        if (bucket === "0-30") return days >= 0 && days <= 30;
+        if (bucket === "31-60") return days >= 31 && days <= 60;
+        if (bucket === "61-90") return days >= 61 && days <= 90;
+        if (bucket === "90+") return days >= 90;
+        return true;
+      };
+
+      const matchesStatus = (invoice, status) => {
+        if (status === "all") return true;
+        if (status === "Pending") return ["Issued", "PartiallyPaid", "Overdue", "Draft"].includes(invoice.status);
+        return invoice.status === status;
+      };
+
+      const renderInvoices = (invoices) => {
+        if (!invoices.length) {
+          tableBody.innerHTML = `<tr><td class="py-4 px-4 text-slate-500" colspan="7">No invoices found.</td></tr>`;
+          return;
+        }
+        tableBody.innerHTML = invoices
+          .map((invoice) => {
+            const ageDays = getAgeDays(invoice.dueOn);
+            const ageColor = ageDays > 60 ? "text-rose-600" : ageDays > 30 ? "text-amber-600" : "text-slate-500";
+            return `
+              <tr data-id="${invoice.id}">
+                <td class="py-3 px-4 font-medium text-slate-900">${invoice.invoiceNumber || invoice.id}</td>
+                <td class="py-3 px-4">${invoice.customer || "—"}</td>
+                <td class="py-3 px-4 font-medium">${formatKES(invoice.amount)}</td>
+                <td class="py-3 px-4 text-slate-500">${invoice.dueOn || "—"}</td>
+                <td class="py-3 px-4 ${ageColor}">${ageDays} days</td>
+                <td class="py-3 px-4">${statusBadge(invoice.status)}</td>
+                <td class="py-3 px-4">
+                  <div class="flex items-center gap-2">
+                    <select class="status-select rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-700">
+                      <option value="Pending" ${["Issued", "PartiallyPaid", "Overdue", "Draft"].includes(invoice.status) ? "selected" : ""}>Pending</option>
+                      <option value="Paid" ${invoice.status === "Paid" ? "selected" : ""}>Paid</option>
+                    </select>
+                    <button class="status-save rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50">
+                      Update
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            `;
+          })
+          .join("");
+      };
+
+      const loadInvoices = async () => {
+        const response = await window.FINEMARK_APP.apiFetch("/invoices?page=1&pageSize=200");
+        return response.data || [];
+      };
+
+      const applyFilters = async () => {
+        try {
+          const invoices = await loadInvoices();
+          const search = searchInput.value.trim().toLowerCase();
+          const statusValue = statusFilter.value;
+          const ageValue = ageFilter.value;
+          const filtered = invoices.filter((invoice) => {
+            const ageDays = getAgeDays(invoice.dueOn);
+            const matchesSearch =
+              !search ||
+              (invoice.invoiceNumber || "").toLowerCase().includes(search) ||
+              (invoice.customer || "").toLowerCase().includes(search);
+            return matchesSearch && matchesStatus(invoice, statusValue) && matchesAgeBucket(ageDays, ageValue);
+          });
+          renderInvoices(filtered);
+        } catch (error) {
+          window.FINEMARK_APP.showToast(error.message || "Failed to load invoices", "error");
+          tableBody.innerHTML = `<tr><td class="py-4 px-4 text-rose-600" colspan="7">Failed to load invoices.</td></tr>`;
+        }
+      };
+
+      tableBody.addEventListener("click", async (event) => {
+        const button = event.target.closest(".status-save");
+        if (!button) return;
+        const row = button.closest("tr");
+        if (!row) return;
+        const id = row.dataset.id;
+        const select = row.querySelector(".status-select");
+        const desired = select.value;
+        const status = desired === "Paid" ? "Paid" : "Issued";
+        try {
+          button.disabled = true;
+          await window.FINEMARK_APP.apiFetch(`/invoices/${id}`, { method: "PATCH", body: { status } });
+          window.FINEMARK_APP.showToast("Invoice status updated", "success");
+          await applyFilters();
+        } catch (error) {
+          window.FINEMARK_APP.showToast(error.message || "Failed to update invoice", "error");
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      ["input", "change"].forEach((eventName) => {
+        searchInput.addEventListener(eventName, applyFilters);
+        statusFilter.addEventListener(eventName, applyFilters);
+        ageFilter.addEventListener(eventName, applyFilters);
+      });
+
+      applyFilters();
+    </script>
+</body>
+</html>

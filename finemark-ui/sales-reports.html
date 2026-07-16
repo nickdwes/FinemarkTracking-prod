@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Sales Reports</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    .tab-btn{padding:.4rem 1rem;border-radius:.5rem;font-size:.8rem;font-weight:500;color:#475569;transition:all .15s;white-space:nowrap;cursor:pointer;}
+    .tab-btn:hover{background:#fff;color:#0f172a;}
+    .tab-btn.active{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);color:#0f172a;font-weight:700;}
+    .badge{display:inline-flex;align-items:center;border-radius:9999px;padding:.15rem .6rem;font-size:.7rem;font-weight:600;border-width:1px;}
+    .badge-all{background:#eef2ff;color:#4338ca;border-color:#c7d2fe;}
+    .badge-team{background:#fff7ed;color:#c2410c;border-color:#fed7aa;}
+    .badge-own{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}
+    table.report-table th{position:sticky;top:0;background:#f8fafc;text-align:left;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:#64748b;padding:.55rem .75rem;border-bottom:1px solid #e2e8f0;}
+    table.report-table td{padding:.55rem .75rem;font-size:.8rem;border-bottom:1px solid #f1f5f9;color:#334155;}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-3 sm:p-6 min-w-0 space-y-5">
+
+    <div class="flex flex-wrap items-center gap-3 justify-between">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Sales Reports</h1>
+        <p class="text-sm text-slate-500 mt-0.5">Search, filter, and export live sales data across every dataset.</p>
+      </div>
+      <span id="scope-badge" class="badge badge-own">Loading…</span>
+    </div>
+
+    <!-- Report type tabs -->
+    <div id="report-tabs" class="flex items-center gap-1 rounded-xl bg-slate-100 p-1 overflow-x-auto"></div>
+
+    <!-- Filter bar -->
+    <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+      <div id="filter-fields" class="grid gap-3 md:grid-cols-4"></div>
+      <div class="flex flex-wrap items-center gap-3">
+        <button id="btn-apply" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Apply</button>
+        <button id="btn-reset" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Reset</button>
+        <button id="btn-export" class="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100">Export CSV</button>
+        <div class="relative">
+          <button id="btn-columns" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/></svg>
+            Columns
+          </button>
+          <div id="columns-panel" class="hidden absolute right-0 z-20 mt-2 w-72 max-h-96 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg p-3 space-y-1">
+            <div class="flex items-center justify-between pb-2 mb-1 border-b border-slate-100">
+              <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Show columns</span>
+              <div class="flex gap-2">
+                <button id="cols-all" class="text-xs font-medium text-blue-600 hover:text-blue-800">All</button>
+                <button id="cols-default" class="text-xs font-medium text-blue-600 hover:text-blue-800">Default</button>
+              </div>
+            </div>
+            <div id="columns-list" class="space-y-1"></div>
+          </div>
+        </div>
+        <span id="result-count" class="text-xs text-slate-500 ml-auto"></span>
+      </div>
+    </div>
+
+    <!-- Results table -->
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      <div class="overflow-x-auto max-h-[560px]">
+        <table class="report-table min-w-full">
+          <thead id="table-head"></thead>
+          <tbody id="table-body"><tr><td class="text-center py-10 text-slate-400">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div id="pagination" class="flex items-center justify-between gap-3 px-4 py-3 border-t border-slate-100 text-xs text-slate-500"></div>
+    </div>
+
+  </main>
+</div>
+
+<div id="fm-footer"></div>
+
+<script src="assets/app.js?v=202607111100"></script>
+<script src="assets/layout.js?v=202607111100"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  window.FINEMARK_APP?.requirePageAccess?.();
+  init();
+});
+
+const APP = window.FINEMARK_APP;
+const $ = (id) => document.getElementById(id);
+const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// ── Report configs — one engine drives every dataset; adding a new report
+// type later is just another entry here, no new page/route needed. ─────────
+const REPORTS = {
+  "corp-leads": {
+    label: "Corporate Leads",
+    endpoint: "/sales-intelligence/leads",
+    searchPlaceholder: "Customer, lead no, phone, email",
+    // Keyed to exactly match a column key (see `columns` below) — the filter
+    // bar only shows a filter for a column that's both defined here AND
+    // currently checked in the Columns picker, so hiding a column also hides
+    // its filter and vice versa. `select` options are hardcoded only where
+    // the underlying value is a genuine closed enum in the backend code;
+    // everything else (free text, partner names, etc.) stays a `text` filter
+    // with a partial (ILIKE) match server-side.
+    filterDefs: {
+      status: { type: "select", options: ["New", "Qualified", "Converted", "Disqualified"] },
+      leadSource: { type: "text", placeholder: "e.g. Field sales, Referral" },
+      customerType: { type: "select", options: [["new_customer", "New Customer"], ["existing_customer", "Existing Customer"]] },
+      customerSegment: { type: "text", placeholder: "e.g. SME, Enterprise" },
+      region: { type: "text", placeholder: "e.g. Nairobi" },
+      productCategory: { type: "text", placeholder: "e.g. Fuel Management" },
+      partnerName: { type: "text", placeholder: "Partner name" },
+      quoteStatus: { type: "text", placeholder: "e.g. Draft, Sent, Accepted" },
+      proformaStatus: { type: "text", placeholder: "e.g. Approved, Rejected" },
+      invoiceStatus: { type: "select", options: ["Paid", "Unpaid", "PartiallyPaid", "Overdue", "Pending"] },
+      installationStatus: { type: "select", options: ["Pending", "Assigned", "In Progress", "Completed", "Closed"] },
+      technician: { type: "text", placeholder: "Technician name or email" },
+      isoAssigned: { type: "text", placeholder: "ISO name or email" },
+    },
+    // Full catalog of every field the lead's pipeline can surface — the
+    // Columns picker lets a user show/hide any of these; defaultCols below is
+    // just the initial view, not a limit on what's available.
+    columns: [
+      ["leadNo", "Lead No"], ["customerName", "Customer"], ["companyName", "Company"],
+      ["phone", "Phone"], ["email", "Email"], ["idNumber", "ID/PIN No"],
+      ["status", "Status"], ["leadSource", "Source"], ["customerType", "Type"],
+      ["customerSegment", "Segment"], ["region", "Region"], ["address", "Address"],
+      ["fleetSize", "Fleet Size"], ["productCategory", "Product"], ["partnerName", "Partner"],
+      ["quoteNo", "Quotation"], ["quoteStatus", "Quote Status"], ["quoteAmount", "Quote Amount (KES)"], ["loanTermMonths", "Loan Term (Months)"],
+      ["proformaNo", "Proforma"], ["proformaStatus", "Proforma Status"],
+      ["invoiceNo", "Invoice"], ["invoiceStatus", "Invoice Status"], ["invoiceAmount", "Invoice Amount (KES)"], ["invoicePaid", "Invoice Paid"],
+      ["ticketNo", "Vehicle Ticket"], ["installationStatus", "Installation Status"], ["installationDate", "Installation Date"], ["vehicleRegistration", "Vehicle Reg"],
+      ["technician", "Technician"], ["isoAssigned", "ISO"],
+      ["salesRep", "Sales Rep"], ["assignedTo", "Assigned To"],
+      ["leadDate", "Lead Date"], ["expectedCloseDate", "Expected Close"], ["createdAt", "Created"], ["convertedAt", "Converted"],
+    ],
+    defaultCols: [
+      "leadNo", "customerName", "phone", "status", "leadSource",
+      "quoteNo", "loanTermMonths", "proformaNo", "invoiceNo", "invoiceStatus", "invoicePaid",
+      "ticketNo", "installationStatus", "installationDate", "technician", "isoAssigned", "region", "customerSegment", "salesRep", "leadDate",
+    ],
+    money: ["quoteAmount", "invoiceAmount"],
+  },
+  "retail-leads": {
+    label: "Retail Leads",
+    endpoint: "/sales-intelligence/retail-leads",
+    searchPlaceholder: "Customer, lead no, phone, email",
+    // Same breadth as Corporate Leads — filters only appear for a column
+    // that's both defined here and currently checked in the Columns picker.
+    filterDefs: {
+      status: { type: "text", placeholder: "e.g. New, Submitted, completed" },
+      leadSource: { type: "text", placeholder: "e.g. Bank Partnership, Direct" },
+      customerType: { type: "select", options: [["new_customer", "New Customer"], ["existing_customer", "Existing Customer"]] },
+      customerEntityType: { type: "select", options: [["individual", "Individual"], ["corporate", "Corporate"]] },
+      region: { type: "text", placeholder: "e.g. Nairobi" },
+      partnerName: { type: "text", placeholder: "Partner name" },
+      bankPartnerName: { type: "text", placeholder: "Bank partner name" },
+      productName: { type: "text", placeholder: "Product name" },
+      installationFinancer: { type: "text", placeholder: "e.g. Bank, Self" },
+      vehicleCategory: { type: "select", options: [["motor_vehicle", "Motor Vehicle"], ["motorcycle", "Motorcycle"], ["tractor", "Tractor"], ["tuktuk", "Tuktuk"], ["special_equipment", "Special Equipment"]] },
+      quoteStatus: { type: "text", placeholder: "e.g. Draft, Sent, Accepted" },
+      proformaStatus: { type: "text", placeholder: "e.g. Approved, Rejected" },
+      invoiceStatus: { type: "select", options: ["Paid", "Unpaid", "PartiallyPaid", "Overdue", "Pending"] },
+      installationStatus: { type: "select", options: ["Pending", "Assigned", "In Progress", "Completed", "Closed"] },
+      technician: { type: "text", placeholder: "Technician name or email" },
+      isoAssigned: { type: "text", placeholder: "ISO name or email" },
+    },
+    columns: [
+      ["leadNo", "Lead No"], ["customerName", "Customer"], ["customerType", "Customer Type"], ["customerEntityType", "Entity Type"],
+      ["phone", "Phone"], ["email", "Email"], ["region", "Region"],
+      ["status", "Status"], ["leadSource", "Source"],
+      ["partnerName", "Partner"], ["secondaryPartnerName", "Secondary Partner"], ["bankPartnerName", "Bank Partner"],
+      ["referrerName", "Referrer"], ["referrerPhone", "Referrer Phone"],
+      ["productName", "Product"], ["installationFinancer", "Financer"],
+      ["installationContactName", "Install Contact"], ["installationContactPhone", "Install Contact Phone"], ["locationDescription", "Location"],
+      ["loanTermMonths", "Loan Term (Months)"],
+      ["vehicleRegistration", "Vehicle Reg"], ["vehicleMake", "Make"], ["vehicleModel", "Model"], ["vehicleCategory", "Category"],
+      ["quoteNo", "Quotation"], ["quoteStatus", "Quote Status"], ["quoteAmount", "Quote Amount (KES)"],
+      ["proformaNo", "Proforma"], ["proformaStatus", "Proforma Status"],
+      ["invoiceNo", "Invoice"], ["invoiceStatus", "Invoice Status"], ["invoiceAmount", "Invoice Amount (KES)"], ["invoicePaid", "Invoice Paid"],
+      ["ticketNo", "Vehicle Ticket"], ["installationStatus", "Installation Status"], ["installationDate", "Installation Date"],
+      ["technician", "Technician"], ["isoAssigned", "ISO"],
+      ["salesRep", "Sales Rep"], ["bdmName", "BDM"],
+      ["submittedAt", "Submitted"], ["createdAt", "Created"],
+    ],
+    defaultCols: [
+      "leadNo", "customerName", "phone", "status", "leadSource", "loanTermMonths",
+      "quoteNo", "invoiceNo", "invoiceStatus", "invoicePaid",
+      "ticketNo", "installationStatus", "installationDate", "technician", "isoAssigned", "salesRep", "createdAt",
+    ],
+    money: ["quoteAmount", "invoiceAmount"],
+  },
+  "quotes": {
+    label: "Quotes",
+    endpoint: "/sales-intelligence/quotes",
+    searchPlaceholder: "QTE-…",
+    filterDefs: {
+      status: { type: "text", placeholder: "e.g. Draft, Sent, Accepted" },
+    },
+    columns: [
+      ["quoteNo", "Quote No"], ["status", "Status"], ["totalAmount", "Amount (KES)"], ["loanTermMonths", "Loan Term (Months)"],
+      ["salesRep", "Sales Rep"], ["createdAt", "Created"], ["expiryDate", "Expires"],
+    ],
+    money: ["totalAmount"],
+  },
+  "invoices": {
+    label: "Invoices",
+    endpoint: "/sales-intelligence/invoices",
+    searchPlaceholder: "INV-… or customer name",
+    filterDefs: {
+      status: { type: "select", options: ["Paid", "Unpaid", "PartiallyPaid", "Overdue", "Pending"] },
+    },
+    columns: [
+      ["invoiceNumber", "Invoice No"], ["customer", "Customer"], ["status", "Status"],
+      ["amount", "Amount (KES)"], ["salesPerson", "Sales Person"], ["issuedOn", "Issued"], ["dueOn", "Due"],
+    ],
+    money: ["amount"],
+  },
+  "customers": {
+    label: "Customers",
+    endpoint: "/sales-intelligence/customers",
+    searchPlaceholder: "Customer name or CST-…",
+    filterDefs: {
+      status: { type: "text", placeholder: "e.g. Active, Inactive" },
+      type: { type: "select", options: [["individual", "Individual"], ["corporate", "Corporate"]] },
+      region: { type: "text", placeholder: "e.g. Nairobi" },
+    },
+    columns: [
+      ["accountNo", "Account No"], ["displayName", "Name"], ["type", "Type"],
+      ["status", "Status"], ["region", "Region"], ["accountManager", "Account Manager"], ["createdAt", "Created"],
+    ],
+  },
+  "communications": {
+    label: "Communications",
+    endpoint: "/sales-intelligence/communications",
+    searchPlaceholder: "Contact name or subject",
+    filterDefs: {
+      channel: { type: "select", options: ["SMS", "WhatsApp", "Email", "Meeting", "Phone call"] },
+    },
+    columns: [
+      ["channel", "Channel"], ["direction", "Direction"], ["subject", "Subject"],
+      ["contactName", "Contact"], ["loggedBy", "Logged By"], ["contactedAt", "Contacted At"],
+    ],
+  },
+};
+
+let _activeReport = "corp-leads";
+let _page = 1;
+let _pageSize = 50;
+let _total = 0;
+
+// ── Configurable columns — per-report visible-column set, persisted per
+// browser so a user's chosen view survives reloads/tab switches. ──────────
+const COLS_STORAGE_KEY = (key) => `fm_sales_report_cols_${key}`;
+
+function defaultColsFor(key) {
+  const cfg = REPORTS[key];
+  return cfg.defaultCols || cfg.columns.map(([k]) => k);
+}
+
+function visibleColsFor(key) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(COLS_STORAGE_KEY(key)) || "null");
+    if (Array.isArray(saved) && saved.length) {
+      const validKeys = new Set(REPORTS[key].columns.map(([k]) => k));
+      const filtered = saved.filter((k) => validKeys.has(k));
+      if (filtered.length) return filtered;
+    }
+  } catch {}
+  return defaultColsFor(key);
+}
+
+function setVisibleColsFor(key, cols) {
+  localStorage.setItem(COLS_STORAGE_KEY(key), JSON.stringify(cols));
+}
+
+function activeColumns() {
+  const cfg = REPORTS[_activeReport];
+  const visible = new Set(visibleColsFor(_activeReport));
+  return cfg.columns.filter(([k]) => visible.has(k));
+}
+
+function renderColumnsPanel() {
+  const cfg = REPORTS[_activeReport];
+  const visible = new Set(visibleColsFor(_activeReport));
+  $("columns-list").innerHTML = cfg.columns.map(([key, label]) => `
+    <label class="flex items-center gap-2 px-1.5 py-1 rounded-lg hover:bg-slate-50 text-sm text-slate-700 cursor-pointer">
+      <input type="checkbox" data-col="${key}" ${visible.has(key) ? "checked" : ""}
+        class="rounded border-slate-300 text-slate-900 focus:ring-slate-400" />
+      ${escapeHtml(label)}
+    </label>`).join("");
+  $("columns-list").querySelectorAll("input[type=checkbox]").forEach((cb) => {
+    cb.addEventListener("change", (e) => {
+      const checkedBoxes = [...$("columns-list").querySelectorAll("input[type=checkbox]:checked")];
+      if (!checkedBoxes.length) { e.target.checked = true; return; } // keep at least one column visible
+      // Preserve the catalog's column order rather than click order.
+      const checked = checkedBoxes.map((c) => c.dataset.col);
+      const ordered = cfg.columns.map(([k]) => k).filter((k) => checked.includes(k));
+      setVisibleColsFor(_activeReport, ordered);
+      renderTableHead();
+      renderTableBody(_lastRows || []);
+      renderFilterFields(true);
+    });
+  });
+}
+
+// Search/From/To are universal (not tied to a single visible column — hiding
+// the "Lead Date" column shouldn't take away the ability to date-filter).
+// Every other filter only appears when its matching column (same key) is
+// both defined in filterDefs AND currently checked in the Columns picker.
+function activeFilterFields() {
+  const cfg = REPORTS[_activeReport];
+  const visible = new Set(visibleColsFor(_activeReport));
+  const fields = [{ id: "search", label: "Search", type: "text", placeholder: cfg.searchPlaceholder || "Search", span: 2 }];
+  cfg.columns.forEach(([key, label]) => {
+    const def = cfg.filterDefs?.[key];
+    if (def && visible.has(key)) fields.push({ id: key, label, ...def });
+  });
+  fields.push({ id: "from", label: "From", type: "date" });
+  fields.push({ id: "to", label: "To", type: "date" });
+  return fields;
+}
+
+function currentFilterValues() {
+  const values = {};
+  activeFilterFields().forEach((f) => {
+    const el = $(`f-${f.id}`);
+    if (el && el.value && el.value.trim()) values[f.id] = el.value.trim();
+  });
+  return values;
+}
+
+function snapshotFilterValues() {
+  const values = {};
+  document.querySelectorAll('#filter-fields [id^="f-"]').forEach((el) => {
+    if (el.value && el.value.trim()) values[el.id.slice(2)] = el.value;
+  });
+  return values;
+}
+
+function toQueryString(values, extra) {
+  const params = new URLSearchParams();
+  Object.entries(values).forEach(([k, v]) => params.set(k, v));
+  if (extra) Object.entries(extra).forEach(([k, v]) => params.set(k, v));
+  return params.toString();
+}
+
+function renderTabs() {
+  const wrap = $("report-tabs");
+  wrap.innerHTML = Object.entries(REPORTS).map(([key, cfg]) =>
+    `<button class="tab-btn${key === _activeReport ? " active" : ""}" data-report="${key}">${cfg.label}</button>`
+  ).join("");
+  wrap.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      _activeReport = btn.dataset.report;
+      _page = 1;
+      wrap.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      renderFilterFields();
+      loadReport();
+    });
+  });
+}
+
+function renderFilterFields(preserve) {
+  const preserved = preserve ? snapshotFilterValues() : {};
+  const fields = activeFilterFields();
+  $("filter-fields").innerHTML = fields.map((f) => {
+    const input = f.type === "select"
+      ? `<select id="f-${f.id}" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white">
+           <option value="">All</option>
+           ${f.options.map((o) => {
+             const [val, optLabel] = Array.isArray(o) ? o : [o, o];
+             return `<option value="${escapeHtml(val)}">${escapeHtml(optLabel)}</option>`;
+           }).join("")}
+         </select>`
+      : `<input id="f-${f.id}" type="${f.type}" placeholder="${escapeHtml(f.placeholder || "")}"
+           class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />`;
+    return `<div class="${f.span === 2 ? "md:col-span-2" : ""}">
+      <label class="text-xs font-semibold text-slate-600">${escapeHtml(f.label)}</label>
+      ${input}
+    </div>`;
+  }).join("");
+  Object.entries(preserved).forEach(([k, v]) => {
+    const el = $(`f-${k}`);
+    if (el) el.value = v;
+  });
+}
+
+function renderTableHead() {
+  const cols = activeColumns();
+  $("table-head").innerHTML = `<tr>${cols.map(([, label]) => `<th>${label}</th>`).join("")}</tr>`;
+}
+
+let _lastRows = [];
+
+// Detects raw date/timestamp strings (YYYY-MM-DD or ISO datetime, however
+// they arrive from Postgres/JSON) and renders them the same way the rest of
+// the app does ("13 Jul 2026" / "13 Jul 2026, 06:55") instead of leaving the
+// machine-readable string on screen. Left alone if it isn't actually a date.
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const DATETIME_RE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/;
+function formatDateValue(v) {
+  if (typeof v !== "string") return v;
+  if (!DATE_ONLY_RE.test(v) && !DATETIME_RE.test(v)) return v;
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return v;
+  if (DATE_ONLY_RE.test(v)) {
+    return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  }
+  return d.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+function renderTableBody(rows) {
+  const cfg = REPORTS[_activeReport];
+  const cols = activeColumns();
+  $("table-body").innerHTML = rows.length
+    ? rows.map((r) => `<tr class="hover:bg-slate-50/60">${cols.map(([key]) => {
+        const v = r[key];
+        const display = cfg.money?.includes(key)
+          ? Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 0 })
+          : formatDateValue(v);
+        return `<td>${escapeHtml(display ?? "—")}</td>`;
+      }).join("")}</tr>`).join("")
+    : `<tr><td colspan="${cols.length}" class="text-center py-10 text-slate-400">No results for this filter.</td></tr>`;
+}
+
+async function loadReport() {
+  const cfg = REPORTS[_activeReport];
+  renderTableHead();
+  renderColumnsPanel();
+  $("table-body").innerHTML = `<tr><td colspan="${activeColumns().length}" class="text-center py-10 text-slate-400">Loading…</td></tr>`;
+  try {
+    const qs = toQueryString(currentFilterValues(), { page: _page, pageSize: _pageSize });
+    const res = await APP.apiFetch(`${cfg.endpoint}?${qs}`);
+    renderScope(res.scope);
+    _lastRows = res?.data || [];
+    _total = res?.meta?.total || 0;
+    renderTableBody(_lastRows);
+    renderPagination();
+  } catch (e) {
+    $("table-body").innerHTML = `<tr><td colspan="${activeColumns().length}" class="text-center py-10 text-red-500">${escapeHtml(e?.message || "Failed to load report.")}</td></tr>`;
+  }
+}
+
+function renderScope(scope) {
+  const scopeMap = {
+    all: { label: "All Sales", cls: "badge-all" },
+    team: { label: "My Team", cls: "badge-team" },
+    own: { label: "My Records", cls: "badge-own" },
+  };
+  const s = scopeMap[scope] || scopeMap.own;
+  const el = $("scope-badge");
+  el.textContent = s.label;
+  el.className = `badge ${s.cls}`;
+}
+
+function renderPagination() {
+  const totalPages = Math.max(1, Math.ceil(_total / _pageSize));
+  $("result-count").textContent = `${_total} result${_total === 1 ? "" : "s"}`;
+  $("pagination").innerHTML = `
+    <span>Page ${_page} of ${totalPages}</span>
+    <div class="flex gap-2">
+      <button id="pg-prev" class="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40" ${_page <= 1 ? "disabled" : ""}>Prev</button>
+      <button id="pg-next" class="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40" ${_page >= totalPages ? "disabled" : ""}>Next</button>
+    </div>`;
+  $("pg-prev")?.addEventListener("click", () => { if (_page > 1) { _page--; loadReport(); } });
+  $("pg-next")?.addEventListener("click", () => { if (_page < totalPages) { _page++; loadReport(); } });
+}
+
+async function exportCsv() {
+  const cfg = REPORTS[_activeReport];
+  const qs = toQueryString(currentFilterValues());
+  const csvUrl = `${cfg.endpoint}.csv?${qs}`;
+  try {
+    const session = APP.getSession();
+    const resp = await fetch(`${APP.API_BASE}${csvUrl}`, { headers: { Authorization: `Bearer ${session?.accessToken || ""}` } });
+    if (!resp.ok) throw new Error("Export failed.");
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${_activeReport}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } catch (e) {
+    APP.showToast?.(e?.message || "Export failed.", "error");
+  }
+}
+
+function init() {
+  renderTabs();
+  renderFilterFields();
+  $("btn-apply").addEventListener("click", () => { _page = 1; loadReport(); });
+  $("btn-reset").addEventListener("click", () => { renderFilterFields(); _page = 1; loadReport(); });
+  $("btn-export").addEventListener("click", exportCsv);
+
+  $("btn-columns").addEventListener("click", (e) => {
+    e.stopPropagation();
+    $("columns-panel").classList.toggle("hidden");
+  });
+  $("columns-panel").addEventListener("click", (e) => e.stopPropagation());
+  document.addEventListener("click", () => $("columns-panel").classList.add("hidden"));
+  $("cols-all").addEventListener("click", () => {
+    setVisibleColsFor(_activeReport, REPORTS[_activeReport].columns.map(([k]) => k));
+    renderColumnsPanel(); renderTableHead(); renderTableBody(_lastRows); renderFilterFields(true);
+  });
+  $("cols-default").addEventListener("click", () => {
+    setVisibleColsFor(_activeReport, defaultColsFor(_activeReport));
+    renderColumnsPanel(); renderTableHead(); renderTableBody(_lastRows); renderFilterFields(true);
+  });
+
+  loadReport();
+}
+</script>
+</body>
+</html>

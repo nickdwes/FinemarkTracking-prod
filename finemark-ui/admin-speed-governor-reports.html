@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Speed Governor Reports</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-6xl mx-auto space-y-6">
+          <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h1 class="text-2xl font-semibold text-slate-900">Speed Governor Reports</h1>
+                <p class="text-sm text-slate-600">Overview of all speed governor installations</p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <button id="export-csv" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+                  Export CSV
+                </button>
+                <a href="admin-add-speed-governor.html" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                  Add New Speed Governor
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm shadow-slate-200/60">
+              <p class="text-xs text-slate-500">Total Installations</p>
+              <p id="kpi-total" class="mt-2 text-2xl font-semibold text-slate-900">0</p>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm shadow-slate-200/60">
+              <p class="text-xs text-slate-500">Installations This Month</p>
+              <p id="kpi-month" class="mt-2 text-2xl font-semibold text-slate-900">0</p>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm shadow-slate-200/60">
+              <p class="text-xs text-slate-500">Installations by Technicians</p>
+              <p id="kpi-techs" class="mt-2 text-2xl font-semibold text-slate-900">0</p>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm shadow-slate-200/60">
+              <p class="text-xs text-slate-500">Installations by Sales Persons</p>
+              <p id="kpi-sales" class="mt-2 text-2xl font-semibold text-slate-900">0</p>
+            </div>
+          </div>
+
+          <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm shadow-slate-200/60 space-y-4">
+            <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1" for="search-query">Search</label>
+                <input id="search-query" type="text" placeholder="Customer, registration, phone" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1" for="filter-technician">Technician</label>
+                <select id="filter-technician" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="all">All</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1" for="filter-sales">Sales Person</label>
+                <select id="filter-sales" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="all">All</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1" for="filter-device">Device Type</label>
+                <select id="filter-device" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="all">All</option>
+                  <option value="Speed Governor">Speed Governor</option>
+                  <option value="Speed Limiter">Speed Limiter</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1" for="filter-from">Date From</label>
+                <input id="filter-from" type="date" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1" for="filter-to">Date To</label>
+                <input id="filter-to" type="date" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button id="apply-filters" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Apply</button>
+              <button id="reset-filters" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Reset</button>
+            </div>
+          </div>
+
+          <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm shadow-slate-200/60">
+            <div id="empty-state" class="hidden text-center py-12">
+              <p class="text-sm text-slate-600">No speed governor records found.</p>
+              <a href="admin-add-speed-governor.html" class="mt-4 inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+                Add New Speed Governor
+              </a>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm min-w-[960px]">
+                <thead class="text-left text-slate-500">
+                  <tr>
+                    <th class="py-2">Date Created</th>
+                    <th class="py-2">Customer Name</th>
+                    <th class="py-2">Phone</th>
+                    <th class="py-2">Registration Number</th>
+                    <th class="py-2">Model</th>
+                    <th class="py-2">Device Type</th>
+                    <th class="py-2">Technician</th>
+                    <th class="py-2">Sales Person</th>
+                    <th class="py-2">Comments</th>
+                    <th class="py-2">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="report-body" class="divide-y divide-slate-200"></tbody>
+              </table>
+            </div>
+            <div class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+              <div>Showing <span id="page-range">0-0</span> of <span id="page-total">0</span></div>
+              <div class="flex items-center gap-2">
+                <label class="text-xs text-slate-500">Page size</label>
+                <select id="page-size" class="rounded-lg border border-slate-200 px-2 py-1 text-sm">
+                  <option value="10">10</option>
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                </select>
+                <button id="page-prev" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50">Prev</button>
+                <button id="page-next" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50">Next</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+
+    <div id="detail-modal" class="fixed inset-0 z-40 hidden">
+      <div id="detail-overlay" class="absolute inset-0 bg-slate-900/40"></div>
+      <div class="relative mx-auto mt-24 w-full max-w-lg rounded-xl bg-white shadow-xl border border-slate-200">
+        <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+          <div>
+            <h3 class="text-lg font-semibold text-slate-900">Speed Governor Details</h3>
+            <p class="text-xs text-slate-500">Record overview</p>
+          </div>
+          <button id="detail-close" class="text-slate-500 hover:text-slate-700">Close ✕</button>
+        </div>
+        <div id="detail-body" class="px-5 py-4 text-sm text-slate-700 space-y-2"></div>
+      </div>
+    </div>
+
+    <script src="assets/contracts.js"></script>
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", async () => {
+        const { requirePageAccess, requireRole, apiFetch, showToast } = window.FINEMARK_APP || {};
+        requirePageAccess?.();
+        requireRole?.(["Admin"]);
+
+        const state = {
+          data: [],
+          filtered: [],
+          page: 1,
+          pageSize: 10,
+          filters: { search: "", technician: "all", sales: "all", device: "all", from: "", to: "" },
+        };
+
+        const reportBody = document.getElementById("report-body");
+        const emptyState = document.getElementById("empty-state");
+        const pageRange = document.getElementById("page-range");
+        const pageTotal = document.getElementById("page-total");
+        const pageSize = document.getElementById("page-size");
+        const pagePrev = document.getElementById("page-prev");
+        const pageNext = document.getElementById("page-next");
+        const exportBtn = document.getElementById("export-csv");
+        const searchInput = document.getElementById("search-query");
+        const filterTech = document.getElementById("filter-technician");
+        const filterSales = document.getElementById("filter-sales");
+        const filterDevice = document.getElementById("filter-device");
+        const filterFrom = document.getElementById("filter-from");
+        const filterTo = document.getElementById("filter-to");
+        const applyFiltersBtn = document.getElementById("apply-filters");
+        const resetFiltersBtn = document.getElementById("reset-filters");
+        const kpiTotal = document.getElementById("kpi-total");
+        const kpiMonth = document.getElementById("kpi-month");
+        const kpiTechs = document.getElementById("kpi-techs");
+        const kpiSales = document.getElementById("kpi-sales");
+        const detailModal = document.getElementById("detail-modal");
+        const detailOverlay = document.getElementById("detail-overlay");
+        const detailClose = document.getElementById("detail-close");
+        const detailBody = document.getElementById("detail-body");
+
+        const normalizeRecord = (record) => {
+          return {
+            id: record.id || `SG-${Math.random().toString(36).slice(2, 8)}`,
+            createdAt: record.createdAt || new Date().toISOString(),
+            customerName: record.customerName || record.customer || "--",
+            phoneNumber: record.phoneNumber || record.phone || "--",
+            registrationNumber: record.registrationNumber || record.registration || "--",
+            model: record.model || "--",
+            deviceType: record.deviceType || record.device || "--",
+            technician: record.technician || "--",
+            salesPerson: record.salesPerson || "--",
+            comments: record.comments || "",
+          };
+        };
+
+        const formatName = (value) => {
+          if (!value) return "--";
+          if (typeof value === "string") return value;
+          return `${value.name || "--"}${value.email ? ` (${value.email})` : ""}`;
+        };
+
+        const loadSpeedGovernors = async () => {
+          try {
+            const res = await apiFetch("/speed-governors?page=1&pageSize=1000");
+            const data = Array.isArray(res?.data) ? res.data : [];
+            return data.map(normalizeRecord);
+          } catch (error) {
+            const stored = JSON.parse(localStorage.getItem("finemark_speed_governors") || "[]");
+            return (Array.isArray(stored) ? stored : []).map(normalizeRecord);
+          }
+        };
+
+        const applyFilters = () => {
+          const search = state.filters.search.toLowerCase();
+          state.filtered = state.data.filter((record) => {
+            const matchesSearch =
+              !search ||
+              record.customerName.toLowerCase().includes(search) ||
+              record.registrationNumber.toLowerCase().includes(search) ||
+              record.phoneNumber.toLowerCase().includes(search);
+            const techName = formatName(record.technician);
+            const salesName = formatName(record.salesPerson);
+            const matchesTech = state.filters.technician === "all" || techName === state.filters.technician;
+            const matchesSales = state.filters.sales === "all" || salesName === state.filters.sales;
+            const matchesDevice = state.filters.device === "all" || record.deviceType === state.filters.device;
+            const createdAt = new Date(record.createdAt);
+            const matchesFrom = !state.filters.from || createdAt >= new Date(state.filters.from);
+            const toDate = state.filters.to ? new Date(new Date(state.filters.to).setHours(23, 59, 59, 999)) : null;
+            const matchesTo = !toDate || createdAt <= toDate;
+            return matchesSearch && matchesTech && matchesSales && matchesDevice && matchesFrom && matchesTo;
+          });
+        };
+
+        const renderTable = () => {
+          reportBody.innerHTML = "";
+          emptyState.classList.toggle("hidden", state.filtered.length > 0);
+          const start = (state.page - 1) * state.pageSize;
+          const end = Math.min(start + state.pageSize, state.filtered.length);
+          const slice = state.filtered.slice(start, end);
+          slice.forEach((record) => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+              <td class="py-2">${new Date(record.createdAt).toLocaleDateString()}</td>
+              <td class="py-2">${record.customerName}</td>
+              <td class="py-2">${record.phoneNumber}</td>
+              <td class="py-2">${record.registrationNumber}</td>
+              <td class="py-2">${record.model}</td>
+              <td class="py-2">${record.deviceType}</td>
+              <td class="py-2">${formatName(record.technician)}</td>
+              <td class="py-2">${formatName(record.salesPerson)}</td>
+              <td class="py-2">${record.comments || "--"}</td>
+              <td class="py-2">
+                <button data-id="${record.id}" class="text-xs text-blue-600 hover:underline">View Details</button>
+              </td>
+            `;
+            reportBody.appendChild(row);
+          });
+          pageRange.textContent = state.filtered.length ? `${start + 1}-${end}` : "0-0";
+          pageTotal.textContent = String(state.filtered.length);
+          pagePrev.disabled = state.page === 1;
+          pageNext.disabled = end >= state.filtered.length;
+        };
+
+        const renderKpis = () => {
+          kpiTotal.textContent = String(state.data.length);
+          const now = new Date();
+          const monthCount = state.data.filter((record) => {
+            const date = new Date(record.createdAt);
+            return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+          }).length;
+          kpiMonth.textContent = String(monthCount);
+          const techSet = new Set(state.data.map((record) => formatName(record.technician)).filter(Boolean));
+          const salesSet = new Set(state.data.map((record) => formatName(record.salesPerson)).filter(Boolean));
+          kpiTechs.textContent = String(techSet.size);
+          kpiSales.textContent = String(salesSet.size);
+        };
+
+        const populateDropdowns = async () => {
+          try {
+            const [techRes, salesRes] = await Promise.all([
+              apiFetch("/technical-team/members?role=Technician"),
+              apiFetch("/users?role=Sales&page=1&pageSize=200"),
+            ]);
+            const techs = (techRes?.data || []).map((user) => `${user.fullName || user.name} (${user.email})`);
+            const sales = (salesRes?.data || []).map((user) => `${user.name} (${user.email})`);
+            techs.forEach((name) => {
+              const option = document.createElement("option");
+              option.value = name;
+              option.textContent = name;
+              filterTech.appendChild(option);
+            });
+            sales.forEach((name) => {
+              const option = document.createElement("option");
+              option.value = name;
+              option.textContent = name;
+              filterSales.appendChild(option);
+            });
+          } catch (error) {
+            const techs = Array.from(new Set(state.data.map((record) => formatName(record.technician)).filter(Boolean)));
+            const sales = Array.from(new Set(state.data.map((record) => formatName(record.salesPerson)).filter(Boolean)));
+            techs.forEach((name) => {
+              const option = document.createElement("option");
+              option.value = name;
+              option.textContent = name;
+              filterTech.appendChild(option);
+            });
+            sales.forEach((name) => {
+              const option = document.createElement("option");
+              option.value = name;
+              option.textContent = name;
+              filterSales.appendChild(option);
+            });
+          }
+        };
+
+        const exportCsv = () => {
+          const rows = [
+            ["createdAt", "customerName", "phoneNumber", "registrationNumber", "model", "deviceType", "technician", "salesPerson", "comments"],
+          ];
+          state.filtered.forEach((record) => {
+            rows.push([
+              record.createdAt,
+              record.customerName,
+              record.phoneNumber,
+              record.registrationNumber,
+              record.model,
+              record.deviceType,
+              formatName(record.technician),
+              formatName(record.salesPerson),
+              record.comments || "",
+            ]);
+          });
+          const csv = rows.map((row) => row.map((cell) => {
+            const text = cell === null || cell === undefined ? "" : String(cell);
+            return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+          }).join(",")).join("\n");
+          const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+          const filename = `speed-governor-report_${date}.csv`;
+          const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        };
+
+        reportBody.addEventListener("click", (event) => {
+          const button = event.target.closest("button[data-id]");
+          if (!button) return;
+          const record = state.data.find((entry) => entry.id === button.dataset.id);
+          if (!record) return;
+          detailBody.innerHTML = `
+            <div><span class="text-xs text-slate-500">Customer</span><br />${record.customerName}</div>
+            <div><span class="text-xs text-slate-500">Phone</span><br />${record.phoneNumber}</div>
+            <div><span class="text-xs text-slate-500">Registration</span><br />${record.registrationNumber}</div>
+            <div><span class="text-xs text-slate-500">Model</span><br />${record.model}</div>
+            <div><span class="text-xs text-slate-500">Device</span><br />${record.deviceType}</div>
+            <div><span class="text-xs text-slate-500">Technician</span><br />${formatName(record.technician)}</div>
+            <div><span class="text-xs text-slate-500">Sales Person</span><br />${formatName(record.salesPerson)}</div>
+            <div><span class="text-xs text-slate-500">Comments</span><br />${record.comments || "--"}</div>
+          `;
+          detailModal.classList.remove("hidden");
+        });
+
+        detailOverlay.addEventListener("click", () => detailModal.classList.add("hidden"));
+        detailClose.addEventListener("click", () => detailModal.classList.add("hidden"));
+
+        applyFiltersBtn.addEventListener("click", () => {
+          state.filters = {
+            search: searchInput.value.trim(),
+            technician: filterTech.value,
+            sales: filterSales.value,
+            device: filterDevice.value,
+            from: filterFrom.value,
+            to: filterTo.value,
+          };
+          state.page = 1;
+          applyFilters();
+          renderTable();
+        });
+
+        resetFiltersBtn.addEventListener("click", () => {
+          searchInput.value = "";
+          filterTech.value = "all";
+          filterSales.value = "all";
+          filterDevice.value = "all";
+          filterFrom.value = "";
+          filterTo.value = "";
+          state.filters = { search: "", technician: "all", sales: "all", device: "all", from: "", to: "" };
+          state.page = 1;
+          applyFilters();
+          renderTable();
+        });
+
+        pageSize.addEventListener("change", () => {
+          state.pageSize = Number(pageSize.value);
+          state.page = 1;
+          renderTable();
+        });
+
+        pagePrev.addEventListener("click", () => {
+          if (state.page > 1) {
+            state.page -= 1;
+            renderTable();
+          }
+        });
+
+        pageNext.addEventListener("click", () => {
+          const totalPages = Math.ceil(state.filtered.length / state.pageSize) || 1;
+          if (state.page < totalPages) {
+            state.page += 1;
+            renderTable();
+          }
+        });
+
+        exportBtn.addEventListener("click", exportCsv);
+
+        state.data = await loadSpeedGovernors();
+        state.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        renderKpis();
+        applyFilters();
+        renderTable();
+        populateDropdowns();
+      });
+    </script>
+  </body>
+</html>

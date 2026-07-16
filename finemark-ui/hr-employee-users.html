@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Employee User Management</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-7xl mx-auto space-y-6">
+
+          <!-- Breadcrumb -->
+          <nav class="text-xs text-slate-400">
+            <a href="hr-dashboard.html" class="hover:text-teal-600">HR</a> /
+            <span>Employee Users</span>
+          </nav>
+
+          <!-- Page header -->
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1 class="text-xl font-semibold text-slate-900">Employee User Accounts</h1>
+              <p class="text-sm text-slate-500 mt-0.5">Manage ERP portal access for all employees.</p>
+            </div>
+            <a href="hr-employees.html" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              All Employees
+            </a>
+          </div>
+
+          <!-- Filters -->
+          <div class="flex flex-wrap gap-3 items-end">
+            <div class="relative">
+              <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <input id="filter-search" type="text" placeholder="Search name, email, emp no…" class="pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 w-64 focus:outline-none focus:border-teal-400 placeholder:text-slate-400" />
+            </div>
+            <!-- Role options populated dynamically by populateFilterRoleSelect() from role_configs -->
+            <select id="filter-role" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-teal-400">
+              <option value="all">All ERP Roles</option>
+              <option value="none">Not Provisioned</option>
+            </select>
+            <select id="filter-status" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-teal-400">
+              <option value="all">All Statuses</option>
+              <option value="Active">Active</option>
+              <option value="Disabled">Disabled</option>
+              <option value="Pending">Pending</option>
+            </select>
+            <span id="total-label" class="ml-auto text-xs text-slate-400"></span>
+          </div>
+
+          <!-- Table card -->
+          <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-sm">
+                <thead>
+                  <tr class="border-b border-slate-100 bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    <th class="px-4 py-3 text-left">Employee</th>
+                    <th class="px-4 py-3 text-left">Emp No</th>
+                    <th class="px-4 py-3 text-left">Work Email</th>
+                    <th class="px-4 py-3 text-left">ERP Role</th>
+                    <th class="px-4 py-3 text-left">ERP Status</th>
+                    <th class="px-4 py-3 text-left">Last Login</th>
+                    <th class="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="table-body" class="divide-y divide-slate-100">
+                  <tr><td colspan="7" class="text-center py-12 text-slate-400 text-sm">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Pagination -->
+          <div id="pagination" class="flex items-center justify-between text-sm text-slate-500 hidden">
+            <span id="page-info"></span>
+            <div class="flex gap-2">
+              <button id="btn-prev" class="rounded-lg border border-slate-200 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40" disabled>Previous</button>
+              <button id="btn-next" class="rounded-lg border border-slate-200 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40">Next</button>
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+
+    <!-- ── RESET PASSWORD MODAL ──────────────────────────── -->
+    <div id="reset-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-base font-semibold text-slate-900">Reset Password</h2>
+          <button id="reset-modal-cancel" class="text-slate-400 hover:text-slate-600">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <p class="text-sm text-slate-600">Setting a new temporary password for <strong id="reset-name"></strong>.</p>
+        <div>
+          <label class="block text-sm font-medium mb-1.5 text-slate-700">New Password</label>
+          <div class="flex flex-wrap items-center gap-2">
+            <input id="reset-password" type="text" class="flex-1 rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-teal-400" placeholder="At least 8 characters" />
+            <button id="reset-generate" type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">Generate</button>
+            <button id="reset-copy" type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">Copy</button>
+          </div>
+        </div>
+        <label class="flex items-center gap-2 text-sm text-slate-600">
+          <input id="reset-force" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-teal-600" checked />
+          Require password reset on next login
+        </label>
+        <p id="reset-error" class="text-xs text-rose-600 hidden"></p>
+        <div class="flex justify-end gap-3 pt-2">
+          <button id="reset-modal-cancel2" type="button" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
+          <button id="reset-modal-submit" type="button" class="rounded-lg bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 text-sm font-medium transition-colors">Reset Password</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reset success banner -->
+    <div id="reset-success-banner" class="hidden fixed bottom-6 right-6 z-50 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 shadow-lg max-w-xs space-y-1">
+      <div class="flex items-center justify-between gap-3">
+        <p class="text-sm font-semibold text-emerald-800">Password Reset</p>
+        <button id="reset-success-close" class="text-emerald-500 hover:text-emerald-700">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <p class="text-xs text-emerald-700">Temp Password: <code id="reset-success-password" class="font-mono bg-emerald-100 px-1 rounded"></code></p>
+    </div>
+
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      const generatePassword = () => {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$";
+        let p = "";
+        while (p.length < 12 || !/[A-Z]/.test(p) || !/[0-9]/.test(p) || !/[!@#$]/.test(p)) {
+          p = Array.from({ length: 12 }, () => chars[Math.random() * chars.length | 0]).join("");
+        }
+        return p;
+      };
+
+      const roleBadge = (role) => {
+        if (!role) return `<span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-500 border-slate-200">—</span>`;
+        const colors = {
+          Admin:      "bg-purple-50 text-purple-700 border-purple-100",
+          Finance:    "bg-amber-50 text-amber-700 border-amber-100",
+          Sales:      "bg-blue-50 text-blue-700 border-blue-100",
+          CRM:        "bg-cyan-50 text-cyan-700 border-cyan-100",
+          Technical:  "bg-indigo-50 text-indigo-700 border-indigo-100",
+          Technician: "bg-teal-50 text-teal-700 border-teal-100",
+          HR:         "bg-rose-50 text-rose-700 border-rose-100",
+          Inventory:  "bg-orange-50 text-orange-700 border-orange-100",
+          Operations: "bg-lime-50 text-lime-700 border-lime-100",
+          Manager:    "bg-violet-50 text-violet-700 border-violet-100",
+          Driver:     "bg-sky-50 text-sky-700 border-sky-100",
+        };
+        const cls = colors[role] || "bg-slate-100 text-slate-700 border-slate-200";
+        return `<span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${cls}">${role}</span>`;
+      };
+
+      const statusBadge = (status) => {
+        if (!status) return `<span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-500 border-slate-200">Not Provisioned</span>`;
+        const colors = {
+          Active:   "bg-emerald-50 text-emerald-700 border-emerald-100",
+          Disabled: "bg-slate-100 text-slate-600 border-slate-200",
+          Pending:  "bg-amber-50 text-amber-700 border-amber-100",
+        };
+        const cls = colors[status] || "bg-slate-100 text-slate-600 border-slate-200";
+        return `<span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${cls}">${status}</span>`;
+      };
+
+      const fmtDate = iso => iso ? new Date(iso).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" }) : "Never";
+
+      let allRows = [];
+      let currentResetId = null;
+      let currentResetName = "";
+
+      const getFiltered = () => {
+        const q = document.getElementById("filter-search").value.trim().toLowerCase();
+        const role = document.getElementById("filter-role").value;
+        const status = document.getElementById("filter-status").value;
+        return allRows.filter(r => {
+          if (q && ![r.fullName, r.email, r.workEmail, r.employeeNo].filter(Boolean).join(" ").toLowerCase().includes(q)) return false;
+          if (role === "none" && r.user) return false;
+          if (role !== "all" && role !== "none" && r.user?.role !== role) return false;
+          if (status !== "all" && r.user?.status !== status) return false;
+          return true;
+        });
+      };
+
+      const render = () => {
+        const rows = getFiltered();
+        document.getElementById("total-label").textContent = `${rows.length} employee${rows.length !== 1 ? "s" : ""}`;
+        const tbody = document.getElementById("table-body");
+        if (!rows.length) {
+          tbody.innerHTML = `<tr><td colspan="7" class="text-center py-12 text-slate-400 text-sm">No results.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = rows.map(r => {
+          const u = r.user;
+          const nameLink = `<a href="hr-employee-profile.html?id=${r.id}" class="font-medium text-slate-900 hover:text-teal-600">${r.fullName}</a>`;
+          const jobMeta = [r.jobRoleTitle, r.orgUnitName].filter(Boolean).join(" · ");
+          const actions = u
+            ? `<div class="flex items-center justify-end gap-2">
+                 <button data-action="toggle" data-id="${u.id}" data-name="${r.fullName}" data-status="${u.status}" 
+                   class="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-50">
+                   ${u.status === "Active" ? "Disable" : "Enable"}
+                 </button>
+                 <button data-action="reset" data-id="${u.id}" data-name="${r.fullName}" 
+                   class="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-50">
+                   Reset Pwd
+                 </button>
+                 <a href="hr-employee-profile.html?id=${r.id}" class="rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1.5 text-xs text-teal-700 hover:bg-teal-100">
+                   View
+                 </a>
+               </div>`
+            : `<div class="flex items-center justify-end gap-2">
+                 <a href="hr-employee-profile.html?id=${r.id}" class="rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-xs text-violet-700 hover:bg-violet-100">
+                   Set Up Access
+                 </a>
+               </div>`;
+
+          return `<tr class="hover:bg-slate-50/60 transition-colors">
+            <td class="px-4 py-3">
+              <div>${nameLink}</div>
+              <div class="text-xs text-slate-400">${jobMeta || "—"}</div>
+            </td>
+            <td class="px-4 py-3 font-mono text-xs text-teal-700">${r.employeeNo || "—"}</td>
+            <td class="px-4 py-3 text-slate-600">${r.workEmail || r.email || "—"}</td>
+            <td class="px-4 py-3">${roleBadge(u?.role)}</td>
+            <td class="px-4 py-3">${statusBadge(u?.status)}</td>
+            <td class="px-4 py-3 text-slate-400 text-xs">${fmtDate(u?.lastLoginAt)}</td>
+            <td class="px-4 py-3">${actions}</td>
+          </tr>`;
+        }).join("");
+      };
+
+      const loadData = async () => {
+        try {
+          const resp = await window.FINEMARK_APP.apiFetch("/hr/employees/user-management");
+          allRows = resp?.data ?? [];
+          render();
+        } catch (err) {
+          document.getElementById("table-body").innerHTML =
+            `<tr><td colspan="7" class="text-center py-12 text-rose-500 text-sm">${err?.message || "Failed to load data."}</td></tr>`;
+        }
+      };
+
+      // Filter listeners
+      ["filter-search", "filter-role", "filter-status"].forEach(id => {
+        document.getElementById(id).addEventListener("input", render);
+      });
+
+      // Table action delegation
+      document.getElementById("table-body").addEventListener("click", async (e) => {
+        const btn = e.target.closest("[data-action]");
+        if (!btn) return;
+        const action = btn.dataset.action;
+        const userId = btn.dataset.id;
+        const name = btn.dataset.name;
+
+        if (action === "toggle") {
+          const cur = btn.dataset.status;
+          const next = cur === "Active" ? "Disabled" : "Active";
+          if (!confirm(`${next === "Disabled" ? "Disable" : "Enable"} ERP access for ${name}?`)) return;
+          btn.disabled = true; btn.textContent = "…";
+          try {
+            await window.FINEMARK_APP.apiFetch(`/users/${userId}/status`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: next }),
+            });
+            await loadData();
+          } catch (err) {
+            alert(err?.message || "Failed to update status.");
+            btn.disabled = false; btn.textContent = cur === "Active" ? "Disable" : "Enable";
+          }
+        }
+
+        if (action === "reset") {
+          currentResetId = userId;
+          currentResetName = name;
+          document.getElementById("reset-name").textContent = name;
+          document.getElementById("reset-password").value = generatePassword();
+          document.getElementById("reset-error").classList.add("hidden");
+          document.getElementById("reset-modal").classList.remove("hidden");
+        }
+      });
+
+      // Reset modal
+      ["reset-modal-cancel", "reset-modal-cancel2"].forEach(id => {
+        document.getElementById(id).addEventListener("click", () => {
+          document.getElementById("reset-modal").classList.add("hidden");
+        });
+      });
+      document.getElementById("reset-generate").addEventListener("click", () => {
+        document.getElementById("reset-password").value = generatePassword();
+      });
+      document.getElementById("reset-copy").addEventListener("click", () => {
+        navigator.clipboard.writeText(document.getElementById("reset-password").value);
+      });
+      document.getElementById("reset-modal-submit").addEventListener("click", async () => {
+        const btn = document.getElementById("reset-modal-submit");
+        const pwd = document.getElementById("reset-password").value.trim();
+        const force = document.getElementById("reset-force").checked;
+        const errEl = document.getElementById("reset-error");
+        errEl.classList.add("hidden");
+        if (!pwd || pwd.length < 8) { errEl.textContent = "Password must be at least 8 characters."; errEl.classList.remove("hidden"); return; }
+        btn.disabled = true; btn.textContent = "Resetting…";
+        try {
+          await window.FINEMARK_APP.apiFetch(`/users/${currentResetId}/reset-password`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ newPassword: pwd, forcePasswordReset: force }),
+          });
+          document.getElementById("reset-modal").classList.add("hidden");
+          document.getElementById("reset-success-password").textContent = pwd;
+          document.getElementById("reset-success-banner").classList.remove("hidden");
+        } catch (err) {
+          errEl.textContent = err?.message || "Failed to reset password.";
+          errEl.classList.remove("hidden");
+        } finally {
+          btn.disabled = false; btn.textContent = "Reset Password";
+        }
+      });
+      document.getElementById("reset-success-close").addEventListener("click", () => {
+        document.getElementById("reset-success-banner").classList.add("hidden");
+      });
+
+      // Populate the role-filter dropdown from role_configs (system + custom + legacy),
+      // the same authoritative list admin-access-control.html / admin-users.html use.
+      async function populateFilterRoleSelect() {
+        const sel = document.getElementById("filter-role");
+        if (!sel) return;
+        try {
+          const data = await window.FINEMARK_APP.RoleConfigService.list();
+          const roles = data.roles || [];
+          const optionHtml = (r) => `<option value="${r.role_key}">${r.display_name}</option>`;
+          sel.insertAdjacentHTML("beforeend", roles.map(optionHtml).join(""));
+        } catch (e) {
+          // Non-critical — filter just offers fewer options if role configs unavailable
+        }
+      }
+
+      // Init
+      (async () => {
+        await window.FINEMARK_APP.requirePageAccess();
+        const role = window.FINEMARK_APP.getSession()?.user?.role;
+        if (role !== "Admin" && role !== "HR") {
+          window.location.href = "unauthorized.html";
+          return;
+        }
+        await populateFilterRoleSelect();
+        await loadData();
+      })();
+    </script>
+  </body>
+</html>

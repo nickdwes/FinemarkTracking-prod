@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Archive — Search Tracker Record</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+    <style>
+      .status-active { background: #fff; }
+      .status-expired { background: #fdf2f0; }
+      .status-expired td:first-child { box-shadow: inset 3px 0 0 #b45309; }
+      .status-renewed { background: #f0fdf4; }
+      .status-zero { background: #eff6ff; }
+      .badge-status { display: inline-flex; align-items: center; border-radius: 9999px; padding: .1rem .55rem; font-size: .7rem; font-weight: 600; border-width: 1px; }
+      .badge-active { background: #f8fafc; color: #334155; border-color: #e2e8f0; }
+      .badge-expired { background: #fff7ed; color: #9a3412; border-color: #fed7aa; }
+      .badge-renewed { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+      .badge-zero { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+      .tk-paid { color: #15803d; font-weight: 600; }
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-[1600px] mx-auto space-y-6">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Search Tracker Record</h1>
+              <p class="text-sm text-slate-600">Archived IDTS installation records — historical reference only, not editable.</p>
+            </div>
+            <span class="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800">
+              <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M4 8v11a1 1 0 001 1h14a1 1 0 001-1V8"/></svg>
+              Archive — read only
+            </span>
+          </div>
+
+          <section class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm shadow-slate-200/60 space-y-4">
+            <div class="grid gap-4 md:grid-cols-4 lg:grid-cols-6">
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Sales Person</label>
+                <select id="f-sales-person" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="">All</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Technician</label>
+                <select id="f-technician" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="">All</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Install From</label>
+                <input id="f-start-date" type="date" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Install To</label>
+                <input id="f-end-date" type="date" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Expiry From</label>
+                <input id="f-start-expiry" type="date" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Expiry To</label>
+                <input id="f-end-expiry" type="date" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Client Name</label>
+                <input id="f-client" type="text" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Bank</label>
+                <input id="f-bank" type="text" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Vehicle Reg</label>
+                <input id="f-vehicle" type="text" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Contact</label>
+                <input id="f-contact" type="text" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Tracker Number</label>
+                <input id="f-tracker" type="text" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">IMEI</label>
+                <input id="f-imei" type="text" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</label>
+                <select id="f-status" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                  <option value="">All</option>
+                  <option value="Active">Active</option>
+                  <option value="Expired">Expired</option>
+                  <option value="Renewed">Renewed</option>
+                  <option value="Zero or Empty Loan">Zero or Empty Loan</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">T_K Status</label>
+                <select id="f-tk" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                  <option value="">All</option>
+                  <option value="Paid">Paid</option>
+                  <option value="Not Paid">Not Paid</option>
+                </select>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 pt-1">
+              <button id="btn-search" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Search Record</button>
+              <button id="btn-reset" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Reset</button>
+              <button id="btn-export" class="ml-auto rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Export CSV</button>
+            </div>
+          </section>
+
+          <section class="bg-white border border-slate-200/80 rounded-xl shadow-sm shadow-slate-200/60">
+            <div class="flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b border-slate-200">
+              <p id="result-summary" class="text-sm text-slate-600">Enter filters and click Search Record.</p>
+              <div class="flex items-center gap-3 text-xs text-slate-500">
+                <label class="flex items-center gap-1"><span class="inline-block h-2.5 w-2.5 rounded-full" style="background:#f8fafc;border:1px solid #cbd5e1"></span> Active</label>
+                <label class="flex items-center gap-1"><span class="inline-block h-2.5 w-2.5 rounded-full" style="background:#fff7ed;border:1px solid #fed7aa"></span> Expired</label>
+                <label class="flex items-center gap-1"><span class="inline-block h-2.5 w-2.5 rounded-full" style="background:#f0fdf4;border:1px solid #bbf7d0"></span> Renewed</label>
+                <label class="flex items-center gap-1"><span class="inline-block h-2.5 w-2.5 rounded-full" style="background:#eff6ff;border:1px solid #bfdbfe"></span> Zero/Empty Loan</label>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm min-w-[1400px]">
+                <thead class="text-left text-slate-500 text-xs uppercase border-b border-slate-200 bg-slate-50">
+                  <tr>
+                    <th class="py-2 px-3">Install Date</th>
+                    <th class="py-2 px-3">Client</th>
+                    <th class="py-2 px-3">Sales Person</th>
+                    <th class="py-2 px-3">Vehicle Reg</th>
+                    <th class="py-2 px-3">Model</th>
+                    <th class="py-2 px-3">Tracker #</th>
+                    <th class="py-2 px-3">Contact</th>
+                    <th class="py-2 px-3">Bank</th>
+                    <th class="py-2 px-3">Technician</th>
+                    <th class="py-2 px-3">T_K</th>
+                    <th class="py-2 px-3">Loan Dur.</th>
+                    <th class="py-2 px-3">Expiry</th>
+                    <th class="py-2 px-3">IMEI</th>
+                    <th class="py-2 px-3">Amount</th>
+                    <th class="py-2 px-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="rows" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+            <div class="flex items-center justify-between px-5 py-3 border-t border-slate-200 text-sm text-slate-600">
+              <span id="page-info">—</span>
+              <div class="flex gap-2">
+                <button id="btn-prev" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs hover:bg-slate-50 disabled:opacity-40" disabled>Previous</button>
+                <button id="btn-next" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs hover:bg-slate-50 disabled:opacity-40" disabled>Next</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+    <script src="assets/contracts.js"></script>
+    <script src="assets/app.js"></script>
+    <script src="assets/layout.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", async () => {
+        const authorized = await window.FINEMARK_APP?.requirePageAccess?.();
+        if (authorized === false) return;
+        init();
+      });
+    </script>
+    <script>
+      const $ = (id) => document.getElementById(id);
+      let page = 1;
+      const pageSize = 50;
+      let lastMeta = { total: 0 };
+
+      const statusBadge = (status) => {
+        const map = {
+          "Active": "badge-active",
+          "Expired": "badge-expired",
+          "Renewed": "badge-renewed",
+          "Zero or Empty Loan": "badge-zero",
+        };
+        const rowClassMap = {
+          "Active": "status-active",
+          "Expired": "status-expired",
+          "Renewed": "status-renewed",
+          "Zero or Empty Loan": "status-zero",
+        };
+        return { badgeCls: map[status] || "badge-active", rowCls: rowClassMap[status] || "status-active" };
+      };
+
+      function currentFilters() {
+        const f = {};
+        const map = {
+          "f-sales-person": "salesPerson", "f-technician": "technician",
+          "f-start-date": "startDate", "f-end-date": "endDate",
+          "f-start-expiry": "startExpiryDate", "f-end-expiry": "endExpiryDate",
+          "f-client": "clientName", "f-bank": "bank", "f-vehicle": "vehicleReg",
+          "f-contact": "contact", "f-tracker": "trackerNumber", "f-imei": "imei",
+          "f-status": "status", "f-tk": "tkStatus",
+        };
+        Object.entries(map).forEach(([id, key]) => {
+          const v = $(id).value.trim();
+          if (v) f[key] = v;
+        });
+        return f;
+      }
+
+      function toQueryString(params) {
+        const qs = new URLSearchParams(params);
+        return qs.toString();
+      }
+
+      async function loadMeta() {
+        try {
+          const res = await window.FINEMARK_APP.apiFetch("/archive/meta");
+          const data = res.data || res;
+          const spSelect = $("f-sales-person");
+          data.salesPeople.forEach((name) => {
+            const opt = document.createElement("option");
+            opt.value = name; opt.textContent = name;
+            spSelect.appendChild(opt);
+          });
+          const techSelect = $("f-technician");
+          data.technicians.forEach((name) => {
+            const opt = document.createElement("option");
+            opt.value = name; opt.textContent = name;
+            techSelect.appendChild(opt);
+          });
+        } catch (e) {
+          window.FINEMARK_APP?.showToast?.("Could not load filter lists: " + e.message, "error");
+        }
+      }
+
+      function fmtDate(iso) {
+        if (!iso) return "—";
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return "—";
+        return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+      }
+      function fmtMoney(n) {
+        return "KES " + Number(n || 0).toLocaleString("en-KE", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      }
+
+      function renderRows(rows) {
+        const tbody = $("rows");
+        if (!rows.length) {
+          tbody.innerHTML = `<tr><td colspan="15" class="py-10 text-center text-slate-400">No records found matching filter criteria.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = rows.map((r) => {
+          const { badgeCls, rowCls } = statusBadge(r.status);
+          return `
+            <tr class="${rowCls}">
+              <td class="py-2 px-3 whitespace-nowrap">${fmtDate(r.installationDate)}</td>
+              <td class="py-2 px-3">${escapeHtml(r.clientName || "—")}</td>
+              <td class="py-2 px-3">${escapeHtml(r.salesPerson || "—")}</td>
+              <td class="py-2 px-3 font-mono text-xs">${escapeHtml(r.vehicleReg || "—")}</td>
+              <td class="py-2 px-3">${escapeHtml(r.model || "—")}</td>
+              <td class="py-2 px-3 font-mono text-xs">${escapeHtml(r.trackerNumber || "—")}</td>
+              <td class="py-2 px-3 font-mono text-xs">${escapeHtml(r.contact || "—")}</td>
+              <td class="py-2 px-3">${escapeHtml(r.bank || "—")}</td>
+              <td class="py-2 px-3">${escapeHtml(r.technician || "—")}</td>
+              <td class="py-2 px-3 ${r.tkPaid ? "tk-paid" : "text-slate-400"}">${r.tkPaid ? "Paid" : "—"}</td>
+              <td class="py-2 px-3">${escapeHtml(r.loanDuration || "—")}</td>
+              <td class="py-2 px-3 whitespace-nowrap">${fmtDate(r.expiryDate)}</td>
+              <td class="py-2 px-3 font-mono text-xs">${escapeHtml(r.imei || "—")}</td>
+              <td class="py-2 px-3 font-semibold">${fmtMoney(r.amountQuoted)}</td>
+              <td class="py-2 px-3"><span class="badge-status ${badgeCls}">${r.status}</span></td>
+            </tr>`;
+        }).join("");
+      }
+
+      function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+      }
+
+      async function search(resetPage) {
+        if (resetPage) page = 1;
+        const filters = currentFilters();
+        const qs = toQueryString({ ...filters, page: String(page), pageSize: String(pageSize) });
+        $("rows").innerHTML = `<tr><td colspan="15" class="py-10 text-center text-slate-400">Loading…</td></tr>`;
+        try {
+          const res = await window.FINEMARK_APP.apiFetch(`/archive/installations?${qs}`);
+          const body = res.data ? res : res;
+          const rows = body.data || [];
+          lastMeta = body.meta || { total: rows.length };
+          renderRows(rows);
+          const from = lastMeta.total === 0 ? 0 : (page - 1) * pageSize + 1;
+          const to = Math.min(page * pageSize, lastMeta.total);
+          $("result-summary").textContent = `Found ${lastMeta.total.toLocaleString()} record${lastMeta.total === 1 ? "" : "s"} matching filter criteria.`;
+          $("page-info").textContent = lastMeta.total ? `Showing ${from}–${to} of ${lastMeta.total.toLocaleString()}` : "—";
+          $("btn-prev").disabled = page <= 1;
+          $("btn-next").disabled = page * pageSize >= lastMeta.total;
+        } catch (e) {
+          $("rows").innerHTML = `<tr><td colspan="15" class="py-10 text-center text-rose-500">${escapeHtml(e.message || "Failed to load records")}</td></tr>`;
+        }
+      }
+
+      function resetFilters() {
+        ["f-sales-person", "f-technician", "f-status", "f-tk"].forEach((id) => { $(id).value = ""; });
+        ["f-start-date", "f-end-date", "f-start-expiry", "f-end-expiry", "f-client", "f-bank", "f-vehicle", "f-contact", "f-tracker", "f-imei"].forEach((id) => { $(id).value = ""; });
+        $("rows").innerHTML = "";
+        $("result-summary").textContent = "Enter filters and click Search Record.";
+        $("page-info").textContent = "—";
+        $("btn-prev").disabled = true;
+        $("btn-next").disabled = true;
+      }
+
+      function exportCsv() {
+        const filters = currentFilters();
+        const qs = toQueryString(filters);
+        const session = window.FINEMARK_APP.getSession();
+        const url = `${window.FINEMARK_APP.API_BASE}/archive/installations.csv?${qs}`;
+        fetch(url, { headers: { Authorization: `Bearer ${session?.accessToken || ""}` } })
+          .then((r) => { if (!r.ok) throw new Error("Export failed"); return r.blob(); })
+          .then((blob) => {
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `archive_installations_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(a); a.click(); a.remove();
+          })
+          .catch((e) => window.FINEMARK_APP?.showToast?.(e.message, "error"));
+      }
+
+      function init() {
+        loadMeta();
+        $("btn-search").addEventListener("click", () => search(true));
+        $("btn-reset").addEventListener("click", resetFilters);
+        $("btn-export").addEventListener("click", exportCsv);
+        $("btn-prev").addEventListener("click", () => { if (page > 1) { page--; search(false); } });
+        $("btn-next").addEventListener("click", () => { page++; search(false); });
+      }
+    </script>
+  </body>
+</html>

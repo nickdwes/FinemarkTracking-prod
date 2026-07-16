@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Login</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<main class="min-h-screen flex items-center justify-center px-6 py-12">
+      <div class="w-full max-w-3xl">
+        <div class="grid gap-6">
+          <div class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 border border-slate-200/80 p-8 md:p-10">
+            <div class="flex items-center gap-4 mb-8">
+              <img src="assets/finemark-logo.svg" alt="Finemark logo" class="h-12 w-12" />
+              <div>
+                <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Finemark</h1>
+                <p class="text-sm text-slate-600">Welcome back. Please sign in to continue.</p>
+              </div>
+            </div>
+
+            <form id="login-form" class="space-y-5" novalidate>
+              <div>
+                <label class="block text-sm font-medium mb-1.5 text-slate-700" for="email">Email</label>
+                <input id="email" type="email" placeholder="you@company.com" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                <p class="fm-error hidden" data-error-for="email"></p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1.5 text-slate-700" for="password">Password</label>
+                <input id="password" type="password" placeholder="••••••••" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                <p class="fm-error hidden" data-error-for="password"></p>
+              </div>
+              <div class="flex items-center justify-between text-sm">
+                <label class="flex items-center gap-2 text-slate-600">
+                  <input id="remember" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  Remember me
+                </label>
+                <a href="forgot-password.html" class="text-blue-600 hover:underline">Forgot password?</a>
+              </div>
+              <button id="sign-in" type="button" class="w-full rounded-lg bg-blue-600 text-white py-2.5 font-medium shadow-sm shadow-blue-600/20 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+                Sign In
+              </button>
+              <div class="text-center">
+                <button id="otp-login-btn" type="button" class="text-sm text-blue-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 rounded">
+                  Sign in with Email OTP instead
+                </button>
+              </div>
+              <div id="login-inline-error" class="hidden"></div>
+
+              <div class="relative flex items-center">
+                <div class="flex-grow border-t border-slate-200"></div>
+                <span class="mx-3 text-xs text-slate-400 shrink-0">or</span>
+                <div class="flex-grow border-t border-slate-200"></div>
+              </div>
+
+              <button id="azure-sso-btn" type="button"
+                class="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 21" class="h-5 w-5 shrink-0" aria-hidden="true">
+                  <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                  <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                  <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                  <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                </svg>
+                Sign in with Microsoft
+              </button>
+            </form>
+
+          </div>
+        </div>
+
+        
+      </div>
+    </main>
+
+    <div id="otp-modal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/40 px-4">
+      <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-slate-200">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold text-slate-900">Verify your email</h2>
+          <button id="otp-close" type="button" class="text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 rounded">
+            ✕
+          </button>
+        </div>
+        <p class="mt-2 text-sm text-slate-500">
+          We sent a 6-digit code to <strong id="otp-target-email-display" class="text-slate-700">your email</strong>. Enter it below to complete sign-in.
+        </p>
+        <div class="mt-4">
+          <label class="block text-sm font-medium mb-1.5 text-slate-700" for="otp">Email OTP</label>
+          <input id="otp" type="text" inputmode="numeric" maxlength="6" placeholder="123456" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+          <p id="otp-error" class="mt-1 text-xs text-red-600 hidden">OTP is required.</p>
+        </div>
+        <div class="mt-5 flex items-center justify-end gap-3">
+          <button id="otp-cancel" type="button" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+            Cancel
+          </button>
+          <button id="otp-verify" type="button" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+            Verify
+          </button>
+        </div>
+      </div>
+    </div>
+
+    
+  
+<script src="assets/contracts.js"></script>
+<script src="assets/app.js?v=202607011748"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+      const emailInput = document.getElementById("email");
+      const passwordInput = document.getElementById("password");
+
+      const signInButton = document.getElementById("sign-in");
+      const otpLoginBtn = document.getElementById("otp-login-btn");
+      const formEl = document.getElementById("login-form");
+      const inlineError = document.getElementById("login-inline-error");
+      const otpModal = document.getElementById("otp-modal");
+      const otpInput = document.getElementById("otp");
+      const otpError = document.getElementById("otp-error");
+      const otpVerify = document.getElementById("otp-verify");
+      const otpCancel = document.getElementById("otp-cancel");
+      const otpClose = document.getElementById("otp-close");
+      const otpTargetEmailDisplay = document.getElementById("otp-target-email-display");
+
+      let _otpLoginMode = false;   // true while an OTP verification is pending
+      let _otpPendingEmail = "";   // email the OTP was sent to
+
+      const roleRoutes = {
+        Sales: "sales.html",
+        Technical: "technical.html",
+        Technician: "technician-jobs.html",
+        Admin: "admin.html",
+        Finance: "pages/finance/finance-dashboard.html",
+        InventoryManager: "inventory-dashboard.html",
+        Procurement: "inventory-procurement.html",
+        WarehouseOfficer: "inventory-items.html",
+        InstallOffice: "technical.html#pipeline",
+      };
+
+      document.addEventListener("DOMContentLoaded", async () => {
+        const params = new URLSearchParams(window.location.search);
+        const returnPage = params.get("page"); // e.g. crm-customer-360.html?id=...
+
+        // ── Session-ended reason messages ───────────────────────────────────
+        // A `reason` param means the SERVER just forced this navigation here
+        // (nginx's page gate rejected the fm_rt cookie — expired, revoked, or
+        // idle-timed-out). localStorage can still hold a stale accessToken at
+        // this point since that's a separate client-side cache the server has
+        // no way to clear directly; trusting it below to auto-redirect back to
+        // the page we were just bounced FROM would immediately bounce again —
+        // an infinite loop. So a forced reason always wins: clear local state
+        // and show the login form instead of auto-redirecting.
+        const reason = params.get("reason");
+        const REASON_MESSAGES = {
+          idle_timeout: "You were signed out after a period of inactivity. Please sign in again.",
+          session_expired: "Your session has expired. Please sign in again.",
+          disabled: "Your account has been disabled. Contact your administrator.",
+          unauthorized: "Please sign in to continue.",
+        };
+        if (reason && REASON_MESSAGES[reason]) {
+          window.FINEMARK_APP?.clearSession?.();
+          inlineError.classList.remove("hidden");
+          window.FINEMARK_APP?.showInlineError?.(inlineError, REASON_MESSAGES[reason]);
+        } else {
+          const session = window.FINEMARK_APP?.getSession?.();
+          // Only auto-redirect if we have a valid access token (not just legacy user data)
+          if (session?.accessToken && session?.user?.role) {
+            const destination = returnPage || roleRoutes[session.user.role];
+            if (destination) {
+              window.location.href = destination;
+              return;
+            }
+          } else if (session && !session.accessToken) {
+            // Clear stale legacy session that has no token - prevents redirect loop
+            window.FINEMARK_APP?.clearSession?.();
+          }
+        }
+
+        // ── Azure AD SSO callback handler ──────────────────────────────────
+        const ssoStatus = params.get("sso");
+
+        if (ssoStatus === "error") {
+          const msg = params.get("message") || "Microsoft sign-in failed.";
+          inlineError.classList.remove("hidden");
+          window.FINEMARK_APP.showInlineError(inlineError, decodeURIComponent(msg));
+          window.history.replaceState({}, "", window.location.pathname);
+        } else if (ssoStatus === "pending") {
+          const code = params.get("code");
+          window.history.replaceState({}, "", window.location.pathname);
+          if (!code) {
+            window.FINEMARK_APP.showToast("Microsoft sign-in failed: missing code.", "error");
+            return;
+          }
+          try {
+            const azureSsoBtn = document.getElementById("azure-sso-btn");
+            if (azureSsoBtn) {
+              azureSsoBtn.textContent = "Signing in…";
+              azureSsoBtn.style.pointerEvents = "none";
+            }
+            const resp = await fetch(window.FINEMARK_APP.API_BASE + "/auth/azure/exchange", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ code }),
+            });
+            if (!resp.ok) {
+              const err = await resp.json().catch(() => ({}));
+              throw new Error(err.error || "Exchange failed");
+            }
+            const response = await resp.json();
+            window.FINEMARK_APP.setSession(response);
+            const destination = roleRoutes[response.user?.role] || "sales.html";
+            window.location.href = destination;
+          } catch (e) {
+            window.FINEMARK_APP.showToast(e.message || "Microsoft sign-in failed.", "error");
+            inlineError.classList.remove("hidden");
+            window.FINEMARK_APP.showInlineError(inlineError, e.message || "Microsoft sign-in failed.");
+          }
+        }
+
+        // Azure SSO: fetch the redirect URL server-side, then navigate.
+        // This prevents Azure Tenant ID + Client ID from appearing in
+        // HTTP Location headers, proxy logs, or browser history.
+        const azureBtn = document.getElementById("azure-sso-btn");
+        if (azureBtn) {
+          azureBtn.addEventListener("click", async () => {
+            azureBtn.disabled = true;
+            azureBtn.textContent = "Redirecting to Microsoft\u2026";
+            try {
+              const resp = await fetch(window.FINEMARK_APP.API_BASE + "/auth/azure/login");
+              if (!resp.ok) throw new Error("SSO unavailable");
+              const { url } = await resp.json();
+              if (!url) throw new Error("No redirect URL returned");
+              window.location.href = url;
+            } catch (e) {
+              azureBtn.disabled = false;
+              azureBtn.textContent = "Sign in with Microsoft";
+              window.FINEMARK_APP.showToast(e.message || "Microsoft sign-in failed.", "error");
+            }
+          });
+        }
+      });
+
+      const validate = () => {
+        window.FINEMARK_APP.clearFormErrors(formEl);
+        inlineError.classList.add("hidden");
+        const emailValue = emailInput.value.trim();
+        const passwordValue = passwordInput.value.trim();
+        const emailRequired = window.FINEMARK_APP.Validators.required(emailValue);
+        const emailValid = window.FINEMARK_APP.Validators.email(emailValue);
+        const passwordRequired = window.FINEMARK_APP.Validators.required(passwordValue);
+        if (emailRequired) window.FINEMARK_APP.setFieldError(emailInput, emailRequired);
+        if (!emailRequired && emailValid) window.FINEMARK_APP.setFieldError(emailInput, emailValid);
+        if (passwordRequired) window.FINEMARK_APP.setFieldError(passwordInput, passwordRequired);
+        return !(emailRequired || emailValid || passwordRequired);
+      };
+
+      const validateEmailOnly = () => {
+        window.FINEMARK_APP.clearFormErrors(formEl);
+        inlineError.classList.add("hidden");
+        const emailValue = emailInput.value.trim();
+        const emailRequired = window.FINEMARK_APP.Validators.required(emailValue);
+        const emailValid = window.FINEMARK_APP.Validators.email(emailValue);
+        if (emailRequired) window.FINEMARK_APP.setFieldError(emailInput, emailRequired);
+        if (!emailRequired && emailValid) window.FINEMARK_APP.setFieldError(emailInput, emailValid);
+        return !(emailRequired || emailValid);
+      };
+
+      const showOtpModal = (emailSentTo) => {
+        otpInput.value = "";
+        otpError.classList.add("hidden");
+        if (otpTargetEmailDisplay) {
+          otpTargetEmailDisplay.textContent = emailSentTo || "your email";
+        }
+        otpModal.classList.remove("hidden");
+        otpModal.classList.add("flex");
+        otpInput.focus();
+      };
+
+      const hideOtpModal = () => {
+        otpModal.classList.add("hidden");
+        otpModal.classList.remove("flex");
+        _otpLoginMode = false;
+        _otpPendingEmail = "";
+      };
+
+      const redirectAfterLogin = (response) => {
+        window.FINEMARK_APP.setSession(response);
+        const actualRole = response.user?.role;
+        const returnTo = new URLSearchParams(window.location.search).get("page");
+        const destination = returnTo || roleRoutes[actualRole] || "sales.html";
+        window.location.href = destination;
+      };
+
+      const finalizeLogin = async () => {
+        const emailValue = emailInput.value.trim();
+        try {
+          window.FINEMARK_APP.setLoading(signInButton, true, "Signing in...");
+          const response = await window.FINEMARK_APP.AuthService.login({
+            email: emailValue,
+            password: passwordInput.value.trim(),
+          });
+          redirectAfterLogin(response);
+        } catch (error) {
+          window.FINEMARK_APP.showToast(error.message || "Login failed", "error");
+          inlineError.classList.remove("hidden");
+          window.FINEMARK_APP.showInlineError(inlineError, error.message || "Login failed", {
+            retryText: "Retry",
+            onRetry: finalizeLogin,
+          });
+        } finally {
+          window.FINEMARK_APP.setLoading(signInButton, false);
+        }
+      };
+
+      const requestOtpLogin = async () => {
+        if (!validateEmailOnly()) return;
+        const emailValue = emailInput.value.trim();
+        try {
+          window.FINEMARK_APP.setLoading(otpLoginBtn, true, "Sending code...");
+          const resp = await fetch(window.FINEMARK_APP.API_BASE + "/auth/otp/request", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: emailValue }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) throw new Error(data.message || "Failed to send OTP.");
+          _otpLoginMode = true;
+          _otpPendingEmail = emailValue;
+          showOtpModal(emailValue);
+        } catch (err) {
+          window.FINEMARK_APP.showToast(err.message || "Failed to send code.", "error");
+        } finally {
+          window.FINEMARK_APP.setLoading(otpLoginBtn, false);
+        }
+      };
+
+      const verifyOtpLogin = async () => {
+        const code = otpInput.value.trim();
+        const otpEmpty = !code;
+        otpInput.classList.toggle("border-red-500", otpEmpty);
+        otpError.classList.toggle("hidden", !otpEmpty);
+        if (otpEmpty) return;
+        try {
+          window.FINEMARK_APP.setLoading(otpVerify, true, "Verifying...");
+          const resp = await fetch(window.FINEMARK_APP.API_BASE + "/auth/otp/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: _otpPendingEmail, otp: code }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) throw new Error(data.message || "Invalid or expired code.");
+          hideOtpModal();
+          redirectAfterLogin(data);
+        } catch (err) {
+          otpInput.classList.add("border-red-500");
+          otpError.classList.remove("hidden");
+          otpError.textContent = err.message || "Invalid or expired code.";
+        } finally {
+          window.FINEMARK_APP.setLoading(otpVerify, false);
+        }
+      };
+
+      signInButton.addEventListener("click", () => {
+        if (!validate()) return;
+        finalizeLogin();
+      });
+
+      otpLoginBtn.addEventListener("click", requestOtpLogin);
+
+      otpVerify.addEventListener("click", verifyOtpLogin);
+
+      otpCancel.addEventListener("click", hideOtpModal);
+      otpClose.addEventListener("click", hideOtpModal);
+    </script>
+</body>
+</html>

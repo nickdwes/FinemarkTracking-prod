@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Campaign Intelligence</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-7xl mx-auto space-y-6">
+
+          <!-- Header -->
+          <div class="flex flex-wrap items-center gap-3 justify-between">
+            <div>
+              <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Campaign Intelligence</h1>
+              <p class="text-sm text-slate-600">Segment customers and manage upsell, renewal and marketing campaigns.</p>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <a href="campaigns-mass-sms.html" class="inline-flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 text-green-700 px-4 py-2 text-sm font-semibold hover:bg-green-100 transition-colors">
+                📢 Mass SMS / WhatsApp
+              </a>
+              <button id="btn-new-campaign" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></svg>
+                New Campaign
+              </button>
+            </div>
+          </div>
+          <nav class="text-xs text-slate-500"><span class="font-medium text-slate-600">CRM</span> / Campaigns</nav>
+
+          <!-- Campaigns List -->
+          <div class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm space-y-4">
+            <div class="flex flex-wrap items-end gap-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Search</label>
+                <input id="c-search" type="text" placeholder="Campaign name…" class="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Type</label>
+                <select id="c-type" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="">All</option>
+                  <option>Upsell</option>
+                  <option>Renewal</option>
+                  <option>Retention</option>
+                  <option>Reactivation</option>
+                  <option>Awareness</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Status</label>
+                <select id="c-status" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                  <option value="">All</option>
+                  <option>Draft</option>
+                  <option>Active</option>
+                  <option>Completed</option>
+                  <option>Paused</option>
+                </select>
+              </div>
+              <button id="btn-c-search" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Search</button>
+              <button id="btn-c-clear" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Clear</button>
+            </div>
+
+            <div id="campaigns-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div class="col-span-full text-center text-slate-400 py-8 text-sm">Loading…</div>
+            </div>
+
+            <div class="flex items-center justify-between text-xs text-slate-500">
+              <span id="c-meta">—</span>
+              <div class="flex gap-2">
+                <button id="btn-c-prev" class="px-3 py-1 rounded border border-slate-200 hover:bg-slate-50 disabled:opacity-40" disabled>← Prev</button>
+                <button id="btn-c-next" class="px-3 py-1 rounded border border-slate-200 hover:bg-slate-50 disabled:opacity-40" disabled>Next →</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Campaign Detail (shown when a campaign is selected) -->
+          <div id="campaign-detail" class="hidden bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h2 id="detail-title" class="font-semibold text-slate-900 text-lg"></h2>
+              <div class="flex gap-2">
+                <button id="btn-segment" class="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Build Segment</button>
+                <button id="btn-add-members" class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">Add Segment to Campaign</button>
+                <button id="btn-detail-close" class="text-slate-400 hover:text-slate-600 text-xl leading-none ml-2">✕</button>
+              </div>
+            </div>
+
+            <div class="p-6 space-y-6">
+              <!-- Campaign Info -->
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                <div><p class="text-xs text-slate-400 uppercase tracking-wide font-medium">Type</p><p id="d-type" class="mt-0.5 font-medium text-slate-800"></p></div>
+                <div><p class="text-xs text-slate-400 uppercase tracking-wide font-medium">Status</p><p id="d-status" class="mt-0.5"></p></div>
+                <div><p class="text-xs text-slate-400 uppercase tracking-wide font-medium">Target</p><p id="d-target" class="mt-0.5 font-bold text-slate-900"></p></div>
+                <div><p class="text-xs text-slate-400 uppercase tracking-wide font-medium">Sent</p><p id="d-sent" class="mt-0.5 font-bold text-blue-700"></p></div>
+              </div>
+
+              <!-- Segment Builder -->
+              <div id="segment-builder" class="hidden rounded-xl border border-indigo-100 bg-indigo-50/30 p-4 space-y-3">
+                <h3 class="text-sm font-semibold text-indigo-800">Segment Criteria</h3>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Customer Type</label>
+                    <select id="seg-type" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                      <option value="">All</option>
+                      <option value="individual">Individual</option>
+                      <option value="corporate">Corporate</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Region</label>
+                    <input id="seg-region" type="text" placeholder="e.g. Nairobi" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Customer Status</label>
+                    <select id="seg-status" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                      <option value="">All</option>
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Has Subscription <span class="text-slate-400 font-normal">(optional)</span></label>
+                    <select id="seg-sub-status" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                      <option value="" selected>— Any / No filter —</option>
+                      <option value="Active">Active subscription</option>
+                      <option value="Expired">Expired subscription</option>
+                    </select>
+                    <p class="text-xs text-slate-400 mt-0.5">Only customers with a subscription record will match.</p>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Service Type</label>
+                    <input id="seg-service" type="text" placeholder="e.g. Fleet Tracking" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Renewing in (days)</label>
+                    <input id="seg-renewing" type="number" min="1" placeholder="e.g. 30" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  </div>
+                </div>
+                <div class="flex gap-3 pt-2">
+                  <button id="btn-run-segment" class="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700">Run Segment</button>
+                  <span id="seg-result" class="text-xs text-indigo-600 self-center"></span>
+                </div>
+              </div>
+
+              <!-- Members Table -->
+              <div>
+                <h3 class="font-semibold text-slate-800 mb-3">Members</h3>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-sm">
+                    <thead>
+                      <tr class="text-xs text-slate-400 uppercase tracking-wide border-b border-slate-100">
+                        <th class="pb-2 pr-4 text-left">Account No</th>
+                        <th class="pb-2 pr-4 text-left">Name</th>
+                        <th class="pb-2 pr-4 text-left">Type</th>
+                        <th class="pb-2 pr-4 text-left">Status</th>
+                        <th class="pb-2 pr-4 text-left">Sent</th>
+                        <th class="pb-2 text-left">Outcome</th>
+                      </tr>
+                    </thead>
+                    <tbody id="members-tbody" class="divide-y divide-slate-50">
+                      <tr><td colspan="6" class="py-4 text-center text-slate-400 text-xs">No members yet.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- New Campaign Modal -->
+    <div id="modal-new-campaign" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+      <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4 space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="font-semibold text-slate-900">New Campaign</h2>
+          <button id="nc-close" class="text-slate-400 hover:text-slate-600 text-xl leading-none">✕</button>
+        </div>
+        <div id="nc-error" class="hidden rounded-lg bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-700"></div>
+        <form id="new-campaign-form" class="space-y-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Campaign Name <span class="text-red-500">*</span></label>
+            <input id="nc-name" type="text" required placeholder="e.g. Q4 Renewal Blitz" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Type</label>
+            <select id="nc-type" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+              <option>Upsell</option>
+              <option>Renewal</option>
+              <option>Retention</option>
+              <option>Reactivation</option>
+              <option>Awareness</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Description</label>
+            <textarea id="nc-desc" rows="2" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm resize-none focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500"></textarea>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="block text-xs font-medium text-slate-600 mb-1">Start Date</label>
+            <input id="nc-start" type="date" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" /></div>
+            <div><label class="block text-xs font-medium text-slate-600 mb-1">End Date</label>
+            <input id="nc-end" type="date" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" /></div>
+          </div>
+          <div class="flex justify-end gap-3 pt-2">
+            <button type="button" id="nc-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
+            <button type="submit" id="btn-create-campaign" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">Create Campaign</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+<div id="fm-footer"></div>
+
+<script src="assets/contracts.js"></script>
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => window.FINEMARK_APP?.requirePageAccess?.());
+
+      const TYPE_COLORS = {
+        Upsell: "bg-blue-50 text-blue-700 border-blue-100",
+        Renewal: "bg-teal-50 text-teal-700 border-teal-100",
+        Retention: "bg-indigo-50 text-indigo-700 border-indigo-100",
+        Reactivation: "bg-orange-50 text-orange-700 border-orange-100",
+        Awareness: "bg-purple-50 text-purple-700 border-purple-100",
+      };
+      const STATUS_COLORS = {
+        Draft: "bg-slate-100 text-slate-500 border-slate-200",
+        Active: "bg-green-50 text-green-700 border-green-100",
+        Completed: "bg-blue-50 text-blue-700 border-blue-100",
+        Paused: "bg-amber-50 text-amber-600 border-amber-100",
+      };
+
+      let page = 1;
+      const pageSize = 12;
+      let currentCampaignId = null;
+      let segmentCustomerIds = [];
+
+      async function loadCampaigns() {
+        const search = document.getElementById("c-search").value.trim();
+        const type = document.getElementById("c-type").value;
+        const status = document.getElementById("c-status").value;
+        const params = new URLSearchParams({ page, pageSize });
+        if (search) params.set("search", search);
+        if (type) params.set("type", type);
+        if (status) params.set("status", status);
+
+        document.getElementById("campaigns-grid").innerHTML = `<div class="col-span-full text-center text-slate-400 py-8">Loading…</div>`;
+        try {
+          const res = await window.FINEMARK_APP.apiFetch(`/crm/campaigns?${params}`);
+          const { data, meta } = res;
+          if (!data.length) {
+            document.getElementById("campaigns-grid").innerHTML = `<div class="col-span-full text-center text-slate-400 py-8">No campaigns found.</div>`;
+          } else {
+            document.getElementById("campaigns-grid").innerHTML = data.map(c => `
+              <div class="rounded-xl border border-slate-200/80 p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer camp-card" data-id="${c.id}">
+                <div class="flex items-start justify-between mb-2">
+                  <span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${TYPE_COLORS[c.type] || 'bg-slate-100 text-slate-600'}">${c.type}</span>
+                  <span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${STATUS_COLORS[c.status] || 'bg-slate-100 text-slate-600'}">${c.status}</span>
+                </div>
+                <h3 class="font-semibold text-slate-900 text-sm truncate">${c.name}</h3>
+                <p class="text-xs text-slate-400 mt-1 line-clamp-2">${c.description || "No description"}</p>
+                <div class="mt-3 flex justify-between text-xs text-slate-500">
+                  <span>Target: <strong class="text-slate-800">${c.targetCount}</strong></span>
+                  <span>Sent: <strong class="text-blue-700">${c.sentCount}</strong></span>
+                </div>
+              </div>
+            `).join("");
+            document.querySelectorAll(".camp-card").forEach(el => {
+              el.addEventListener("click", () => openCampaignDetail(el.dataset.id));
+            });
+          }
+          const total = meta?.total ?? 0;
+          document.getElementById("c-meta").textContent = `${total} campaign(s)`;
+          document.getElementById("btn-c-prev").disabled = page <= 1;
+          document.getElementById("btn-c-next").disabled = page * pageSize >= total;
+        } catch {
+          document.getElementById("campaigns-grid").innerHTML = `<div class="col-span-full text-center text-red-500 py-8">Failed to load campaigns.</div>`;
+        }
+      }
+
+      async function openCampaignDetail(id) {
+        currentCampaignId = id;
+        segmentCustomerIds = [];
+        document.getElementById("campaign-detail").classList.remove("hidden");
+        document.getElementById("segment-builder").classList.add("hidden");
+        document.getElementById("seg-result").textContent = "";
+
+        try {
+          const c = await window.FINEMARK_APP.apiFetch(`/crm/campaigns/${id}`);
+          document.getElementById("detail-title").textContent = c.name;
+          document.getElementById("d-type").textContent = c.type;
+          document.getElementById("d-status").innerHTML = `<span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${STATUS_COLORS[c.status] || ''}">${c.status}</span>`;
+          document.getElementById("d-target").textContent = c.targetCount;
+          document.getElementById("d-sent").textContent = c.sentCount;
+        } catch {}
+
+        await loadMembers(id);
+
+        document.getElementById("campaign-detail").scrollIntoView({ behavior: "smooth" });
+      }
+
+      async function loadMembers(id) {
+        try {
+          const members = await window.FINEMARK_APP.apiFetch(`/crm/campaigns/${id}/members`);
+          if (!members.length) {
+            document.getElementById("members-tbody").innerHTML = `<tr><td colspan="6" class="py-4 text-center text-slate-400 text-xs">No members yet. Use "Build Segment" to find customers.</td></tr>`;
+          } else {
+            document.getElementById("members-tbody").innerHTML = members.map(m => `
+              <tr class="hover:bg-slate-50/50">
+                <td class="py-2 pr-4 font-mono text-xs text-slate-700">${m.accountNo}</td>
+                <td class="py-2 pr-4 text-sm text-slate-800">${m.customerName || "—"}</td>
+                <td class="py-2 pr-4 text-xs text-slate-500">${m.type}</td>
+                <td class="py-2 pr-4 text-xs">${m.status}</td>
+                <td class="py-2 pr-4 text-xs text-slate-400">${m.sentAt ? m.sentAt.slice(0, 10) : "—"}</td>
+                <td class="py-2 text-xs text-slate-600">${m.outcome || "—"}</td>
+              </tr>`).join("");
+          }
+        } catch {}
+      }
+
+      document.getElementById("btn-detail-close").addEventListener("click", () => {
+        document.getElementById("campaign-detail").classList.add("hidden");
+        currentCampaignId = null;
+      });
+
+      document.getElementById("btn-segment").addEventListener("click", () => {
+        document.getElementById("segment-builder").classList.toggle("hidden");
+      });
+
+      document.getElementById("btn-run-segment").addEventListener("click", async () => {
+        if (!currentCampaignId) return;
+        const criteria = {
+          type: document.getElementById("seg-type").value || undefined,
+          region: document.getElementById("seg-region").value.trim() || undefined,
+          status: document.getElementById("seg-status").value || undefined,
+          subscriptionStatus: document.getElementById("seg-sub-status").value || undefined,
+          subscriptionService: document.getElementById("seg-service").value.trim() || undefined,
+          renewingIn: document.getElementById("seg-renewing").value.trim() || undefined,
+        };
+        Object.keys(criteria).forEach(k => criteria[k] === undefined && delete criteria[k]);
+        document.getElementById("seg-result").textContent = "Running…";
+        try {
+          const res = await window.FINEMARK_APP.apiFetch(`/crm/campaigns/${currentCampaignId}/segment`, { method: "POST", body: { criteria } });
+          segmentCustomerIds = res.customers.map(c => c.id);
+          document.getElementById("seg-result").textContent = `✓ ${res.total} customers matched`;
+          document.getElementById("d-target").textContent = res.total;
+        } catch {
+          document.getElementById("seg-result").textContent = "Segment failed";
+        }
+      });
+
+      document.getElementById("btn-add-members").addEventListener("click", async () => {
+        if (!currentCampaignId) return;
+        const btn = document.getElementById("btn-add-members");
+        btn.disabled = true; btn.textContent = "Working…";
+        try {
+          // If segment hasn't been run this session, re-run it from stored criteria first
+          if (!segmentCustomerIds.length) {
+            document.getElementById("seg-result").textContent = "Re-running segment…";
+            const segRes = await window.FINEMARK_APP.apiFetch(`/crm/campaigns/${currentCampaignId}/segment`, { method: "POST", body: { criteria: {} } });
+            segmentCustomerIds = (segRes.customers ?? []).map(c => c.id);
+            document.getElementById("seg-result").textContent = `✓ ${segRes.total} customers matched`;
+            document.getElementById("d-target").textContent = segRes.total;
+          }
+          if (!segmentCustomerIds.length) {
+            alert("No customers matched the segment criteria. Adjust the criteria and run the segment first.");
+            return;
+          }
+          const res = await window.FINEMARK_APP.apiFetch(`/crm/campaigns/${currentCampaignId}/members`, { method: "POST", body: { customerIds: segmentCustomerIds } });
+          const { added, total } = res.data ?? res;
+          alert(`${added} new member(s) added. Total in campaign: ${total}`);
+          loadMembers(currentCampaignId);
+        } catch (e) {
+          alert("Failed to add members: " + (e?.message || "Unknown error"));
+        } finally {
+          btn.disabled = false; btn.textContent = "Add Segment to Campaign";
+        }
+      });
+
+      document.getElementById("btn-c-search").addEventListener("click", () => { page = 1; loadCampaigns(); });
+      document.getElementById("btn-c-clear").addEventListener("click", () => {
+        document.getElementById("c-search").value = ""; document.getElementById("c-type").value = ""; document.getElementById("c-status").value = "";
+        page = 1; loadCampaigns();
+      });
+      document.getElementById("btn-c-prev").addEventListener("click", () => { if (page > 1) { page--; loadCampaigns(); } });
+      document.getElementById("btn-c-next").addEventListener("click", () => { page++; loadCampaigns(); });
+
+      // New Campaign Modal
+      const ncModal = document.getElementById("modal-new-campaign");
+      document.getElementById("btn-new-campaign").addEventListener("click", () => ncModal.classList.remove("hidden"));
+      document.getElementById("nc-close").addEventListener("click", () => ncModal.classList.add("hidden"));
+      document.getElementById("nc-cancel").addEventListener("click", () => ncModal.classList.add("hidden"));
+
+      document.getElementById("new-campaign-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const name = document.getElementById("nc-name").value.trim();
+        if (!name) return;
+        document.getElementById("nc-error").classList.add("hidden");
+        const btn = document.getElementById("btn-create-campaign");
+        btn.disabled = true; btn.textContent = "Creating…";
+        try {
+          await window.FINEMARK_APP.apiFetch("/crm/campaigns", { method: "POST", body: {
+            name, type: document.getElementById("nc-type").value,
+            description: document.getElementById("nc-desc").value.trim() || null,
+            startDate: document.getElementById("nc-start").value || null,
+            endDate: document.getElementById("nc-end").value || null,
+          }});
+          ncModal.classList.add("hidden");
+          document.getElementById("new-campaign-form").reset();
+          loadCampaigns();
+        } catch (err) {
+          document.getElementById("nc-error").textContent = err?.message || "Failed to create campaign.";
+          document.getElementById("nc-error").classList.remove("hidden");
+        }
+        btn.disabled = false; btn.textContent = "Create Campaign";
+      });
+
+      loadCampaigns();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Archive — Bank Report</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-7xl mx-auto space-y-6">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Bank Report</h1>
+              <p class="text-sm text-slate-600">Archived IDTS installs grouped by financing bank — historical reference only.</p>
+            </div>
+            <div id="badge-slot"></div>
+          </div>
+          <section class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm space-y-4">
+            <div class="grid gap-4 md:grid-cols-4">
+              <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Start Date</label>
+                <input id="start-date" type="date" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"/></div>
+              <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">End Date</label>
+                <input id="end-date" type="date" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"/></div>
+              <div class="flex items-end gap-3">
+                <button id="apply" class="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Apply</button>
+                <button id="reset" class="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Reset</button>
+              </div>
+            </div>
+          </section>
+          <section class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm space-y-4">
+            <h2 class="text-sm font-semibold text-slate-700">Bank Summary</h2>
+            <div id="summary" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+          </section>
+          <section class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm space-y-4">
+            <h2 class="text-sm font-semibold text-slate-700">Detail by Bank</h2>
+            <div id="detail" class="space-y-6"></div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+    <script src="assets/contracts.js"></script>
+    <script src="assets/app.js"></script>
+    <script src="assets/layout.js"></script>
+    <script src="assets/archive-common.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", async () => {
+        if ((await ArchiveCommon.gate()) === false) return;
+        document.getElementById("badge-slot").innerHTML = ArchiveCommon.readOnlyBadge;
+        init();
+      });
+      const $ = (id) => document.getElementById(id);
+      function filters() {
+        const f = {};
+        if ($("start-date").value) f.startDate = $("start-date").value;
+        if ($("end-date").value) f.endDate = $("end-date").value;
+        return f;
+      }
+      async function load() {
+        const qs = new URLSearchParams(filters()).toString();
+        $("summary").innerHTML = `<div class="col-span-full text-center text-slate-400 py-8">Loading…</div>`;
+        $("detail").innerHTML = "";
+        try {
+          const res = await window.FINEMARK_APP.apiFetch(`/archive/bank-report?${qs}`);
+          const d = (res.data || res);
+          if (!d.summary.length) {
+            $("summary").innerHTML = `<div class="col-span-full text-center text-amber-700 bg-amber-50 border border-amber-200 rounded-lg py-6">No records found for the selected filters.</div>`;
+            return;
+          }
+          $("summary").innerHTML = d.summary.map((b) => `
+            <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 flex justify-between items-center">
+              <div class="font-semibold text-slate-800">${ArchiveCommon.escapeHtml(b.bank)}</div>
+              <div class="text-sm text-slate-500">${b.count.toLocaleString()} records</div>
+            </div>`).join("");
+          $("detail").innerHTML = d.detail.map((b) => `
+            <div>
+              <h3 class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-3 rounded-t-lg text-sm font-semibold">${ArchiveCommon.escapeHtml(b.bank)} (${b.count} records)</h3>
+              <div class="overflow-x-auto border border-slate-200 rounded-b-lg">
+                <table class="w-full text-xs min-w-[800px]">
+                  <thead class="bg-slate-50 text-left text-slate-500 uppercase"><tr>
+                    <th class="px-3 py-2">S/N</th><th class="px-3 py-2">Install Date</th><th class="px-3 py-2">Sales Person</th>
+                    <th class="px-3 py-2">Client</th><th class="px-3 py-2">Vehicle Reg</th><th class="px-3 py-2">Model</th><th class="px-3 py-2">Loan Dur.</th>
+                  </tr></thead>
+                  <tbody class="divide-y divide-slate-100">
+                    ${b.records.map((r, i) => `<tr>
+                      <td class="px-3 py-2">${i + 1}</td>
+                      <td class="px-3 py-2">${ArchiveCommon.escapeHtml(r.installationDateRaw)}</td>
+                      <td class="px-3 py-2">${ArchiveCommon.escapeHtml(r.salesPerson)}</td>
+                      <td class="px-3 py-2">${ArchiveCommon.escapeHtml(r.clientName)}</td>
+                      <td class="px-3 py-2 font-mono">${ArchiveCommon.escapeHtml(r.vehicleReg)}</td>
+                      <td class="px-3 py-2">${ArchiveCommon.escapeHtml(r.model)}</td>
+                      <td class="px-3 py-2">${ArchiveCommon.escapeHtml(r.loanDuration)}</td>
+                    </tr>`).join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>`).join("");
+        } catch (e) {
+          $("summary").innerHTML = `<div class="col-span-full text-center text-rose-600 bg-rose-50 border border-rose-200 rounded-lg py-6">${ArchiveCommon.escapeHtml(e.message)}</div>`;
+        }
+      }
+      function init() {
+        load();
+        $("apply").addEventListener("click", load);
+        $("reset").addEventListener("click", () => { $("start-date").value = ""; $("end-date").value = ""; load(); });
+      }
+    </script>
+  </body>
+</html>

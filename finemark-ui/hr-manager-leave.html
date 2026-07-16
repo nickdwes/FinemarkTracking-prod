@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Team Leave</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+    <style>
+      .cal-day { min-height: 88px; }
+      .leave-chip { font-size: 10px; line-height: 1.3; }
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-6xl mx-auto space-y-6">
+
+          <div>
+            <nav class="text-xs text-slate-400 mb-1">
+              <a href="hr-dashboard.html" class="hover:text-teal-600">HR</a> / Team Leave
+            </nav>
+            <h1 class="text-2xl font-semibold text-slate-900">Team Leave</h1>
+          </div>
+
+          <!-- Not-a-manager banner (shown when user has no direct reports) -->
+          <div id="no-team-banner" class="hidden bg-white border border-slate-200/80 rounded-2xl shadow-sm p-10 text-center">
+            <svg class="mx-auto mb-3 w-10 h-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5.197-3.732M9 20H4v-2a4 4 0 015.197-3.732M15 7a4 4 0 11-8 0 4 4 0 018 0zm6 4a3 3 0 11-6 0 3 3 0 016 0zM3 11a3 3 0 116 0 3 3 0 01-6 0z"/>
+            </svg>
+            <p class="text-sm font-medium text-slate-600">No direct reports found</p>
+            <p class="text-xs text-slate-400 mt-1">You don't currently have any direct reports assigned in the HR system.</p>
+          </div>
+
+          <!-- Manager dashboard (shown when user has direct reports) -->
+          <div id="manager-dashboard" class="hidden space-y-6">
+
+            <!-- Team members -->
+            <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+              <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-slate-700">Your Team</h3>
+                <span id="team-count" class="text-xs text-slate-400"></span>
+              </div>
+              <div id="team-list" class="flex flex-wrap gap-3 px-5 py-4"></div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex gap-1 border-b border-slate-200">
+              <button data-tab="pending" class="tab-btn px-4 py-2 text-sm font-medium text-teal-600 border-b-2 border-teal-500">
+                Pending
+                <span id="pending-count" class="ml-1 inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">0</span>
+              </button>
+              <button data-tab="calendar" class="tab-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent">Team Calendar</button>
+            </div>
+
+            <!-- PENDING TAB ──────────────────────────────────────────── -->
+            <div id="tab-pending" class="tab-panel space-y-3">
+              <p id="pending-empty" class="hidden py-10 text-center text-sm text-slate-400 bg-white border border-slate-200/80 rounded-2xl">No pending leave applications from your team.</p>
+            </div>
+
+            <!-- CALENDAR TAB ─────────────────────────────────────────── -->
+            <div id="tab-calendar" class="tab-panel hidden space-y-4">
+
+              <!-- Controls -->
+              <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm p-4 flex flex-wrap gap-3 items-center">
+                <button onclick="prevMonth()" class="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50">← Prev</button>
+                <h2 id="cal-month-label" class="text-sm font-semibold text-slate-800 min-w-[130px] text-center"></h2>
+                <button onclick="nextMonth()" class="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50">Next →</button>
+                <button onclick="loadCalendar()" class="ml-2 px-3 py-1.5 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700">Refresh</button>
+                <div class="ml-auto flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                  <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-sm bg-teal-100 border border-teal-300"></span>Annual</span>
+                  <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-sm bg-rose-100 border border-rose-300"></span>Sick</span>
+                  <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-sm bg-violet-100 border border-violet-300"></span>Maternity/Paternity</span>
+                  <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-sm bg-amber-100 border border-amber-300"></span>Other</span>
+                </div>
+              </div>
+
+              <!-- Calendar grid -->
+              <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+                <div class="grid grid-cols-7 border-b border-slate-100">
+                  <div class="py-2 text-xs font-semibold text-center text-slate-400">Mon</div>
+                  <div class="py-2 text-xs font-semibold text-center text-slate-400">Tue</div>
+                  <div class="py-2 text-xs font-semibold text-center text-slate-400">Wed</div>
+                  <div class="py-2 text-xs font-semibold text-center text-slate-400">Thu</div>
+                  <div class="py-2 text-xs font-semibold text-center text-slate-400">Fri</div>
+                  <div class="py-2 text-xs font-semibold text-center text-slate-300">Sat</div>
+                  <div class="py-2 text-xs font-semibold text-center text-slate-300">Sun</div>
+                </div>
+                <div id="cal-grid" class="grid grid-cols-7 divide-x divide-y divide-slate-100"></div>
+              </div>
+
+              <!-- List view for this month -->
+              <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm p-5">
+                <h3 class="text-sm font-semibold text-slate-700 mb-3">Leave This Month</h3>
+                <div id="cal-list" class="space-y-2"></div>
+                <p id="cal-list-empty" class="hidden text-xs text-slate-400 text-center py-4">No approved team leaves in this period.</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+
+    <!-- Approve / Reject Modal -->
+    <div id="action-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <h3 id="action-modal-title" class="text-base font-semibold text-slate-800">Review Leave Application</h3>
+          <button onclick="closeActionModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+        <div id="action-app-summary" class="px-6 py-4 bg-slate-50 text-sm space-y-1 border-b border-slate-100"></div>
+        <form id="action-form" class="px-6 py-5 space-y-4">
+          <input type="hidden" id="action-app-id" />
+          <input type="hidden" id="action-type" />
+          <div id="rejection-reason-row" class="hidden">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Rejection Reason <span class="text-rose-500">*</span></label>
+            <textarea id="rejection-reason" rows="2" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-teal-500 focus:outline-none"></textarea>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Notes <span class="text-slate-400 font-normal">(optional)</span></label>
+            <textarea id="action-notes" rows="2" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-teal-500 focus:outline-none"></textarea>
+          </div>
+          <div id="action-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2"></div>
+          <div class="flex justify-end gap-3">
+            <button type="button" onclick="closeActionModal()" class="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600">Cancel</button>
+            <button type="submit" id="action-submit-btn" class="px-4 py-2 text-sm rounded-lg text-white">Confirm</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+    // ── State ────────────────────────────────────────────────────────────────
+    let myEmployeeId = null;
+    let canApprove   = false;
+    let calYear      = new Date().getFullYear();
+    let calMonth     = new Date().getMonth(); // 0-indexed
+    let calData      = [];
+
+    const MONTHS_LONG  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    const STATUS_COLOR = {
+      Pending:   'bg-amber-50 text-amber-700 border-amber-200',
+      Approved:  'bg-emerald-50 text-emerald-700 border-emerald-200',
+      Rejected:  'bg-rose-50 text-rose-700 border-rose-200',
+      Cancelled: 'bg-slate-100 text-slate-500 border-slate-200',
+    };
+
+    const LEAVE_COLOR = {
+      annual: 'bg-teal-100 text-teal-800 border-teal-200',
+      sick:   'bg-rose-100 text-rose-800 border-rose-200',
+      maternity: 'bg-violet-100 text-violet-800 border-violet-200',
+      paternity: 'bg-violet-100 text-violet-800 border-violet-200',
+      other:  'bg-amber-100 text-amber-800 border-amber-200',
+    };
+
+    function leaveColorClass(typeName) {
+      const n = (typeName || '').toLowerCase();
+      if (n.includes('annual') || n.includes('vacation')) return LEAVE_COLOR.annual;
+      if (n.includes('sick') || n.includes('medical')) return LEAVE_COLOR.sick;
+      if (n.includes('matern')) return LEAVE_COLOR.maternity;
+      if (n.includes('patern')) return LEAVE_COLOR.paternity;
+      return LEAVE_COLOR.other;
+    }
+
+    const fmtDate = d => {
+      if (!d) return '';
+      const [y, m, day] = d.split('-');
+      return `${MONTHS_SHORT[parseInt(m)-1]} ${parseInt(day)}, ${y}`;
+    };
+
+    // ── Tab switching ────────────────────────────────────────────────────────
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => {
+          b.classList.remove('text-teal-600','border-teal-500');
+          b.classList.add('text-slate-500','border-transparent');
+        });
+        btn.classList.add('text-teal-600','border-teal-500');
+        btn.classList.remove('text-slate-500','border-transparent');
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+        document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
+        if (btn.dataset.tab === 'calendar') loadCalendar();
+      });
+    });
+
+    // ── Pending approvals ────────────────────────────────────────────────────
+    async function loadPending() {
+      const params = new URLSearchParams({ status: 'Pending', limit: '100', managerId: myEmployeeId });
+      const res = await window.FINEMARK_APP.apiFetch(`/hr/leave/applications?${params}`);
+      const items = res?.applications || [];
+      document.getElementById('pending-count').textContent = items.length;
+
+      const container = document.getElementById('tab-pending');
+      const empty = document.getElementById('pending-empty');
+      // Remove old cards (keep the empty element)
+      Array.from(container.children).forEach(c => { if (c.id !== 'pending-empty') c.remove(); });
+
+      if (!items.length) { empty.classList.remove('hidden'); return; }
+      empty.classList.add('hidden');
+
+      items.forEach(a => {
+        const card = document.createElement('div');
+        card.className = 'bg-white border border-slate-200/80 rounded-2xl shadow-sm p-5 flex flex-wrap items-start gap-4';
+        card.innerHTML = `
+          <div class="flex-1 min-w-0">
+            <div class="flex flex-wrap items-center gap-2 mb-1">
+              <p class="text-sm font-semibold text-slate-900">${a.employee_name || ''}</p>
+              <span class="text-xs text-slate-400">${a.employee_no || ''}</span>
+              ${a.org_unit_name ? `<span class="text-xs text-slate-400">· ${a.org_unit_name}</span>` : ''}
+            </div>
+            <p class="text-sm text-slate-700 mb-1">
+              <span class="font-medium">${a.leave_type_name || ''}</span>
+              &nbsp;·&nbsp;${fmtDate(a.start_date)} → ${fmtDate(a.end_date)}
+              &nbsp;·&nbsp;<strong>${a.total_days} day${a.total_days !== 1 ? 's' : ''}</strong>
+            </p>
+            ${a.reason ? `<p class="text-xs text-slate-500 line-clamp-2">${a.reason}</p>` : ''}
+            <p class="text-xs text-slate-400 mt-1">Applied: ${fmtDate(a.applied_date)}</p>
+          </div>
+          ${canApprove ? `
+          <div class="flex flex-wrap gap-2 items-start shrink-0">
+            <button onclick='openAction("${a.id}","Approved",${JSON.stringify(a).replace(/'/g,"\\'")})'
+              class="px-3 py-1.5 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100">Approve</button>
+            <button onclick='openAction("${a.id}","Rejected",${JSON.stringify(a).replace(/'/g,"\\'")})'
+              class="px-3 py-1.5 text-xs bg-rose-50 text-rose-700 border border-rose-200 rounded-lg hover:bg-rose-100">Reject</button>
+          </div>` : `
+          <div class="shrink-0">
+            <span class="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">View only — approval requires approver role</span>
+          </div>`}`;
+        container.insertBefore(card, empty);
+      });
+    }
+
+    // ── Calendar ─────────────────────────────────────────────────────────────
+    function prevMonth() { if (calMonth === 0) { calMonth = 11; calYear--; } else calMonth--; loadCalendar(); }
+    function nextMonth() { if (calMonth === 11) { calMonth = 0; calYear++; } else calMonth++; loadCalendar(); }
+
+    async function loadCalendar() {
+      document.getElementById('cal-month-label').textContent = `${MONTHS_LONG[calMonth]} ${calYear}`;
+      const pad = n => String(n).padStart(2, '0');
+      const from = `${calYear}-${pad(calMonth + 1)}-01`;
+      const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+      const to = `${calYear}-${pad(calMonth + 1)}-${pad(daysInMonth)}`;
+      const params = new URLSearchParams({ from, to, managerId: myEmployeeId });
+      const res = await window.FINEMARK_APP.apiFetch(`/hr/leave/calendar?${params}`);
+      calData = res?.data || [];
+      renderCalGrid(from, daysInMonth);
+      renderCalList();
+    }
+
+    function renderCalGrid(fromDate, daysInMonth) {
+      const grid = document.getElementById('cal-grid');
+      let startDow = new Date(calYear, calMonth, 1).getDay() - 1;
+      if (startDow < 0) startDow = 6;
+      const todayStr = new Date().toISOString().slice(0, 10);
+
+      let html = '';
+      for (let i = 0; i < startDow; i++) html += `<div class="cal-day p-1.5 bg-slate-50/50"></div>`;
+      for (let day = 1; day <= daysInMonth; day++) {
+        const ds = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dow = new Date(calYear, calMonth, day).getDay();
+        const isWeekend = dow === 6 || dow === 0;
+        const isToday = ds === todayStr;
+
+        const entries = calData.filter(e => e.start_date <= ds && e.end_date >= ds);
+        const chips = entries.slice(0, 3).map(e =>
+          `<div class="leave-chip rounded px-1 py-0.5 truncate border ${leaveColorClass(e.leave_type_name)}">${e.full_name?.split(' ')[0] || ''}</div>`
+        ).join('');
+        const more = entries.length > 3 ? `<div class="leave-chip text-slate-400">+${entries.length - 3} more</div>` : '';
+
+        html += `
+          <div class="cal-day p-1.5 ${isWeekend ? 'bg-slate-50' : 'bg-white'} ${isToday ? 'ring-1 ring-inset ring-teal-400' : ''}">
+            <div class="text-xs font-medium mb-1 ${isToday ? 'text-teal-600' : isWeekend ? 'text-slate-300' : 'text-slate-500'}">${day}</div>
+            <div class="space-y-0.5">${chips}${more}</div>
+          </div>`;
+      }
+      grid.innerHTML = html;
+    }
+
+    function renderCalList() {
+      const list = document.getElementById('cal-list');
+      const empty = document.getElementById('cal-list-empty');
+      if (!calData.length) { list.innerHTML = ''; empty.classList.remove('hidden'); return; }
+      empty.classList.add('hidden');
+      list.innerHTML = calData.map(e => `
+        <div class="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-slate-800">${e.full_name || ''}</p>
+            <p class="text-xs text-slate-500">${e.leave_type_name} · ${fmtDate(e.start_date)} → ${fmtDate(e.end_date)} · ${e.total_days} days</p>
+          </div>
+          <span class="shrink-0 text-xs px-2 py-0.5 rounded-full border ${leaveColorClass(e.leave_type_name)}">${e.leave_type_name}</span>
+        </div>`).join('');
+    }
+
+    // ── Approve / Reject Modal ───────────────────────────────────────────────
+    function openAction(id, action, appData) {
+      document.getElementById('action-app-id').value = id;
+      document.getElementById('action-type').value = action;
+      document.getElementById('action-modal-title').textContent =
+        action === 'Approved' ? 'Approve Leave Application' : 'Reject Leave Application';
+      const btn = document.getElementById('action-submit-btn');
+      btn.textContent = action === 'Approved' ? 'Approve' : 'Reject';
+      btn.className = `px-4 py-2 text-sm rounded-lg text-white ${action === 'Approved' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'}`;
+      document.getElementById('rejection-reason-row').classList.toggle('hidden', action !== 'Rejected');
+      document.getElementById('action-notes').value = '';
+      document.getElementById('rejection-reason').value = '';
+      document.getElementById('action-error').classList.add('hidden');
+      if (appData) {
+        document.getElementById('action-app-summary').innerHTML = `
+          <p><strong>${appData.employee_name || ''}</strong> · ${appData.employee_no || ''}</p>
+          <p>${appData.leave_type_name || ''} · ${fmtDate(appData.start_date)} → ${fmtDate(appData.end_date)} · ${appData.total_days} days</p>
+          ${appData.reason ? `<p class="text-slate-500">${appData.reason}</p>` : ''}`;
+      }
+      document.getElementById('action-modal').classList.remove('hidden');
+    }
+    function closeActionModal() { document.getElementById('action-modal').classList.add('hidden'); }
+
+    document.getElementById('action-form').onsubmit = async e => {
+      e.preventDefault();
+      const errEl = document.getElementById('action-error');
+      errEl.classList.add('hidden');
+      const id     = document.getElementById('action-app-id').value;
+      const action = document.getElementById('action-type').value;
+      const body = {
+        action,
+        notes: document.getElementById('action-notes').value.trim() || undefined,
+        rejectionReason: action === 'Rejected' ? document.getElementById('rejection-reason').value.trim() : undefined,
+      };
+      if (action === 'Rejected' && !body.rejectionReason) {
+        errEl.textContent = 'Please provide a rejection reason.'; errEl.classList.remove('hidden'); return;
+      }
+      try {
+        await window.FINEMARK_APP.apiFetch(`/hr/leave/applications/${id}/approve`, { method: 'POST', body });
+        closeActionModal();
+        await loadPending();
+        loadCalendar();
+      } catch (err) {
+        errEl.textContent = err?.message || 'Action failed.';
+        errEl.classList.remove('hidden');
+      }
+    };
+
+    // ── Init ─────────────────────────────────────────────────────────────────
+    (async () => {
+      await window.FINEMARK_APP.requirePageAccess();
+      const res = await window.FINEMARK_APP.apiFetch('/hr/leave/my-team');
+      myEmployeeId = res?.employeeId || null;
+      canApprove   = res?.canApprove === true;
+
+      if (!res?.isManager) {
+        document.getElementById('no-team-banner').classList.remove('hidden');
+        return;
+      }
+
+      // Render team members pill list
+      const reports = res?.directReports || [];
+      document.getElementById('team-count').textContent = `${reports.length} member${reports.length !== 1 ? 's' : ''}`;
+      document.getElementById('team-list').innerHTML = reports.map(r => `
+        <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+          <div class="w-7 h-7 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold shrink-0">
+            ${(r.full_name || '?').charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <p class="text-xs font-medium text-slate-800">${r.full_name || ''}</p>
+            <p class="text-xs text-slate-400">${r.job_title || r.employee_no || ''}</p>
+          </div>
+        </div>`).join('');
+
+      document.getElementById('manager-dashboard').classList.remove('hidden');
+      await Promise.all([loadPending(), loadCalendar()]);
+    })();
+    </script>
+  </body>
+</html>

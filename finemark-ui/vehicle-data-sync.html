@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Vehicle Data Sync</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    table{border-collapse:collapse;width:100%;}
+    th{text-align:left;font-size:.72rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.04em;padding:.5rem .75rem;border-bottom:1px solid #e2e8f0;white-space:nowrap;}
+    td{font-size:.82rem;padding:.55rem .75rem;border-bottom:1px solid #f1f5f9;color:#334155;vertical-align:middle;}
+    tr:hover td{background:#f8fafc;}
+    .badge{display:inline-flex;align-items:center;border-radius:9999px;padding:.15rem .65rem;font-size:.68rem;font-weight:600;border-width:1px;white-space:nowrap;}
+    .tab-btn{padding:.35rem 1rem;border-radius:.5rem;font-size:.8rem;font-weight:500;color:#475569;transition:all .15s;white-space:nowrap;}
+    .tab-btn:hover{background:#fff;color:#0f172a;}
+    .tab-btn.active{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);color:#0f172a;font-weight:700;}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-4 md:p-6">
+    <div class="max-w-[1600px] mx-auto space-y-6">
+
+      <!-- Page Header -->
+      <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 class="text-2xl font-semibold text-slate-900">Vehicle Data Sync</h1>
+            <p class="mt-1 text-sm text-slate-600">Manage the vehicle master database and push curated data into the CRSP car-model list.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button id="btn-add-vehicle-spec" class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+              Add Vehicle
+            </button>
+            <button id="btn-import-csv" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+              Import CSV
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sources summary -->
+      <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+        <h2 class="text-sm font-semibold text-slate-900 mb-3">Data Sources</h2>
+        <div id="sources-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div class="text-sm text-slate-400">Loading…</div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="bg-slate-100 rounded-xl p-1 flex flex-wrap gap-1">
+        <button class="tab-btn active" data-tab="specs" onclick="switchTab('specs',this)">Vehicle Specs</button>
+        <button class="tab-btn" data-tab="runs" onclick="switchTab('runs',this)">Sync History</button>
+        <button class="tab-btn" data-tab="push" onclick="switchTab('push',this)">Push to CRSP</button>
+      </div>
+
+      <!-- Vehicle Specs Tab -->
+      <div id="tab-specs" class="tab-pane space-y-4">
+        <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+          <div class="grid gap-3 md:grid-cols-5">
+            <div class="md:col-span-2">
+              <label class="text-xs font-semibold text-slate-600">Search</label>
+              <input id="filter-search" type="text" placeholder="Search make, model, trim, ref…" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-slate-600">Category</label>
+              <select id="filter-category" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                <option value="">All Categories</option>
+                <option value="motor_vehicle">Motor Vehicle</option>
+                <option value="motorcycle">Motorcycle</option>
+                <option value="tractor">Tractor</option>
+                <option value="tuktuk">Tuktuk</option>
+                <option value="special_equipment">Special Equipment</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-slate-600">Source</label>
+              <select id="filter-source" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                <option value="">All Sources</option>
+                <option value="manual_csv">Manual CSV</option>
+                <option value="kra_crsp">KRA CRSP</option>
+                <option value="nhtsa_vpic">NHTSA vPIC</option>
+                <option value="jato">JATO Dynamics</option>
+                <option value="carmd">CarMD</option>
+                <option value="dataone">DataOne Software</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-slate-600">Status</label>
+              <select id="filter-status" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                <option value="">All Statuses</option>
+                <option value="pending_review">Pending Review</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <button id="btn-apply-specs" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Apply</button>
+            <button id="btn-reset-specs" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Reset</button>
+            <button id="btn-bulk-approve" class="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed" disabled>Bulk Approve</button>
+            <span id="specs-result-count" class="text-xs text-slate-500"></span>
+          </div>
+          <div id="select-all-banner" class="hidden rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-800"></div>
+        </div>
+
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="min-w-[960px]">
+              <thead>
+                <tr>
+                  <th class="w-8"><input type="checkbox" id="chk-all" /></th>
+                  <th>Make</th><th>Model</th><th>Trim</th><th>Year</th>
+                  <th>Body Style</th><th>Category</th><th>Source</th><th>Status</th><th class="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="specs-tbody"><tr><td colspan="9" class="text-center py-10 text-slate-400">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div id="specs-pagination" class="flex items-center justify-between gap-3 px-4 py-3 border-t border-slate-100 text-xs text-slate-500"></div>
+        </div>
+      </div>
+
+      <!-- Sync History Tab -->
+      <div id="tab-runs" class="tab-pane hidden">
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-100">
+            <h2 class="font-semibold text-slate-900 text-sm">Sync Run History</h2>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-[860px]">
+              <thead>
+                <tr>
+                  <th>Source</th><th>Trigger</th><th>Started</th><th>Finished</th>
+                  <th>Status</th><th>Fetched</th><th>Inserted</th><th>Skipped</th><th>Failed</th>
+                </tr>
+              </thead>
+              <tbody id="runs-tbody"><tr><td colspan="9" class="text-center py-10 text-slate-400">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Push to CRSP Tab -->
+      <div id="tab-push" class="tab-pane hidden space-y-4">
+        <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+          <h2 class="text-sm font-semibold text-slate-900">Generate CRSP Export</h2>
+          <p class="text-xs text-slate-500">
+            Builds a downloadable <code>car-models.js</code> from <strong>approved</strong> vehicle specs sourced from KRA CRSP or manual entry only —
+            other sources aren't eligible since they don't carry a KRA-compatible model number.
+            Download it, replace <code>finemark-ui/assets/car-models.js</code>, commit, and redeploy the frontend for it to take effect.
+          </p>
+          <div class="grid gap-3 md:grid-cols-3">
+            <div>
+              <label class="text-xs font-semibold text-slate-600">Make (optional)</label>
+              <input id="push-filter-make" type="text" placeholder="e.g. ISUZU" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-slate-600">Source (optional)</label>
+              <select id="push-filter-source" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                <option value="">Both (KRA CRSP + Manual)</option>
+                <option value="kra_crsp">KRA CRSP only</option>
+                <option value="manual_csv">Manual only</option>
+              </select>
+            </div>
+            <div class="flex items-end">
+              <button id="btn-generate-push" class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Generate &amp; Download</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-100">
+            <h2 class="font-semibold text-slate-900 text-sm">Export History</h2>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-[700px]">
+              <thead><tr><th>Created</th><th>Filter</th><th>Rows</th><th>Status</th><th class="text-right">Action</th></tr></thead>
+              <tbody id="push-tbody"><tr><td colspan="5" class="text-center py-10 text-slate-400">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="fm-footer"></div>
+
+<!-- CSV Import Modal -->
+<div id="import-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 px-4">
+  <div class="w-full max-w-lg rounded-xl bg-white shadow-lg">
+    <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+      <p class="text-sm font-semibold text-slate-900">Import Vehicle Specs from CSV</p>
+      <button id="import-modal-close" class="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-700 hover:bg-slate-50">Close</button>
+    </div>
+    <div class="p-5 space-y-3">
+      <p class="text-xs text-slate-500">
+        Required columns: <code>make</code>, <code>model</code>. Optional: <code>trim</code>, <code>year</code>, <code>bodystyle</code>,
+        <code>enginetype</code>, <code>enginesizecc</code>, <code>fueltype</code>, <code>transmission</code>, <code>drivetrain</code>,
+        <code>modelnumber</code>, <code>colors</code> (semicolon-separated).
+      </p>
+      <input id="import-file-input" type="file" accept=".csv,text/csv" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+      <p id="import-error" class="text-xs text-rose-600 hidden"></p>
+      <p id="import-result" class="text-xs text-emerald-700 hidden"></p>
+      <div class="flex justify-end gap-2 pt-2">
+        <button id="btn-do-import" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Import</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Vehicle (single manual entry) Modal -->
+<div id="add-vehicle-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 px-4">
+  <div class="w-full max-w-lg rounded-xl bg-white shadow-lg">
+    <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+      <p class="text-sm font-semibold text-slate-900">Add Vehicle</p>
+      <button id="add-vehicle-modal-close" class="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-700 hover:bg-slate-50">Close</button>
+    </div>
+    <div class="p-5 space-y-3">
+      <p class="text-xs text-slate-500">Added directly to the live catalog, approved immediately — no review step, since you're entering it yourself.</p>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Make <span class="text-rose-500">*</span></label>
+          <input id="av-make" type="text" placeholder="e.g. TOYOTA" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm uppercase" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Model <span class="text-rose-500">*</span></label>
+          <input id="av-model" type="text" placeholder="e.g. Hilux" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Category</label>
+          <select id="av-category" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+            <option value="motor_vehicle">Motor Vehicle</option>
+            <option value="motorcycle">Motorcycle</option>
+            <option value="tractor">Tractor</option>
+            <option value="tuktuk">Tuktuk</option>
+            <option value="special_equipment">Special Equipment</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Trim</label>
+          <input id="av-trim" type="text" placeholder="e.g. GD6 4x4 AT" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Year</label>
+          <input id="av-year" type="number" min="1950" max="2100" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Body Style</label>
+          <input id="av-body-style" type="text" placeholder="e.g. SUV" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Model Number</label>
+          <input id="av-model-number" type="text" placeholder="Leave blank to auto-generate" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Fuel Type</label>
+          <input id="av-fuel-type" type="text" placeholder="e.g. Petrol" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Transmission</label>
+          <input id="av-transmission" type="text" placeholder="e.g. Automatic" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+      </div>
+      <p id="add-vehicle-error" class="text-xs text-rose-600 hidden"></p>
+      <p id="add-vehicle-result" class="text-xs text-emerald-700 hidden"></p>
+      <div class="flex justify-end gap-2 pt-2">
+        <button id="btn-do-add-vehicle" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Add Vehicle</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Spec Detail / Edit Modal -->
+<div id="spec-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 px-4">
+  <div class="w-full max-w-lg rounded-xl bg-white shadow-lg">
+    <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+      <p id="spec-modal-title" class="text-sm font-semibold text-slate-900">Vehicle Spec</p>
+      <button id="spec-modal-close" class="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-700 hover:bg-slate-50">Close</button>
+    </div>
+    <div id="spec-modal-body" class="p-5 space-y-2 text-sm text-slate-700"></div>
+    <div class="flex justify-end gap-2 px-5 pb-5">
+      <button id="btn-spec-reject" class="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100">Reject</button>
+      <button id="btn-spec-approve" class="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100">Approve</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+  window.FINEMARK_APP?.requireAuth?.();
+  window.FINEMARK_APP?.requireRole?.(["Admin", "InventoryManager"]);
+  const APP = window.FINEMARK_APP;
+
+  const state = {
+    specs: { page: 1, pageSize: 25, total: 0, items: [], selected: new Set(), selectAllMatching: false },
+    activeSpecId: null,
+  };
+
+  function currentSpecsFilter() {
+    return {
+      search: document.getElementById("filter-search").value.trim() || undefined,
+      source: document.getElementById("filter-source").value || undefined,
+      status: document.getElementById("filter-status").value || undefined,
+      category: document.getElementById("filter-category").value || undefined,
+    };
+  }
+
+  function clearSpecsSelection() {
+    state.specs.selected.clear();
+    state.specs.selectAllMatching = false;
+    document.getElementById("chk-all").checked = false;
+  }
+
+  const fmtDate = (d) => {
+    if (!d) return "—";
+    try { return new Date(d).toLocaleString("en-KE", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }); } catch { return d; }
+  };
+
+  const statusBadge = (status) => {
+    const map = {
+      pending_review: "border-amber-200 bg-amber-50 text-amber-700",
+      approved: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      rejected: "border-red-200 bg-red-50 text-red-700",
+    };
+    const labels = { pending_review: "Pending Review", approved: "Approved", rejected: "Rejected" };
+    return `<span class="badge ${map[status] || "border-slate-200 bg-slate-50 text-slate-500"}">${labels[status] || status}</span>`;
+  };
+
+  const CATEGORY_LABELS = {
+    motor_vehicle: "Motor Vehicle", motorcycle: "Motorcycle", tractor: "Tractor",
+    tuktuk: "Tuktuk", special_equipment: "Special Equipment",
+  };
+  const categoryLabel = (cat) => CATEGORY_LABELS[cat] || cat || "—";
+
+  const runStatusBadge = (status) => {
+    const map = {
+      running: "border-blue-200 bg-blue-50 text-blue-700",
+      success: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      partial: "border-amber-200 bg-amber-50 text-amber-700",
+      failed: "border-red-200 bg-red-50 text-red-700",
+    };
+    return `<span class="badge ${map[status] || "border-slate-200 bg-slate-50 text-slate-500"}">${status}</span>`;
+  };
+
+  // ── Tabs ──────────────────────────────────────────────────────────────────
+  function switchTab(tabId, btn) {
+    document.querySelectorAll(".tab-pane").forEach((el) => el.classList.add("hidden"));
+    document.getElementById("tab-" + tabId)?.classList.remove("hidden");
+    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+    if (btn) btn.classList.add("active");
+    if (tabId === "runs") loadRuns();
+    if (tabId === "push") loadPushHistory();
+  }
+
+  // ── Sources ───────────────────────────────────────────────────────────────
+  async function loadSources() {
+    const grid = document.getElementById("sources-grid");
+    try {
+      const res = await APP.apiFetch("/vehicle-master/sources");
+      const sources = res?.data || [];
+      grid.innerHTML = sources.map((s) => {
+        const statusText = s.enabled ? "Enabled" : (s.isConfigured ? "Disabled" : "Not Configured");
+        const statusClass = s.enabled ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+          : (s.isConfigured ? "border-slate-200 bg-slate-50 text-slate-500" : "border-slate-200 bg-slate-100 text-slate-400");
+        // "enabled" only gates the scheduled/cron path (see PATCH /sources) —
+        // sync-now only needs a real adapter with valid credentials, so a
+        // disabled-but-configured source (e.g. KRA/NHTSA before anyone's
+        // flipped the cron toggle) must still show a manual Sync Now button.
+        const canSync = s.hasAdapter && s.isConfigured;
+        return `
+          <div class="rounded-lg border border-slate-200 p-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-semibold text-slate-800">${s.displayName}</span>
+              <span class="badge ${statusClass}">${statusText}</span>
+            </div>
+            <p class="text-xs text-slate-400">Last synced: ${s.lastSuccessAt ? fmtDate(s.lastSuccessAt) : "Never"}</p>
+            ${canSync ? `<button data-sync-source="${s.sourceKey}" class="text-xs font-semibold text-blue-600 hover:underline">Sync Now</button>` : ""}
+          </div>`;
+      }).join("");
+
+      grid.querySelectorAll("[data-sync-source]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const key = btn.dataset.syncSource;
+          btn.textContent = "Syncing…"; btn.disabled = true;
+          try {
+            const r = await APP.apiFetch(`/vehicle-master/sources/${key}/sync-now`, { method: "POST" });
+            APP.showToast?.(r.message || "Sync complete", "success");
+            loadSources(); loadSpecs();
+          } catch (e) {
+            APP.showToast?.(e.message || "Sync failed", "error");
+          } finally {
+            btn.textContent = "Sync Now"; btn.disabled = false;
+          }
+        });
+      });
+    } catch {
+      grid.innerHTML = `<div class="text-sm text-red-500">Failed to load sources.</div>`;
+    }
+  }
+
+  // ── Vehicle Specs ─────────────────────────────────────────────────────────
+  async function loadSpecs() {
+    const tbody = document.getElementById("specs-tbody");
+    const params = new URLSearchParams();
+    const search = document.getElementById("filter-search").value.trim();
+    const source = document.getElementById("filter-source").value;
+    const status = document.getElementById("filter-status").value;
+    const category = document.getElementById("filter-category").value;
+    if (search) params.set("search", search);
+    if (source) params.set("source", source);
+    if (status) params.set("status", status);
+    if (category) params.set("category", category);
+    params.set("page", state.specs.page);
+    params.set("pageSize", state.specs.pageSize);
+
+    try {
+      const res = await APP.apiFetch(`/vehicle-master/specs?${params.toString()}`);
+      state.specs.items = res?.data || [];
+      state.specs.total = res?.meta?.total || 0;
+      renderSpecs();
+    } catch {
+      tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-red-500">Failed to load vehicle specs.</td></tr>`;
+    }
+  }
+
+  function renderSpecs() {
+    const tbody = document.getElementById("specs-tbody");
+    const items = state.specs.items;
+    tbody.innerHTML = items.length ? items.map((s) => `
+      <tr>
+        <td><input type="checkbox" class="spec-chk" data-id="${s.id}" ${state.specs.selected.has(s.id) ? "checked" : ""} /></td>
+        <td class="font-semibold text-slate-800">${s.make}</td>
+        <td>${s.model}</td>
+        <td>${s.trim || "—"}</td>
+        <td>${s.modelYear || "—"}</td>
+        <td>${s.bodyStyle || "—"}</td>
+        <td class="text-xs text-slate-500">${categoryLabel(s.vehicleCategory)}</td>
+        <td class="text-xs text-slate-500">${s.source}</td>
+        <td>${statusBadge(s.status)}</td>
+        <td class="text-right"><button data-view-spec="${s.id}" class="text-xs font-semibold text-blue-600 hover:underline">View</button></td>
+      </tr>`).join("") : `<tr><td colspan="9" class="text-center py-10 text-slate-400">No vehicle specs found.</td></tr>`;
+
+    const total = state.specs.total;
+    const start = (state.specs.page - 1) * state.specs.pageSize + 1;
+    const end = Math.min(state.specs.page * state.specs.pageSize, total);
+    document.getElementById("specs-result-count").textContent = total ? `Showing ${start}-${end} of ${total}` : "";
+    document.getElementById("specs-pagination").innerHTML = total > state.specs.pageSize ? `
+      <span>${start}–${end} of ${total}</span>
+      <div class="flex gap-1">
+        <button onclick="changeSpecsPage(-1)" ${state.specs.page <= 1 ? "disabled" : ""} class="px-3 py-1 rounded border border-slate-200 hover:bg-slate-50 disabled:opacity-40">←</button>
+        <button onclick="changeSpecsPage(1)" ${end >= total ? "disabled" : ""} class="px-3 py-1 rounded border border-slate-200 hover:bg-slate-50 disabled:opacity-40">→</button>
+      </div>` : "";
+
+    tbody.querySelectorAll(".spec-chk").forEach((chk) => {
+      chk.addEventListener("change", () => {
+        // Any manual (de)selection drops out of "all N matching" mode back to
+        // plain per-row selection — keeps the two modes from mixing.
+        state.specs.selectAllMatching = false;
+        if (chk.checked) state.specs.selected.add(chk.dataset.id); else state.specs.selected.delete(chk.dataset.id);
+        updateBulkApproveUi();
+      });
+    });
+    tbody.querySelectorAll("[data-view-spec]").forEach((btn) => {
+      btn.addEventListener("click", () => openSpecModal(btn.dataset.viewSpec));
+    });
+    updateBulkApproveUi();
+  }
+
+  function updateBulkApproveUi() {
+    const { selected, selectAllMatching, total, items } = state.specs;
+    const btn = document.getElementById("btn-bulk-approve");
+    const banner = document.getElementById("select-all-banner");
+
+    if (selectAllMatching) {
+      btn.disabled = false;
+      btn.textContent = `Approve all ${total} matching`;
+      banner.classList.remove("hidden");
+      banner.innerHTML = `All <strong>${total}</strong> rows matching the current filter are selected. <button id="btn-clear-selection" class="underline font-semibold">Clear selection</button>`;
+    } else {
+      btn.disabled = selected.size === 0;
+      btn.textContent = "Bulk Approve";
+      const pageSelectedAll = items.length > 0 && selected.size >= items.length && items.every((s) => selected.has(s.id));
+      if (pageSelectedAll && total > items.length) {
+        banner.classList.remove("hidden");
+        banner.innerHTML = `All ${items.length} rows on this page are selected. <button id="btn-select-all-matching" class="underline font-semibold">Select all ${total} matching rows instead</button>`;
+      } else {
+        banner.classList.add("hidden");
+        banner.innerHTML = "";
+      }
+    }
+
+    document.getElementById("btn-select-all-matching")?.addEventListener("click", () => {
+      state.specs.selectAllMatching = true;
+      updateBulkApproveUi();
+    });
+    document.getElementById("btn-clear-selection")?.addEventListener("click", () => {
+      clearSpecsSelection();
+      document.querySelectorAll(".spec-chk").forEach((chk) => { chk.checked = false; });
+      updateBulkApproveUi();
+    });
+  }
+
+  window.changeSpecsPage = (delta) => { state.specs.page += delta; loadSpecs(); };
+
+  async function openSpecModal(id) {
+    state.activeSpecId = id;
+    const modal = document.getElementById("spec-modal");
+    const body = document.getElementById("spec-modal-body");
+    modal.classList.remove("hidden"); modal.classList.add("flex");
+    body.innerHTML = `<p class="text-slate-400">Loading…</p>`;
+    try {
+      const spec = await APP.apiFetch(`/vehicle-master/specs/${id}`);
+      document.getElementById("spec-modal-title").textContent = `${spec.make} ${spec.model}${spec.trim ? " " + spec.trim : ""}`;
+      const rows = [
+        ["Category", categoryLabel(spec.vehicleCategory)],
+        ["Year", spec.modelYear], ["Body Style", spec.bodyStyle], ["Engine Type", spec.engineType],
+        ["Engine Size (cc)", spec.engineSizeCc], ["Fuel Type", spec.fuelType], ["Transmission", spec.transmission],
+        ["Drivetrain", spec.drivetrain], ["WMI", spec.wmi], ["VIN Pattern", spec.vinPattern],
+        ["Production Start", spec.productionStartDate], ["Production End", spec.productionEndDate],
+        ["Source", spec.source], ["Source Ref", spec.sourceRef], ["Status", spec.status],
+        ["Colors", (spec.colors || []).map((c) => c.name).join(", ") || "—"],
+      ];
+      body.innerHTML = rows.map(([label, value]) => `
+        <div class="flex justify-between gap-3 border-b border-slate-100 py-1.5">
+          <span class="text-slate-500">${label}</span><span class="font-medium text-slate-800">${value ?? "—"}</span>
+        </div>`).join("");
+    } catch {
+      body.innerHTML = `<p class="text-red-500">Failed to load spec.</p>`;
+    }
+  }
+
+  async function setSpecStatus(status) {
+    if (!state.activeSpecId) return;
+    try {
+      await APP.apiFetch(`/vehicle-master/specs/${state.activeSpecId}`, { method: "PATCH", body: { status } });
+      APP.showToast?.(`Spec ${status === "approved" ? "approved" : "rejected"}.`, "success");
+      document.getElementById("spec-modal").classList.add("hidden");
+      document.getElementById("spec-modal").classList.remove("flex");
+      loadSpecs();
+    } catch (e) {
+      APP.showToast?.(e.message || "Failed to update spec.", "error");
+    }
+  }
+
+  // ── Sync Runs ─────────────────────────────────────────────────────────────
+  async function loadRuns() {
+    const tbody = document.getElementById("runs-tbody");
+    try {
+      const res = await APP.apiFetch("/vehicle-master/sync-runs?pageSize=50");
+      const runs = res?.data || [];
+      tbody.innerHTML = runs.length ? runs.map((r) => `
+        <tr>
+          <td class="font-semibold text-slate-800">${r.source}</td>
+          <td class="text-xs text-slate-500">${r.triggerType}</td>
+          <td class="text-xs text-slate-500">${fmtDate(r.startedAt)}</td>
+          <td class="text-xs text-slate-500">${r.finishedAt ? fmtDate(r.finishedAt) : "—"}</td>
+          <td>${runStatusBadge(r.status)}</td>
+          <td>${r.rowsFetched}</td><td>${r.rowsInserted}</td><td>${Math.max(0, r.rowsFetched - r.rowsInserted - r.rowsFailed)}</td><td>${r.rowsFailed}</td>
+        </tr>`).join("") : `<tr><td colspan="9" class="text-center py-10 text-slate-400">No sync runs yet.</td></tr>`;
+    } catch {
+      tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-red-500">Failed to load sync runs.</td></tr>`;
+    }
+  }
+
+  // ── Push to CRSP ──────────────────────────────────────────────────────────
+  const _getAuthHeaders = () => {
+    const session = APP.getSession?.();
+    return session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {};
+  };
+
+  async function downloadCrspBatch(batchId) {
+    try {
+      const res = await fetch(`${APP.CONFIG.API_BASE_URL}/vehicle-master/crsp-push/${batchId}/download`, { headers: _getAuthHeaders() });
+      if (!res.ok) throw new Error("Download failed.");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "car-models.js";
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      loadPushHistory();
+    } catch (e) {
+      APP.showToast?.(e.message || "Download failed.", "error");
+    }
+  }
+
+  async function loadPushHistory() {
+    const tbody = document.getElementById("push-tbody");
+    try {
+      const res = await APP.apiFetch("/vehicle-master/crsp-push");
+      const batches = res?.data || [];
+      tbody.innerHTML = batches.length ? batches.map((b) => `
+        <tr>
+          <td class="text-xs text-slate-500">${fmtDate(b.createdAt)}</td>
+          <td class="text-xs text-slate-500">${b.filter?.make || b.filter?.source ? JSON.stringify(b.filter) : "All eligible"}</td>
+          <td>${b.rowCount}</td>
+          <td>${b.status === "downloaded" ? `<span class="badge border-emerald-200 bg-emerald-50 text-emerald-700">Downloaded</span>` : `<span class="badge border-slate-200 bg-slate-50 text-slate-500">Draft</span>`}</td>
+          <td class="text-right"><button data-download-batch="${b.id}" class="text-xs font-semibold text-blue-600 hover:underline">Download</button></td>
+        </tr>`).join("") : `<tr><td colspan="5" class="text-center py-10 text-slate-400">No export batches yet.</td></tr>`;
+      tbody.querySelectorAll("[data-download-batch]").forEach((btn) => {
+        btn.addEventListener("click", () => downloadCrspBatch(btn.dataset.downloadBatch));
+      });
+    } catch {
+      tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-red-500">Failed to load export history.</td></tr>`;
+    }
+  }
+
+  // ── Event wiring ──────────────────────────────────────────────────────────
+  document.getElementById("btn-apply-specs").addEventListener("click", () => { clearSpecsSelection(); state.specs.page = 1; loadSpecs(); });
+  document.getElementById("btn-reset-specs").addEventListener("click", () => {
+    document.getElementById("filter-search").value = "";
+    document.getElementById("filter-source").value = "";
+    document.getElementById("filter-status").value = "";
+    document.getElementById("filter-category").value = "";
+    clearSpecsSelection();
+    state.specs.page = 1; loadSpecs();
+  });
+  document.getElementById("chk-all").addEventListener("change", (e) => {
+    state.specs.selectAllMatching = false;
+    document.querySelectorAll(".spec-chk").forEach((chk) => {
+      chk.checked = e.target.checked;
+      if (e.target.checked) state.specs.selected.add(chk.dataset.id); else state.specs.selected.delete(chk.dataset.id);
+    });
+    updateBulkApproveUi();
+  });
+  document.getElementById("btn-bulk-approve").addEventListener("click", async () => {
+    const useFilter = state.specs.selectAllMatching;
+    const ids = [...state.specs.selected];
+    if (!useFilter && !ids.length) return;
+    const body = useFilter ? { filter: currentSpecsFilter() } : { ids };
+    try {
+      const r = await APP.apiFetch("/vehicle-master/specs/bulk-approve", { method: "POST", body });
+      APP.showToast?.(r.message || "Approved.", "success");
+      clearSpecsSelection();
+      loadSpecs();
+    } catch (e) {
+      APP.showToast?.(e.message || "Bulk approve failed.", "error");
+    }
+  });
+
+  document.getElementById("spec-modal-close").addEventListener("click", () => {
+    document.getElementById("spec-modal").classList.add("hidden");
+    document.getElementById("spec-modal").classList.remove("flex");
+  });
+  document.getElementById("btn-spec-approve").addEventListener("click", () => setSpecStatus("approved"));
+  document.getElementById("btn-spec-reject").addEventListener("click", () => setSpecStatus("rejected"));
+
+  document.getElementById("btn-add-vehicle-spec").addEventListener("click", () => {
+    document.getElementById("add-vehicle-error").classList.add("hidden");
+    document.getElementById("add-vehicle-result").classList.add("hidden");
+    ["av-make","av-model","av-trim","av-year","av-body-style","av-model-number","av-fuel-type","av-transmission"]
+      .forEach((id) => { document.getElementById(id).value = ""; });
+    document.getElementById("av-category").value = "motor_vehicle";
+    document.getElementById("add-vehicle-modal").classList.remove("hidden");
+    document.getElementById("add-vehicle-modal").classList.add("flex");
+  });
+  document.getElementById("add-vehicle-modal-close").addEventListener("click", () => {
+    document.getElementById("add-vehicle-modal").classList.add("hidden");
+    document.getElementById("add-vehicle-modal").classList.remove("flex");
+  });
+  document.getElementById("btn-do-add-vehicle").addEventListener("click", async () => {
+    const errEl = document.getElementById("add-vehicle-error");
+    const resEl = document.getElementById("add-vehicle-result");
+    errEl.classList.add("hidden"); resEl.classList.add("hidden");
+    const make = document.getElementById("av-make").value.trim();
+    const model = document.getElementById("av-model").value.trim();
+    if (!make || !model) { errEl.textContent = "Make and Model are required."; errEl.classList.remove("hidden"); return; }
+    const btn = document.getElementById("btn-do-add-vehicle");
+    btn.disabled = true; btn.textContent = "Adding…";
+    try {
+      const yearVal = document.getElementById("av-year").value;
+      const r = await APP.apiFetch("/vehicle-master/specs", {
+        method: "POST",
+        body: {
+          make, model,
+          vehicleCategory: document.getElementById("av-category").value || undefined,
+          trim: document.getElementById("av-trim").value.trim() || undefined,
+          modelYear: yearVal ? Number(yearVal) : undefined,
+          bodyStyle: document.getElementById("av-body-style").value.trim() || undefined,
+          modelNumber: document.getElementById("av-model-number").value.trim() || undefined,
+          fuelType: document.getElementById("av-fuel-type").value.trim() || undefined,
+          transmission: document.getElementById("av-transmission").value.trim() || undefined,
+        },
+      });
+      resEl.textContent = r.message || "Vehicle added.";
+      resEl.classList.remove("hidden");
+      loadSpecs();
+    } catch (e) {
+      errEl.textContent = e.message || "Failed to add vehicle.";
+      errEl.classList.remove("hidden");
+    } finally {
+      btn.disabled = false; btn.textContent = "Add Vehicle";
+    }
+  });
+
+  document.getElementById("btn-import-csv").addEventListener("click", () => {
+    document.getElementById("import-error").classList.add("hidden");
+    document.getElementById("import-result").classList.add("hidden");
+    document.getElementById("import-file-input").value = "";
+    document.getElementById("import-modal").classList.remove("hidden");
+    document.getElementById("import-modal").classList.add("flex");
+  });
+  document.getElementById("import-modal-close").addEventListener("click", () => {
+    document.getElementById("import-modal").classList.add("hidden");
+    document.getElementById("import-modal").classList.remove("flex");
+  });
+  document.getElementById("btn-do-import").addEventListener("click", async () => {
+    const fileInput = document.getElementById("import-file-input");
+    const errEl = document.getElementById("import-error");
+    const resEl = document.getElementById("import-result");
+    errEl.classList.add("hidden"); resEl.classList.add("hidden");
+    if (!fileInput.files.length) { errEl.textContent = "Please choose a CSV file."; errEl.classList.remove("hidden"); return; }
+
+    const formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+    const session = APP.getSession?.();
+    try {
+      const res = await fetch(`${APP.CONFIG.API_BASE_URL}/vehicle-master/import/csv`, {
+        method: "POST",
+        headers: session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {},
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || "Import failed.");
+      resEl.textContent = data.message || `Imported ${data.data?.inserted || 0} row(s).`;
+      resEl.classList.remove("hidden");
+      loadSpecs();
+    } catch (e) {
+      errEl.textContent = e.message || "Import failed.";
+      errEl.classList.remove("hidden");
+    }
+  });
+
+  document.getElementById("btn-generate-push").addEventListener("click", async () => {
+    const make = document.getElementById("push-filter-make").value.trim();
+    const source = document.getElementById("push-filter-source").value;
+    const btn = document.getElementById("btn-generate-push");
+    btn.disabled = true; btn.textContent = "Generating…";
+    try {
+      const filter = {};
+      if (make) filter.make = make;
+      if (source) filter.source = source;
+      const res = await APP.apiFetch("/vehicle-master/crsp-push", { method: "POST", body: { filter } });
+      const batchId = res.data?.batchId || res.batchId;
+      APP.showToast?.(res.message || "Export ready.", "success");
+      await downloadCrspBatch(batchId);
+    } catch (e) {
+      APP.showToast?.(e.message || "Export failed.", "error");
+    } finally {
+      btn.disabled = false; btn.textContent = "Generate & Download";
+    }
+  });
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  loadSources();
+  loadSpecs();
+</script>
+</body>
+</html>

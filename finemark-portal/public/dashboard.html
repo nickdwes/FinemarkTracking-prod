@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | My Account</title>
+  <link rel="icon" href="/assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="/assets/tailwind.css" />
+  <style>
+    .tab-btn        { border-bottom: 2px solid transparent; transition: all .15s; }
+    .tab-btn.active { border-bottom-color: #2563eb; color: #2563eb; }
+    .tab-pane       { display: none; }
+    .tab-pane.active{ display: block; }
+    .badge          { display: inline-flex; align-items: center; border-radius: 9999px; padding: 2px 10px; font-size: .7rem; font-weight: 600; }
+    .status-Active, .status-Paid, .status-Completed, .status-Resolved
+      { background:#dcfce7; color:#166534; }
+    .status-Inactive,.status-Overdue,.status-Cancelled,.status-Void
+      { background:#fee2e2; color:#991b1b; }
+    .status-Pending,.status-Open,.status-Draft,.status-Partial
+      { background:#fef9c3; color:#854d0e; }
+    .status-Closed  { background:#f1f5f9; color:#475569; }
+    .pri-Critical   { background:#fee2e2; color:#991b1b; }
+    .pri-High       { background:#ffedd5; color:#9a3412; }
+    .pri-Normal     { background:#dbeafe; color:#1e40af; }
+    .pri-Low        { background:#f1f5f9; color:#475569; }
+    details > summary { list-style: none; }
+    details > summary::-webkit-details-marker { display: none; }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 antialiased">
+
+  <!-- ── Top nav ──────────────────────────────────────────────────────────── -->
+  <nav class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm shadow-slate-100/60">
+    <div class="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <img src="/assets/finemark-logo.svg" class="h-7 w-7" alt="Finemark" />
+        <div class="leading-tight">
+          <span class="font-semibold text-slate-900 text-sm block">Finemark</span>
+          <span class="text-xs text-slate-400">Customer Portal</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 text-sm">
+        <span id="nav-name" class="text-slate-600 hidden md:inline text-xs font-medium"></span>
+        <button id="logout-btn"
+          class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50 transition-colors">
+          Sign Out
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-6xl mx-auto px-4 py-8 space-y-6">
+
+    <!-- ── Profile header card ──────────────────────────────────────────── -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <div class="flex flex-col sm:flex-row sm:items-start gap-5">
+        <!-- Avatar -->
+        <div id="avatar"
+          class="h-16 w-16 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center text-2xl font-bold shrink-0">
+          ?
+        </div>
+        <!-- Info -->
+        <div class="flex-1 min-w-0">
+          <h2 id="prof-name" class="text-xl font-bold text-slate-900 truncate">Loading…</h2>
+          <p id="prof-account" class="text-sm text-slate-400 mt-0.5"></p>
+          <div class="mt-2 flex flex-wrap gap-2">
+            <span id="prof-status" class="badge">–</span>
+            <span id="prof-type"   class="badge bg-slate-100 text-slate-600"></span>
+            <span id="prof-region" class="badge bg-slate-100 text-slate-600 hidden"></span>
+            <span id="prof-since"  class="badge bg-slate-100 text-slate-600 hidden"></span>
+          </div>
+        </div>
+        <!-- New ticket CTA -->
+        <button id="new-ticket-btn"
+          class="shrink-0 rounded-xl bg-blue-600 text-white px-5 py-2.5 text-sm font-semibold shadow-sm shadow-blue-600/20
+                 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors">
+          + New Ticket
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Stats row ─────────────────────────────────────────────────────── -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
+        <p class="text-2xl font-bold text-slate-900" id="stat-vehicles">–</p>
+        <p class="text-xs text-slate-500 mt-1">Vehicles</p>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
+        <p class="text-2xl font-bold text-slate-900" id="stat-subs">–</p>
+        <p class="text-xs text-slate-500 mt-1">Active Subscriptions</p>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
+        <p class="text-2xl font-bold text-slate-900" id="stat-devices">–</p>
+        <p class="text-xs text-slate-500 mt-1">Devices</p>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
+        <p class="text-2xl font-bold text-blue-600" id="stat-tickets">–</p>
+        <p class="text-xs text-slate-500 mt-1">Open Tickets</p>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
+        <p class="text-2xl font-bold text-amber-600" id="stat-invoices">–</p>
+        <p class="text-xs text-slate-500 mt-1">Unpaid Invoices</p>
+      </div>
+    </div>
+
+    <!-- ── Tabbed content ─────────────────────────────────────────────────── -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+
+      <!-- Tab bar -->
+      <div class="border-b border-slate-200 flex overflow-x-auto bg-slate-50/50">
+        <button class="tab-btn active shrink-0 px-5 py-3.5 text-sm font-medium text-slate-500 hover:text-slate-800 whitespace-nowrap" data-tab="vehicles">Vehicles</button>
+        <button class="tab-btn shrink-0 px-5 py-3.5 text-sm font-medium text-slate-500 hover:text-slate-800 whitespace-nowrap" data-tab="subscriptions">Subscriptions</button>
+        <button class="tab-btn shrink-0 px-5 py-3.5 text-sm font-medium text-slate-500 hover:text-slate-800 whitespace-nowrap" data-tab="devices">Devices</button>
+        <button class="tab-btn shrink-0 px-5 py-3.5 text-sm font-medium text-slate-500 hover:text-slate-800 whitespace-nowrap" data-tab="tickets">Tickets</button>
+        <button class="tab-btn shrink-0 px-5 py-3.5 text-sm font-medium text-slate-500 hover:text-slate-800 whitespace-nowrap" data-tab="invoices">Invoices</button>
+        <button class="tab-btn shrink-0 px-5 py-3.5 text-sm font-medium text-slate-500 hover:text-slate-800 whitespace-nowrap" data-tab="comms">Communications</button>
+        <button class="tab-btn shrink-0 px-5 py-3.5 text-sm font-medium text-slate-500 hover:text-slate-800 whitespace-nowrap" data-tab="profile">My Profile</button>
+      </div>
+
+      <!-- VEHICLES -->
+      <div class="tab-pane active p-6" data-tab="vehicles">
+        <h3 class="text-sm font-semibold text-slate-700 mb-4">My Vehicles & Installations</h3>
+        <div id="vehicles-body">
+          <p class="text-slate-400 text-xs">Loading…</p>
+        </div>
+      </div>
+
+      <!-- SUBSCRIPTIONS -->
+      <div class="tab-pane p-6" data-tab="subscriptions">
+        <h3 class="text-sm font-semibold text-slate-700 mb-4">My Subscriptions</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs text-slate-400 border-b border-slate-100">
+                <th class="text-left pb-2.5 font-medium">Service</th>
+                <th class="text-left pb-2.5 font-medium">Plan</th>
+                <th class="text-left pb-2.5 font-medium">Status</th>
+                <th class="text-left pb-2.5 font-medium">Start</th>
+                <th class="text-left pb-2.5 font-medium">Renewal</th>
+                <th class="text-right pb-2.5 font-medium">Cost / mo</th>
+              </tr>
+            </thead>
+            <tbody id="subs-body" class="text-slate-700">
+              <tr><td colspan="6" class="py-8 text-center text-slate-400 text-xs">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- DEVICES -->
+      <div class="tab-pane p-6" data-tab="devices">
+        <h3 class="text-sm font-semibold text-slate-700 mb-4">Tracking Devices</h3>
+        <div id="devices-body" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <p class="text-slate-400 text-xs">Loading…</p>
+        </div>
+      </div>
+
+      <!-- TICKETS -->
+      <div class="tab-pane p-6" data-tab="tickets">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-slate-700">Support Tickets</h3>
+          <button onclick="openTicketModal()"
+            class="text-xs rounded-lg bg-blue-600 text-white px-3 py-1.5 hover:bg-blue-700 transition-colors">
+            + New Ticket
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs text-slate-400 border-b border-slate-100">
+                <th class="text-left pb-2.5 font-medium">Ticket #</th>
+                <th class="text-left pb-2.5 font-medium">Subject</th>
+                <th class="text-left pb-2.5 font-medium">Priority</th>
+                <th class="text-left pb-2.5 font-medium">Status</th>
+                <th class="text-left pb-2.5 font-medium">Opened</th>
+              </tr>
+            </thead>
+            <tbody id="tickets-body" class="text-slate-700">
+              <tr><td colspan="5" class="py-8 text-center text-slate-400 text-xs">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- INVOICES -->
+      <div class="tab-pane p-6" data-tab="invoices">
+        <h3 class="text-sm font-semibold text-slate-700 mb-4">Invoices</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs text-slate-400 border-b border-slate-100">
+                <th class="text-left pb-2.5 font-medium">Invoice #</th>
+                <th class="text-left pb-2.5 font-medium">Date</th>
+                <th class="text-left pb-2.5 font-medium">Due</th>
+                <th class="text-left pb-2.5 font-medium">Status</th>
+                <th class="text-right pb-2.5 font-medium">Amount</th>
+              </tr>
+            </thead>
+            <tbody id="invoices-body" class="text-slate-700">
+              <tr><td colspan="5" class="py-8 text-center text-slate-400 text-xs">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- COMMUNICATIONS -->
+      <div class="tab-pane p-6" data-tab="comms">
+        <h3 class="text-sm font-semibold text-slate-700 mb-4">Communication History</h3>
+        <div id="comms-body" class="space-y-3">
+          <p class="text-slate-400 text-xs">Loading…</p>
+        </div>
+      </div>
+
+      <!-- PROFILE -->
+      <div class="tab-pane p-6" data-tab="profile">
+        <h3 class="text-sm font-semibold text-slate-700 mb-4">My Profile</h3>
+        <div id="profile-body" class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <p class="text-slate-400 text-xs">Loading…</p>
+        </div>
+      </div>
+
+    </div><!-- /tabbed -->
+  </div><!-- /container -->
+
+  <!-- ── New Ticket Modal ──────────────────────────────────────────────────── -->
+  <div id="ticket-modal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/40 px-4 z-50">
+    <div class="bg-white w-full max-w-lg rounded-2xl shadow-xl border border-slate-200 p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-base font-semibold text-slate-900">New Support Ticket</h3>
+        <button onclick="closeTicketModal()" class="text-slate-400 hover:text-slate-600">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <form id="ticket-form" class="space-y-4" novalidate>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1" for="t-subject">Subject *</label>
+          <input id="t-subject" type="text" placeholder="Brief description of your issue"
+            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Category</label>
+            <select id="t-category"
+              class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+              <option value="">– Select –</option>
+              <option>Billing</option>
+              <option>Device Issue</option>
+              <option>Installation</option>
+              <option>Subscription</option>
+              <option>Technical</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Priority</label>
+            <select id="t-priority"
+              class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+              <option value="Normal" selected>Normal</option>
+              <option value="High">High</option>
+              <option value="Critical">Critical</option>
+              <option value="Low">Low</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1" for="t-desc">Description</label>
+          <textarea id="t-desc" rows="4" placeholder="Describe your issue in detail…"
+            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm resize-none focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"></textarea>
+        </div>
+        <div id="ticket-err" class="hidden text-sm text-red-600 font-medium"></div>
+        <div class="flex gap-3 pt-1">
+          <button type="button" onclick="closeTicketModal()"
+            class="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+            Cancel
+          </button>
+          <button type="submit" id="ticket-submit-btn"
+            class="flex-1 rounded-xl bg-blue-600 text-white py-2.5 text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 transition-colors">
+            Submit Ticket
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const API   = '/api';
+    let _token  = null;
+    let _user   = null;
+    let _loaded = {};
+
+    // ── Guard ─────────────────────────────────────────────────────────────────
+    (function() {
+      try {
+        _token = localStorage.getItem('portal_token');
+        _user  = JSON.parse(localStorage.getItem('portal_user') || 'null');
+        if (!_token || !_user) throw new Error('no session');
+        const p = JSON.parse(atob(_token.split('.')[1]));
+        if (p.exp * 1000 < Date.now()) throw new Error('expired');
+      } catch {
+        localStorage.removeItem('portal_token');
+        localStorage.removeItem('portal_user');
+        window.location.replace('/login');
+      }
+    })();
+
+    // ── Auth fetch ────────────────────────────────────────────────────────────
+    async function apiFetch(path, opts = {}) {
+      const res = await fetch(`${API}${path}`, {
+        ...opts,
+        headers: {
+          'Authorization': `Bearer ${_token}`,
+          'Content-Type':  'application/json',
+          ...(opts.headers || {}),
+        },
+      });
+      if (res.status === 401) {
+        localStorage.removeItem('portal_token');
+        window.location.replace('/customer-portal/login');
+      }
+      return res;
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function fmtDate(d)  { return d ? new Date(d).toLocaleDateString('en-KE', { year:'numeric', month:'short', day:'numeric' }) : '–'; }
+    function fmtMoney(v) { return v != null ? `KES ${Number(v).toLocaleString('en-KE', { minimumFractionDigits:2 })}` : '–'; }
+    function badge(label, extra = '') {
+      const cls = label ? `status-${label.replace(/\s+/g,'')}` : '';
+      return `<span class="badge ${cls} ${extra}">${label || '–'}</span>`;
+    }
+    function priBadge(p) {
+      return `<span class="badge pri-${p || 'Normal'}">${p || 'Normal'}</span>`;
+    }
+    function emptyRow(cols, msg = 'No records found.') {
+      return `<tr><td colspan="${cols}" class="py-10 text-center text-slate-400 text-xs">${msg}</td></tr>`;
+    }
+    function initials(name) {
+      if (!name) return '?';
+      return name.split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase();
+    }
+
+    // ── Tabs ──────────────────────────────────────────────────────────────────
+    const tabBtns  = document.querySelectorAll('.tab-btn');
+    const tabPanes = document.querySelectorAll('.tab-pane');
+
+    tabBtns.forEach(btn => btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      tabBtns.forEach(b => b.classList.remove('active'));
+      tabPanes.forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelector(`.tab-pane[data-tab="${tab}"]`).classList.add('active');
+      if (!_loaded[tab]) loadTab(tab);
+    }));
+
+    // ── Initial load ──────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', async () => {
+      document.getElementById('nav-name').textContent = _user?.name || _user?.email || '';
+
+      // Profile + stats load in parallel
+      await Promise.all([loadProfile(), loadStats()]);
+      loadTab('vehicles');   // first tab
+    });
+
+    async function loadProfile() {
+      try {
+        const res  = await apiFetch('/me');
+        const data = (await res.json()).data;
+        if (!data) return;
+
+        const { customer, profile, contacts } = data;
+        const name = customer.displayName || profile?.fullName || profile?.companyName || 'Customer';
+
+        document.getElementById('prof-name').textContent    = name;
+        document.getElementById('nav-name').textContent     = name;
+        document.getElementById('prof-account').textContent = customer.accountNo ? `Account: ${customer.accountNo}` : '';
+        document.getElementById('avatar').textContent       = initials(name);
+
+        document.getElementById('prof-status').className  = `badge status-${customer.status}`;
+        document.getElementById('prof-status').textContent = customer.status;
+        document.getElementById('prof-type').textContent   = customer.type;
+
+        if (customer.region) {
+          document.getElementById('prof-region').textContent = customer.region;
+          document.getElementById('prof-region').classList.remove('hidden');
+        }
+        if (customer.registeredAt) {
+          document.getElementById('prof-since').textContent = `Since ${fmtDate(customer.registeredAt)}`;
+          document.getElementById('prof-since').classList.remove('hidden');
+        }
+
+        // Profile tab
+        const fields = profile || {};
+        const rows = Object.entries({
+          'Full Name':    fields.fullName || fields.companyName,
+          'Email':        profile?.email || _user?.email,
+          'Phone':        fields.phone,
+          'Address':      fields.physicalAddress || fields.address,
+          'Industry':     fields.industry,
+          'KRA PIN':      fields.kraPin,
+          'Registration': fields.registrationNumber,
+          'Website':      fields.website,
+          'Date of Birth':fields.dob,
+          'Gender':       fields.gender,
+        }).filter(([,v]) => v).map(([k,v]) => `
+          <div class="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+            <p class="text-xs text-slate-400 mb-1 font-medium">${k}</p>
+            <p class="text-sm text-slate-800 font-medium">${v}</p>
+          </div>`).join('');
+
+        let profileHTML = rows || `<p class="text-slate-400 text-xs col-span-2">No profile details available.</p>`;
+
+        if (contacts?.length) {
+          profileHTML += `<div class="col-span-2 mt-2">
+            <h4 class="text-xs font-semibold text-slate-600 mb-3">Contact Persons</h4>
+            <div class="space-y-2">${contacts.map(c => `
+              <div class="flex items-center gap-3 rounded-lg border border-slate-100 p-3">
+                <div class="h-8 w-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold">${initials(c.name)}</div>
+                <div>
+                  <p class="text-sm font-medium text-slate-800">${c.name} ${c.isPrimary ? '<span class="text-xs text-blue-600">(Primary)</span>' : ''}</p>
+                  <p class="text-xs text-slate-400">${[c.role, c.email, c.phone].filter(Boolean).join(' · ')}</p>
+                </div>
+              </div>`).join('')}</div></div>`;
+        }
+
+        document.getElementById('profile-body').innerHTML = profileHTML;
+        _loaded['profile'] = true;
+      } catch(e) { console.error('[portal] loadProfile:', e); }
+    }
+
+    async function loadStats() {
+      try {
+        const res  = await apiFetch('/me/stats');
+        const s    = (await res.json()).data;
+        if (!s) return;
+        document.getElementById('stat-vehicles').textContent = s.vehicles;
+        document.getElementById('stat-subs').textContent     = s.activeSubscriptions;
+        document.getElementById('stat-devices').textContent  = s.devices;
+        document.getElementById('stat-tickets').textContent  = s.openTickets;
+        document.getElementById('stat-invoices').textContent  = s.unpaidInvoices;
+      } catch(e) { console.error('[portal] loadStats:', e); }
+    }
+
+    async function loadTab(tab) {
+      switch(tab) {
+        case 'vehicles':      await loadVehicles();      break;
+        case 'subscriptions': await loadSubscriptions(); break;
+        case 'devices':       await loadDevices();       break;
+        case 'tickets':       await loadTickets();       break;
+        case 'invoices':      await loadInvoices();      break;
+        case 'comms':         await loadComms();         break;
+        case 'profile':       break; // already loaded
+      }
+      _loaded[tab] = true;
+    }
+
+    // VEHICLES
+    async function loadVehicles() {
+      try {
+        const res  = await apiFetch('/me/vehicles');
+        const rows = (await res.json()).data;
+        const el   = document.getElementById('vehicles-body');
+
+        if (!rows?.length) {
+          el.innerHTML = '<p class="text-slate-400 text-xs">No vehicles registered.</p>';
+          return;
+        }
+
+        el.innerHTML = rows.map(v => `
+          <div class="rounded-xl border border-slate-200 p-5 mb-3 hover:shadow-sm transition-shadow">
+            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+              <div class="flex items-center gap-4">
+                <div class="h-12 w-12 rounded-xl bg-blue-50 flex items-center justify-center">
+                  <svg class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"/>
+                  </svg>
+                </div>
+                <div>
+                  <h4 class="font-semibold text-slate-900">${v.registration || '–'}</h4>
+                  <p class="text-sm text-slate-500">${[v.make, v.model, v.year].filter(Boolean).join(' ')}</p>
+                  ${v.color ? `<p class="text-xs text-slate-400">${v.color}</p>` : ''}
+                </div>
+              </div>
+              ${v.installation ? `
+                <div class="ml-0 sm:ml-auto text-right space-y-1">
+                  <span class="badge status-${v.installation.status || 'Pending'} text-xs">${v.installation.status || '–'}</span>
+                  <p class="text-xs text-slate-400">Installed ${fmtDate(v.installation.installedAt)}</p>
+                  ${v.installation.deviceModel ? `<p class="text-xs text-slate-400">${v.installation.deviceModel}</p>` : ''}
+                </div>` : `
+                <div class="ml-0 sm:ml-auto">
+                  <span class="badge bg-slate-100 text-slate-400">No Device</span>
+                </div>`}
+            </div>
+            ${(v.chassisNumber || v.engineNumber) ? `
+              <div class="mt-3 pt-3 border-t border-slate-100 flex gap-6 text-xs text-slate-400">
+                ${v.chassisNumber ? `<span>Chassis: <span class="font-mono text-slate-600">${v.chassisNumber}</span></span>` : ''}
+                ${v.engineNumber  ? `<span>Engine:  <span class="font-mono text-slate-600">${v.engineNumber}</span></span>`  : ''}
+              </div>` : ''}
+          </div>`).join('');
+      } catch(e) { console.error('[portal] loadVehicles:', e); }
+    }
+
+    // SUBSCRIPTIONS
+    async function loadSubscriptions() {
+      try {
+        const res  = await apiFetch('/me/subscriptions');
+        const rows = (await res.json()).data;
+        const body = document.getElementById('subs-body');
+        if (!rows?.length) { body.innerHTML = emptyRow(6); return; }
+        body.innerHTML = rows.map(s => `
+          <tr class="border-b border-slate-50 hover:bg-slate-50/50">
+            <td class="py-3 pr-4 font-medium">${s.serviceType || '–'}</td>
+            <td class="py-3 pr-4 text-slate-500">${s.planName || '–'}</td>
+            <td class="py-3 pr-4">${badge(s.status)}</td>
+            <td class="py-3 pr-4 text-slate-500 whitespace-nowrap">${fmtDate(s.startDate)}</td>
+            <td class="py-3 pr-4 text-slate-500 whitespace-nowrap">${fmtDate(s.endDate)}</td>
+            <td class="py-3 text-right font-medium">${fmtMoney(s.monthlyFee)}</td>
+          </tr>`).join('');
+      } catch(e) { console.error('[portal] loadSubscriptions:', e); }
+    }
+
+    // DEVICES
+    async function loadDevices() {
+      try {
+        const res  = await apiFetch('/me/devices');
+        const rows = (await res.json()).data;
+        const el   = document.getElementById('devices-body');
+        if (!rows?.length) { el.innerHTML = '<p class="text-slate-400 text-xs col-span-3">No devices found.</p>'; return; }
+        el.innerHTML = rows.map(d => `
+          <div class="rounded-xl border border-slate-200 p-4 hover:shadow-sm transition-shadow">
+            <div class="flex items-center gap-2 mb-3">
+              <div class="h-8 w-8 rounded-lg bg-green-50 flex items-center justify-center">
+                <svg class="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 3.75H6.912a2.25 2.25 0 0 0-2.15 1.588L2.35 13.177a2.25 2.25 0 0 0-.1.661V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 0 0-2.15-1.588H15M2.25 13.5h3.86a2.25 2.25 0 0 1 2.012 1.244l.256.512a2.25 2.25 0 0 0 2.013 1.244h3.218a2.25 2.25 0 0 0 2.013-1.244l.256-.512a2.25 2.25 0 0 1 2.013-1.244h3.859M12 3v8.25m0 0-3-3m3 3 3-3" />
+                </svg>
+              </div>
+              ${badge(d.status)}
+            </div>
+            <p class="text-sm font-semibold text-slate-800">${[d.make, d.model].filter(Boolean).join(' ') || d.deviceType || '–'}</p>
+            <p class="text-xs text-slate-400 mt-0.5 font-mono">${d.serialNo || d.imei || '–'}</p>
+            ${d.vehicleReg ? `<p class="text-xs text-slate-500 mt-1">Reg: ${d.vehicleReg}</p>` : ''}
+            <p class="text-xs text-slate-400 mt-2">Installed ${fmtDate(d.installedAt)}</p>
+          </div>`).join('');
+      } catch(e) { console.error('[portal] loadDevices:', e); }
+    }
+
+    // TICKETS
+    async function loadTickets() {
+      try {
+        const res  = await apiFetch('/me/tickets');
+        const data = (await res.json()).data;
+        const body = document.getElementById('tickets-body');
+        if (!data?.length) { body.innerHTML = emptyRow(5, 'No tickets yet. Submit one if you need help.'); return; }
+        body.innerHTML = data.map(t => `
+          <tr class="border-b border-slate-50 hover:bg-slate-50/50">
+            <td class="py-3 pr-4 text-xs font-mono text-blue-600">${t.ticket_no || '–'}</td>
+            <td class="py-3 pr-4 font-medium max-w-xs truncate">${t.subject}</td>
+            <td class="py-3 pr-4">${priBadge(t.priority)}</td>
+            <td class="py-3 pr-4">${badge(t.status)}</td>
+            <td class="py-3 text-slate-500 whitespace-nowrap text-xs">${fmtDate(t.opened_at)}</td>
+          </tr>`).join('');
+      } catch(e) { console.error('[portal] loadTickets:', e); }
+    }
+
+    // INVOICES
+    async function loadInvoices() {
+      try {
+        const res  = await apiFetch('/me/invoices');
+        const data = (await res.json()).data;
+        const body = document.getElementById('invoices-body');
+        if (!data?.length) { body.innerHTML = emptyRow(5); return; }
+        body.innerHTML = data.map(inv => `
+          <tr class="border-b border-slate-50 hover:bg-slate-50/50">
+            <td class="py-3 pr-4 text-sm font-mono text-slate-700">${inv.invoiceNumber || '–'}</td>
+            <td class="py-3 pr-4 text-slate-500 whitespace-nowrap text-xs">${fmtDate(inv.issuedOn)}</td>
+            <td class="py-3 pr-4 text-slate-500 whitespace-nowrap text-xs">${fmtDate(inv.dueOn)}</td>
+            <td class="py-3 pr-4">${badge(inv.status)}</td>
+            <td class="py-3 text-right font-semibold text-slate-800">${fmtMoney(inv.amount)}</td>
+          </tr>`).join('');
+      } catch(e) { console.error('[portal] loadInvoices:', e); }
+    }
+
+    // COMMS
+    async function loadComms() {
+      try {
+        const res  = await apiFetch('/me/communications');
+        const rows = (await res.json()).data;
+        const el   = document.getElementById('comms-body');
+        if (!rows?.length) { el.innerHTML = '<p class="text-slate-400 text-xs">No communications on record.</p>'; return; }
+        const icons = { Email:'📧', SMS:'💬', Call:'📞', Meeting:'🤝' };
+        el.innerHTML = rows.map(c => `
+          <div class="rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3 flex items-start gap-3">
+            <span class="text-lg mt-0.5">${icons[c.channel] || '📄'}</span>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-sm font-medium text-slate-800">${c.subject || '(No subject)'}</span>
+                <span class="text-xs text-slate-400">${c.direction || ''}</span>
+              </div>
+              <p class="text-xs text-slate-400 mt-0.5">${c.channel || '–'} · ${fmtDate(c.sent_at)}</p>
+            </div>
+          </div>`).join('');
+      } catch(e) { console.error('[portal] loadComms:', e); }
+    }
+
+    // ── New Ticket Modal ──────────────────────────────────────────────────────
+    function openTicketModal() {
+      document.getElementById('ticket-modal').style.display = 'flex';
+      document.getElementById('t-subject').focus();
+    }
+    function closeTicketModal() {
+      document.getElementById('ticket-modal').style.display = 'none';
+      document.getElementById('ticket-form').reset();
+      document.getElementById('ticket-err').classList.add('hidden');
+    }
+
+    document.getElementById('new-ticket-btn').addEventListener('click', openTicketModal);
+
+    document.getElementById('ticket-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const subject  = document.getElementById('t-subject').value.trim();
+      const errEl    = document.getElementById('ticket-err');
+      if (!subject) { errEl.textContent = 'Subject is required.'; errEl.classList.remove('hidden'); return; }
+      errEl.classList.add('hidden');
+
+      const btn = document.getElementById('ticket-submit-btn');
+      btn.disabled    = true;
+      btn.textContent = 'Submitting…';
+
+      try {
+        const res = await apiFetch('/me/tickets', {
+          method: 'POST',
+          body: JSON.stringify({
+            subject,
+            description: document.getElementById('t-desc').value.trim() || null,
+            category:    document.getElementById('t-category').value || null,
+            priority:    document.getElementById('t-priority').value,
+          }),
+        });
+        if (!res.ok) {
+          const d = await res.json();
+          errEl.textContent = d.message || 'Failed to submit ticket.';
+          errEl.classList.remove('hidden');
+          return;
+        }
+        closeTicketModal();
+        _loaded['tickets'] = false;
+        await loadTickets();
+        await loadStats();
+      } finally {
+        btn.disabled    = false;
+        btn.textContent = 'Submit Ticket';
+      }
+    });
+
+    // ── Logout ────────────────────────────────────────────────────────────────
+    document.getElementById('logout-btn').addEventListener('click', () => {
+      localStorage.removeItem('portal_token');
+      localStorage.removeItem('portal_user');
+      window.location.replace('/login');
+    });
+
+    // Close ticket modal on backdrop click
+    document.getElementById('ticket-modal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeTicketModal();
+    });
+  </script>
+</body>
+</html>

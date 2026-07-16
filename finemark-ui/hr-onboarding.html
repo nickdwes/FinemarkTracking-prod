@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | HR Onboarding</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-3xl mx-auto space-y-6">
+
+          <!-- Header -->
+          <div>
+            <nav class="text-xs text-slate-400 mb-1">
+              <a href="hr-dashboard.html" class="hover:text-teal-600">HR</a> /
+              <a href="hr-employees.html" class="hover:text-teal-600">Employees</a> /
+              <span id="page-title-label">Onboard New Employee</span>
+            </nav>
+            <h1 id="page-title" class="text-2xl font-semibold tracking-tight text-slate-900">Onboard New Employee</h1>
+            <p class="text-sm text-slate-500 mt-0.5">All data is handled in compliance with the Kenya Data Protection Act 2019.</p>
+          </div>
+
+          <!-- Edit mode banner -->
+          <div id="edit-banner" class="hidden bg-teal-50 border border-teal-200 rounded-xl px-5 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2 text-teal-700 text-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              Editing: <strong id="edit-employee-name">—</strong>
+            </div>
+            <a href="hr-employees.html" class="text-xs text-teal-600 hover:underline">← Back to list</a>
+          </div>
+
+          <!-- ERROR / SUCCESS BANNER -->
+          <div id="page-error" class="hidden bg-rose-50 border border-rose-100 rounded-xl px-5 py-3 text-sm text-rose-700"></div>
+          <div id="page-success" class="hidden bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-3 text-sm text-emerald-700"></div>
+
+          <!-- Step indicators -->
+          <div class="flex items-center gap-0">
+            <div data-step="1" class="step-btn flex items-center gap-2 flex-1 border-b-2 border-teal-500 pb-2 cursor-pointer">
+              <span class="w-6 h-6 rounded-full bg-teal-500 text-white text-xs flex items-center justify-center font-bold">1</span>
+              <span class="text-xs font-medium text-teal-600 hidden sm:block">Personal</span>
+            </div>
+            <div data-step="2" class="step-btn flex items-center gap-2 flex-1 border-b-2 border-slate-200 pb-2 cursor-pointer">
+              <span class="w-6 h-6 rounded-full bg-slate-200 text-slate-500 text-xs flex items-center justify-center font-bold">2</span>
+              <span class="text-xs font-medium text-slate-400 hidden sm:block">Employment</span>
+            </div>
+            <div data-step="3" class="step-btn flex items-center gap-2 flex-1 border-b-2 border-slate-200 pb-2 cursor-pointer">
+              <span class="w-6 h-6 rounded-full bg-slate-200 text-slate-500 text-xs flex items-center justify-center font-bold">3</span>
+              <span class="text-xs font-medium text-slate-400 hidden sm:block">Emergency</span>
+            </div>
+            <div data-step="4" class="step-btn flex items-center gap-2 flex-1 border-b-2 border-slate-200 pb-2 cursor-pointer">
+              <span class="w-6 h-6 rounded-full bg-slate-200 text-slate-500 text-xs flex items-center justify-center font-bold">4</span>
+              <span class="text-xs font-medium text-slate-400 hidden sm:block">Compliance</span>
+            </div>
+          </div>
+
+          <!-- ── STEP 1: Personal Details ──────────────────────────────────── -->
+          <div id="step-1" class="step-panel bg-white border border-slate-200/80 rounded-2xl shadow-sm p-6 space-y-5">
+            <h2 class="text-base font-semibold text-slate-700 flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-teal-100 text-teal-700 text-xs flex items-center justify-center font-bold">1</span>
+              Personal Details
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-medium text-slate-600 mb-1">Full Name *</label>
+                <input id="f-fullName" type="text" maxlength="200" required placeholder="e.g. Jane Wanjiru Mwangi" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+              </div>
+              <!-- Sensitive: HR Admin only -->
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">National ID / Passport <span class="text-slate-400 text-xs">(HR Admin only)</span></label>
+                <input id="f-nationalId" type="text" maxlength="20" placeholder="12345678" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">KRA PIN <span class="text-slate-400 text-xs">(HR Admin only)</span></label>
+                <input id="f-kraPin" type="text" maxlength="11" placeholder="A000000000Z" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none uppercase" />
+                <p id="err-kraPin" class="hidden text-xs text-rose-500 mt-1">Format: A999999999Z</p>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Date of Birth</label>
+                <input id="f-dob" type="date" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Phone Number *</label>
+                <input id="f-phone" type="tel" placeholder="+254712345678 or 0712345678" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+                <p id="err-phone" class="hidden text-xs text-rose-500 mt-1">Enter a valid Kenyan phone number.</p>
+              </div>
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-medium text-slate-600 mb-1">Email Address *</label>
+                <input id="f-email" type="email" placeholder="jane@example.com" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+              </div>
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-medium text-slate-600 mb-1">Work Email <span class="text-slate-400 font-normal">(ERP portal login)</span></label>
+                <input id="f-workEmail" type="email" placeholder="firstname.lastname@finemarktracking.co.ke" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+                <p class="text-xs text-slate-400 mt-1">Used for signing in to the ERP system. Leave blank if not yet assigned.</p>
+              </div>
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-medium text-slate-600 mb-1">Residential Address</label>
+                <textarea id="f-address" rows="2" maxlength="300" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none resize-none"></textarea>
+              </div>
+            </div>
+            <div class="flex justify-end"><button onclick="goStep(2)" class="px-5 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700">Next →</button></div>
+          </div>
+
+          <!-- ── STEP 2: Employment Details ────────────────────────────────── -->
+          <div id="step-2" class="step-panel hidden bg-white border border-slate-200/80 rounded-2xl shadow-sm p-6 space-y-5">
+            <h2 class="text-base font-semibold text-slate-700 flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-teal-100 text-teal-700 text-xs flex items-center justify-center font-bold">2</span>
+              Employment Details
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Employment Type *</label>
+                <select id="f-employmentType" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                  <option value="">Select…</option>
+                  <option>Permanent</option><option>Contract</option><option>Contractor</option>
+                  <option>Casual</option><option>Intern</option><option>Part-Time</option><option>Consultant</option>
+                </select>
+                <p id="empno-preview" class="mt-1 text-xs text-slate-400 font-mono"></p>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Start Date *</label>
+                <input id="f-startDate" type="date" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Job Role</label>
+                <select id="f-jobRoleId" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                  <option value="">Select role…</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Department / Unit</label>
+                <select id="f-orgUnitId" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                  <option value="">Select unit…</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Reporting Manager</label>
+                <select id="f-managerId" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                  <option value="">Select manager…</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Cadre</label>
+                <select id="f-cadreId" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                  <option value="">Select cadre…</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Benefit Plan</label>
+                <select id="f-benefitPlanId" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                  <option value="">Select plan…</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Salary / Rate (KES) <span class="text-slate-400 text-xs">(HR Admin only)</span></label>
+                <input id="f-salary" type="number" min="0" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Status</label>
+                <select id="f-status" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                  <option value="Active">Active</option><option value="Inactive">Inactive</option><option value="Terminated">Terminated</option>
+                </select>
+              </div>
+            </div>
+            <div class="flex justify-between">
+              <button onclick="goStep(1)" class="px-4 py-2 border border-slate-200 text-slate-600 text-sm rounded-lg hover:bg-slate-50">← Back</button>
+              <button onclick="goStep(3)" class="px-5 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700">Next →</button>
+            </div>
+          </div>
+
+          <!-- ── STEP 3: Emergency Contact ──────────────────────────────────── -->
+          <div id="step-3" class="step-panel hidden bg-white border border-slate-200/80 rounded-2xl shadow-sm p-6 space-y-5">
+            <h2 class="text-base font-semibold text-slate-700 flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-teal-100 text-teal-700 text-xs flex items-center justify-center font-bold">3</span>
+              Emergency Contact
+            </h2>
+            <p class="text-xs text-slate-500">Emergency contact details are held securely and used only in case of emergency.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Contact Name *</label>
+                <input id="ec-name" type="text" maxlength="200" placeholder="Full name" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Relationship *</label>
+                <input id="ec-relationship" type="text" maxlength="80" placeholder="e.g. Spouse, Parent" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Phone *</label>
+                <input id="ec-phone" type="tel" placeholder="+254712345678" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+                <p id="err-ec-phone" class="hidden text-xs text-rose-500 mt-1">Enter a valid Kenyan phone number.</p>
+              </div>
+            </div>
+            <p class="text-xs text-slate-400 italic">(Emergency contact will be saved after employee record is created.)</p>
+            <div class="flex justify-between">
+              <button onclick="goStep(2)" class="px-4 py-2 border border-slate-200 text-slate-600 text-sm rounded-lg hover:bg-slate-50">← Back</button>
+              <button onclick="goStep(4)" class="px-5 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700">Next →</button>
+            </div>
+          </div>
+
+          <!-- ── STEP 4: Privacy & Compliance ──────────────────────────────── -->
+          <div id="step-4" class="step-panel hidden bg-white border border-slate-200/80 rounded-2xl shadow-sm p-6 space-y-5">
+            <h2 class="text-base font-semibold text-slate-700 flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-teal-100 text-teal-700 text-xs flex items-center justify-center font-bold">4</span>
+              Privacy &amp; Compliance
+            </h2>
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-600 space-y-2">
+              <p class="font-semibold text-slate-700">Kenya Data Protection Act 2019 – Privacy Notice</p>
+              <p>This organisation collects and processes your personal data for employment purposes including payroll, compliance, emergency response, and performance management. Your data is stored securely and will not be shared with third parties without your consent, except as required by Kenyan law.</p>
+              <p>You have the right to access, correct, or request deletion of your personal data. To exercise these rights, contact the HR Administrator.</p>
+            </div>
+            <label class="flex items-start gap-3 cursor-pointer">
+              <input id="chk-privacy" type="checkbox" class="mt-0.5 w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
+              <span class="text-sm text-slate-700">I acknowledge that I have read and understood the Privacy Notice above. <span class="text-rose-500">*</span></span>
+            </label>
+            <label class="flex items-start gap-3 cursor-pointer">
+              <input id="chk-ec-consent" type="checkbox" class="mt-0.5 w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
+              <span class="text-sm text-slate-700">The emergency contact person has consented to their personal data being held by this organisation for emergency purposes. <span class="text-rose-500">*</span></span>
+            </label>
+            <div id="form-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2"></div>
+            <div class="flex justify-between">
+              <button onclick="goStep(3)" class="px-4 py-2 border border-slate-200 text-slate-600 text-sm rounded-lg hover:bg-slate-50">← Back</button>
+              <button id="btn-submit" onclick="submitEmployee()" class="px-6 py-2 bg-teal-600 text-white text-sm font-semibold rounded-lg hover:bg-teal-700 disabled:opacity-50">
+                Save Employee
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      let editEmployeeId = null;
+      const KRA_RE = /^[A-Z]\d{9}[A-Z]$/;
+      const PHONE_RE = /^(?:\+254|0)[17]\d{8}$/;
+
+      // ── STEP NAVIGATION ──────────────────────────────────────────────────
+      const goStep = n => {
+        document.querySelectorAll(".step-panel").forEach(p => p.classList.add("hidden"));
+        document.getElementById(`step-${n}`).classList.remove("hidden");
+        document.querySelectorAll(".step-btn").forEach((b, i) => {
+          const active = i + 1 === n;
+          const dot = b.querySelector("span:first-child");
+          const label = b.querySelector("span:last-child");
+          b.classList.toggle("border-teal-500", active);
+          b.classList.toggle("border-slate-200", !active);
+          dot.className = `w-6 h-6 rounded-full text-xs flex items-center justify-center font-bold ${active ? "bg-teal-500 text-white" : "bg-slate-200 text-slate-500"}`;
+          if (label) { label.className = `text-xs font-medium hidden sm:block ${active ? "text-teal-600" : "text-slate-400"}`; }
+        });
+        document.querySelectorAll(".step-btn").forEach(b => {
+          b.addEventListener("click", () => goStep(+b.dataset.step));
+        });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      };
+
+      // ── LOAD DROPDOWNS ────────────────────────────────────────────────────
+      const populate = (selId, opts, valKey, labelKey) => {
+        const sel = document.getElementById(selId);
+        const firstOpt = sel.options[0].cloneNode(true);
+        sel.innerHTML = "";
+        sel.appendChild(firstOpt);
+        opts.forEach(o => { const opt = document.createElement("option"); opt.value = o[valKey]; opt.textContent = o[labelKey]; sel.appendChild(opt); });
+      };
+
+      const loadDropdowns = async () => {
+        const [rolesRes, unitsRes, cadresRes, plansRes, empsRes] = await Promise.allSettled([
+          window.FINEMARK_APP.apiFetch("/hr/org/roles"),
+          window.FINEMARK_APP.apiFetch("/hr/org/units"),
+          window.FINEMARK_APP.apiFetch("/hr/org/cadres"),
+          window.FINEMARK_APP.apiFetch("/hr/org/benefit-plans"),
+          window.FINEMARK_APP.apiFetch("/hr/employees?pageSize=200&status=Active"),
+        ]);
+        if (rolesRes.status === "fulfilled") populate("f-jobRoleId", rolesRes.value.data, "id", "title");
+        if (unitsRes.status === "fulfilled") populate("f-orgUnitId", unitsRes.value.data, "id", "name");
+        if (cadresRes.status === "fulfilled") populate("f-cadreId", cadresRes.value.data, "id", "name");
+        if (plansRes.status === "fulfilled") populate("f-benefitPlanId", plansRes.value.data, "id", "name");
+        if (empsRes.status === "fulfilled") {
+          const managers = (empsRes.value.data || []).map(e => ({ id: e.id, label: `${e.fullName} (${e.jobRoleTitle || "no role"})` }));
+          populate("f-managerId", managers, "id", "label");
+        }
+      };
+
+      // ── VALIDATION ────────────────────────────────────────────────────────
+      document.getElementById("f-kraPin").addEventListener("input", e => {
+        e.target.value = e.target.value.toUpperCase();
+        const v = e.target.value;
+        document.getElementById("err-kraPin").classList.toggle("hidden", !v || KRA_RE.test(v));
+      });
+      document.getElementById("f-phone").addEventListener("change", e => {
+        document.getElementById("err-phone").classList.toggle("hidden", PHONE_RE.test(e.target.value));
+      });
+      document.getElementById("ec-phone").addEventListener("change", e => {
+        document.getElementById("err-ec-phone").classList.toggle("hidden", PHONE_RE.test(e.target.value));
+      });
+
+      // ── SUBMIT ────────────────────────────────────────────────────────────
+      const showErr = msg => {
+        const el = document.getElementById("form-error"); el.textContent = msg; el.classList.remove("hidden");
+        document.getElementById("page-error").textContent = msg; document.getElementById("page-error").classList.remove("hidden");
+      };
+
+      const submitEmployee = async () => {
+        const errEl = document.getElementById("form-error");
+        errEl.classList.add("hidden");
+        document.getElementById("page-error").classList.add("hidden");
+
+        // Validate compliance checkboxes
+        if (!document.getElementById("chk-privacy").checked) { showErr("You must acknowledge the Privacy Notice to proceed."); return; }
+        if (!document.getElementById("chk-ec-consent").checked) { showErr("Emergency contact consent is required."); return; }
+
+        const phone = document.getElementById("f-phone").value.trim();
+        const kraPin = document.getElementById("f-kraPin").value.trim();
+        if (!PHONE_RE.test(phone)) { goStep(1); showErr("Invalid phone number format."); return; }
+        if (kraPin && !KRA_RE.test(kraPin)) { goStep(1); showErr("Invalid KRA PIN format."); return; }
+
+        const body = {
+          fullName: document.getElementById("f-fullName").value.trim(),
+          nationalId: document.getElementById("f-nationalId").value.trim() || undefined,
+          kraPin: kraPin || undefined,
+          dateOfBirth: document.getElementById("f-dob").value || undefined,
+          phone,
+          email: document.getElementById("f-email").value.trim(),
+          workEmail: document.getElementById("f-workEmail").value.trim() || undefined,
+          residentialAddress: document.getElementById("f-address").value.trim() || undefined,
+          employmentType: document.getElementById("f-employmentType").value,
+          startDate: document.getElementById("f-startDate").value,
+          jobRoleId: document.getElementById("f-jobRoleId").value || undefined,
+          orgUnitId: document.getElementById("f-orgUnitId").value || undefined,
+          managerId: document.getElementById("f-managerId").value || undefined,
+          cadreId: document.getElementById("f-cadreId").value || undefined,
+          benefitPlanId: document.getElementById("f-benefitPlanId").value || undefined,
+          salary: document.getElementById("f-salary").value ? Number(document.getElementById("f-salary").value) : undefined,
+          status: document.getElementById("f-status").value,
+          privacyNoticeAcknowledged: 1,
+          emergencyContactConsent: 1,
+        };
+
+        if (!body.fullName) { goStep(1); showErr("Full name is required."); return; }
+        if (!body.employmentType) { goStep(2); showErr("Employment type is required."); return; }
+        if (!body.startDate) { goStep(2); showErr("Start date is required."); return; }
+
+        const btn = document.getElementById("btn-submit");
+        btn.disabled = true; btn.textContent = "Saving…";
+
+        try {
+          let empId = editEmployeeId;
+          let createdData = null;
+
+          if (editEmployeeId) {
+            const updateResp = await window.FINEMARK_APP.apiFetch(`/hr/employees/${editEmployeeId}`, { method: "PATCH", body });
+            const newNo = updateResp?.employeeNo;
+            document.getElementById("page-success").textContent =
+              `Employee profile updated successfully.${newNo ? ` Employee number is now ${newNo}.` : ""}`;
+          } else {
+            const { data } = await window.FINEMARK_APP.apiFetch("/hr/employees", { method: "POST", body });
+            empId = data.id;
+            createdData = data;
+          }
+
+          // Save emergency contact
+          const ecName = document.getElementById("ec-name").value.trim();
+          const ecRel = document.getElementById("ec-relationship").value.trim();
+          const ecPhone = document.getElementById("ec-phone").value.trim();
+          if (ecName && ecRel && ecPhone && PHONE_RE.test(ecPhone)) {
+            await window.FINEMARK_APP.apiFetch(`/hr/employees/${empId}/emergency-contacts`, {
+              method: "POST",
+              body: { name: ecName, relationship: ecRel, phone: ecPhone, consentGiven: 1 },
+            }).catch(() => {});
+          }
+
+          if (!editEmployeeId && createdData) {
+            document.getElementById("page-success").textContent =
+              `Employee onboarded! Emp No: ${createdData.employeeNo || "—"}  ·  Personal File No: ${createdData.personalFileNo || "—"}. Redirecting to profile…`;
+          }
+          document.getElementById("page-success").classList.remove("hidden");
+          setTimeout(() => { window.location.href = `hr-employee-profile.html?id=${empId}`; }, 2500);
+        } catch (err) {
+          showErr(err?.message || "Failed to save employee.");
+        } finally {
+          btn.disabled = false; btn.textContent = "Save Employee";
+        }
+      };
+
+      // ── LOAD EXISTING EMPLOYEE FOR EDITING ───────────────────────────────
+      const loadForEdit = async id => {
+        try {
+          const data = await window.FINEMARK_APP.apiFetch(`/hr/employees/${id}`);
+          document.getElementById("page-title").textContent = "Edit Employee";
+          document.getElementById("page-title-label").textContent = "Edit Employee";
+          document.getElementById("edit-banner").classList.remove("hidden");
+          document.getElementById("edit-employee-name").textContent = `${data.fullName} (${data.employeeNo})`;
+          // Fill form fields
+          document.getElementById("f-fullName").value = data.fullName || "";
+          document.getElementById("f-nationalId").value = data.nationalId || "";
+          document.getElementById("f-kraPin").value = data.kraPin || "";
+          document.getElementById("f-dob").value = data.dateOfBirth || "";
+          document.getElementById("f-phone").value = data.phone || "";
+          document.getElementById("f-email").value = data.email || "";
+          document.getElementById("f-workEmail").value = data.workEmail || "";
+          document.getElementById("f-address").value = data.residentialAddress || "";
+          document.getElementById("f-employmentType").value = data.employmentType || "";
+          document.getElementById("f-startDate").value = data.startDate || "";
+          document.getElementById("f-status").value = data.status || "Active";
+          document.getElementById("f-salary").value = data.salary ?? "";
+          // Dropdowns set after loaded
+          setTimeout(() => {
+            document.getElementById("f-jobRoleId").value = data.jobRoleId || "";
+            document.getElementById("f-orgUnitId").value = data.orgUnitId || "";
+            document.getElementById("f-managerId").value = data.managerId || "";
+            document.getElementById("f-cadreId").value = data.cadreId || "";
+            document.getElementById("f-benefitPlanId").value = data.benefitPlanId || "";
+          }, 500);
+        } catch (err) {
+          document.getElementById("page-error").textContent = "Could not load employee data.";
+          document.getElementById("page-error").classList.remove("hidden");
+        }
+      };
+
+      // ── INIT ─────────────────────────────────────────────────────────────
+      (async () => {
+        await window.FINEMARK_APP.requirePageAccess();
+        await loadDropdowns();
+        goStep(1);
+
+        // Live employee number preview when type changes (new employee only)
+        const typeEl = document.getElementById("f-employmentType");
+        const previewEl = document.getElementById("empno-preview");
+        typeEl.addEventListener("change", async () => {
+          const type = typeEl.value;
+          if (!type || editEmployeeId) { previewEl.textContent = ""; return; }
+          previewEl.textContent = "Loading preview…";
+          try {
+            const result = await window.FINEMARK_APP.apiFetch(
+              `/hr/settings/emp-no-preview/${encodeURIComponent(type)}`
+            );
+            previewEl.textContent = result?.nextEmployeeNo
+              ? `Next number: ${result.nextEmployeeNo}`
+              : "";
+          } catch { previewEl.textContent = ""; }
+        });
+
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("id")) {
+          editEmployeeId = params.get("id");
+          await loadForEdit(editEmployeeId);
+        }
+      })();
+    </script>
+  </body>
+</html>

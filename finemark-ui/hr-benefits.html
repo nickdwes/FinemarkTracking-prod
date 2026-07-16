@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Benefits Management</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-6xl mx-auto space-y-6">
+
+          <!-- Header -->
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <nav class="text-xs text-slate-400 mb-1">
+                <a href="hr-dashboard.html" class="hover:text-teal-600">HR</a> / Benefits
+              </nav>
+              <h1 class="text-2xl font-semibold text-slate-900">Benefit Plans</h1>
+            </div>
+            <button id="btn-add-plan" class="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700">
+              + Add Plan
+            </button>
+          </div>
+
+          <!-- Distribution summary -->
+          <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4" id="dist-cards"></div>
+
+          <!-- Plans table -->
+          <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100">
+              <h2 class="text-sm font-semibold text-slate-700">All Benefit Plans</h2>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm min-w-max">
+                <thead>
+                  <tr class="border-b border-slate-100">
+                    <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Plan Name</th>
+                    <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Cadre</th>
+                    <th class="text-center px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Annual Leave</th>
+                    <th class="text-center px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Sick Leave</th>
+                    <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Medical Cover</th>
+                    <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Pension</th>
+                    <th class="px-5 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody id="plans-tbody" class="divide-y divide-slate-50"></tbody>
+              </table>
+              <p id="plans-empty" class="hidden py-10 text-center text-sm text-slate-400">No benefit plans configured.</p>
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+
+    <!-- Add / Edit Plan Modal -->
+    <div id="plan-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <h3 id="plan-modal-title" class="text-base font-semibold text-slate-800">Add Benefit Plan</h3>
+          <button onclick="closePlanModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+        <form id="plan-form" class="px-6 py-5 space-y-4">
+          <input type="hidden" id="plan-id" />
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Plan Name *</label>
+            <input id="plan-name" type="text" required maxlength="100" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="e.g. Standard Employee Plan" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Cadre</label>
+            <select id="plan-cadre" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+              <option value="">None (all cadres)</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Annual Leave Days *</label>
+              <input id="plan-annual" type="number" min="0" max="365" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" value="21" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Sick Leave Days *</label>
+              <input id="plan-sick" type="number" min="0" max="365" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" value="14" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Medical Cover</label>
+            <input id="plan-medical" type="text" maxlength="200" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="e.g. NHIF + private top-up" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Pension</label>
+            <input id="plan-pension" type="text" maxlength="200" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="e.g. NSSF + 5% employer" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Other Benefits</label>
+            <textarea id="plan-other" rows="2" maxlength="500" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm resize-none" placeholder="Airtime, transport allowance…"></textarea>
+          </div>
+          <div id="plan-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2"></div>
+          <div class="flex justify-end gap-3 pt-1">
+            <button type="button" onclick="closePlanModal()" class="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600">Cancel</button>
+            <button type="submit" class="px-4 py-2 text-sm rounded-lg bg-teal-600 text-white hover:bg-teal-700">Save Plan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Confirm delete -->
+    <div id="del-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+        <p class="text-sm text-slate-700">Delete this benefit plan? Employees assigned to it will need to be re-assigned.</p>
+        <div class="flex justify-end gap-3">
+          <button onclick="document.getElementById('del-modal').classList.add('hidden')" class="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600">Cancel</button>
+          <button id="del-confirm-btn" class="px-4 py-2 text-sm rounded-lg bg-rose-600 text-white hover:bg-rose-700">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      let plans = [];
+      let cadres = [];
+      let distribution = [];
+
+      const loadData = async () => {
+        const [plansRes, cadresRes, distRes] = await Promise.all([
+          window.FINEMARK_APP.apiFetch("/hr/org/benefit-plans"),
+          window.FINEMARK_APP.apiFetch("/hr/org/cadres"),
+          window.FINEMARK_APP.apiFetch("/hr/reports/benefit-distribution"),
+        ]);
+        plans = plansRes?.data || [];
+        cadres = cadresRes?.data || [];
+        distribution = distRes?.data || [];
+        renderDistCards();
+        renderPlans();
+      };
+
+      const renderDistCards = () => {
+        const el = document.getElementById("dist-cards");
+        if (!distribution.length) { el.innerHTML = ""; return; }
+        el.innerHTML = distribution.map(d => `
+          <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm">
+            <p class="text-xs text-slate-400 mb-1">${d.plan_name || "Unassigned"}</p>
+            <p class="text-2xl font-bold text-teal-600">${d.employee_count ?? 0}</p>
+            <p class="text-xs text-slate-500 mt-0.5">employees</p>
+          </div>`).join("");
+      };
+
+      const renderPlans = () => {
+        const tbody = document.getElementById("plans-tbody");
+        const empty = document.getElementById("plans-empty");
+        if (!plans.length) { tbody.innerHTML = ""; empty.classList.remove("hidden"); return; }
+        empty.classList.add("hidden");
+        tbody.innerHTML = plans.map(p => `
+          <tr class="hover:bg-slate-50">
+            <td class="px-5 py-3 font-medium text-slate-800">${p.name}</td>
+            <td class="px-5 py-3 text-slate-500">${p.cadreName || "—"}</td>
+            <td class="px-5 py-3 text-center">${p.annualLeaveDays ?? "—"}</td>
+            <td class="px-5 py-3 text-center">${p.sickLeaveDays ?? "—"}</td>
+            <td class="px-5 py-3 text-slate-600 max-w-xs truncate">${p.medicalCover || "—"}</td>
+            <td class="px-5 py-3 text-slate-600 max-w-xs truncate">${p.pension || "—"}</td>
+            <td class="px-5 py-3 text-right flex justify-end gap-3">
+              <button onclick="editPlan('${p.id}')" class="text-xs text-teal-600 hover:underline">Edit</button>
+              <button onclick="confirmDelete('${p.id}')" class="text-xs text-rose-500 hover:underline">Delete</button>
+            </td>
+          </tr>`).join("");
+      };
+
+      const openAddModal = async () => {
+        document.getElementById("plan-modal-title").textContent = "Add Benefit Plan";
+        document.getElementById("plan-id").value = "";
+        document.getElementById("plan-form").reset();
+        document.getElementById("plan-error").classList.add("hidden");
+        populateCadres();
+        document.getElementById("plan-modal").classList.remove("hidden");
+      };
+      const closePlanModal = () => document.getElementById("plan-modal").classList.add("hidden");
+
+      const populateCadres = () => {
+        const sel = document.getElementById("plan-cadre");
+        sel.innerHTML = `<option value="">None (all cadres)</option>` + cadres.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+      };
+
+      const editPlan = id => {
+        const p = plans.find(x => x.id === id); if (!p) return;
+        document.getElementById("plan-modal-title").textContent = "Edit Benefit Plan";
+        document.getElementById("plan-id").value = p.id;
+        populateCadres();
+        document.getElementById("plan-name").value = p.name;
+        document.getElementById("plan-cadre").value = p.cadreId || "";
+        document.getElementById("plan-annual").value = p.annualLeaveDays ?? 21;
+        document.getElementById("plan-sick").value = p.sickLeaveDays ?? 14;
+        document.getElementById("plan-medical").value = p.medicalCover || "";
+        document.getElementById("plan-pension").value = p.pension || "";
+        document.getElementById("plan-other").value = p.otherBenefits || "";
+        document.getElementById("plan-error").classList.add("hidden");
+        document.getElementById("plan-modal").classList.remove("hidden");
+      };
+
+      document.getElementById("plan-form").onsubmit = async e => {
+        e.preventDefault();
+        const errEl = document.getElementById("plan-error"); errEl.classList.add("hidden");
+        const id = document.getElementById("plan-id").value;
+        const body = {
+          name: document.getElementById("plan-name").value.trim(),
+          cadreId: document.getElementById("plan-cadre").value || undefined,
+          annualLeaveDays: parseInt(document.getElementById("plan-annual").value),
+          sickLeaveDays: parseInt(document.getElementById("plan-sick").value),
+          medicalCover: document.getElementById("plan-medical").value.trim() || undefined,
+          pension: document.getElementById("plan-pension").value.trim() || undefined,
+          otherBenefits: document.getElementById("plan-other").value.trim() || undefined,
+        };
+        try {
+          if (id) {
+            await window.FINEMARK_APP.apiFetch(`/hr/org/benefit-plans/${id}`, { method: "PATCH", body });
+          } else {
+            await window.FINEMARK_APP.apiFetch("/hr/org/benefit-plans", { method: "POST", body });
+          }
+          closePlanModal();
+          await loadData();
+        } catch (err) { errEl.textContent = err?.message || "Failed to save"; errEl.classList.remove("hidden"); }
+      };
+
+      let pendingDeleteId = null;
+      const confirmDelete = id => {
+        pendingDeleteId = id;
+        document.getElementById("del-modal").classList.remove("hidden");
+      };
+      document.getElementById("del-confirm-btn").onclick = async () => {
+        document.getElementById("del-modal").classList.add("hidden");
+        try {
+          await window.FINEMARK_APP.apiFetch(`/hr/org/benefit-plans/${pendingDeleteId}`, { method: "DELETE" });
+          await loadData();
+        } catch (err) { alert(err?.message || "Delete failed"); }
+      };
+
+      document.getElementById("btn-add-plan").onclick = openAddModal;
+
+      (async () => {
+        await window.FINEMARK_APP.requirePageAccess();
+        await loadData();
+      })();
+    </script>
+  </body>
+</html>

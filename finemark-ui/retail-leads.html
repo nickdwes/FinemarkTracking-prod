@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Retail Leads</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-3 sm:p-6 min-w-0">
+    <div class="w-full space-y-6">
+
+      <!-- Page header -->
+      <div class="flex flex-wrap items-center gap-3 justify-between">
+        <div>
+          <p class="text-xs text-slate-500 font-medium uppercase tracking-wide mb-0.5">Sales → Retail Segment</p>
+          <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Retail Leads</h1>
+          <p class="text-sm text-slate-500 mt-0.5">Business Development Retail pipeline — track and manage BD retail leads.</p>
+        </div>
+        <a href="retail-lead-new.html"
+           class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700">
+          + New Retail Lead
+        </a>
+      </div>
+
+      <!-- Stat cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
+        <div class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
+          <p class="text-xs text-slate-500">New</p>
+          <p id="stat-New" class="text-2xl font-bold text-slate-900">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
+          <p class="text-xs text-slate-500">Submitted</p>
+          <p id="stat-Submitted" class="text-2xl font-bold text-blue-600">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
+          <p class="text-xs text-slate-500">In Progress</p>
+          <p id="stat-InProgress" class="text-2xl font-bold text-amber-600">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
+          <p class="text-xs text-slate-500">Closed, Ready to Invoice</p>
+          <p id="stat-Closed" class="text-2xl font-bold text-emerald-600">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
+          <p class="text-xs text-slate-500">Invoiced</p>
+          <p id="stat-Invoiced" class="text-2xl font-bold text-indigo-600">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
+          <p class="text-xs text-slate-500">Invoice Paid</p>
+          <p id="stat-Paid" class="text-2xl font-bold text-teal-600">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
+          <p class="text-xs text-slate-500">Cancelled</p>
+          <p id="stat-Cancelled" class="text-2xl font-bold text-red-500">—</p>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm space-y-3">
+        <div class="overflow-x-auto">
+          <div class="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1 text-sm whitespace-nowrap" id="status-tabs">
+            <button class="tab-btn rounded-md px-3 py-1.5 bg-white shadow-sm text-slate-900 font-medium" data-status="">All</button>
+            <button class="tab-btn rounded-md px-3 py-1.5 text-slate-600 hover:bg-white" data-status="New">New</button>
+            <button class="tab-btn rounded-md px-3 py-1.5 text-slate-600 hover:bg-white" data-status="Submitted">Submitted</button>
+            <button class="tab-btn rounded-md px-3 py-1.5 text-slate-600 hover:bg-white" data-status="InProgress">In Progress</button>
+            <button class="tab-btn rounded-md px-3 py-1.5 text-slate-600 hover:bg-white" data-status="closed_ready">Closed, Ready to Invoice</button>
+            <button class="tab-btn rounded-md px-3 py-1.5 text-slate-600 hover:bg-white" data-status="invoiced">Invoiced</button>
+            <button class="tab-btn rounded-md px-3 py-1.5 text-slate-600 hover:bg-white" data-status="paid">Invoice Paid</button>
+            <button class="tab-btn rounded-md px-3 py-1.5 text-slate-600 hover:bg-white" data-status="Cancelled">Cancelled</button>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-3 items-end">
+          <input id="search" type="search" placeholder="Search name, phone, lead #…"
+                 class="flex-1 min-w-[200px] rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <select id="rep-filter" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bdm-only hidden">
+            <option value="">All Sales Reps</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-[750px] w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th class="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap">Lead #</th>
+                <th class="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap">Customer</th>
+                <th class="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap">Vehicle</th>
+                <th class="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap">Lead Source</th>
+                <th class="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap bdm-only hidden">Sales Rep</th>
+                <th class="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap">Status</th>
+                <th class="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap">Ticket</th>
+                <th class="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap">Date</th>
+                <th class="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody id="leads-tbody" class="divide-y divide-slate-100">
+              <tr><td colspan="9" class="px-4 py-8 text-center text-slate-400 text-sm">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- Pagination -->
+        <div class="flex items-center justify-between px-4 py-3 border-t border-slate-100 text-sm text-slate-500">
+          <span id="pagination-info">—</span>
+          <div class="flex gap-2">
+            <button id="btn-prev" disabled class="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium disabled:opacity-40">← Prev</button>
+            <button id="btn-next" disabled class="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium disabled:opacity-40">Next →</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="fm-footer"></div>
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+// ── Auth guard ────────────────────────────────────────────────────────────────
+const session = JSON.parse(localStorage.getItem("finemark_session") || "null");
+if (!session?.accessToken) { window.location.href = "login.html"; }
+const isBDM = ["Admin","BDM","Finance"].includes(session?.user?.role || session?.role || "");
+
+if (isBDM) {
+  document.querySelectorAll(".bdm-only").forEach(el => el.classList.remove("hidden"));
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let currentPage  = 1;
+let totalLeads   = 0;
+let currentStatus = "";
+let currentSearch = "";
+let currentRep    = "";
+const PAGE_SIZE   = 50;
+
+function authHeaders() {
+  return { "Authorization": `Bearer ${session.accessToken}`, "Content-Type": "application/json" };
+}
+
+// ── Load stats ────────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const r = await fetch("/api/retail/leads/stats", { headers: authHeaders() });
+    const d = await r.json();
+    if (d.stats) {
+      ["New","Submitted","InProgress","Closed","Invoiced","Paid","Cancelled"].forEach(s => {
+        const el = document.getElementById(`stat-${s}`);
+        if (el) el.textContent = d.stats[s] ?? 0;
+      });
+    }
+  } catch { /* non-blocking */ }
+}
+
+// ── Load leads ────────────────────────────────────────────────────────────────
+async function loadLeads() {
+  const tbody = document.getElementById("leads-tbody");
+  tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">Loading…</td></tr>`;
+
+  const params = new URLSearchParams({
+    page: String(currentPage),
+    pageSize: String(PAGE_SIZE),
+  });
+  if (currentStatus) params.set("status", currentStatus);
+  if (currentSearch) params.set("search", currentSearch);
+  if (currentRep)    params.set("salesRepId", currentRep);
+
+  const r = await fetch(`/api/retail/leads?${params}`, { headers: authHeaders() });
+  const d = await r.json();
+  if (!r.ok) { tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-center text-red-500">${d.error?.message || "Failed to load leads."}</td></tr>`; return; }
+
+  totalLeads = d.total || 0;
+  const leads = d.leads || [];
+  document.getElementById("pagination-info").textContent =
+    totalLeads ? `Showing ${(currentPage-1)*PAGE_SIZE+1}–${Math.min(currentPage*PAGE_SIZE, totalLeads)} of ${totalLeads}` : "No leads found";
+  document.getElementById("btn-prev").disabled = currentPage <= 1;
+  document.getElementById("btn-next").disabled = currentPage * PAGE_SIZE >= totalLeads;
+
+  if (!leads.length) {
+    tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">No retail leads found.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = leads.map(l => {
+    // l.status comes back lowercased from the API (mapLead() normalizes it),
+    // so these keys must be lowercase too or every row silently falls back
+    // to the default grey regardless of actual status.
+    const statusClass = {
+      new: "bg-slate-100 text-slate-700",
+      submitted: "bg-blue-100 text-blue-700",
+      inprogress: "bg-amber-100 text-amber-700",
+      completed: "bg-emerald-100 text-emerald-700",
+      cancelled: "bg-red-100 text-red-700",
+    }[l.status] || "bg-slate-100 text-slate-600";
+
+    const vehicle = l.vehicle;
+    const vehicleDisplay = vehicle
+      ? (vehicle.registration || vehicle.chassisNo || (vehicle.make ? `${vehicle.make} ${vehicle.model||""}`.trim() : "—"))
+      : "—";
+
+    const src = l.leadSource + (l.partnerName ? ` — ${l.partnerName}` : "");
+    const date = l.createdAt ? new Date(l.createdAt).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" }) : "—";
+
+    const custHref = l.customerId
+      ? `crm-customer-360.html?id=${l.customerId}`
+      : `retail-lead-detail.html?id=${l.id}`;
+    const vehicleHref = l.vehicle?.vehicleId
+      ? `vehicle-360.html?id=${l.vehicle.vehicleId}`
+      : null;
+    const ticketHref = l.installationTicketId
+      ? `installation-ticket.html?id=${l.installationTicketId}&retailLeadId=${l.id}`
+      : null;
+    const ticketStatusClass = {
+      Completed: "bg-emerald-100 text-emerald-700",
+      InProgress: "bg-indigo-100 text-indigo-700",
+      Assigned: "bg-amber-100 text-amber-700",
+      Pending: "bg-slate-100 text-slate-600",
+    }[l.installationTicketStatus] || "bg-slate-100 text-slate-600";
+
+    let actionsHtml = `<a href="retail-lead-detail.html?id=${l.id}" class="text-xs text-blue-600 hover:text-blue-800 font-medium">View →</a>`;
+    // Quote/invoice actions key off the ticket's own completion, not
+    // l.status — a lead can be quote-eligible before anyone has clicked
+    // "Close Lead" on it (that button is a separate, explicit bookkeeping step).
+    if (l.installationTicketStatus === "Completed") {
+      if (l.invoiceId) {
+        actionsHtml = `<a href="invoice-detail.html?id=${l.invoiceId}" class="text-xs text-teal-600 hover:text-teal-800 font-semibold">View Invoice →</a><br/>` + actionsHtml;
+      } else if (l.quoteId) {
+        actionsHtml = `<a href="crm-quote-detail.html?id=${l.quoteId}" class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold">View Quote →</a><br/>` + actionsHtml;
+      } else {
+        actionsHtml = `<button onclick="raiseQuote('${l.id}')" class="text-xs text-emerald-600 hover:text-emerald-800 font-semibold">Raise Quote</button><br/>` + actionsHtml;
+      }
+    }
+
+    return `<tr class="hover:bg-slate-50 transition-colors">
+      <td class="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">${l.leadNo}</td>
+      <td class="px-4 py-3">
+        <a href="${custHref}" class="font-medium text-blue-600 hover:underline">${escHtml(l.customerName)}</a>
+        ${l.customerPhone ? `<p class="text-xs text-slate-400">${escHtml(l.customerPhone)}</p>` : ""}
+      </td>
+      <td class="px-4 py-3 text-xs whitespace-nowrap">
+        ${vehicleHref
+          ? `<a href="${vehicleHref}" class="text-blue-600 hover:underline">${escHtml(vehicleDisplay)}</a>`
+          : `<span class="text-slate-600">${escHtml(vehicleDisplay)}</span>`}
+      </td>
+      <td class="px-4 py-3 text-xs text-slate-600">${escHtml(src)}</td>
+      ${isBDM ? `<td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap bdm-only">${escHtml(l.salesRepName||"—")}</td>` : ""}
+      <td class="px-4 py-3 whitespace-nowrap">
+        <span class="inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${statusClass}">${l.status}</span>
+      </td>
+      <td class="px-4 py-3 text-xs font-mono whitespace-nowrap">
+        ${ticketHref
+          ? `<a href="${ticketHref}" class="text-blue-600 hover:underline">${l.installationTicketNo}</a>`
+          : `<span class="text-slate-600">${l.installationTicketNo || "—"}</span>`}
+        ${l.installationTicketStatus
+          ? `<span class="block mt-1 w-fit text-[0.65rem] font-semibold px-1.5 py-0.5 rounded ${ticketStatusClass}">${l.installationTicketStatus}</span>`
+          : ""}
+      </td>
+      <td class="px-4 py-3 text-xs text-slate-400 whitespace-nowrap">${date}</td>
+      <td class="px-4 py-3 text-right whitespace-nowrap space-y-1">
+        ${actionsHtml}
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+// ── Raise a quotation for a closed (installation-complete) lead ────────────────
+async function raiseQuote(leadId) {
+  try {
+    const r = await fetch(`/api/retail/leads/${leadId}/raise-quote`, { method: "POST", headers: authHeaders() });
+    const d = await r.json();
+    if (!r.ok) {
+      window.FINEMARK_APP?.showToast?.(d.error?.message || "Failed to raise quotation.", "error");
+      return;
+    }
+    window.FINEMARK_APP?.showToast?.(`Quotation ${d.data?.quoteNo || ""} raised.`, "success");
+    loadLeads();
+    loadStats();
+  } catch {
+    window.FINEMARK_APP?.showToast?.("Failed to raise quotation.", "error");
+  }
+}
+
+function escHtml(s) {
+  if (!s) return "";
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// ── Status tab filter ─────────────────────────────────────────────────────────
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("bg-white","shadow-sm","text-slate-900","font-medium"));
+    btn.classList.add("bg-white","shadow-sm","text-slate-900","font-medium");
+    currentStatus = btn.dataset.status || "";
+    currentPage   = 1;
+    loadLeads();
+  });
+});
+
+// ── Search ────────────────────────────────────────────────────────────────────
+let searchTimer;
+document.getElementById("search").addEventListener("input", e => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { currentSearch = e.target.value.trim(); currentPage=1; loadLeads(); }, 400);
+});
+
+// ── Rep filter (BDM only) ─────────────────────────────────────────────────────
+if (isBDM) {
+  fetch("/api/users?role=Sales,Telesales,FieldSales,BDM&pageSize=200", { headers: authHeaders() })
+    .then(r => r.json()).then(d => {
+      const sel = document.getElementById("rep-filter");
+      (d.data || []).forEach(u => { sel.innerHTML += `<option value="${u.id}">${escHtml(u.name)}</option>`; });
+    }).catch(()=>{});
+  document.getElementById("rep-filter").addEventListener("change", e => {
+    currentRep = e.target.value; currentPage=1; loadLeads();
+  });
+}
+
+// ── Pagination ────────────────────────────────────────────────────────────────
+document.getElementById("btn-prev").addEventListener("click", () => { currentPage--; loadLeads(); });
+document.getElementById("btn-next").addEventListener("click", () => { currentPage++; loadLeads(); });
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadStats();
+loadLeads();
+</script>
+  </body>
+</html>

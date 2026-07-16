@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Certificate Printing</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+
+          <div class="max-w-6xl mx-auto space-y-6">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h1 class="text-2xl font-semibold text-slate-900">Certificate Printing</h1>
+                <p class="text-sm text-slate-600">Generate and print installation certificates</p>
+                <nav class="mt-2 text-xs text-slate-500">
+                  <a href="admin-certificates.html" class="text-blue-600 hover:underline">Certificates</a> / Certificate Printing
+                </nav>
+              </div>
+              <div class="flex items-center gap-3">
+                <button class="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400">
+                  Batch Print
+                </button>
+                <button class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400">
+                  Export CSV
+                </button>
+              </div>
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                <div class="flex items-center gap-3">
+                  <div class="h-10 w-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                    ✓
+                  </div>
+                  <div>
+                    <p class="text-xs text-slate-500">Awaiting Certificates</p>
+                    <p class="text-xl font-semibold">23</p>
+                  </div>
+                </div>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                <div class="flex items-center gap-3">
+                  <div class="h-10 w-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    ✓
+                  </div>
+                  <div>
+                    <p class="text-xs text-slate-500">Printed Today</p>
+                    <p class="text-xl font-semibold">8</p>
+                  </div>
+                </div>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                <div class="flex items-center gap-3">
+                  <div class="h-10 w-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                    !
+                  </div>
+                  <div>
+                    <p class="text-xs text-slate-500">Pending Review</p>
+                    <p class="text-xl font-semibold">5</p>
+                  </div>
+                </div>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                <div class="flex items-center gap-3">
+                  <div class="h-10 w-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                    #
+                  </div>
+                  <div>
+                    <p class="text-xs text-slate-500">Total Printed</p>
+                    <p class="text-xl font-semibold">892</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-wrap items-center gap-3">
+              <div class="flex-1 min-w-[240px]">
+                <input type="text" placeholder="Search by installation ID, client name, or vehicle..." class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+              </div>
+              <select class="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">
+                <option>All Status</option>
+                <option>Completed</option>
+                <option>Quality Checked</option>
+                <option>Pending Review</option>
+              </select>
+              <select class="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">
+                <option>All Dates</option>
+                <option>Today</option>
+                <option>This Week</option>
+                <option>This Month</option>
+              </select>
+              <button class="text-sm text-slate-500 hover:text-slate-700">Clear</button>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm">
+              <div class="px-6 py-4 border-b border-slate-200">
+                <h2 class="font-semibold text-slate-900">Installations Awaiting Certificate</h2>
+                <p class="text-sm text-slate-500">23 installations pending certificate generation</p>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm min-w-[980px]">
+                  <thead class="text-left text-slate-500 bg-slate-50">
+                    <tr>
+                      <th class="py-3 px-6">Installation ID</th>
+                      <th class="py-3 px-6">Vehicle Details</th>
+                      <th class="py-3 px-6">Client</th>
+                      <th class="py-3 px-6">Installation Date</th>
+                      <th class="py-3 px-6">Technician</th>
+                      <th class="py-3 px-6">Gadget Details</th>
+                      <th class="py-3 px-6">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cert-body" class="divide-y divide-slate-200"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        
+  </main>
+</div>
+<div id="fm-footer"></div>
+
+    <div id="details-modal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/40 px-4" role="dialog" aria-modal="true" aria-labelledby="details-title">
+      <div class="w-full max-w-4xl rounded-2xl bg-white p-6 shadow-xl border border-slate-200">
+        <div class="flex items-center justify-between">
+          <h2 id="details-title" class="text-lg font-semibold text-slate-900">Installation Details</h2>
+          <button id="close-details" class="text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 rounded">✕</button>
+        </div>
+        <div class="mt-4 grid gap-4 lg:grid-cols-[1fr_240px]">
+          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 relative overflow-hidden">
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <span class="text-5xl font-semibold text-slate-200/60 rotate-12">FINEMARK</span>
+            </div>
+            <div id="certificate-preview" class="relative space-y-4 text-sm text-slate-700 bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-xs text-slate-500">Certificate Preview</p>
+                  <h3 class="text-lg font-semibold text-slate-900">Certificate of Installation</h3>
+                </div>
+                <div class="text-xs text-slate-500">CERT-2024-001</div>
+              </div>
+              <div class="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <p class="text-xs text-slate-500">Installation ID</p>
+                  <p id="detail-id" class="font-medium text-slate-900">--</p>
+                </div>
+                <div>
+                  <p class="text-xs text-slate-500">Client</p>
+                  <p id="detail-client" class="font-medium text-slate-900">--</p>
+                </div>
+                <div>
+                  <p class="text-xs text-slate-500">Vehicle</p>
+                  <p id="detail-vehicle" class="font-medium text-slate-900">--</p>
+                </div>
+                <div>
+                  <p class="text-xs text-slate-500">Technician</p>
+                  <p id="detail-tech" class="font-medium text-slate-900">--</p>
+                </div>
+                <div>
+                  <p class="text-xs text-slate-500">Gadget</p>
+                  <p id="detail-gadget" class="font-medium text-slate-900">--</p>
+                </div>
+                <div>
+                  <p class="text-xs text-slate-500">Status</p>
+                  <p class="font-medium text-emerald-700">Verified</p>
+                </div>
+              </div>
+              <div class="border-t border-slate-200 pt-3 grid gap-3 sm:grid-cols-3 text-xs">
+                <div>
+                  <p class="text-slate-500">Maker-Checker</p>
+                  <p class="font-medium text-slate-900">Lucy Kahura</p>
+                </div>
+                <div>
+                  <p class="text-slate-500">Maker-Checker</p>
+                  <p class="font-medium text-slate-900">Kevin Kuria</p>
+                </div>
+                <div>
+                  <p class="text-slate-500">Finance</p>
+                  <p class="font-medium text-slate-900">Finance</p>
+                </div>
+              </div>
+              <div class="border-t border-slate-200 pt-3 flex items-center justify-between text-xs">
+                <div>
+                  <p class="text-slate-500">Stamp</p>
+                  <div class="mt-1 h-10 w-20 border border-dashed border-slate-300 text-[10px] text-slate-400 flex items-center justify-center">
+                    Stamp
+                  </div>
+                </div>
+                <div class="text-right text-slate-500">
+                  FineMark Tracking Limited
+                  <br />
+                  info@finemark.co.ke
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="space-y-3">
+            <button id="download-pdf" class="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+              Download PDF
+            </button>
+            <button id="email-client" class="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50">
+              Email Client
+            </button>
+            <button id="close-details-secondary" class="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+              Close Preview
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+</body>
+</html>

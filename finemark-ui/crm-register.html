@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Register / Edit Customer</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-3xl mx-auto space-y-6">
+          <!-- Header -->
+          <div>
+            <h1 id="page-heading" class="text-3xl font-semibold tracking-tight text-slate-900">Register Customer</h1>
+            <p id="page-subheading" class="text-sm text-slate-600">Create an individual or corporate customer account.</p>
+          </div>
+          <nav class="text-xs text-slate-500" id="page-breadcrumb">
+            <a href="crm-customers.html" class="hover:text-blue-600 font-medium text-slate-600">Customers</a>
+            <span class="mx-1">/</span> <span id="breadcrumb-label">Register</span>
+          </nav>
+
+          <!-- From-lead banner (shown when navigated from a lead) -->
+          <div id="from-lead-banner" class="hidden rounded-xl bg-amber-50 border border-amber-200 p-4 flex items-start gap-3">
+            <svg class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z"/></svg>
+            <div>
+              <p class="text-sm font-semibold text-amber-800">Converting Lead → Customer</p>
+              <p class="text-sm text-amber-700" id="from-lead-desc">Fill in the customer details below. Submitting will register the customer and mark the lead as converted.</p>
+            </div>
+          </div>
+
+          <!-- Success banner -->
+          <div id="success-banner" class="hidden rounded-xl bg-green-50 border border-green-200 p-4 flex items-start gap-3">
+            <svg class="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <div>
+              <p class="text-sm font-semibold text-green-800" id="success-title">Customer registered</p>
+              <p class="text-sm text-green-700" id="success-body"></p>
+              <div class="mt-2 flex gap-3">
+                <a id="success-view-link" href="#" class="text-xs font-semibold text-green-800 hover:underline">View 360° Profile →</a>
+                <button id="btn-register-another" onclick="resetForm()" class="text-xs font-semibold text-green-700 hover:underline">Register Another</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Error banner -->
+          <div id="error-banner" class="hidden rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-700"></div>
+
+          <!-- Duplicate-customer warning banner -->
+          <div id="duplicate-banner" class="hidden rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800 space-y-3">
+            <p class="font-semibold">A customer with this name and phone/email already exists.</p>
+            <div id="duplicate-matches" class="space-y-1"></div>
+            <div class="flex gap-2 pt-1">
+              <button type="button" id="btn-create-anyway" class="rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100">Create new customer anyway</button>
+              <button type="button" id="btn-cancel-duplicate" class="rounded-lg px-3 py-1.5 text-xs font-semibold text-amber-700 hover:underline">Cancel</button>
+            </div>
+          </div>
+
+          <!-- Form -->
+          <form id="reg-form" class="space-y-6" novalidate>
+            <!-- Customer Type -->
+            <div class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm space-y-4">
+              <h2 class="font-semibold text-slate-800">Customer Type</h2>
+              <div class="flex gap-4">
+                <label class="flex items-center gap-3 cursor-pointer">
+                  <input type="radio" name="type" value="individual" class="accent-blue-600" checked />
+                  <div>
+                    <p class="font-medium text-sm text-slate-800">Individual</p>
+                    <p class="text-xs text-slate-400">Single person — NationalID / Passport</p>
+                  </div>
+                </label>
+                <label class="flex items-center gap-3 cursor-pointer">
+                  <input type="radio" name="type" value="corporate" class="accent-blue-600" />
+                  <div>
+                    <p class="font-medium text-sm text-slate-800">Corporate</p>
+                    <p class="text-xs text-slate-400">Company — Reg Number / KRA PIN</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Account Details -->
+            <div class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm space-y-4">
+              <h2 class="font-semibold text-slate-800">Account Details</h2>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Region (County)</label>
+                  <select name="region" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500">
+                    <option value="">— Select county</option>
+                    <option>Baringo</option>
+                    <option>Bomet</option>
+                    <option>Bungoma</option>
+                    <option>Busia</option>
+                    <option>Elgeyo-Marakwet</option>
+                    <option>Embu</option>
+                    <option>Garissa</option>
+                    <option>Homa Bay</option>
+                    <option>Isiolo</option>
+                    <option>Kajiado</option>
+                    <option>Kakamega</option>
+                    <option>Kericho</option>
+                    <option>Kiambu</option>
+                    <option>Kilifi</option>
+                    <option>Kirinyaga</option>
+                    <option>Kisii</option>
+                    <option>Kisumu</option>
+                    <option>Kitui</option>
+                    <option>Kwale</option>
+                    <option>Laikipia</option>
+                    <option>Lamu</option>
+                    <option>Machakos</option>
+                    <option>Makueni</option>
+                    <option>Mandera</option>
+                    <option>Marsabit</option>
+                    <option>Meru</option>
+                    <option>Migori</option>
+                    <option>Mombasa</option>
+                    <option>Murang'a</option>
+                    <option>Nairobi</option>
+                    <option>Nakuru</option>
+                    <option>Nandi</option>
+                    <option>Narok</option>
+                    <option>Nyamira</option>
+                    <option>Nyandarua</option>
+                    <option>Nyeri</option>
+                    <option>Samburu</option>
+                    <option>Siaya</option>
+                    <option>Taita-Taveta</option>
+                    <option>Tana River</option>
+                    <option>Tharaka-Nithi</option>
+                    <option>Trans-Nzoia</option>
+                    <option>Turkana</option>
+                    <option>Uasin Gishu</option>
+                    <option>Vihiga</option>
+                    <option>Wajir</option>
+                    <option>West Pokot</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Source</label>
+                  <select name="source" id="reg-source" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                    <option value="">— Select source</option>
+                    <option>Walk In</option>
+                    <option>Referral</option>
+                    <option>Online</option>
+                    <option>Field Sales</option>
+                    <option>Bank Partnership</option>
+                    <option>Car Yard Partnership</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Segment</label>
+                  <select name="segment" id="reg-segment" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                    <option value="">— Select segment</option>
+                    <option value="Retail">Retail</option>
+                    <option value="Corporate">Corporate</option>
+                  </select>
+                </div>
+                <!-- Partner fields — shown when source is a partnership type -->
+                <div id="div-reg-primary-partner" class="hidden">
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Primary Partner</label>
+                  <select id="reg-primary-partner" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                    <option value="">— Select primary partner —</option>
+                  </select>
+                </div>
+                <div id="div-reg-secondary-partner" class="hidden">
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Secondary Partner</label>
+                  <select id="reg-secondary-partner" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                    <option value="">— Select secondary partner (optional) —</option>
+                  </select>
+                </div>
+                <div class="sm:col-span-2">
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Notes</label>
+                  <textarea name="notes" rows="2" placeholder="Optional notes about this customer" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500 resize-none"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Individual Profile -->
+            <div id="section-individual" class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm space-y-4">
+              <h2 class="font-semibold text-slate-800">Individual Profile <span class="text-red-500">*</span></h2>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="sm:col-span-2">
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Full Name <span class="text-red-500">*</span></label>
+                  <input name="ind_fullName" type="text" required placeholder="Full legal name" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">National ID</label>
+                  <input name="ind_nationalId" type="text" placeholder="National ID number" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Passport No</label>
+                  <input name="ind_passportNo" type="text" placeholder="Passport number" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">KRA PIN</label>
+                  <input name="ind_kraPin" type="text" placeholder="KRA PIN" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Phone <span class="text-red-500">*</span></label>
+                  <input name="ind_phone" type="tel" required placeholder="0712 345 678" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Email</label>
+                  <input name="ind_email" type="email" placeholder="customer@email.com" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                </div>
+                <div class="sm:col-span-2">
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Residential Address</label>
+                  <input name="ind_address" type="text" placeholder="Residential / postal address" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Industry</label>
+                  <input name="ind_industry" type="text" placeholder="e.g. Transport, Agriculture" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Date of Birth</label>
+                  <input name="ind_dob" type="date" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Gender</label>
+                  <select name="ind_gender" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                    <option value="">— Select gender</option>
+                    <option>Male</option>
+                    <option>Female</option>
+                    <option>Other</option>
+                    <option>Prefer not to say</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Corporate Profile -->
+            <div id="section-corporate" class="hidden bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm space-y-4">
+              <h2 class="font-semibold text-slate-800">Corporate Profile <span class="text-red-500">*</span></h2>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="sm:col-span-2">
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Company Name <span class="text-red-500">*</span></label>
+                  <input name="corp_companyName" type="text" placeholder="Registered company name" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Registration Number</label>
+                  <input name="corp_regNumber" type="text" placeholder="BN/CO/PVT Registration No" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">KRA PIN</label>
+                  <input name="corp_kraPin" type="text" placeholder="KRA PIN" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Industry</label>
+                  <input name="corp_industry" type="text" placeholder="e.g. Logistics, Manufacturing" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Website</label>
+                  <input name="corp_website" type="url" placeholder="https://company.com" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                </div>
+                <div class="sm:col-span-2">
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Physical Address</label>
+                  <input name="corp_address" type="text" placeholder="Company physical address" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Phone Number</label>
+                  <input name="corp_phone" type="tel" placeholder="+254 7XX XXX XXX" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Email Address</label>
+                  <input name="corp_email" type="email" placeholder="contact@company.com" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Contacts -->
+            <div class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm space-y-4">
+              <div class="flex items-center justify-between">
+                <h2 class="font-semibold text-slate-800">Contact Persons</h2>
+                <button type="button" id="btn-add-contact" class="text-xs font-semibold text-blue-600 hover:text-blue-800">+ Add Contact</button>
+              </div>
+              <div id="contacts-list" class="space-y-4"></div>
+            </div>
+
+            <!-- Submit -->
+            <div class="flex justify-end gap-3">
+              <a id="btn-cancel" href="crm-customers.html" class="rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">Cancel</a>
+              <button type="submit" id="btn-submit" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-blue-700 transition-colors disabled:opacity-60">
+                Register Customer
+              </button>
+            </div>
+          </form>
+        </div>
+      </main>
+    </div>
+
+<div id="fm-footer"></div>
+
+<script src="assets/contracts.js"></script>
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        window.FINEMARK_APP?.requirePageAccess?.();
+        initFromLead();
+      });
+
+      // ── From-lead pre-fill ──────────────────────────────────────────────────
+      let fromLeadId = null;
+      let fromRetailLeadId = null;
+      let returnToUrl = null;
+      let editCustomerId = null;
+
+      async function initFromLead() {
+        const params = new URLSearchParams(window.location.search);
+        fromLeadId = params.get("fromLead") || null;
+        fromRetailLeadId = params.get("retailLeadId") || null;
+        returnToUrl = params.get("returnTo") || null;
+        editCustomerId = params.get("edit") || null;
+
+        const sv = (name, val) => { const el = document.querySelector(`[name="${name}"]`); if (el && val != null) el.value = val; };
+
+        // ── Edit existing customer ────────────────────────────────────────────
+        if (editCustomerId) {
+          document.getElementById("page-heading").textContent = "Edit Customer";
+          document.getElementById("page-subheading").textContent = "Update customer account and profile details.";
+          document.getElementById("breadcrumb-label").textContent = "Edit";
+          document.getElementById("btn-submit").textContent = "Save Changes";
+          document.getElementById("btn-cancel").href = `crm-customer-360.html?id=${editCustomerId}`;
+          try {
+            const res = await window.FINEMARK_APP.apiFetch(`/crm/customers/${editCustomerId}/360`);
+            const v = res.data || res;
+            const c = v.customer;
+            const profile = v.profile;
+
+            // Customer type
+            const typeRadio = document.querySelector(`input[name="type"][value="${c.type}"]`);
+            if (typeRadio) {
+              typeRadio.checked = true;
+              if (c.type === "corporate") {
+                document.getElementById("section-individual").classList.add("hidden");
+                document.getElementById("section-corporate").classList.remove("hidden");
+              }
+            }
+
+            // Account details
+            sv("region",  c.region);
+            sv("source",  c.source);
+            sv("notes",   c.notes);
+            if (c.segment) document.getElementById("reg-segment").value = c.segment;
+            if (c.source) {
+              handleRegSourceChange();
+              if (c.affiliatePartnerId || c.secondaryPartnerId) {
+                await loadRegPartners();
+                const elPrimary = document.getElementById("reg-primary-partner");
+                if (elPrimary && c.affiliatePartnerId) elPrimary.value = c.affiliatePartnerId;
+                const elSecondary = document.getElementById("reg-secondary-partner");
+                if (elSecondary && c.secondaryPartnerId) elSecondary.value = c.secondaryPartnerId;
+              }
+            }
+
+            // Individual profile fields
+            if (c.type === "individual" && profile) {
+              sv("ind_fullName",   profile.fullName);
+              sv("ind_phone",      profile.phone);
+              sv("ind_email",      profile.email);
+              sv("ind_nationalId", profile.nationalId);
+              sv("ind_passportNo", profile.passportNo);
+              sv("ind_kraPin",     profile.kraPin);
+              sv("ind_address",    profile.address);
+              sv("ind_industry",   profile.industry);
+              sv("ind_dob",        profile.dateOfBirth);
+              if (profile.gender) sv("ind_gender", profile.gender);
+            }
+
+            // Corporate profile fields
+            if (c.type === "corporate" && profile) {
+              sv("corp_companyName", profile.companyName);
+              sv("corp_regNumber",   profile.regNumber);
+              sv("corp_kraPin",      profile.kraPin);
+              sv("corp_industry",    profile.industry);
+              sv("corp_address",     profile.physicalAddress);
+              sv("corp_website",     profile.website);
+              // Pre-fill phone/email from primary contact
+              const primaryContact = v.contacts?.find(c => c.isPrimary) || v.contacts?.[0] || null;
+              if (primaryContact?.phone && primaryContact.phone !== "—") sv("corp_phone", primaryContact.phone);
+              if (primaryContact?.email && primaryContact.email !== "—") sv("corp_email", primaryContact.email);
+            }
+
+            document.getElementById("from-lead-banner").classList.remove("hidden");
+            document.getElementById("from-lead-banner").classList.remove("bg-amber-50", "border-amber-200");
+            document.getElementById("from-lead-banner").classList.add("bg-blue-50", "border-blue-200");
+            document.getElementById("from-lead-banner").querySelector("svg").classList.replace("text-amber-500", "text-blue-500");
+            document.getElementById("from-lead-banner").querySelector(".text-amber-800").textContent = "Editing existing customer";
+            document.getElementById("from-lead-desc").textContent = `${c.type === "individual" ? profile?.fullName : profile?.companyName || ""} · Account: ${c.accountNo}. Changes will update the customer record immediately.`;
+            document.getElementById("from-lead-desc").className = "text-sm text-blue-700";
+          } catch (e) {
+            console.warn("Could not load customer for edit:", e);
+            document.getElementById("error-banner").textContent = "Could not load customer data. " + (e?.message || "");
+            document.getElementById("error-banner").classList.remove("hidden");
+          }
+          return;
+        }
+
+        // ── Retail Lead pre-fill ──────────────────────────────────────────────
+        if (fromRetailLeadId) {
+          document.getElementById("btn-cancel").href = returnToUrl || "retail-leads.html";
+          document.getElementById("btn-submit").textContent = "Register Customer";
+          try {
+            const res = await window.FINEMARK_APP.apiFetch(`/retail-leads/${fromRetailLeadId}`);
+            const lead = res.lead || res.data || res;
+            if (!lead) return;
+
+            document.getElementById("from-lead-banner").classList.remove("hidden");
+            document.getElementById("from-lead-desc").textContent =
+              `Pre-filled from Retail Lead ${lead.leadNo}${lead.customerName ? " — " + lead.customerName : ""}. Save to create the customer profile.`;
+
+            // Individual profile
+            sv("ind_fullName", lead.customerName);
+            sv("ind_phone",    lead.customerPhone);
+            sv("ind_email",    lead.customerEmail);
+
+            // Account details — region from customerLocation
+            if (lead.customerLocation) {
+              const reg = document.querySelector('[name="region"]');
+              if (reg) {
+                [...reg.options].forEach(o => {
+                  if (o.value === lead.customerLocation || o.text === lead.customerLocation) reg.value = o.value;
+                });
+              }
+            }
+            if (lead.leadSource) {
+              const src = document.querySelector('[name="source"]');
+              if (src) {
+                [...src.options].forEach(o => { if (o.value === lead.leadSource || o.text === lead.leadSource) src.value = o.value; });
+                handleRegSourceChange();
+                if (lead.partnerId || lead.secondaryPartnerId) {
+                  await loadRegPartners();
+                  if (lead.partnerId) document.getElementById("reg-primary-partner").value = lead.partnerId;
+                  if (lead.secondaryPartnerId) document.getElementById("reg-secondary-partner").value = lead.secondaryPartnerId;
+                }
+              }
+            }
+            // Auto-select Retail segment
+            document.getElementById("reg-segment").value = "Retail";
+
+            // Stash vehicle for use after save
+            window._retailLeadVehicle = lead.vehicle || null;
+          } catch (e) {
+            console.warn("Could not pre-fill from retail lead:", e);
+          }
+          return;
+        }
+
+        // Point Cancel back to the leads page
+        document.getElementById("btn-cancel").href = "crm-leads.html";
+        document.getElementById("btn-submit").textContent = "Register & Convert Lead";
+
+        try {
+          const res = await window.FINEMARK_APP.apiFetch(`/crm/leads/${fromLeadId}`);
+          const lead = res.data || res;
+          if (!lead) return;
+
+          // Show banner
+          const desc = document.getElementById("from-lead-desc");
+          desc.textContent = `Lead ${lead.leadNo}${lead.customerName ? " — " + lead.customerName : ""}: fill in the details below. Submitting will register the customer and mark the lead as converted.`;
+          document.getElementById("from-lead-banner").classList.remove("hidden");
+
+          // Pre-select type
+          if (lead.companyName) {
+            document.querySelector('input[name="type"][value="corporate"]').checked = true;
+            document.getElementById("section-individual").classList.add("hidden");
+            document.getElementById("section-corporate").classList.remove("hidden");
+          }
+
+          // Pre-fill individual fields
+          const sv = (name, val) => { const el = document.querySelector(`[name="${name}"]`); if (el && val) el.value = val; };
+          if (!lead.companyName) {
+            sv("ind_fullName", lead.customerName);
+            sv("ind_phone",    lead.phone);
+            sv("ind_email",    lead.email);
+            sv("ind_nationalId", lead.idNumber);
+            sv("ind_address",  lead.address);
+          } else {
+            sv("corp_companyName", lead.companyName);
+            sv("corp_address",     lead.address);
+            // Corporate leads capture a contact phone/email too (crm_leads.phone/.email)
+            // — carry them across the same way the individual branch above already
+            // does, so a converted corporate customer isn't left with zero contact
+            // info unless someone manually re-types it.
+            sv("corp_phone", lead.phone);
+            sv("corp_email", lead.email);
+          }
+          // Account details
+          if (lead.region) {
+            const reg = document.querySelector('[name="region"]');
+            if (reg) {
+              [...reg.options].forEach(o => { if (o.value === lead.region || o.text === lead.region) reg.value = o.value; });
+            }
+          }
+          if (lead.leadSource) {
+            const src = document.querySelector('[name="source"]');
+            if (src) {
+              [...src.options].forEach(o => { if (o.value === lead.leadSource || o.text === lead.leadSource) src.value = o.value; });
+              handleRegSourceChange();
+              if (lead.partnerId) {
+                await loadRegPartners();
+                document.getElementById("reg-primary-partner").value = lead.partnerId;
+                if (lead.secondaryPartnerId) document.getElementById("reg-secondary-partner").value = lead.secondaryPartnerId;
+              }
+            }
+          }
+          if (lead.leadNotes) sv("notes", lead.leadNotes);
+        } catch (e) {
+          console.warn("Could not pre-fill from lead:", e);
+        }
+      }
+
+      let contactCount = 0;
+      const contacts = [];
+
+      function g(name) { return document.querySelector(`[name="${name}"]`); }
+      function gv(name) { return g(name)?.value?.trim() || null; }
+
+      // ── Affiliate Partner Dropdown ──────────────────────────────────────────
+      let regPartnersLoaded = false;
+      async function loadRegPartners() {
+        if (regPartnersLoaded) return;
+        const selPrimary = document.getElementById("reg-primary-partner");
+        const selSecondary = document.getElementById("reg-secondary-partner");
+        try {
+          const d = await window.FINEMARK_APP.apiFetch("/partners?pageSize=200&status=Active");
+          const list = d.data || [];
+          const opts = `<option value="">— Select partner —</option>` +
+            list.map(p => `<option value="${p.id}">${(p.name || "").replace(/</g,"&lt;")}${p.tier ? ` (${p.tier})` : ""}</option>`).join("");
+          selPrimary.innerHTML = opts;
+          selSecondary.innerHTML = `<option value="">— Select secondary partner (optional) —</option>` +
+            list.map(p => `<option value="${p.id}">${(p.name || "").replace(/</g,"&lt;")}${p.tier ? ` (${p.tier})` : ""}</option>`).join("");
+          regPartnersLoaded = true;
+        } catch (_) {
+          selPrimary.innerHTML = `<option value="">— Failed to load —</option>`;
+          selSecondary.innerHTML = `<option value="">— Failed to load —</option>`;
+        }
+      }
+
+      const REG_PARTNERSHIP_SOURCES = ["bank partnership", "car yard partnership"];
+      function handleRegSourceChange() {
+        const val = (document.getElementById("reg-source")?.value || "").toLowerCase();
+        const show = REG_PARTNERSHIP_SOURCES.includes(val);
+        document.getElementById("div-reg-primary-partner").classList.toggle("hidden", !show);
+        document.getElementById("div-reg-secondary-partner").classList.toggle("hidden", !show);
+        if (show) loadRegPartners();
+      }
+      document.getElementById("reg-source")?.addEventListener("change", handleRegSourceChange);
+
+      // Type toggle
+      document.querySelectorAll('input[name="type"]').forEach(r => {
+        r.addEventListener("change", () => {
+          const isIndividual = r.value === "individual";
+          document.getElementById("section-individual").classList.toggle("hidden", !isIndividual);
+          document.getElementById("section-corporate").classList.toggle("hidden", isIndividual);
+        });
+      });
+
+      // Add contact
+      document.getElementById("btn-add-contact").addEventListener("click", () => {
+        const id = ++contactCount;
+        const el = document.createElement("div");
+        el.id = `contact-${id}`;
+        el.className = "rounded-lg border border-slate-100 p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 relative";
+        el.innerHTML = `
+          <button type="button" onclick="removeContact(${id})" class="absolute top-3 right-3 text-slate-300 hover:text-red-500 text-xs">✕</button>
+          <div><label class="block text-xs font-medium text-slate-500 mb-1">Name <span class="text-red-500">*</span></label>
+          <input type="text" name="c${id}_name" placeholder="Full name" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" /></div>
+          <div><label class="block text-xs font-medium text-slate-500 mb-1">Role / Title</label>
+          <input type="text" name="c${id}_role" placeholder="e.g. CEO, Billing" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" /></div>
+          <div><label class="block text-xs font-medium text-slate-500 mb-1">Phone</label>
+          <input type="tel" name="c${id}_phone" placeholder="0712 345 678" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" /></div>
+          <div><label class="block text-xs font-medium text-slate-500 mb-1">Email</label>
+          <input type="email" name="c${id}_email" placeholder="contact@email.com" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" /></div>
+          <div class="sm:col-span-2 flex gap-6 text-sm text-slate-700">
+            <label class="flex items-center gap-2"><input type="checkbox" name="c${id}_primary" class="accent-blue-600" /> Primary</label>
+            <label class="flex items-center gap-2"><input type="checkbox" name="c${id}_billing" class="accent-amber-500" /> Billing</label>
+            <label class="flex items-center gap-2"><input type="checkbox" name="c${id}_ops" class="accent-teal-500" /> Operations</label>
+          </div>
+        `;
+        document.getElementById("contacts-list").appendChild(el);
+        contacts.push(id);
+      });
+
+      window.removeContact = (id) => {
+        document.getElementById(`contact-${id}`)?.remove();
+        const idx = contacts.indexOf(id);
+        if (idx > -1) contacts.splice(idx, 1);
+      };
+
+      // Submit
+      document.getElementById("reg-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const type = document.querySelector('input[name="type"]:checked').value;
+        document.getElementById("error-banner").classList.add("hidden");
+
+        const overrideDuplicate = document.getElementById("reg-form").dataset.overrideDuplicate === "1";
+        delete document.getElementById("reg-form").dataset.overrideDuplicate;
+
+        const payload = {
+          type,
+          region: gv("region"),
+          source: gv("source"),
+          segment: gv("segment"),
+          notes: gv("notes"),
+          affiliatePartnerId: document.getElementById("reg-primary-partner")?.value || null,
+          secondaryPartnerId: document.getElementById("reg-secondary-partner")?.value || null,
+          overrideDuplicate,
+        };
+
+        if (type === "individual") {
+          const fullName = gv("ind_fullName");
+          const phone = gv("ind_phone");
+          if (!fullName || !phone) {
+            document.getElementById("error-banner").textContent = "Full name and phone are required for individual customers.";
+            document.getElementById("error-banner").classList.remove("hidden");
+            return;
+          }
+          payload.individual = {
+            fullName, nationalId: gv("ind_nationalId"), passportNo: gv("ind_passportNo"),
+            kraPin: gv("ind_kraPin"), phone, email: gv("ind_email"),
+            address: gv("ind_address"), industry: gv("ind_industry"),
+            dateOfBirth: gv("ind_dob"), gender: gv("ind_gender"),
+          };
+        } else {
+          const companyName = gv("corp_companyName");
+          if (!companyName) {
+            document.getElementById("error-banner").textContent = "Company name is required for corporate customers.";
+            document.getElementById("error-banner").classList.remove("hidden");
+            return;
+          }
+          payload.corporate = {
+            companyName, regNumber: gv("corp_regNumber"), kraPin: gv("corp_kraPin"),
+            industry: gv("corp_industry"), physicalAddress: gv("corp_address"), website: gv("corp_website"),
+            phone: gv("corp_phone"), email: gv("corp_email"),
+          };
+        }
+
+        const contactArr = contacts.map(id => {
+          const name = g(`c${id}_name`)?.value?.trim();
+          if (!name) return null;
+          return {
+            name, roleLabel: g(`c${id}_role`)?.value?.trim() || null,
+            phone: g(`c${id}_phone`)?.value?.trim() || null,
+            email: g(`c${id}_email`)?.value?.trim() || null,
+            isPrimary: g(`c${id}_primary`)?.checked || false,
+            isBilling: g(`c${id}_billing`)?.checked || false,
+            isOperations: g(`c${id}_ops`)?.checked || false,
+          };
+        }).filter(Boolean);
+        if (contactArr.length) payload.contacts = contactArr;
+
+        const btn = document.getElementById("btn-submit");
+        btn.disabled = true;
+        btn.textContent = editCustomerId ? "Saving…" : "Registering…";
+
+        // ── Edit mode: PATCH existing customer ────────────────────────────────
+        if (editCustomerId) {
+          try {
+            const editPayload = {
+              region: gv("region") || null,
+              source: gv("source") || null,
+              notes: gv("notes") || null,
+              segment: gv("segment") || null,
+              affiliatePartnerId: document.getElementById("reg-primary-partner")?.value || null,
+              secondaryPartnerId: document.getElementById("reg-secondary-partner")?.value || null,
+            };
+            if (payload.individual)  editPayload.individual  = payload.individual;
+            if (payload.corporate)   editPayload.corporate   = payload.corporate;
+            await window.FINEMARK_APP.apiFetch(`/crm/customers/${editCustomerId}`, { method: "PATCH", body: editPayload });
+            window.location.href = `crm-customer-360.html?id=${editCustomerId}`;
+          } catch (err) {
+            document.getElementById("error-banner").textContent = err?.message || "Update failed. Please try again.";
+            document.getElementById("error-banner").classList.remove("hidden");
+            btn.disabled = false;
+            btn.textContent = "Save Changes";
+          }
+          return;
+        }
+
+        try {
+          const res = await window.FINEMARK_APP.apiFetch("/crm/customers/register", { method: "POST", body: payload });
+          document.getElementById("duplicate-banner").classList.add("hidden");
+          const cust = res.data?.customer || res.customer;
+
+          // If from retail lead — link customer back to the lead then redirect
+          if (fromRetailLeadId) {
+            try {
+              await window.FINEMARK_APP.apiFetch(`/retail-leads/${fromRetailLeadId}`, {
+                method: "PATCH",
+                body: { customer_id: cust.id },
+              });
+            } catch (e) { console.warn("Could not link customer to retail lead:", e); }
+
+            // Save vehicle to customer 360 vehicles tab if lead had a vehicle
+            const veh = window._retailLeadVehicle;
+            if (veh && (veh.registration || veh.chassisNo)) {
+              try {
+                await window.FINEMARK_APP.apiFetch(`/crm/customers/${cust.id}/vehicles`, {
+                  method: "POST",
+                  body: {
+                    registration:    veh.registration  || veh.chassisNo || "UNKNOWN",
+                    make:            veh.make          || null,
+                    model:           veh.model         || null,
+                    color:           veh.color         || null,
+                    yearOfManufacture: veh.year        || null,
+                    chassisNumber:   veh.chassisNo     || null,
+                    engineNumber:    veh.engineNo      || null,
+                  },
+                });
+              } catch (e) { console.warn("Could not save vehicle:", e); }
+            }
+
+            // Redirect to Customer 360
+            window.location.href = `crm-customer-360.html?id=${cust.id}&new=1`;
+            return;
+          }
+
+          // If we came from a lead, convert it now
+          if (fromLeadId) {
+            try {
+              await window.FINEMARK_APP.apiFetch(`/crm/leads/${fromLeadId}/convert`, {
+                method: "POST",
+                body: { customerId: cust.id },
+              });
+            } catch (convErr) {
+              console.warn("Convert call failed:", convErr);
+            }
+            document.getElementById("success-title").textContent = "Customer registered & lead converted";
+            document.getElementById("success-body").textContent = `Account: ${cust.accountNo} · Type: ${cust.type}`;
+            document.getElementById("success-view-link").href = `crm-customer-360.html?id=${cust.id}&new=1`;
+            const backLink = document.createElement("a");
+            backLink.href = "crm-leads.html";
+            backLink.className = "text-xs font-semibold text-green-800 hover:underline";
+            backLink.textContent = "← Back to Leads";
+            document.getElementById("success-view-link").insertAdjacentElement("afterend", backLink);
+          } else {
+            document.getElementById("success-title").textContent = "Customer registered successfully";
+            document.getElementById("success-body").textContent = `Account: ${cust.accountNo} · Type: ${cust.type}`;
+            document.getElementById("success-view-link").href = `crm-customer-360.html?id=${cust.id}&new=1`;
+          }
+          document.getElementById("success-banner").classList.remove("hidden");
+          document.getElementById("reg-form").classList.add("hidden");
+          if (fromLeadId) document.getElementById("btn-register-another").classList.add("hidden");
+        } catch (err) {
+          if (err?.code === "DUPLICATE_CUSTOMER" && Array.isArray(err?.details?.matches)) {
+            document.getElementById("error-banner").classList.add("hidden");
+            const list = document.getElementById("duplicate-matches");
+            list.innerHTML = err.details.matches.map((m) => `
+              <a href="crm-customer-360.html?id=${m.customerId}" target="_blank"
+                 class="block rounded-lg border border-amber-200 bg-white px-3 py-2 hover:bg-amber-50">
+                <span class="font-semibold">${m.displayName}</span>
+                <span class="text-amber-600"> · ${m.accountNo}</span>
+                <span class="block text-xs text-amber-600 mt-0.5">Matched on: ${m.matchedOn.join(", ")} · ${m.phone !== "—" ? m.phone : ""} ${m.email !== "—" ? m.email : ""}</span>
+              </a>`).join("");
+            document.getElementById("duplicate-banner").classList.remove("hidden");
+            document.getElementById("duplicate-banner").scrollIntoView({ behavior: "smooth", block: "center" });
+            btn.disabled = false;
+            btn.textContent = "Register Customer";
+            return;
+          }
+          document.getElementById("error-banner").textContent = err?.message || "Registration failed. Please try again.";
+          document.getElementById("error-banner").classList.remove("hidden");
+          btn.disabled = false;
+          btn.textContent = "Register Customer";
+        }
+      });
+
+      document.getElementById("btn-cancel-duplicate").addEventListener("click", () => {
+        document.getElementById("duplicate-banner").classList.add("hidden");
+      });
+      document.getElementById("btn-create-anyway").addEventListener("click", () => {
+        document.getElementById("duplicate-banner").classList.add("hidden");
+        document.getElementById("reg-form").dataset.overrideDuplicate = "1";
+        document.getElementById("reg-form").requestSubmit();
+      });
+
+      function resetForm() {
+        document.getElementById("success-banner").classList.add("hidden");
+        document.getElementById("reg-form").classList.remove("hidden");
+        document.getElementById("reg-form").reset();
+        document.getElementById("contacts-list").innerHTML = "";
+        contacts.length = 0;
+        contactCount = 0;
+        const btn = document.getElementById("btn-submit");
+        btn.disabled = false;
+        btn.textContent = "Register Customer";
+      }
+    </script>
+  </body>
+</html>

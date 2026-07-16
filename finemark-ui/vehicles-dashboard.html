@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Vehicle Dashboard</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    .kpi-card { transition: box-shadow .18s, transform .18s; }
+    .kpi-card:hover { box-shadow: 0 8px 28px -6px rgba(0,0,0,.12); transform: translateY(-2px); }
+    .bar-track { background: #f1f5f9; border-radius: 99px; overflow: hidden; height: 6px; }
+    .bar-fill  { height: 100%; border-radius: 99px; transition: width .6s cubic-bezier(.4,0,.2,1); }
+    .chart-bar-h { display:flex; align-items:center; gap:8px; }
+    .chart-bar-h .label { width: 110px; font-size:.68rem; font-weight:600; color:#475569; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .chart-bar-h .track { flex:1; background:#f1f5f9; border-radius:99px; height:9px; overflow:hidden; }
+    .chart-bar-h .fill  { height:100%; border-radius:99px; min-width:4px; }
+    .chart-bar-h .val   { width:34px; font-size:.68rem; font-weight:700; color:#334155; text-align:right; }
+    .stat-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:99px; font-size:.65rem; font-weight:700; }
+    .fade-in { animation: fadeIn .3s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+    .tab-btn { padding:7px 16px; border-radius:8px; font-size:.75rem; font-weight:600; cursor:pointer; transition:background .15s, color .15s; color:#64748b; }
+    .tab-btn.active { background:#2563eb; color:#fff; }
+    .tab-btn:not(.active):hover { background:#f1f5f9; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+  <div id="fm-header"></div>
+  <div class="flex min-h-screen pt-16">
+    <div id="fm-sidebar"></div>
+    <main class="flex-1 p-5 lg:p-7 overflow-x-hidden">
+      <div class="max-w-screen-2xl mx-auto space-y-6">
+
+        <!-- Page header -->
+        <div class="flex flex-wrap items-center gap-3 justify-between bg-white border border-slate-200 rounded-2xl px-6 py-4 shadow-sm">
+          <div>
+            <div class="flex items-center gap-2.5 mb-0.5">
+              <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600 text-white shadow">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h9l2-2z"/><path stroke-linecap="round" stroke-linejoin="round" d="M13 11h4l2 5H13v-5z"/></svg>
+              </span>
+              <h1 class="text-xl font-extrabold tracking-tight text-slate-900">Vehicle Management</h1>
+              <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200 uppercase tracking-wide">Dashboard</span>
+            </div>
+            <p class="text-sm text-slate-500 pl-10">Master repository for all registered vehicles, devices, and service history</p>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <button id="btn-refresh" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition shadow-sm">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              Refresh
+            </button>
+            <a href="vehicles-list.html" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition shadow-sm">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+              All Vehicles
+            </a>
+          </div>
+        </div>
+
+        <!-- KPI Row 1 -->
+        <div id="kpi-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <!-- filled by JS -->
+          <div class="col-span-2 sm:col-span-3 lg:col-span-6 flex items-center justify-center h-24 text-slate-400 text-sm" id="kpi-loading">
+            <svg class="w-5 h-5 animate-spin mr-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+            Loading statistics…
+          </div>
+        </div>
+
+        <!-- Charts row -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+          <!-- By Make -->
+          <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div class="flex items-center gap-2 mb-4">
+              <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-indigo-100"><svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-5m4 5v-8m4 8v-3"/></svg></span>
+              <span class="text-sm font-bold text-slate-700">Vehicles by Make</span>
+            </div>
+            <div id="chart-make" class="space-y-2.5"></div>
+          </div>
+
+          <!-- By Customer Type -->
+          <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div class="flex items-center gap-2 mb-4">
+              <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-100"><svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/></svg></span>
+              <span class="text-sm font-bold text-slate-700">By Customer Segment</span>
+            </div>
+            <div id="chart-segment" class="space-y-2.5"></div>
+          </div>
+
+          <!-- By Region -->
+          <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div class="flex items-center gap-2 mb-4">
+              <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-amber-100"><svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg></span>
+              <span class="text-sm font-bold text-slate-700">By Region</span>
+            </div>
+            <div id="chart-region" class="space-y-2.5"></div>
+          </div>
+        </div>
+
+        <!-- Monthly trend charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+          <!-- Monthly Registrations -->
+          <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2">
+                <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-blue-100"><svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg></span>
+                <span class="text-sm font-bold text-slate-700">Monthly Vehicle Registrations</span>
+              </div>
+              <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Last 12 months</span>
+            </div>
+            <div id="chart-monthly-reg" class="flex items-end gap-1.5 h-36"></div>
+          </div>
+
+          <!-- Monthly Installations -->
+          <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2">
+                <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-100"><svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></span>
+                <span class="text-sm font-bold text-slate-700">Monthly Installations Completed</span>
+              </div>
+              <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Last 12 months</span>
+            </div>
+            <div id="chart-monthly-install" class="flex items-end gap-1.5 h-36"></div>
+          </div>
+        </div>
+
+        <!-- Partner distribution + Ticket summary -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div class="flex items-center gap-2 mb-4">
+              <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-violet-100"><svg class="w-4 h-4 text-violet-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg></span>
+              <span class="text-sm font-bold text-slate-700">Vehicles by Partner</span>
+            </div>
+            <div id="chart-partner" class="space-y-2.5"></div>
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div class="flex items-center gap-2 mb-4">
+              <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-rose-100"><svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></span>
+              <span class="text-sm font-bold text-slate-700">Installation Ticket Summary</span>
+            </div>
+            <div id="ticket-summary" class="space-y-3"></div>
+          </div>
+        </div>
+
+        <!-- Quick links -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <a href="vehicles-list.html" class="flex items-center gap-3 bg-white border border-slate-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-sm transition group">
+            <span class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-blue-50 group-hover:bg-blue-100 transition flex-shrink-0">
+              <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+            </span>
+            <div><div class="text-sm font-bold text-slate-800">All Vehicles</div><div class="text-xs text-slate-500">Browse &amp; search</div></div>
+          </a>
+          <a href="vehicles-list.html?hasDevice=false" class="flex items-center gap-3 bg-white border border-slate-200 rounded-xl p-4 hover:border-amber-300 hover:shadow-sm transition group">
+            <span class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-amber-50 group-hover:bg-amber-100 transition flex-shrink-0">
+              <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </span>
+            <div><div class="text-sm font-bold text-slate-800">Pending Install</div><div class="text-xs text-slate-500">No device yet</div></div>
+          </a>
+          <a href="vehicles-list.html?hasDevice=true" class="flex items-center gap-3 bg-white border border-slate-200 rounded-xl p-4 hover:border-emerald-300 hover:shadow-sm transition group">
+            <span class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-50 group-hover:bg-emerald-100 transition flex-shrink-0">
+              <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </span>
+            <div><div class="text-sm font-bold text-slate-800">With Devices</div><div class="text-xs text-slate-500">Installed &amp; active</div></div>
+          </a>
+          <a href="vehicles-list.html?ticketStatus=Assigned" class="flex items-center gap-3 bg-white border border-slate-200 rounded-xl p-4 hover:border-rose-300 hover:shadow-sm transition group">
+            <span class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-rose-50 group-hover:bg-rose-100 transition flex-shrink-0">
+              <svg class="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+            </span>
+            <div><div class="text-sm font-bold text-slate-800">Open Tickets</div><div class="text-xs text-slate-500">Active job cards</div></div>
+          </a>
+        </div>
+
+      </div><!-- /max-w -->
+    </main>
+  </div>
+  <div id="fm-footer"></div>
+
+  <script src="assets/app.js?v=202607011016"></script>
+  <script src="assets/layout.js?v=202607011016"></script>
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const { requirePageAccess, apiFetch, showToast } = window.FINEMARK_APP || {};
+    requirePageAccess?.();
+
+    const COLORS_BLUE   = ['#2563eb','#3b82f6','#60a5fa','#93c5fd','#bfdbfe','#dbeafe','#eff6ff'];
+    const COLORS_GREEN  = ['#059669','#10b981','#34d399','#6ee7b7','#a7f3d0','#d1fae5'];
+    const COLORS_AMBER  = ['#d97706','#f59e0b','#fbbf24','#fcd34d','#fde68a'];
+    const COLORS_VIOLET = ['#7c3aed','#8b5cf6','#a78bfa','#c4b5fd','#ddd6fe'];
+
+    function renderHBar(containerId, data, colors) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      if (!data?.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">No data</p>'; return; }
+      const max = Math.max(...data.map(d => d.n), 1);
+      el.innerHTML = data.slice(0,8).map((d, i) => `
+        <div class="chart-bar-h">
+          <span class="label" title="${d.label||d.make||d.type||d.partner||d.region||d.status||d.month||'—'}">${d.label||d.make||d.type||d.partner||d.region||d.status||d.month||'—'}</span>
+          <div class="track"><div class="fill" style="width:${Math.round(d.n/max*100)}%;background:${colors[i%colors.length]}"></div></div>
+          <span class="val">${d.n.toLocaleString()}</span>
+        </div>`).join('');
+    }
+
+    function renderColumnChart(containerId, data, color) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      if (!data?.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">No data</p>'; return; }
+      const max = Math.max(...data.map(d => d.n), 1);
+      el.innerHTML = data.map(d => `
+        <div class="flex flex-col items-center gap-1" style="flex:1;min-width:0" title="${d.month}: ${d.n}">
+          <span class="text-[9px] font-bold text-slate-600">${d.n||''}</span>
+          <div class="w-full rounded-t" style="height:${Math.max(4, Math.round(d.n/max*100))}px;background:${color}"></div>
+          <span class="text-[9px] text-slate-400 rotate-0">${(d.month||'').split(' ')[0]}</span>
+        </div>`).join('');
+    }
+
+    async function loadStats() {
+      try {
+        const data = await apiFetch('/vehicles/stats');
+        if (!data) return;
+
+        // KPI cards
+        const t = data.totals || {};
+        const kpis = [
+          { label:'Total Vehicles',        val:t.total??0,                color:'bg-blue-50',    icon:'#2563eb',   text:'text-blue-700'   },
+          { label:'With Devices',          val:t.with_device??0,          color:'bg-emerald-50', icon:'#059669',   text:'text-emerald-700'},
+          { label:'Pending Installation',  val:t.pending_installation??0, color:'bg-amber-50',   icon:'#d97706',   text:'text-amber-700'  },
+          { label:'Open Tickets',          val:t.with_open_tickets??0,    color:'bg-rose-50',    icon:'#e11d48',   text:'text-rose-700'   },
+          { label:'With Certificate',      val:t.with_certificate??0,     color:'bg-violet-50',  icon:'#7c3aed',   text:'text-violet-700' },
+          { label:'Inactive',              val:t.inactive??0,             color:'bg-slate-100',  icon:'#64748b',   text:'text-slate-600'  },
+        ];
+        const kpiGrid = document.getElementById('kpi-grid');
+        document.getElementById('kpi-loading')?.remove();
+        kpiGrid.innerHTML = kpis.map(k => `
+          <div class="kpi-card bg-white border border-slate-200 rounded-2xl p-5 shadow-sm fade-in">
+            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">${k.label}</p>
+            <p class="text-3xl font-extrabold ${k.text}">${Number(k.val).toLocaleString()}</p>
+          </div>`).join('');
+
+        // Charts
+        renderHBar('chart-make',    data.byMake?.map(r=>({...r, label:r.make})),               COLORS_BLUE);
+        renderHBar('chart-segment', data.byCustomerType?.map(r=>({...r, label:r.type})),        COLORS_GREEN);
+        renderHBar('chart-region',  data.byRegion?.map(r=>({...r, label:r.region})),            COLORS_AMBER);
+        renderHBar('chart-partner', data.byPartner?.map(r=>({...r, label:r.partner||'Direct'})),COLORS_VIOLET);
+        renderColumnChart('chart-monthly-reg',    data.monthlyReg,    '#2563eb');
+        renderColumnChart('chart-monthly-install',data.monthlyInstall,'#059669');
+
+        // Ticket summary
+        const ts = data.ticketSummary || {};
+        const tsEl = document.getElementById('ticket-summary');
+        const pct = ts.total > 0 ? Math.round((ts.completed||0)/(ts.total)*100) : 0;
+        tsEl.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-slate-600">Total Tickets</span>
+            <span class="text-lg font-bold text-slate-900">${Number(ts.total||0).toLocaleString()}</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-slate-600">Completed</span>
+            <span class="text-lg font-bold text-emerald-700">${Number(ts.completed||0).toLocaleString()}</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-slate-600">Open</span>
+            <span class="text-lg font-bold text-amber-600">${Number(ts.open||0).toLocaleString()}</span>
+          </div>
+          <div class="mt-1">
+            <div class="flex items-center justify-between text-xs text-slate-500 mb-1"><span>Completion rate</span><span class="font-bold text-slate-700">${pct}%</span></div>
+            <div class="bar-track"><div class="bar-fill bg-emerald-500" style="width:${pct}%"></div></div>
+          </div>`;
+
+      } catch(e) {
+        showToast?.('Failed to load vehicle statistics', 'error');
+      }
+    }
+
+    loadStats();
+    document.getElementById('btn-refresh')?.addEventListener('click', loadStats);
+  });
+  </script>
+</body>
+</html>

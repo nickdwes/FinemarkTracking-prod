@@ -1,0 +1,2870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Job Card</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .stage-rail { display:flex; align-items:flex-start; gap:0; overflow-x:auto; padding-bottom:4px; }
+    .stage-node {
+      flex:1; display:flex; flex-direction:column; align-items:center;
+      position:relative; min-width:44px;
+    }
+    .stage-node:not(:last-child)::after {
+      content:''; position:absolute; top:12px; left:50%; width:100%; height:2px;
+      background:#e2e8f0; z-index:0;
+    }
+    .stage-node.done::after  { background:#16a34a; }
+    .stage-node.active::after { background:#bfdbfe; }
+    .sn-dot {
+      width:24px; height:24px; border-radius:50%; z-index:1;
+      display:flex; align-items:center; justify-content:center;
+      font-size:9px; font-weight:700; border:2px solid #e2e8f0;
+      background:#fff; color:#94a3b8; transition:all .2s; flex-shrink:0;
+    }
+    .stage-node.done  .sn-dot { background:#16a34a; border-color:#16a34a; color:#fff; }
+    .stage-node.active .sn-dot { background:#2563eb; border-color:#2563eb; color:#fff; }
+    .sn-label {
+      font-size:7.5px; text-align:center; margin-top:4px; color:#64748b;
+      line-height:1.3; max-width:52px; font-weight:500; white-space:nowrap;
+    }
+    .stage-node.done  .sn-label { color:#16a34a; font-weight:600; }
+    .stage-node.active .sn-label { color:#2563eb; font-weight:700; }
+    .stage-node.clickable { cursor:pointer; }
+    .stage-node.clickable:hover .sn-dot { transform:scale(1.12); box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+    .stage-node.clickable:hover .sn-label { color:#2563eb; }
+    /* Closed installations are read-only: block all interaction with the stage
+       content itself, while the stage rail above stays clickable for viewing. */
+    .stage-locked { pointer-events:none; opacity:.62; filter:grayscale(.2); user-select:none; }
+    .device-card {
+      border:2px solid #e2e8f0; border-radius:12px; padding:14px 16px;
+      cursor:pointer; transition:.15s; background:#fff; position:relative;
+    }
+    .device-card:hover   { border-color:#93c5fd; background:#f0f9ff; }
+    .device-card.selected { border-color:#2563eb; background:#eff6ff; }
+    .device-card.selected::after {
+      content:'✓'; position:absolute; top:8px; right:10px;
+      color:#2563eb; font-size:16px; font-weight:700;
+    }
+    .check-item {
+      display:flex; align-items:flex-start; gap:12px; padding:12px 14px;
+      border:1px solid #e2e8f0; border-radius:10px; cursor:pointer; transition:.15s;
+    }
+    .check-item:hover  { background:#f8fafc; }
+    .check-item.ticked { background:#f0fdf4; border-color:#86efac; }
+    .check-item input[type=checkbox] {
+      width:18px; height:18px; accent-color:#16a34a; flex-shrink:0; margin-top:1px; cursor:pointer;
+    }
+    .photo-slot {
+      border:2px dashed #cbd5e1; border-radius:12px; aspect-ratio:4/3;
+      display:flex; flex-direction:column; gap:4px; align-items:center;
+      justify-content:center; overflow:hidden; transition:.15s; position:relative; background:#f8fafc;
+    }
+    .photo-slot:hover { border-color:#93c5fd; background:#eff6ff; }
+    .photo-slot.filled { border:2px solid #86efac; background:#f0fdf4; }
+    .photo-slot img { width:100%; height:100%; object-fit:cover; position:absolute; inset:0; }
+    .photo-slot input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; z-index:2; }
+    .photo-slot .p-lbl { font-size:11px; color:#64748b; text-align:center; padding:0 6px; font-weight:500; pointer-events:none; }
+    .photo-slot .p-check {
+      position:absolute; top:6px; left:6px; z-index:3;
+      background:#16a34a; color:#fff; font-size:9px; font-weight:700;
+      padding:2px 6px; border-radius:6px; pointer-events:none;
+    }
+    .photo-slot .p-icon { font-size:20px; opacity:.4; pointer-events:none; }
+    @keyframes fadein { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+    .fade-in { animation:fadein .22s ease; }
+    .badge {
+      display:inline-flex; align-items:center; padding:2px 10px; border-radius:20px;
+      font-size:11px; font-weight:600; border:1px solid transparent;
+    }
+    .star-btn { font-size:30px; cursor:pointer; user-select:none; transition:.1s; opacity:.3; color:#f59e0b; }
+    .star-btn.lit { opacity:1; }
+    .star-btn:hover { opacity:.7; transform:scale(1.15); }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-4 sm:p-6 max-w-3xl mx-auto">
+
+    <div id="err-banner" class="hidden mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"></div>
+
+    <div id="page-header" class="hidden mb-6">
+      <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+        <div>
+          <div class="flex items-center gap-3 mb-1">
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900">Installation Job Card</h1>
+            <span id="ticket-badge" class="badge border-slate-200 bg-slate-100 text-slate-600"></span>
+            <span id="status-badge" class="badge"></span>
+            <span id="iso-assist-indicator" class="hidden badge border-amber-300 bg-amber-50 text-amber-800">🧑‍🔧 ISO Assisted</span>
+          </div>
+          <p id="ticket-sub" class="text-sm text-slate-500"></p>
+        </div>
+        <a href="job-details.html" id="back-link" class="text-sm text-blue-600 hover:underline">← Back to Job Details</a>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-3">Installation Progress</p>
+        <div class="stage-rail" id="stage-rail"></div>
+      </div>
+      <div id="lock-banner" class="hidden mt-4"></div>
+      <div id="assist-banner" class="hidden mt-4"></div>
+    </div>
+
+    <div id="skeleton" class="space-y-4">
+      <div class="h-8 bg-slate-200 rounded-lg w-1/2 animate-pulse"></div>
+      <div class="h-32 bg-slate-200 rounded-xl animate-pulse"></div>
+      <div class="h-64 bg-slate-200 rounded-xl animate-pulse"></div>
+    </div>
+
+    <!-- ══════════════════════════════
+         STAGE 0: On-Site Check-In
+         ══════════════════════════════ -->
+    <div id="stage-0" class="hidden fade-in space-y-4">
+      <div class="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 shadow-sm space-y-5">
+        <div>
+          <h2 class="text-base font-semibold text-slate-900">Step 1 — On-Site Check-In</h2>
+          <p class="text-sm text-slate-500 mt-1">Confirm your arrival at the job site and installation location.</p>
+        </div>
+        <div id="ci-job-summary" class="rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 text-sm space-y-1"></div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">County <span class="text-red-500">*</span></label>
+          <select id="ci-county" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-white">
+            <option value="">— Select county —</option>
+            <option>Baringo</option><option>Bomet</option><option>Bungoma</option>
+            <option>Busia</option><option>Elgeyo-Marakwet</option><option>Embu</option>
+            <option>Garissa</option><option>Homa Bay</option><option>Isiolo</option>
+            <option>Kajiado</option><option>Kakamega</option><option>Kericho</option>
+            <option>Kiambu</option><option>Kilifi</option><option>Kirinyaga</option>
+            <option>Kisii</option><option>Kisumu</option><option>Kitui</option>
+            <option>Kwale</option><option>Laikipia</option><option>Lamu</option>
+            <option>Machakos</option><option>Makueni</option><option>Mandera</option>
+            <option>Marsabit</option><option>Meru</option><option>Migori</option>
+            <option>Mombasa</option><option>Murang'a</option><option>Nairobi</option>
+            <option>Nakuru</option><option>Nandi</option><option>Narok</option>
+            <option>Nyamira</option><option>Nyandarua</option><option>Nyeri</option>
+            <option>Samburu</option><option>Siaya</option><option>Taita-Taveta</option>
+            <option>Tana River</option><option>Tharaka-Nithi</option><option>Trans Nzoia</option>
+            <option>Turkana</option><option>Uasin Gishu</option><option>Vihiga</option>
+            <option>Wajir</option><option>West Pokot</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Installation Location <span class="text-red-500">*</span></label>
+          <textarea id="ci-location-desc" rows="2" placeholder="Describe the site, e.g. 'Total petrol station, Thika Road, opposite Naivas'"
+            class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"></textarea>
+        </div>
+        <div>
+          <label class="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" id="ci-gps-toggle" onchange="toggleCiGpsPanel(this.checked)" class="accent-blue-600" />
+            <span class="text-sm font-medium text-slate-700">Also capture GPS location <span class="text-slate-400 font-normal">(optional)</span></span>
+          </label>
+          <div id="ci-gps-panel" class="hidden mt-2 rounded-xl border border-slate-200 p-4 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <p class="text-sm font-semibold text-slate-700">GPS Location</p>
+              <span id="ci-gps-badge" class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">Not captured</span>
+            </div>
+            <div id="ci-gps-coords" class="hidden font-mono text-xs text-slate-600 bg-slate-50 rounded px-3 py-2"></div>
+            <button onclick="captureCheckinGps()" id="ci-gps-btn"
+              class="w-full py-2.5 border-2 border-blue-400 text-blue-600 rounded-lg text-sm font-semibold hover:bg-blue-50 transition flex items-center justify-center gap-2">
+              📍 Capture GPS Location
+            </button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Arrival Notes <span class="text-slate-400 font-normal">(optional)</span></label>
+          <textarea id="ci-notes" rows="3" placeholder="Any notes about the site or job conditions…"
+            class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"></textarea>
+        </div>
+      </div>
+      <div class="flex justify-end">
+        <button id="ci-checkin-btn" onclick="checkinAndAdvance()"
+          class="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+          Check In &amp; Start Job →
+        </button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════
+         STAGE 1: Device Selection (multi)
+         ══════════════════════════════ -->
+    <div id="stage-1" class="hidden fade-in space-y-4">
+      <div class="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 shadow-sm space-y-4">
+        <div>
+          <h2 class="text-base font-semibold text-slate-900">Select Installation Devices</h2>
+          <p class="text-sm text-slate-500 mt-1">Select one or more tracker devices from your custody. Each IMEI device requires a SIM pairing.</p>
+        </div>
+        <div id="s0-job-info" class="rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 text-sm space-y-1"></div>
+        <div id="s0-gadget-warning" class="hidden rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700"></div>
+        <div>
+          <p id="s0-devices-heading" class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Your Devices In Custody</p>
+          <div id="device-search-wrap" class="hidden mb-3 space-y-2">
+            <input id="device-search" type="text" inputmode="numeric" placeholder="Search by IMEI…"
+              oninput="filterDeviceList(this.value)"
+              class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-400 focus:outline-none" />
+            <div class="flex items-center gap-3">
+              <label for="device-page-size" class="text-xs text-slate-500 shrink-0">Items per page (<span id="device-page-size-value" class="font-semibold text-slate-700">10</span>)</label>
+              <input id="device-page-size" type="range" min="5" max="50" step="5" value="10"
+                oninput="onDevicePageSizeChange(this.value)" class="flex-1 accent-blue-600" />
+            </div>
+            <div id="device-category-wrap" class="hidden">
+              <div class="flex items-center gap-3">
+                <label for="device-category-filter" class="text-xs text-slate-500 shrink-0">Category</label>
+                <select id="device-category-filter" onchange="onDeviceCategoryFilterChange(this.value)"
+                  class="flex-1 border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:ring-1 focus:ring-blue-400 focus:outline-none">
+                  <option value="">All categories</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div id="device-list" class="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+            <p class="text-sm text-slate-400 py-4 text-center">Loading devices…</p>
+          </div>
+          <p id="device-search-empty" class="hidden text-sm text-slate-400 py-4 text-center">No devices match that IMEI.</p>
+        </div>
+        <div id="no-devices-hint" class="hidden rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">
+          You have no devices in custody. Contact your inventory manager to issue devices before proceeding.
+        </div>
+        <!-- IMEI→SIM pairing rows (shown per selected device with IMEI) -->
+        <div id="s0-pairing-rows" class="hidden space-y-3"></div>
+      </div>
+      <div class="flex justify-end">
+        <button id="s0-next" disabled onclick="assignDevicesAndAdvance()"
+          class="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed">
+          Assign &amp; Continue →
+        </button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════
+         STAGE 1: Vehicle Details
+         ══════════════════════════════ -->
+    <div id="stage-2" class="hidden fade-in space-y-4">
+      <div class="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 shadow-sm space-y-5">
+        <div>
+          <h2 class="text-base font-semibold text-slate-900">Confirm Vehicle Details</h2>
+          <p class="text-sm text-slate-500 mt-1">Review and correct the vehicle information before proceeding.</p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="col-span-2">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Vehicle Registration Status</label>
+            <div class="inline-flex rounded-lg border border-slate-200 overflow-hidden">
+              <button type="button" id="vd-reg-status-btn-registered" onclick="setVdRegStatus('registered')"
+                class="px-4 py-2 text-sm font-medium transition">Registered</button>
+              <button type="button" id="vd-reg-status-btn-unregistered" onclick="setVdRegStatus('not_registered')"
+                class="px-4 py-2 text-sm font-medium transition border-l border-slate-200">Not Registered</button>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">If the vehicle has no number plate yet, switch to "Not Registered" — the chassis number becomes the required identifier instead.</p>
+          </div>
+          <div id="vd-reg-wrap">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Registration <span id="vd-reg-req-mark" class="text-red-500">*</span></label>
+            <input id="vd-reg" type="text" placeholder="e.g. KDA 123A"
+              class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 uppercase"
+              oninput="this.value=this.value.toUpperCase()" />
+            <p id="vd-reg-err" class="hidden text-xs text-red-500 mt-1">Invalid format — e.g. KCA 123A, GK A001B, CD 123A</p>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Category</label>
+            <select id="vd-category" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-white"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Make</label>
+            <select id="vd-make" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-white">
+              <option value="">— Select make</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Model</label>
+            <select id="vd-model" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-white" disabled>
+              <option value="">— Select make first</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Model Number</label>
+            <select id="vd-model-number" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-white" disabled>
+              <option value="">— Select model first</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Colour</label>
+            <input id="vd-colour" type="text" placeholder="e.g. Silver"
+              class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Year</label>
+            <input id="vd-year" type="number" placeholder="e.g. 2019" min="1970" max="2099"
+              class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Fuel Type</label>
+            <select id="vd-fuel" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-white">
+              <option value="">— Select —</option>
+              <option>Petrol</option><option>Diesel</option><option>Hybrid</option>
+              <option>Electric</option><option>LPG</option><option>Other</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Mileage (km)</label>
+            <input id="vd-mileage" type="number" placeholder="e.g. 45200" min="0"
+              class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Body Type</label>
+            <select id="vd-body" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-white">
+              <option value="">— Select —</option>
+              <option>Saloon/Sedan</option><option>SUV/4x4</option><option>Pickup/Truck</option>
+              <option>Van/Minivan</option><option>Bus/Minibus</option><option>Lorry/Truck</option><option>Other</option>
+            </select>
+          </div>
+          <div class="col-span-2">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">VIN / Chassis Number <span id="vd-vin-req-mark" class="text-red-500 hidden">*</span></label>
+            <input id="vd-vin" type="text" placeholder="e.g. JN1AZ4EH7GM632741"
+              class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+              oninput="this.value=this.value.toUpperCase()" />
+            <p id="vd-vin-err" class="hidden text-xs text-red-500 mt-1">Invalid VIN — must be 17 characters (letters and digits only, no I, O or Q), e.g. JN1AZ4EH7GM632741</p>
+          </div>
+          <div class="col-span-2">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Engine Number</label>
+            <input id="vd-engine" type="text" placeholder="e.g. 1GR-FE-A123456"
+              class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+              oninput="this.value=this.value.toUpperCase()" />
+            <p id="vd-engine-err" class="hidden text-xs text-red-500 mt-1">Invalid engine number — 5–20 characters, letters/digits/hyphens only, must include at least one digit, e.g. 1GR-FE-A123456</p>
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <button onclick="goToStage(1)" class="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition">← Back</button>
+        <button onclick="saveVehicleDetailsAndAdvance()"
+          class="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+          Save &amp; Continue →
+        </button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════
+         STAGE 2: Pre-Installation Checks
+         ══════════════════════════════ -->
+    <div id="stage-3" class="hidden fade-in space-y-4">
+      <div class="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 shadow-sm space-y-4">
+        <div class="flex items-start justify-between">
+          <div>
+            <h2 class="text-base font-semibold text-slate-900">Vehicle Pre-Installation Checks</h2>
+            <p class="text-sm text-slate-500 mt-1">Confirm all items before beginning the installation.</p>
+          </div>
+          <span id="s2-progress" class="text-xs font-semibold text-slate-400 mt-1">0 / 9</span>
+        </div>
+        <div id="s2-list" class="space-y-2"></div>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <button onclick="goToStage(2)" class="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition">← Back</button>
+        <button id="s2-next" disabled onclick="savePreInstallAndAdvance()"
+          class="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed">
+          Save &amp; Continue →
+        </button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════
+         STAGE 3: Electrical Systems
+         ══════════════════════════════ -->
+    <div id="stage-4" class="hidden fade-in space-y-4">
+      <div class="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 shadow-sm space-y-4">
+        <div class="flex items-start justify-between">
+          <div>
+            <h2 class="text-base font-semibold text-slate-900">Vehicle Electrical Systems</h2>
+            <p class="text-sm text-slate-500 mt-1">Verify all electrical connections and safety checks.</p>
+          </div>
+          <span id="s3-progress" class="text-xs font-semibold text-slate-400 mt-1">0 / 6</span>
+        </div>
+        <div id="s3-list" class="space-y-2"></div>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <button onclick="goToStage(3)" class="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition">← Back</button>
+        <button id="s3-next" disabled onclick="saveElectricalAndAdvance()"
+          class="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed">
+          Save &amp; Continue →
+        </button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════
+         STAGE 4: Device Installation & Config
+         ══════════════════════════════ -->
+    <div id="stage-5" class="hidden fade-in space-y-4">
+      <div>
+        <h2 class="text-base font-semibold text-slate-900">Device Installation &amp; Configuration</h2>
+        <p class="text-sm text-slate-500 mt-1">Record how each device was physically installed — location, mounting, and cable routing can differ per device.</p>
+      </div>
+      <div id="s4-cards" class="space-y-4"></div>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <button onclick="goToStage(4)" class="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition">← Back</button>
+        <button id="s4-next" disabled onclick="saveDeviceInstallAndAdvance()"
+          class="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed">
+          Save &amp; Continue →
+        </button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════
+         STAGE 5: Activation (Support Engineer)
+         ══════════════════════════════ -->
+    <div id="stage-6" class="hidden fade-in space-y-4">
+      <!-- Waiting screen shown to Technicians -->
+      <div id="s5-waiting" class="hidden bg-white border border-slate-200 rounded-xl p-8 shadow-sm">
+        <div id="s5-waiting-inner"></div>
+      </div>
+      <!-- Activation form shown to Support / Technical / Admin -->
+      <div id="s5-form" class="hidden space-y-4">
+        <div>
+          <h2 class="text-base font-semibold text-slate-900">Device Activation</h2>
+          <p class="text-sm text-slate-500 mt-1">Activate each device on the tracking platform and confirm it's live — details can differ per device.</p>
+        </div>
+        <div id="s5-cards" class="space-y-4"></div>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <button id="s5-back" onclick="goToStage(5)" class="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition">← Back</button>
+        <button id="s5-next" disabled onclick="saveActivationAndAdvance()"
+          class="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed">
+          Confirm Activation →
+        </button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════
+         STAGE 6: Post-Installation Checks
+         ══════════════════════════════ -->
+    <div id="stage-7" class="hidden fade-in space-y-4">
+      <div class="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 shadow-sm space-y-4">
+        <div class="flex items-start justify-between">
+          <div>
+            <h2 class="text-base font-semibold text-slate-900">Post-Installation Checks</h2>
+            <p class="text-sm text-slate-500 mt-1">Verify all post-installation requirements are complete.</p>
+          </div>
+          <span id="s6-progress" class="text-xs font-semibold text-slate-400 mt-1">0 / 8</span>
+        </div>
+        <div id="s6-list" class="space-y-2"></div>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <button onclick="goToStage(6)" class="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition">← Back</button>
+        <button id="s6-next" disabled onclick="savePostInstallAndAdvance()"
+          class="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed">
+          Save &amp; Continue →
+        </button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════
+         STAGE 7: Site Photos (optional)
+         ══════════════════════════════ -->
+    <div id="stage-8" class="hidden fade-in space-y-4">
+      <div class="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 shadow-sm space-y-4">
+        <div class="flex items-start justify-between">
+          <div>
+            <h2 class="text-base font-semibold text-slate-900">Site Photos</h2>
+            <p class="text-sm text-slate-500 mt-1">
+              Capture installation photos for the job record.
+              <span class="text-blue-600 font-medium">Optional — you may skip this step.</span>
+            </p>
+          </div>
+          <span id="s7-count" class="text-xs font-semibold text-slate-400 mt-1 whitespace-nowrap">0 / 10</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3" id="photo-grid"></div>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <button onclick="goToStage(7)" class="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition">← Back</button>
+        <div class="flex gap-3">
+          <button onclick="skipPhotosAndAdvance()"
+            class="px-4 py-2.5 border border-slate-200 text-slate-600 rounded-lg text-sm font-semibold hover:bg-slate-50 transition">
+            Skip →
+          </button>
+          <button onclick="savePhotosAndAdvance()"
+            class="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+            Save Photos &amp; Continue →
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════
+         STAGE 8: Sign-off & Completion
+         ══════════════════════════════ -->
+    <div id="stage-9" class="hidden fade-in space-y-4">
+      <div class="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 shadow-sm space-y-6">
+        <div>
+          <h2 class="text-base font-semibold text-slate-900">Sign-off &amp; Completion</h2>
+          <p class="text-sm text-slate-500 mt-1">All parties sign off to close the installation job.</p>
+        </div>
+
+        <!-- 1. Technician Sign-off -->
+        <div class="space-y-3">
+          <h3 class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-bold flex items-center justify-center flex-shrink-0">1</span>
+            <span id="s8-tech-heading">Technician Sign-off</span>
+          </h3>
+          <div id="s8-tech-done" class="hidden rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800 space-y-2">
+            <div class="flex items-center gap-2">
+              <span class="text-green-600 font-bold text-base">✓</span>
+              <span>Technician signed off</span>
+              <span id="s8-tech-at" class="ml-auto text-xs text-green-600"></span>
+            </div>
+            <div id="s8-tech-attribution" class="hidden text-xs text-green-700"></div>
+            <div id="s8-tech-done-photo"></div>
+          </div>
+          <div id="s8-tech-form" class="rounded-xl border border-slate-200 p-4 space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Installation Notes <span class="text-slate-400 font-normal">(optional)</span></label>
+              <textarea id="s8-tech-notes" rows="3" placeholder="Any final notes, observations, or comments…"
+                class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Physical Job Card <span class="text-red-500">*</span></label>
+              <p class="text-xs text-slate-400 mb-1.5">Attach a photo of the signed physical job card before signing off.</p>
+              <div id="s8-jobcard-photo-wrap"></div>
+            </div>
+            <label class="flex items-start gap-3 cursor-pointer">
+              <input type="checkbox" id="s8-tech-chk" class="mt-0.5 w-4 h-4 accent-blue-600 flex-shrink-0" onchange="updateS8Buttons()" />
+              <p id="s8-tech-chk-label" class="text-sm text-slate-700">I confirm that the device has been installed correctly and this job is ready for handover.</p>
+            </label>
+            <button id="s8-tech-btn" disabled onclick="techSignOff()"
+              class="w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed">
+              Sign off as Technician
+            </button>
+          </div>
+          <div id="s8-tech-restricted" class="hidden rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-500">
+            Only the assigned technician can sign — or the ticket's ISO can enable ISO Assisted Installation to sign on their behalf.
+          </div>
+        </div>
+
+        <!-- 2. Engineer Sign-off -->
+        <div id="s8-eng-section" class="space-y-3">
+          <h3 class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-purple-100 text-purple-600 text-xs font-bold flex items-center justify-center flex-shrink-0">2</span>
+            Installation Support Officer (ISO) Sign-off
+          </h3>
+          <div id="s8-eng-done" class="hidden rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800 flex items-center gap-2">
+            <span class="text-green-600 font-bold text-base">✓</span>
+            <span>ISO confirmed &amp; signed off</span>
+            <span id="s8-eng-at" class="ml-auto text-xs text-green-600"></span>
+          </div>
+          <div id="s8-eng-form" class="rounded-xl border border-slate-200 p-4 space-y-3">
+            <label class="flex items-start gap-3 cursor-pointer">
+              <input type="checkbox" id="s8-eng-chk" class="mt-0.5 w-4 h-4 accent-purple-600 flex-shrink-0" onchange="updateS8Buttons()" />
+              <p class="text-sm text-slate-700">I (ISO) confirm that the device activation, post-installation checks, and site photos have been reviewed. This installation is complete and satisfactory.</p>
+            </label>
+            <button id="s8-eng-btn" disabled onclick="engineerSignOff()"
+              class="w-full py-2.5 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition disabled:opacity-40 disabled:cursor-not-allowed">
+              Sign off as ISO
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. CSAT -->
+        <div class="space-y-3">
+          <h3 class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-amber-100 text-amber-600 text-xs font-bold flex items-center justify-center flex-shrink-0">3</span>
+            Customer Satisfaction Survey
+            <span class="text-xs font-normal text-slate-400">(optional)</span>
+          </h3>
+          <div id="s8-csat-done" class="hidden rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800">
+            <span class="font-bold text-green-600">✓</span> Customer satisfaction recorded —
+            <span id="s8-csat-score-display" class="font-semibold"></span>
+          </div>
+          <div id="s8-csat-form" class="rounded-xl border border-slate-200 p-4 space-y-3">
+            <p class="text-xs text-slate-500">Send an OTP to the customer to verify their identity, then they can rate the installation service.</p>
+            <!-- Channel selector -->
+            <div>
+              <p class="text-xs font-semibold text-slate-600 mb-1.5">Send OTP via</p>
+              <div class="flex gap-2">
+                <button type="button" id="ch-email" onclick="setCsatChannel('email')"
+                  class="flex-1 py-1.5 px-3 rounded-lg border text-xs font-semibold transition bg-blue-600 text-white border-blue-600">
+                  ✉ Email
+                </button>
+                <button type="button" id="ch-sms" onclick="setCsatChannel('sms')"
+                  class="flex-1 py-1.5 px-3 rounded-lg border text-xs font-semibold transition bg-white text-slate-600 border-slate-300 hover:border-blue-400">
+                  📱 SMS
+                </button>
+                <button type="button" id="ch-whatsapp" onclick="setCsatChannel('whatsapp')"
+                  class="flex-1 py-1.5 px-3 rounded-lg border text-xs font-semibold transition bg-white text-slate-600 border-slate-300 hover:border-blue-400">
+                  💬 WhatsApp
+                </button>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <input id="s8-cust-contact" type="text" placeholder="Customer email address"
+                class="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+              <button id="s8-send-otp-btn" onclick="sendCsatOtp()"
+                class="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-semibold hover:bg-amber-600 transition whitespace-nowrap">
+                Send OTP
+              </button>
+            </div>
+            <div id="s8-otp-section" class="hidden space-y-3 pt-3 border-t border-slate-100">
+              <p class="text-xs text-green-700 font-medium">✓ OTP sent. Ask the customer to enter it below.</p>
+              <!-- Shown when email/SMS/WhatsApp delivery is not available -->
+              <div class="s8-otp-direct-wrap hidden bg-amber-50 border border-amber-300 rounded-lg px-3 py-2">
+                <p class="text-xs font-semibold text-amber-800 mb-1">⚠ Could not deliver via the selected channel. Read this code to the customer:</p>
+                <p id="s8-otp-direct" class="text-2xl font-mono font-bold tracking-widest text-amber-700 text-center py-1"></p>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Customer enters OTP</label>
+                <input id="s8-otp-input" type="text" maxlength="6" placeholder="6-digit OTP"
+                  class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+              </div>
+              <div>
+                <p class="text-xs font-semibold text-slate-600 mb-2">Customer Rating</p>
+                <div id="s8-stars" class="flex gap-1">
+                  <span class="star-btn" data-v="1" onclick="setStars(1)">★</span>
+                  <span class="star-btn" data-v="2" onclick="setStars(2)">★</span>
+                  <span class="star-btn" data-v="3" onclick="setStars(3)">★</span>
+                  <span class="star-btn" data-v="4" onclick="setStars(4)">★</span>
+                  <span class="star-btn" data-v="5" onclick="setStars(5)">★</span>
+                </div>
+              </div>
+              <textarea id="s8-csat-comment" rows="2" placeholder="Any comments from the customer… (optional)"
+                class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"></textarea>
+              <button id="s8-submit-csat" onclick="submitCsat()"
+                class="w-full py-2 bg-amber-500 text-white rounded-lg text-sm font-semibold hover:bg-amber-600 transition">
+                Submit Customer Rating
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Close Installation -->
+      <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3">
+        <p id="s8-close-hint" class="text-sm text-slate-500"></p>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <button onclick="goToStage(8)" class="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition">← Back</button>
+          <button id="s8-close-btn" disabled onclick="closeInstallation()"
+            class="px-8 py-2.5 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition disabled:opacity-40 disabled:cursor-not-allowed">
+            ✓ Close Installation
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════
+         STAGE 9: Done
+         ══════════════════════════════ -->
+    <div id="stage-10" class="hidden fade-in">
+      <div class="bg-white border border-slate-200 rounded-xl p-10 shadow-sm text-center space-y-4">
+        <div class="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-3xl">✓</div>
+        <h2 class="text-xl font-bold text-slate-900">Installation Complete</h2>
+        <p id="s9-sub" class="text-sm text-slate-500 max-w-sm mx-auto"></p>
+        <div class="flex justify-center gap-3 pt-2">
+          <a id="s9-back-jobs" href="technician-jobs.html"
+            class="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+            Back to My Jobs
+          </a>
+          <a id="s9-details" href="#"
+            class="px-5 py-2 border border-slate-200 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50 transition">
+            View Job Details
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<div id="fm-footer"></div>
+<div id="toast-root" class="fixed top-4 right-4 z-50 space-y-2 pointer-events-none"></div>
+
+<script src="assets/app.js"></script>
+<script src="assets/layout.js"></script>
+<script src="assets/vehicleCatalog.js"></script>
+<script src="assets/validation.js"></script>
+<script>
+const APP = window.FINEMARK_APP;
+
+/* ── Checklist definitions ── */
+const PRE_INSTALL_ITEMS = [
+  { id:'pi-ignition-starter', label:'Ignition and starter functioning normally',                              note:'Crank engine briefly to confirm.' },
+  { id:'pi-dash-lights',      label:'Dashboard lights functioning normally',                                  note:'Check warning lights clear after startup.' },
+  { id:'pi-radio-acc',        label:'Radio / accessories working',                                           note:'Test audio, USB, and ACC socket.' },
+  { id:'pi-lights-horn',      label:'Lights (Full, Dim, Hazards, Turn Signals, Reverse light) & Horn functioning', note:'Test all light modes and horn.' },
+  { id:'pi-central-lock',     label:'Central locking functioning (if applicable)',                           note:'Mark Working if vehicle has no central locking.' },
+  { id:'pi-windows',          label:'Power windows functioning (if applicable)',                             note:'Mark Working if vehicle has manual windows.' },
+  { id:'pi-battery-voltage',  label:'Battery voltage checked and stable',                                    note:'Should read ≥12.4V resting, ≥13.7V running.' },
+  { id:'pi-install-point',    label:'Installation point confirmed',                                          note:'Agree mounting location with customer/supervisor.' },
+  { id:'pi-wiring-route',     label:'Wiring route checked and clear of moving parts',                        note:'No contact with hot surfaces, hinges, or fans.' },
+];
+
+const ELECTRICAL_ITEMS = [
+  { id:'el-constant-12v', label:'Constant power wire identified and tested',        note:'Typically red; confirm with multimeter — should read 12V constant.' },
+  { id:'el-ignition',     label:'Ignition wire identified and tested',              note:'Should switch on/off with the key — verify with multimeter.' },
+  { id:'el-ground',       label:'Proper chassis ground connected',                  note:'Sand away paint; confirm solid contact — should read 0Ω to chassis.' },
+  { id:'el-fused',        label:'Inline fuse installed',                           note:'Use specified fuse rating from device manual; fitted on constant power wire.' },
+  { id:'el-wiring-secured',label:'All wiring insulated and secured',               note:'Use heat shrink or quality tape; cable ties fitted — no loose or bare wires.' },
+  { id:'el-mounted',      label:'Device mounted securely and concealed properly',  note:'No movement or rattle; all removed trim refitted.' },
+];
+
+const POST_INSTALL_ITEMS = [
+  { id:'po-gps-lock',       label:'GPS lock acquired (≥4 satellites)',              note:'Verify in platform.' },
+  { id:'po-server-ping',    label:'Device pinging tracking server',                 note:'Confirm live data.' },
+  { id:'po-ignition-event', label:'Ignition on/off events received correctly',     note:'Test by cycling ignition.' },
+  { id:'po-speed-ok',       label:'Speed readings appear correct',                 note:'Short test drive if possible.' },
+  { id:'po-trim-replaced',  label:'All removed trim and panels refitted',           note:'No loose panels.' },
+  { id:'po-wiring-secured', label:'All wiring secured and tidy',                   note:'Cable ties fitted; no rattles.' },
+  { id:'po-customer-demo',  label:'Customer shown live tracking on platform',      note:'Log customer into portal.' },
+  { id:'po-docs-given',     label:'Installation documentation given to customer',  note:'Warranty card and user guide.' },
+];
+
+const PHOTO_SLOTS = [
+  { id:'ext-front',   label:'Exterior — Front' },
+  { id:'ext-back',    label:'Exterior — Back' },
+  { id:'ext-right',   label:'Exterior — Right side' },
+  { id:'ext-left',    label:'Exterior — Left side' },
+  { id:'dashboard',   label:'Dashboard' },
+  { id:'interior',    label:'Interior' },
+  { id:'engine-bay',  label:'Engine bay' },
+  { id:'device-loc',  label:'Device location' },
+  { id:'vin',         label:'VIN number' },
+  { id:'engine-no',   label:'Engine number' },
+];
+
+const STAGES = ['Check-In','Devices','Vehicle','Pre-Check','Electrical','Install','Activate','Post-Check','Photos','Sign-off'];
+
+/* ── State ── */
+let ticket = null;
+let myDevices = [];
+let selectedDeviceIds = [];
+let imeiSimPairings = {};
+let checkinGps = null;
+let photoFiles = {};
+let checklistPhotos = {}; // { [checklistItemId]: uploadedPhotoUrl } — evidence for Issue/Faulty items
+let deviceInstallData = {}; // { [deviceId]: {mountLocation, mountDescription, cableRouting, notes, photo, confirmedAt} }
+let installPositions = [];  // cached install-location options, shared across all device cards
+let currentStage = 0;
+let furthestStage = 0;
+let isLocked = false;       // ticket.status is a terminal (locked) status
+let editUnlocked = false;   // current Admin has a verified, still-active OTP unlock
+let unlockExpiresAtMs = 0;
+let realTicketId = null;
+let csatStars = 0;
+let techSignedOff = false;
+let engineerSignedOff = false;
+let positionsLoaded = false;
+let deviceActivationData = {}; // { [deviceId]: {platformUrl, imeiConfirmed, simConfirmed, signalStrength, trackerPhone, notes, screenshotUrl, confirmedAt} }
+let jobCardPhotoUrl = '';
+
+// ── ISO Assisted Installation state ──
+let assignedTechInfo = null; // { name, ids: Set<string> } — resolved once, used for device/SIM sourcing & labels
+
+const jobId = new URLSearchParams(window.location.search).get('id');
+
+/* ── File upload helper ── */
+async function uploadFile(file) {
+  const fd = new FormData(); fd.append('file', file);
+  const session = APP.getSession?.();
+  const token = session?.accessToken || session?.user?.accessToken;
+  const resp = await fetch(`/api/installation-tickets/${realTicketId || jobId}/upload`, {
+    method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {}, body: fd,
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data?.error?.message || 'Upload failed');
+  return data?.data; // { filename, url, sizeBytes, mimetype }
+}
+
+/* ── Draft save / restore (localStorage) ── */
+const draftKey = () => `jobcard-draft-${realTicketId || jobId}`;
+function saveDraft(extra = {}) {
+  try { localStorage.setItem(draftKey(), JSON.stringify({ ts: Date.now(), ...extra })); } catch {}
+}
+function loadDraft() {
+  try { const r = localStorage.getItem(draftKey()); return r ? JSON.parse(r) : null; } catch { return null; }
+}
+function clearDraft() { try { localStorage.removeItem(draftKey()); } catch {} }
+
+/* ── Helpers ── */
+function toast(msg, type = 'success') {
+  const root = document.getElementById('toast-root');
+  const div = document.createElement('div');
+  const cls = type === 'error' ? 'bg-red-600' : type === 'warning' ? 'bg-amber-500' : 'bg-emerald-600';
+  div.className = `${cls} text-white text-sm px-4 py-2.5 rounded-xl shadow-lg pointer-events-auto`;
+  div.textContent = msg;
+  root.appendChild(div);
+  setTimeout(() => div.remove(), 3500);
+}
+
+function errBanner(msg) {
+  const el = document.getElementById('err-banner');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  document.getElementById('skeleton').classList.add('hidden');
+}
+
+function statusBadgeClass(s) {
+  return ({ Pending: 'border-slate-200 bg-slate-100 text-slate-600', Assigned: 'border-blue-200 bg-blue-50 text-blue-700',
+    InProgress: 'border-yellow-200 bg-yellow-50 text-yellow-700', Completed: 'border-green-200 bg-green-50 text-green-700',
+    Cancelled: 'border-red-200 bg-red-50 text-red-700' })[s] || 'border-slate-200 bg-slate-100 text-slate-500';
+}
+
+function getUserRole() {
+  const s = APP.getSession?.();
+  return s?.user?.role || s?.role || '';
+}
+function getUserId() {
+  const s = APP.getSession?.();
+  return s?.user?.id || s?.id || '';
+}
+
+/* ── ISO Assisted Installation helpers ── */
+function isTicketIso() {
+  const myId = getUserId();
+  return !!myId && myId === ticket?.isoUserId;
+}
+function isAssignedTechOrCoTech() {
+  const myId = getUserId();
+  return !!myId && (myId === ticket?.assignedToUserId || myId === (ticket?.coTechnicianUserId || ''));
+}
+// Admins can already do everything an assisting ISO can on the backend (assist-mode
+// toggle bypass, on-behalf sign-off bypass) — treat them the same as the ticket's ISO
+// for banner/device-sourcing/label purposes too, so an Admin can inspect or run this
+// flow without needing to be logged in as the specific ISO account.
+function canActAsIso() {
+  return isTicketIso() || getUserRole() === 'Admin';
+}
+function assistActive() {
+  return ticket?.assistMode === 'iso_assisted';
+}
+// Resolved once per ticket load — used to source the technician's device/SIM custody
+// and to display their name in assisted-mode UI, without a dedicated backend lookup.
+async function resolveAssignedTechInfo() {
+  if (assignedTechInfo || !ticket?.assignedToUserId) return assignedTechInfo;
+  try {
+    const data = await APP.apiFetch('/technical-team/members?role=Technician').catch(() => null);
+    const members = data?.data || data || [];
+    // Member shape from GET /technical-team/members: { id (user_account_id||hr_employee_id||roster_id),
+    // rosterId, fullName, email, hrEmployeeId, ... } — see technical-team.ts.
+    const m = members.find(x => x.id === ticket.assignedToUserId || x.email === ticket.assignedToEmail);
+    const ids = new Set([ticket.assignedToUserId]);
+    if (m?.hrEmployeeId) ids.add(m.hrEmployeeId);
+    if (m?.rosterId) ids.add(m.rosterId);
+    assignedTechInfo = { name: m?.fullName || ticket.assignedToEmail || 'the technician', ids };
+  } catch {
+    assignedTechInfo = { name: ticket.assignedToEmail || 'the technician', ids: new Set([ticket.assignedToUserId]) };
+  }
+  return assignedTechInfo;
+}
+
+// Sources devices from the TECHNICIAN's custody when the viewer is the ticket's
+// ISO (not the technician themselves) — otherwise defaults to the caller's own
+// custody, exactly as the technician self-service flow always has.
+async function loadMyDevices() {
+  const sourcingForTech = canActAsIso() && !isAssignedTechOrCoTech() && ticket?.assignedToUserId;
+  const qs = sourcingForTech ? `?technicianId=${encodeURIComponent(ticket.assignedToUserId)}` : '';
+  const devData = await APP.apiFetch(`/device-custody/available-for-job${qs}`).catch(() => null);
+  myDevices = devData?.data || devData || [];
+  // Fetch any selected devices not in the available list (e.g. already assigned)
+  for (const id of selectedDeviceIds) {
+    if (!myDevices.find(d => d.id === id)) {
+      const dd = await APP.apiFetch(`/device-custody/devices/${id}`).catch(() => null);
+      const dev = dd?.data || (dd?.id ? dd : null);
+      if (dev) myDevices = [dev, ...myDevices];
+    }
+  }
+  const heading = document.getElementById('s0-devices-heading');
+  if (heading) {
+    heading.textContent = sourcingForTech
+      ? `${(await resolveAssignedTechInfo())?.name || 'Technician'}'s Devices In Custody`
+      : 'Your Devices In Custody';
+  }
+}
+
+async function renderAssistBanner() {
+  const banner = document.getElementById('assist-banner');
+  if (!banner) return;
+  const iAmIso = canActAsIso();
+  const iAmTech = isAssignedTechOrCoTech();
+
+  const indicator = document.getElementById('iso-assist-indicator');
+  if (indicator) indicator.classList.toggle('hidden', !ticket?.assistStartedAt);
+
+  if (!iAmIso && !(assistActive() && iAmTech)) { banner.className = 'hidden mt-4'; banner.innerHTML = ''; return; }
+
+  const info = await resolveAssignedTechInfo();
+  const techName = info?.name || 'the technician';
+
+  if (iAmIso && !assistActive()) {
+    banner.className = 'mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 flex flex-wrap items-center justify-between gap-3';
+    banner.innerHTML = `
+      <span>You can complete this job card on behalf of <strong>${techName}</strong>, who will perform the physical installation using their issued devices.</span>
+      <button onclick="toggleAssistMode(true)" id="assist-start-btn"
+        class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition whitespace-nowrap">
+        Start ISO Assisted Installation
+      </button>`;
+    return;
+  }
+
+  if (iAmIso && assistActive()) {
+    banner.className = 'mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex flex-wrap items-center justify-between gap-3';
+    banner.innerHTML = `
+      <span>🧑‍🔧 <strong>ISO Assisted Installation</strong> — you are completing this job card on behalf of <strong>${techName}</strong>, who remains responsible for the physical installation.</span>
+      <button onclick="toggleAssistMode(false)" id="assist-end-btn"
+        class="px-3 py-1.5 border border-amber-300 text-amber-800 rounded-lg text-xs font-semibold hover:bg-amber-100 transition whitespace-nowrap">
+        End Assisted Mode
+      </button>`;
+    return;
+  }
+
+  // Technician viewer while assist mode is active — informational only
+  banner.className = 'mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600';
+  banner.innerHTML = `<span>Your ISO (${ticket.isoName || 'assigned officer'}) is assisting with this job card.</span>`;
+}
+
+async function toggleAssistMode(enabled) {
+  const btn = document.getElementById(enabled ? 'assist-start-btn' : 'assist-end-btn');
+  if (btn) { btn.disabled = true; btn.textContent = enabled ? 'Starting…' : 'Ending…'; }
+  try {
+    const d = await APP.apiFetch(`/installation-tickets/${realTicketId || jobId}/assist-mode`, {
+      method: 'POST', body: { enabled },
+    });
+    ticket = d?.data || d;
+    await renderAssistBanner();
+    // Device/SIM custody source changes with assist mode — refresh and re-render current stage
+    simsLoaded = false;
+    await loadMyDevices();
+    goToStage(currentStage);
+    toast(enabled ? 'ISO Assisted Installation started' : 'ISO Assisted mode ended', 'success');
+  } catch (e) {
+    toast(e?.message || 'Could not update assisted mode', 'error');
+    await renderAssistBanner();
+  }
+}
+
+async function patchTicket(fields) {
+  return APP.apiFetch(`/installation-tickets/${realTicketId || jobId}/status`, {
+    method: 'PATCH', body: fields,
+  }).catch(console.error);
+}
+
+/* ── Checklist renderer (reused for stages 2, 3, 6) ── */
+/* ── 3-state checklist: Working / Issue / Faulty ── */
+// savedData: array of {id, state, comment} OR old-style array of id strings (backward-compat)
+function renderChecklist(items, containerId, progressId, nextBtnId, savedData) {
+  // Normalize saved data
+  const savedMap = {};
+  if (Array.isArray(savedData)) {
+    savedData.forEach(x => {
+      if (typeof x === 'string') savedMap[x] = { state: 'working', comment: '' };
+      else if (x?.id) savedMap[x.id] = { state: x.state || 'working', comment: x.comment || '' };
+    });
+  }
+  document.getElementById(containerId).innerHTML = items.map(item => {
+    const saved = savedMap[item.id] || {};
+    const st = saved.state || '';
+    const cmt = saved.comment || '';
+    if (saved.photo && !checklistPhotos[item.id]) checklistPhotos[item.id] = saved.photo;
+    return `<div class="checklist-item border border-slate-200 rounded-xl p-3 space-y-2" id="cli-${item.id}"${st ? ` data-state="${st}"` : ''}>
+      <div>
+        <p class="text-sm font-semibold text-slate-800">${item.label}</p>
+        <p class="text-xs text-slate-500 mt-0.5">${item.note}</p>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="setCheckState('${item.id}','working','${containerId}','${progressId}','${nextBtnId}',${items.length})"
+          id="cst-${item.id}-working"
+          class="flex-1 py-1.5 rounded-lg text-xs font-semibold border transition ${st === 'working' ? 'bg-green-100 border-green-400 text-green-800' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}">
+          ✓ Working
+        </button>
+        <button onclick="setCheckState('${item.id}','issue','${containerId}','${progressId}','${nextBtnId}',${items.length})"
+          id="cst-${item.id}-issue"
+          class="flex-1 py-1.5 rounded-lg text-xs font-semibold border transition ${st === 'issue' ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}">
+          ⚠ Issue
+        </button>
+        <button onclick="setCheckState('${item.id}','faulty','${containerId}','${progressId}','${nextBtnId}',${items.length})"
+          id="cst-${item.id}-faulty"
+          class="flex-1 py-1.5 rounded-lg text-xs font-semibold border transition ${st === 'faulty' ? 'bg-red-100 border-red-400 text-red-800' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}">
+          ✗ Faulty
+        </button>
+      </div>
+      <div id="cmt-wrap-${item.id}" class="${st === 'issue' || st === 'faulty' ? '' : 'hidden'} space-y-1">
+        <input type="text" id="cmt-${item.id}" placeholder="Describe the issue…" value="${cmt.replace(/"/g, '&quot;')}"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-400/50"
+          oninput="updateChecklistProgress('${containerId}','${progressId}','${nextBtnId}',${items.length})" />
+        <div id="photo-wrap-${item.id}">${checklistPhotoHtml(item.id)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  updateChecklistProgress(containerId, progressId, nextBtnId, items.length);
+}
+
+// Optional photo evidence for an Issue/Faulty checklist item — take a picture or
+// upload one from the gallery. Not required to proceed, unlike the note above it.
+function checklistPhotoHtml(itemId) {
+  const url = checklistPhotos[itemId];
+  return `
+    <div class="flex items-center gap-2">
+      <label class="flex-1 cursor-pointer">
+        <input type="file" accept="image/*" class="hidden" onchange="handleChecklistPhoto('${itemId}', this)" />
+        <span class="inline-flex w-full items-center justify-center gap-1.5 py-1.5 rounded-lg border border-dashed border-slate-300 text-xs font-medium text-slate-600 hover:bg-slate-50">
+          📷 ${url ? 'Replace photo evidence' : 'Attach photo evidence (optional)'}
+        </span>
+      </label>
+      ${url ? `<button type="button" onclick="removeChecklistPhoto('${itemId}')" class="text-xs text-red-500 hover:text-red-700 px-1">Remove</button>` : ''}
+    </div>
+    ${url ? `<img src="${url}" class="w-full max-h-32 object-cover rounded-lg border border-slate-200" alt="Issue evidence" />` : ''}
+  `;
+}
+
+async function handleChecklistPhoto(itemId, input) {
+  const file = input.files[0]; if (!file) return;
+  const wrap = document.getElementById(`photo-wrap-${itemId}`);
+  if (wrap) wrap.style.opacity = '0.5';
+  try {
+    const result = await uploadFile(file);
+    checklistPhotos[itemId] = result.url;
+  } catch (e) {
+    toast(e.message || 'Photo upload failed', 'error');
+  } finally {
+    if (wrap) { wrap.style.opacity = ''; wrap.innerHTML = checklistPhotoHtml(itemId); }
+  }
+}
+
+function removeChecklistPhoto(itemId) {
+  delete checklistPhotos[itemId];
+  const wrap = document.getElementById(`photo-wrap-${itemId}`);
+  if (wrap) wrap.innerHTML = checklistPhotoHtml(itemId);
+}
+
+function setCheckState(itemId, state, cid, pid, nbid, total) {
+  const states = ['working', 'issue', 'faulty'];
+  states.forEach(s => {
+    const btn = document.getElementById(`cst-${itemId}-${s}`);
+    if (!btn) return;
+    const on = s === state;
+    if (s === 'working') btn.className = `flex-1 py-1.5 rounded-lg text-xs font-semibold border transition ${on ? 'bg-green-100 border-green-400 text-green-800' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`;
+    if (s === 'issue')   btn.className = `flex-1 py-1.5 rounded-lg text-xs font-semibold border transition ${on ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`;
+    if (s === 'faulty')  btn.className = `flex-1 py-1.5 rounded-lg text-xs font-semibold border transition ${on ? 'bg-red-100 border-red-400 text-red-800' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`;
+  });
+  const wrap = document.getElementById(`cmt-wrap-${itemId}`);
+  if (wrap) wrap.classList.toggle('hidden', state === 'working');
+  document.getElementById(`cli-${itemId}`)?.setAttribute('data-state', state);
+  updateChecklistProgress(cid, pid, nbid, total);
+}
+
+function getChecklistData(items, containerId) {
+  return items.map(item => {
+    const el = document.getElementById(`cli-${item.id}`);
+    const state = el?.getAttribute('data-state') || '';
+    const comment = document.getElementById(`cmt-${item.id}`)?.value.trim() || '';
+    const photo = checklistPhotos[item.id] || null;
+    return { id: item.id, label: item.label, state, comment, photo };
+  });
+}
+
+function updateChecklistProgress(cid, pid, nbid, total) {
+  // Count items that have a state set
+  const done = [...document.querySelectorAll(`#${cid} [data-state]`)].filter(el => el.getAttribute('data-state')).length;
+  // Validate: issue/faulty items must have a comment
+  const allValid = [...document.querySelectorAll(`#${cid} [data-state="issue"], #${cid} [data-state="faulty"]`)]
+    .every(el => {
+      const id = el.id.replace('cli-', '');
+      return document.getElementById(`cmt-${id}`)?.value.trim();
+    });
+  document.getElementById(pid).textContent = `${done} / ${total}`;
+  const btn = document.getElementById(nbid);
+  if (btn) btn.disabled = done < total || !allValid;
+}
+
+/* ── Stage rail ── */
+// Any stage already reached (<= furthestStage) can be revisited by clicking its
+// node — lets the technician, ISO, or technical manager jump back and forth
+// between completed steps instead of only stepping back one at a time.
+function renderRail(active) {
+  document.getElementById('stage-rail').innerHTML = STAGES.map((s, i) => {
+    const cls = i < active ? 'done' : i === active ? 'active' : '';
+    const dot = i < active ? '✓' : i + 1;
+    const reachable = i <= furthestStage && i !== active;
+    const clickAttr = reachable ? ` onclick="goToStage(${i})"` : '';
+    return `<div class="stage-node ${cls}${reachable ? ' clickable' : ''}"${clickAttr}><div class="sn-dot">${dot}</div><div class="sn-label">${s}</div></div>`;
+  }).join('');
+}
+
+/* ── Closed-job lock ──────────────────────────────────────────────────────── */
+// Once ticket.isLocked is true (a terminal status), the visible stage content
+// becomes non-interactive for everyone. An Admin can request a one-time code
+// emailed to their own account to temporarily unlock editing again.
+function isEffectivelyUnlocked() {
+  if (!editUnlocked) return false;
+  if (Date.now() > unlockExpiresAtMs) { editUnlocked = false; return false; }
+  return true;
+}
+
+function applyStageLock() {
+  const el = document.getElementById(`stage-${currentStage}`);
+  if (!el) return;
+  // Stage 10 is the terminal "Installation Complete" screen — just navigation
+  // links, nothing to protect, so it's never locked.
+  const shouldLock = currentStage !== 10 && isLocked && !isEffectivelyUnlocked();
+  el.classList.toggle('stage-locked', shouldLock);
+}
+
+function renderLockBanner() {
+  const banner = document.getElementById('lock-banner');
+  if (!isLocked) { banner.className = 'hidden mt-4'; banner.innerHTML = ''; return; }
+
+  if (isEffectivelyUnlocked()) {
+    const mins = Math.max(1, Math.ceil((unlockExpiresAtMs - Date.now()) / 60000));
+    banner.className = 'mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex flex-wrap items-center justify-between gap-3';
+    banner.innerHTML = `<span>🔓 Edit access active — expires in ~${mins} min.</span>`;
+    return;
+  }
+
+  const role = getUserRole();
+  banner.className = 'mt-4 rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600 flex flex-wrap items-center justify-between gap-3';
+  if (role !== 'Admin') {
+    banner.innerHTML = `<span>🔒 This installation is closed and locked. Only an Admin with verified edit access can make changes.</span>`;
+    return;
+  }
+  banner.innerHTML = `
+    <span>🔒 This installation is closed and locked for editing.</span>
+    <div id="lock-otp-area" class="flex items-center gap-2">
+      <button onclick="requestEditOtp()" id="lock-req-btn"
+        class="px-3 py-1.5 bg-slate-800 text-white rounded-lg text-xs font-semibold hover:bg-slate-900 transition">
+        Request Edit Access
+      </button>
+    </div>`;
+}
+
+async function requestEditOtp() {
+  const btn = document.getElementById('lock-req-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  try {
+    const resp = await APP.apiFetch(`/installation-tickets/${realTicketId || jobId}/request-edit-otp`, { method: 'POST' });
+    toast(resp?.message || 'Verification code sent to your email.');
+    const area = document.getElementById('lock-otp-area');
+    if (area) {
+      area.innerHTML = `
+        <input id="lock-otp-input" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit code"
+          class="w-28 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+        <button onclick="submitEditOtp()" id="lock-verify-btn"
+          class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition">
+          Unlock
+        </button>`;
+      document.getElementById('lock-otp-input')?.focus();
+    }
+  } catch (e) {
+    toast(e?.message || 'Failed to send code.', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Request Edit Access'; }
+  }
+}
+
+async function submitEditOtp() {
+  const input = document.getElementById('lock-otp-input');
+  const otp = input?.value.trim();
+  if (!otp || otp.length !== 6) { toast('Enter the 6-digit code from your email.', 'warning'); return; }
+  const btn = document.getElementById('lock-verify-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Verifying…'; }
+  try {
+    const resp = await APP.apiFetch(`/installation-tickets/${realTicketId || jobId}/verify-edit-otp`, { method: 'POST', body: { otp } });
+    editUnlocked = true;
+    unlockExpiresAtMs = new Date(resp.unlockExpiresAt).getTime();
+    toast('Edit access granted.');
+    renderLockBanner();
+    applyStageLock();
+  } catch (e) {
+    toast(e?.message || 'Invalid or expired code.', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Unlock'; }
+  }
+}
+
+async function checkExistingUnlock() {
+  if (getUserRole() !== 'Admin') return;
+  try {
+    const resp = await APP.apiFetch(`/installation-tickets/${realTicketId || jobId}/edit-unlock-status`);
+    if (resp?.unlocked && resp.unlockExpiresAt) {
+      editUnlocked = true;
+      unlockExpiresAtMs = new Date(resp.unlockExpiresAt).getTime();
+    }
+  } catch {}
+}
+
+/* ── Init ── */
+async function init() {
+  if (!jobId) { errBanner('No job ID in URL. Open this page from your jobs list.'); return; }
+  let data = null;
+  try {
+    data = await APP.apiFetch(`/installation-tickets/${jobId}`);
+  } catch(e) {
+    if (e?.status === 401 || e?.status === 403) {
+      window.location.href = `login.html?reason=unauthorized&page=${encodeURIComponent('job-card.html')}`;
+      return;
+    }
+    if (e?.status === 404) { errBanner('Job ticket not found.'); return; }
+    errBanner('Failed to load ticket — check your connection and try again.');
+    return;
+  }
+  if (!data) { errBanner('Failed to load ticket.'); return; }
+  ticket = data.data || data;
+  if (!ticket?.id) { errBanner('Ticket not found.'); return; }
+  realTicketId = ticket.id;
+
+  document.getElementById('page-header').classList.remove('hidden');
+  document.getElementById('ticket-badge').textContent = ticket.ticketNo;
+  const sb = document.getElementById('status-badge');
+  sb.textContent = ticket.status;
+  sb.className = `badge ${statusBadgeClass(ticket.status)}`;
+  document.getElementById('ticket-sub').textContent =
+    [ticket.customerName, ticket.vehicleRegistration].filter(Boolean).join(' · ') || 'Installation job';
+  document.getElementById('back-link').href = `job-details.html?id=${encodeURIComponent(ticket.viInstallationId || jobId)}`;
+
+  // Restore devices from draft first (supports multiple), fall back to single assignedDeviceId from ticket
+  const draft = loadDraft();
+  if (draft?.selectedDeviceIds?.length) {
+    selectedDeviceIds = draft.selectedDeviceIds;
+    imeiSimPairings   = draft.imeiSimPairings || {};
+  } else {
+    selectedDeviceIds = ticket.assignedDeviceId ? [ticket.assignedDeviceId] : [];
+  }
+  techSignedOff = !!ticket.technicianSignedOffAt;
+  engineerSignedOff = !!ticket.engineerSignedOffAt;
+
+  await loadMyDevices();
+  await renderAssistBanner();
+
+  document.getElementById('skeleton').classList.add('hidden');
+
+  // ── Assignment gate ─────────────────────────────────────────────────────────
+  // Both a technician and an ISO officer must be assigned before the job can start.
+  // Show a blocking screen if either is missing; only the assigned parties may execute.
+  const myId   = getUserId();
+  const myRole = getUserRole();
+  const isAdmin = ['Admin', 'Technical', 'InstallOffice'].includes(myRole);
+
+  const techAssigned = !!(ticket.assignedToUserId || ticket.assignedTechnicianId);
+  const isoAssigned  = !!ticket.isoUserId;
+
+  if (!techAssigned || !isoAssigned) {
+    // Show blocking overlay — job cannot be started
+    const missing = [];
+    if (!techAssigned) missing.push('Technician');
+    if (!isoAssigned)  missing.push('ISO Officer');
+    showAssignmentGate(missing);
+    return;
+  }
+
+  // Check the current user is an assigned party (or an admin)
+  const isAssignedParty = myId && (
+    myId === ticket.assignedToUserId ||
+    myId === (ticket.coTechnicianUserId || '') ||
+    myId === ticket.isoUserId
+  );
+  if (!isAdmin && !isAssignedParty) {
+    showAccessDenied(ticket);
+    return;
+  }
+
+  isLocked = !!ticket.isLocked;
+  if (isLocked) await checkExistingUnlock();
+
+  furthestStage = Number(ticket.stage || 0);
+  goToStage(Math.min(furthestStage, 10));
+}
+
+/* ── Assignment gate screens ── */
+function showAssignmentGate(missingRoles) {
+  document.getElementById('page-header').classList.remove('hidden');
+  document.getElementById('skeleton').classList.add('hidden');
+  const list = missingRoles.map(r => `<li class="flex items-center gap-2"><span class="text-amber-500">⚠</span>${r} not yet assigned</li>`).join('');
+  const div = document.createElement('div');
+  div.className = 'bg-white border border-amber-200 rounded-2xl p-8 shadow-sm text-center space-y-4';
+  div.innerHTML = `
+    <div class="text-5xl">🔒</div>
+    <h2 class="text-lg font-bold text-slate-900">Job Not Ready to Start</h2>
+    <p class="text-sm text-slate-500 max-w-sm mx-auto">This job cannot be started until both a <strong>Technician</strong> and an <strong>ISO Officer</strong> have been assigned.</p>
+    <ul class="inline-block text-left text-sm text-amber-700 space-y-1 bg-amber-50 border border-amber-200 rounded-xl px-5 py-3">${list}</ul>
+    <div class="pt-2">
+      <a href="job-details.html?id=${encodeURIComponent(ticket.viInstallationId || jobId)}"
+        class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+        ← Go to Job Details to Assign
+      </a>
+    </div>`;
+  document.querySelector('main').appendChild(div);
+}
+
+function showAccessDenied(t) {
+  document.getElementById('page-header').classList.remove('hidden');
+  document.getElementById('skeleton').classList.add('hidden');
+  const div = document.createElement('div');
+  div.className = 'bg-white border border-rose-200 rounded-2xl p-8 shadow-sm text-center space-y-4';
+  div.innerHTML = `
+    <div class="text-5xl">🚫</div>
+    <h2 class="text-lg font-bold text-slate-900">Access Restricted</h2>
+    <p class="text-sm text-slate-500 max-w-sm mx-auto">Only the assigned technician, co-technician, or ISO officer may execute this job card.</p>
+    <div class="pt-2">
+      <a href="${getUserRole() === 'Technician' ? 'technician-jobs.html' : 'technical.html'}"
+        class="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-700 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 transition">
+        ← Back to My Jobs
+      </a>
+    </div>`;
+  document.querySelector('main').appendChild(div);
+}
+
+/* ── Navigation ── */
+function goToStage(n) {
+  currentStage = n;
+  furthestStage = Math.max(furthestStage, n);
+  for (let i = 0; i <= 10; i++) document.getElementById(`stage-${i}`)?.classList.add('hidden');
+  document.getElementById(`stage-${n}`)?.classList.remove('hidden');
+  renderRail(Math.min(n, 9));
+  renderLockBanner();
+  const fn = [renderCheckIn, renderStage0, renderStage1, renderStage2, renderStage3, renderStage4,
+               renderStage5, renderStage6, renderStage7, renderStage8, renderStage9][n];
+  if (fn) fn();
+  applyStageLock();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ── Stage 0: Check-In ── */
+function renderCheckIn() {
+  const info = document.getElementById('ci-job-summary');
+  if (info) {
+    info.innerHTML = [['Ticket', ticket.ticketNo], ['Customer', ticket.customerName || '—'],
+      ['Vehicle', ticket.vehicleRegistration || '—'], ['Location', ticket.installationLocation || '—']]
+      .map(([k,v]) => `<div class="flex gap-3"><span class="w-24 text-slate-400 shrink-0">${k}</span><span class="font-medium">${v}</span></div>`).join('');
+  }
+  // If already checked in or arrived, auto-advance to stage 1
+  if (ticket.checkinData || ticket.arrivedAt) {
+    checkinGps = ticket.arrivedGpsLat ? { lat: ticket.arrivedGpsLat, lng: ticket.arrivedGpsLng } : null;
+    goToStage(1);
+  }
+}
+
+function toggleCiGpsPanel(enabled) {
+  const panel = document.getElementById('ci-gps-panel');
+  if (panel) panel.classList.toggle('hidden', !enabled);
+  if (!enabled) checkinGps = null;
+}
+
+async function captureCheckinGps() {
+  const btn = document.getElementById('ci-gps-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Getting location…'; }
+  try {
+    const pos = await new Promise((res, rej) =>
+      navigator.geolocation.getCurrentPosition(res, rej, { timeout: 10000, enableHighAccuracy: true })
+    );
+    checkinGps = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
+    const badge = document.getElementById('ci-gps-badge');
+    if (badge) { badge.textContent = '✓ Captured'; badge.className = 'text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium'; }
+    const coords = document.getElementById('ci-gps-coords');
+    if (coords) { coords.textContent = `${checkinGps.lat.toFixed(6)}, ${checkinGps.lng.toFixed(6)} (±${Math.round(checkinGps.accuracy)}m)`; coords.classList.remove('hidden'); }
+    if (btn) btn.textContent = '📍 Recapture GPS';
+  } catch { toast('GPS unavailable — you may still check in without it.', 'warning'); }
+  if (btn) btn.disabled = false;
+}
+
+async function checkinAndAdvance() {
+  const county = document.getElementById('ci-county')?.value || '';
+  const locationDescription = document.getElementById('ci-location-desc')?.value.trim() || '';
+  if (!county) { toast('Please select a county.', 'warning'); return; }
+  if (!locationDescription) { toast('Please describe the installation location.', 'warning'); return; }
+
+  const btn = document.getElementById('ci-checkin-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Checking in…'; }
+  const body = {
+    county, locationDescription,
+    notes: document.getElementById('ci-notes')?.value.trim() || '',
+    checkedInAt: new Date().toISOString(),
+  };
+  if (checkinGps) { body.gpsLat = checkinGps.lat; body.gpsLng = checkinGps.lng; body.gpsAccuracy = checkinGps.accuracy; }
+  try {
+    await APP.apiFetch(`/installation-tickets/${realTicketId || jobId}/step/checkin`, { method: 'PATCH', body });
+    ticket.checkinData = body; ticket.stage = 1;
+    goToStage(1);
+  } catch (e) {
+    toast(e.message || 'Check-in failed', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Check In & Start Job →'; }
+  }
+}
+
+/* ── Stage 1: Device Selection (multi) ── */
+const DEVICE_SEARCH_THRESHOLD = 10; // only show search/pagination controls once custody is large enough to need them
+let deviceSearchQuery = '';
+let devicePageSize = 10;
+let deviceCategoryPage = {}; // { [categoryLabel]: currentPageNumber }
+let deviceCategoryFilter = ''; // '' = all categories
+
+function escAttr(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function filterDeviceList(query) {
+  deviceSearchQuery = query || '';
+  deviceCategoryPage = {};
+  renderDeviceList();
+}
+
+function onDevicePageSizeChange(value) {
+  devicePageSize = Number(value) || 10;
+  document.getElementById('device-page-size-value').textContent = devicePageSize;
+  deviceCategoryPage = {};
+  renderDeviceList();
+}
+
+function onDeviceCategoryFilterChange(value) {
+  deviceCategoryFilter = value || '';
+  deviceCategoryPage = {};
+  renderDeviceList();
+}
+
+function changeDeviceCategoryPage(category, delta) {
+  deviceCategoryPage[category] = (deviceCategoryPage[category] || 1) + delta;
+  renderDeviceList();
+}
+
+// Populates the category dropdown from the full custody list (not the filtered
+// view) so switching categories is always possible regardless of the current filter.
+function populateDeviceCategoryOptions() {
+  const wrap = document.getElementById('device-category-wrap');
+  const select = document.getElementById('device-category-filter');
+  const counts = new Map();
+  for (const d of myDevices) {
+    const cat = d.deviceModel || 'Other';
+    counts.set(cat, (counts.get(cat) || 0) + 1);
+  }
+  const categories = [...counts.keys()].sort((a, b) => a.localeCompare(b));
+  wrap.classList.toggle('hidden', categories.length <= 1);
+  select.innerHTML = '<option value="">All categories</option>' +
+    categories.map(c => `<option value="${escAttr(c)}">${escAttr(c)} (${counts.get(c)})</option>`).join('');
+  if (deviceCategoryFilter && categories.includes(deviceCategoryFilter)) {
+    select.value = deviceCategoryFilter;
+  } else {
+    deviceCategoryFilter = '';
+    select.value = '';
+  }
+}
+
+// Best available human-readable identifier for a device — serial number, else
+// "model · product name" (when the product name actually adds information beyond
+// the model), else just the model. Never falls back to the raw device UUID, which
+// means nothing to a technician on-site.
+function deviceDisplayName(d) {
+  if (!d) return 'Device';
+  if (d.serialNumber) return d.serialNumber;
+  const modelName = (d.deviceModel || '').trim();
+  const productName = (d.productName || '').trim();
+  // Some catalog entries have product_name set to the same value as device_model
+  // (e.g. both "VT05") — showing that pair back-to-back reads as a duplicated,
+  // unhelpful label, so only treat it as a distinct name when it actually differs.
+  const hasDistinctProductName = !!productName && productName.toLowerCase() !== modelName.toLowerCase();
+  return hasDistinctProductName ? `${modelName || 'Device'} · ${productName}` : (modelName || 'Device');
+}
+
+function deviceCardHtml(d) {
+  const isSel = selectedDeviceIds.includes(d.id);
+  const isThis = d.inventoryStatus === 'AssignedToJob' && d.jobId === ticket.id;
+  const pill = isThis ? `<span class="text-xs text-blue-600 font-semibold ml-1">← this job</span>`
+    : d.inventoryStatus !== 'InCustody' ? `<span class="text-xs text-amber-600 ml-1">(${d.inventoryStatus})</span>` : '';
+  const sc = d.inventoryStatus === 'InCustody' ? 'bg-blue-50 text-blue-600'
+    : d.inventoryStatus === 'AssignedToJob' ? 'bg-purple-50 text-purple-600' : 'bg-slate-100 text-slate-500';
+  const hasImei = d.imei && d.imei !== '—encrypted—';
+  const hasSerial = !!d.serialNumber;
+  const modelName = (d.deviceModel || '').trim();
+  const productName = (d.productName || '').trim();
+  const hasDistinctProductName = !!productName && productName.toLowerCase() !== modelName.toLowerCase();
+  // Without a serial number, a bare IMEI in the title reads as a confusing string
+  // of digits — deviceDisplayName() pairs the model with the product name instead.
+  // The IMEI still shows, just demoted to the subtitle where it's clearly labelled.
+  const title = hasSerial || hasDistinctProductName
+    ? deviceDisplayName(d)
+    : `${modelName || 'Device'}${hasImei ? ' · IMEI: ' + d.imei : ''}`;
+  const subtitle = hasSerial
+    ? `${modelName || '—'}${hasImei ? ' · IMEI: ' + d.imei : ''}`
+    : (hasDistinctProductName && hasImei ? `IMEI: ${d.imei}` : '');
+  return `<div class="device-card ${isSel ? 'selected' : ''}" id="dc-${d.id}" onclick="selectDevice('${d.id}')">
+    <div class="flex items-start justify-between gap-2">
+      <div class="space-y-0.5">
+        <p class="font-mono font-bold text-sm text-slate-800">${title} ${pill}</p>
+        ${subtitle ? `<p class="text-xs text-slate-500">${subtitle}</p>` : ''}
+        ${d.simIccid && d.simIccid !== '—encrypted—' ? `<p class="text-xs text-slate-400">SIM: ${d.simIccid}</p>` : ''}
+      </div>
+      <span class="text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${sc}">${d.inventoryStatus}</span>
+    </div>
+  </div>`;
+}
+
+function renderStage0() {
+  const info = document.getElementById('s0-job-info');
+  if (info) {
+    const rows = [['Ticket', ticket.ticketNo], ['Customer', ticket.customerName || '—'],
+      ['Vehicle', ticket.vehicleRegistration || '—'], ['Status', ticket.status],
+      ['Expected Gadgets', ticket.expectedGadgetCount != null ? String(ticket.expectedGadgetCount) : 'Not set']];
+    info.innerHTML = rows
+      .map(([k, v]) => `<div class="flex gap-3"><span class="w-28 text-slate-400 shrink-0">${k}</span><span class="font-medium text-slate-800">${v}</span></div>`).join('');
+  }
+  updateGadgetCountWarning();
+
+  const searchWrap = document.getElementById('device-search-wrap');
+  searchWrap.classList.toggle('hidden', myDevices.length <= DEVICE_SEARCH_THRESHOLD);
+  if (myDevices.length <= DEVICE_SEARCH_THRESHOLD) {
+    deviceSearchQuery = '';
+    document.getElementById('device-search').value = '';
+    deviceCategoryFilter = '';
+    document.getElementById('device-category-wrap').classList.add('hidden');
+  } else {
+    populateDeviceCategoryOptions();
+  }
+
+  renderDeviceList();
+}
+
+function renderDeviceList() {
+  const list = document.getElementById('device-list');
+  const hint = document.getElementById('no-devices-hint');
+  const searchEmpty = document.getElementById('device-search-empty');
+  if (!myDevices.length) {
+    list.innerHTML = ''; searchEmpty.classList.add('hidden'); hint.classList.remove('hidden');
+    document.getElementById('s0-next').disabled = true; return;
+  }
+  hint.classList.add('hidden');
+
+  const query = deviceSearchQuery.trim().toLowerCase();
+  let filtered = query
+    ? myDevices.filter(d => (d.imei || '').toLowerCase().includes(query))
+    : myDevices;
+  if (deviceCategoryFilter) {
+    filtered = filtered.filter(d => (d.deviceModel || 'Other') === deviceCategoryFilter);
+  }
+
+  if (!filtered.length) {
+    list.innerHTML = '';
+    searchEmpty.classList.remove('hidden');
+    document.getElementById('s0-next').disabled = selectedDeviceIds.length === 0;
+    renderImeiSimPairingRows(); // selections can persist behind an active filter
+    return;
+  }
+  searchEmpty.classList.add('hidden');
+
+  const paginate = myDevices.length > DEVICE_SEARCH_THRESHOLD;
+
+  if (!paginate) {
+    // Small custody lists stay as a single flat list — grouping/paging would just add noise.
+    list.innerHTML = filtered.map(deviceCardHtml).join('');
+    document.getElementById('s0-next').disabled = selectedDeviceIds.length === 0;
+    renderImeiSimPairingRows();
+    return;
+  }
+
+  // Group into device-model categories so one big batch of the same model
+  // (a common bulk-issue pattern) can be paged through independently of others.
+  const groups = new Map();
+  for (const d of filtered) {
+    const cat = d.deviceModel || 'Other';
+    if (!groups.has(cat)) groups.set(cat, []);
+    groups.get(cat).push(d);
+  }
+
+  list.innerHTML = [...groups.entries()].map(([category, items]) => {
+    const totalPages = Math.max(1, Math.ceil(items.length / devicePageSize));
+    let page = deviceCategoryPage[category] || 1;
+    page = Math.min(Math.max(page, 1), totalPages);
+    deviceCategoryPage[category] = page;
+    const pageItems = items.slice((page - 1) * devicePageSize, page * devicePageSize);
+    const countLabel = `${items.length} device${items.length === 1 ? '' : 's'}`;
+    const pager = totalPages > 1 ? `
+      <div class="flex items-center justify-between pt-1 pb-3 text-xs text-slate-500">
+        <button type="button" class="device-page-prev px-2 py-1 rounded border border-slate-200 hover:bg-slate-50 disabled:opacity-40" data-category="${escAttr(category)}" ${page <= 1 ? 'disabled' : ''}>← Prev</button>
+        <span>Page ${page} of ${totalPages} · ${countLabel}</span>
+        <button type="button" class="device-page-next px-2 py-1 rounded border border-slate-200 hover:bg-slate-50 disabled:opacity-40" data-category="${escAttr(category)}" ${page >= totalPages ? 'disabled' : ''}>Next →</button>
+      </div>` : `<p class="text-xs text-slate-400 pt-1 pb-3">${countLabel}</p>`;
+    return `<div class="device-category-group">
+      <p class="text-xs font-semibold text-slate-600 uppercase tracking-wide mt-3 mb-1.5 first:mt-0">${escAttr(category)}</p>
+      <div class="space-y-2">${pageItems.map(deviceCardHtml).join('')}</div>
+      ${pager}
+    </div>`;
+  }).join('');
+
+  document.getElementById('s0-next').disabled = selectedDeviceIds.length === 0;
+  renderImeiSimPairingRows();
+}
+
+document.getElementById('device-list').addEventListener('click', (e) => {
+  const prevBtn = e.target.closest('.device-page-prev');
+  const nextBtn = e.target.closest('.device-page-next');
+  if (prevBtn && !prevBtn.disabled) changeDeviceCategoryPage(prevBtn.dataset.category, -1);
+  else if (nextBtn && !nextBtn.disabled) changeDeviceCategoryPage(nextBtn.dataset.category, 1);
+});
+
+/* ── SIM cards in custody ── */
+let mySims = [];      // inv_sims rows: { id, iccid, msisdn, operator, status, issued_to_id }
+let simsLoaded = false;
+
+async function loadMySims() {
+  if (simsLoaded) return;
+  try {
+    // In ISO Assisted mode, pair from the assigned technician's issued SIMs;
+    // otherwise the caller's own SIMs, exactly as self-service always has —
+    // now enforced server-side via ?technicianId= instead of only client-side.
+    const sourcingForTech = canActAsIso() && !isAssignedTechOrCoTech() && ticket?.assignedToUserId;
+    const targetTechId = sourcingForTech ? ticket.assignedToUserId : getUserId();
+    const qs = targetTechId ? `&technicianId=${encodeURIComponent(targetTechId)}` : '';
+    const data = await APP.apiFetch(`/inventory/sims?status=issued&pageSize=200${qs}`).catch(() => null);
+    mySims = data?.data || data || [];
+    simsLoaded = true;
+  } catch { mySims = []; }
+}
+
+function simSelectHtml(deviceId) {
+  const current = imeiSimPairings[deviceId]?.simId || '';
+  if (!mySims.length) {
+    const forTech = canActAsIso() && !isAssignedTechOrCoTech();
+    return `<div class="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+      No SIM cards in ${forTech ? "the technician's" : 'your'} custody. Contact inventory to issue SIMs before pairing.
+    </div>`;
+  }
+  // Exclude SIMs already paired to a different device in this job so the same
+  // physical SIM can't be selected twice — but keep this row's own current pick visible.
+  const takenByOther = new Set(
+    Object.entries(imeiSimPairings)
+      .filter(([devId, p]) => devId !== deviceId && p?.simId)
+      .map(([, p]) => p.simId)
+  );
+  const availableSims = mySims.filter(s => s.id === current || !takenByOther.has(s.id));
+  const opts = availableSims.map(s => {
+    const label = [s.iccid, s.msisdn ? `(${s.msisdn})` : '', s.operator ? `· ${s.operator}` : ''].filter(Boolean).join(' ');
+    return `<option value="${s.id}" data-iccid="${s.iccid}" data-msisdn="${s.msisdn || ''}" ${s.id === current ? 'selected' : ''}>${label}</option>`;
+  }).join('');
+  return `<select id="pair-sim-${deviceId}"
+    onchange="onSimSelect('${deviceId}', this)"
+    class="w-full border border-slate-200 rounded px-2 py-1.5 text-xs font-mono focus:ring-1 focus:ring-blue-400 bg-white">
+    <option value="">— Select SIM card —</option>
+    ${opts}
+  </select>`;
+}
+
+function onSimSelect(deviceId, selectEl) {
+  const opt = selectEl.options[selectEl.selectedIndex];
+  const iccid  = opt?.dataset?.iccid  || '';
+  const msisdn = opt?.dataset?.msisdn || '';
+  const simId  = selectEl.value;
+  imeiSimPairings[deviceId] = { ...( imeiSimPairings[deviceId] || {}), simId, simIccid: iccid, msisdn };
+  // Auto-fill MSISDN field
+  const msisdnEl = document.getElementById(`pair-msisdn-${deviceId}`);
+  if (msisdnEl && msisdn) msisdnEl.value = msisdn;
+  // Refresh every row's dropdown so a SIM just picked here disappears from the others.
+  renderImeiSimPairingRows();
+}
+
+async function renderImeiSimPairingRows() {
+  const container = document.getElementById('s0-pairing-rows');
+  if (!container) return;
+  const devicesWithImei = selectedDeviceIds
+    .map(id => myDevices.find(d => d.id === id))
+    .filter(d => d && d.imei && d.imei !== '—encrypted—');
+  if (!devicesWithImei.length) { container.classList.add('hidden'); container.innerHTML = ''; return; }
+
+  // Show a loading placeholder only on first load — once SIMs are cached, re-renders
+  // (e.g. after picking a SIM on another row) should update instantly with no flicker.
+  container.classList.remove('hidden');
+  if (!simsLoaded) {
+    container.innerHTML = `<p class="text-xs font-semibold text-slate-600 uppercase tracking-wide">SIM Pairing (required for IMEI devices)</p>
+      <p class="text-xs text-slate-400">Loading SIM cards in custody…</p>`;
+  }
+  await loadMySims();
+
+  container.innerHTML = `<p class="text-xs font-semibold text-slate-600 uppercase tracking-wide">SIM Pairing (required for IMEI devices)</p>` +
+    devicesWithImei.map(d => {
+      if (d.requiresSim === false) {
+        return `
+        <div class="border border-slate-200 rounded-lg p-3 space-y-2">
+          <p class="text-xs font-semibold text-slate-700">📟 ${deviceDisplayName(d)}${d.imei && d.imei !== '—encrypted—' ? ' · IMEI: ' + d.imei : ''}</p>
+          <div class="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded px-2 py-1.5">
+            IMEI confirmed. This product is configured as SIM-exempt — no SIM pairing required.
+          </div>
+        </div>`;
+      }
+      return `
+    <div class="border border-slate-200 rounded-lg p-3 space-y-2">
+      <p class="text-xs font-semibold text-slate-700">📟 ${deviceDisplayName(d)}${d.imei && d.imei !== '—encrypted—' ? ' · IMEI: ' + d.imei : ''} — SIM Pairing</p>
+      <div class="space-y-2">
+        <div>
+          <label class="block text-xs text-slate-500 mb-0.5">IMEI (confirmed)</label>
+          <input type="text" value="${d.imei || ''}" readonly
+            class="w-full border border-slate-100 bg-slate-50 rounded px-2 py-1.5 text-xs font-mono" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-500 mb-0.5">SIM Card in Custody <span class="text-red-500">*</span></label>
+          ${simSelectHtml(d.id)}
+        </div>
+        <div>
+          <label class="block text-xs text-slate-500 mb-0.5">MSISDN (auto-filled)</label>
+          <input id="pair-msisdn-${d.id}" type="tel" placeholder="Auto-filled from SIM"
+            value="${imeiSimPairings[d.id]?.msisdn || ''}"
+            class="w-full border border-slate-200 rounded px-2 py-1.5 text-xs font-mono focus:ring-1 focus:ring-blue-400"
+            oninput="imeiSimPairings['${d.id}'] = {...(imeiSimPairings['${d.id}']||{}), msisdn: this.value}" />
+        </div>
+      </div>
+    </div>`;
+    }).join('');
+}
+
+function selectDevice(id) {
+  const idx = selectedDeviceIds.indexOf(id);
+  if (idx === -1) selectedDeviceIds.push(id);
+  else { selectedDeviceIds.splice(idx, 1); delete imeiSimPairings[id]; }
+  document.getElementById(`dc-${id}`)?.classList.toggle('selected', selectedDeviceIds.includes(id));
+  document.getElementById('s0-next').disabled = selectedDeviceIds.length === 0;
+  updateGadgetCountWarning();
+  renderImeiSimPairingRows(); // async — fire and forget
+}
+
+// Warn (non-blocking) when the number of devices selected doesn't match the
+// "Expected No. of Gadgets to be Installed" set on the ticket at creation time.
+function updateGadgetCountWarning() {
+  const el = document.getElementById('s0-gadget-warning');
+  if (!el) return;
+  const expected = ticket.expectedGadgetCount;
+  if (expected == null) { el.classList.add('hidden'); return; }
+  const selectedCount = selectedDeviceIds.length;
+  if (selectedCount === expected) { el.classList.add('hidden'); return; }
+  const diff = selectedCount < expected
+    ? `${expected - selectedCount} fewer device${expected - selectedCount === 1 ? '' : 's'} than expected`
+    : `${selectedCount - expected} more device${selectedCount - expected === 1 ? '' : 's'} than expected`;
+  el.textContent = `⚠ This job expects ${expected} device${expected === 1 ? '' : 's'} to be installed — ${selectedCount} currently selected (${diff}).`;
+  el.classList.remove('hidden');
+}
+
+async function assignDevicesAndAdvance() {
+  if (!selectedDeviceIds.length) return;
+  // Validate: devices with IMEI must have a SIM selected, unless the product
+  // is flagged as SIM-exempt (requiresSim === false) in the catalog.
+  for (const id of selectedDeviceIds) {
+    const dev = myDevices.find(d => d.id === id);
+    if (dev?.imei && dev.imei !== '—encrypted—' && dev.requiresSim !== false) {
+      // Read selection from dropdown if not already captured via onSimSelect
+      const selectEl = document.getElementById(`pair-sim-${id}`);
+      if (selectEl?.value) onSimSelect(id, selectEl);
+      if (!imeiSimPairings[id]?.simIccid?.trim()) {
+        toast(`${dev.serialNumber || 'Device'}: please select a SIM card before continuing.`, 'warning');
+        return;
+      }
+    }
+  }
+  // Guard against the same physical SIM ending up paired to two devices (the
+  // dropdowns already prevent this, but re-check here in case of stale draft state).
+  const usedSimIds = new Map();
+  for (const id of selectedDeviceIds) {
+    const simId = imeiSimPairings[id]?.simId;
+    if (!simId) continue;
+    if (usedSimIds.has(simId)) {
+      const devA = myDevices.find(d => d.id === usedSimIds.get(simId));
+      const devB = myDevices.find(d => d.id === id);
+      toast(`${imeiSimPairings[id]?.simIccid || 'That SIM'} is paired to both ${devA?.serialNumber || 'a device'} and ${devB?.serialNumber || 'another device'} — please select a different SIM for one of them.`, 'warning');
+      return;
+    }
+    usedSimIds.set(simId, id);
+  }
+  const btn = document.getElementById('s0-next');
+  btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Assigning…';
+  for (const deviceId of selectedDeviceIds) {
+    const dev = myDevices.find(d => d.id === deviceId);
+    const alreadyThisJob = dev?.inventoryStatus === 'AssignedToJob' && dev?.jobId === ticket.id;
+    if (!alreadyThisJob) {
+      const pairing = imeiSimPairings[deviceId];
+      const res = await APP.apiFetch('/device-custody/assign-to-job', {
+        method: 'POST',
+        body: { deviceId, jobId: ticket.id,
+                vehicleId: ticket.vehicleId || undefined, vehicleRegistration: ticket.vehicleRegistration || undefined,
+                simIccid: pairing?.simIccid || undefined, msisdn: pairing?.msisdn || undefined },
+      }).catch(() => null);
+      if (!res) { toast(`Failed to assign device ${dev?.serialNumber || deviceId}`, 'error'); btn.disabled = false; btn.textContent = orig; return; }
+      if (dev) dev.inventoryStatus = 'AssignedToJob';
+    }
+  }
+  saveDraft({ selectedDeviceIds, imeiSimPairings });
+  await patchTicket({ assignedDeviceId: selectedDeviceIds[0], stage: 2, status: 'InProgress' });
+  ticket.assignedDeviceId = selectedDeviceIds[0]; ticket.stage = 2; ticket.status = 'InProgress';
+  btn.disabled = false; btn.textContent = orig;
+  toast(`${selectedDeviceIds.length} device(s) assigned to job`);
+  goToStage(2);
+}
+
+/* ── Stage 1 (was Stage 0): Vehicle Details ── */
+
+// Cascading category/make/model/model-number dropdown helpers
+const vdCategoryEl = () => document.getElementById('vd-category');
+const vdMakeEl   = () => document.getElementById('vd-make');
+const vdModelEl  = () => document.getElementById('vd-model');
+const vdModelNumEl = () => document.getElementById('vd-model-number');
+
+async function vdRefreshMakeSelect(category) {
+  const makeEl = vdMakeEl();
+  const current = makeEl.value;
+  makeEl.innerHTML = '<option value="">— Select make</option>';
+  const makes = await vehicleCatalogMakes(category);
+  makes.forEach(m => {
+    const o = document.createElement('option'); o.value = m; o.textContent = m;
+    makeEl.appendChild(o);
+  });
+  if (current && makes.includes(current)) makeEl.value = current;
+}
+
+async function vdRefreshModelSelect(make, category) {
+  const modelEl = vdModelEl();
+  modelEl.innerHTML = '<option value="">— Select make first</option>';
+  await vdRefreshModelNumberSelect('', '', category);
+  if (!make) { modelEl.disabled = true; return; }
+  const models = await vehicleCatalogModels(make, category);
+  models.forEach(({ model: m }) => {
+    const o = document.createElement('option'); o.value = m; o.textContent = m;
+    modelEl.appendChild(o);
+  });
+  modelEl.disabled = false;
+  modelEl.options[0].textContent = '— Select model';
+}
+
+async function vdRefreshModelNumberSelect(make, model, category) {
+  const numEl = vdModelNumEl();
+  numEl.innerHTML = '<option value="">— None / Not listed</option>';
+  if (!make || !model) { numEl.disabled = true; return; }
+  const nums = await vehicleCatalogModelNumbers(make, model, category);
+  if (!nums.length) { numEl.disabled = true; return; }
+  nums.forEach(({ modelNumber: n }) => {
+    const o = document.createElement('option'); o.value = n; o.textContent = n;
+    numEl.appendChild(o);
+  });
+  numEl.disabled = false;
+}
+
+async function vdSetCarModel(makeVal, modelVal, modelNumVal, categoryVal) {
+  const category = categoryVal || 'motor_vehicle';
+  const categoryEl = vdCategoryEl();
+  if (categoryEl) categoryEl.value = category;
+  await vdRefreshMakeSelect(category);
+  const makeEl = vdMakeEl();
+  makeEl.value = makeVal;
+  await vdRefreshModelSelect(makeVal, category);
+  if (modelVal) {
+    const modelEl = vdModelEl();
+    if (![...modelEl.options].some(o => o.value === modelVal)) {
+      const o = document.createElement('option'); o.value = modelVal; o.textContent = modelVal;
+      modelEl.appendChild(o);
+    }
+    modelEl.value = modelVal;
+  }
+  await vdRefreshModelNumberSelect(makeVal, modelVal, category);
+  const numEl = vdModelNumEl();
+  if (modelNumVal && [...numEl.options].some(o => o.value === modelNumVal))
+    numEl.value = modelNumVal;
+}
+
+function vdInitMakeDropdown() {
+  const categoryEl = vdCategoryEl();
+  const makeEl = vdMakeEl();
+  if (!categoryEl.options.length) {
+    categoryEl.innerHTML = window.VEHICLE_CATEGORIES.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
+  }
+  if (makeEl.options.length <= 1) {
+    vdRefreshMakeSelect(categoryEl.value);
+  }
+  if (!categoryEl.dataset.cascadeBound) {
+    categoryEl.dataset.cascadeBound = '1';
+    categoryEl.addEventListener('change', async () => {
+      await vdRefreshMakeSelect(categoryEl.value);
+      await vdRefreshModelSelect('', categoryEl.value);
+      const bodyEl = document.getElementById('vd-body');
+      if (bodyEl) bodyEl.value = '';
+    });
+  }
+  makeEl.addEventListener('change', async () => {
+    await vdRefreshModelSelect(makeEl.value, categoryEl.value);
+    const bodyEl = document.getElementById('vd-body');
+    if (bodyEl) bodyEl.value = '';
+  });
+  vdModelEl().addEventListener('change', async () => {
+    const make = vdMakeEl().value, model = vdModelEl().value, category = categoryEl.value;
+    await vdRefreshModelNumberSelect(make, model, category);
+    const bt = await vehicleCatalogBodyType(make, model, category);
+    const bodyEl = document.getElementById('vd-body');
+    if (bt && bodyEl) bodyEl.value = bt;
+  });
+}
+
+// Registered / Not Registered toggle — governs which identifier (registration
+// plate vs chassis number) is the required one in saveVehicleDetailsAndAdvance().
+// 'registered' matches the field's original always-required behavior, so any
+// ticket saved before this toggle existed still enforces the same way.
+let vdRegStatus = 'registered';
+
+function setVdRegStatus(status) {
+  vdRegStatus = status;
+  updateVdRegStatusUI();
+}
+
+function updateVdRegStatusUI() {
+  const isRegistered = vdRegStatus === 'registered';
+  const regBtn = document.getElementById('vd-reg-status-btn-registered');
+  const unregBtn = document.getElementById('vd-reg-status-btn-unregistered');
+  const activeCls = ['bg-blue-600', 'text-white'];
+  const inactiveCls = ['bg-white', 'text-slate-600', 'hover:bg-slate-50'];
+  regBtn.classList.remove(...activeCls, ...inactiveCls);
+  regBtn.classList.add(...(isRegistered ? activeCls : inactiveCls));
+  unregBtn.classList.remove(...activeCls, ...inactiveCls);
+  unregBtn.classList.add(...(!isRegistered ? activeCls : inactiveCls));
+
+  document.getElementById('vd-reg-wrap').classList.toggle('hidden', !isRegistered);
+  document.getElementById('vd-reg-req-mark').classList.toggle('hidden', !isRegistered);
+  document.getElementById('vd-vin-req-mark').classList.toggle('hidden', isRegistered);
+
+  // Switching modes clears whichever field just became irrelevant, so a
+  // stale value can't sneak through un-validated, and clears any visible
+  // error state left over from the other mode.
+  if (isRegistered) {
+    document.getElementById('vd-vin-err').classList.add('hidden');
+  } else {
+    document.getElementById('vd-reg').value = '';
+    document.getElementById('vd-reg-err').classList.add('hidden');
+  }
+}
+
+function renderStage1() {
+  vdInitMakeDropdown();
+  const vd = ticket.vehicleDetails || {};
+  const vr = ticket.vehicleRecord  || {}; // CRM vehicle record (pre-populated from customer 360)
+  document.getElementById('vd-reg').value    = vd.registration || ticket.vehicleRegistration || '';
+  vdSetCarModel(vd.make || vr.make || '', vd.model || vr.model || '', vd.modelNumber || '', vd.vehicleCategory || vr.vehicleCategory || 'motor_vehicle');
+  document.getElementById('vd-colour').value = vd.colour       || vr.color                  || '';
+  document.getElementById('vd-year').value   = vd.year         || vr.yearOfManufacture       || '';
+  document.getElementById('vd-fuel').value   = vd.fuelType     || '';
+  document.getElementById('vd-mileage').value= vd.mileage      || '';
+  document.getElementById('vd-body').value   = vd.bodyType     || vr.bodyType               || '';
+  document.getElementById('vd-vin').value    = vd.vin          || vr.chassisNumber           || '';
+  document.getElementById('vd-engine').value = vd.engineNo     || vr.engineNumber            || '';
+  // Precedence: this ticket's own saved regStatus (set the last time someone
+  // saved this stage) > the linked vehicle record's explicit registrationKnown
+  // flag (set by the lead that created this ticket, or by editing the
+  // vehicle directly in the Vehicle Registry) > a heuristic guess for very
+  // old tickets/vehicles that predate both of those fields.
+  let inferredStatus;
+  if (vd.regStatus) {
+    inferredStatus = vd.regStatus;
+  } else if (vr.registrationKnown !== undefined) {
+    inferredStatus = vr.registrationKnown ? 'registered' : 'not_registered';
+  } else {
+    const hasReg = !!(vd.registration || ticket.vehicleRegistration);
+    const hasChassisOnly = !hasReg && !!(vd.vin || vr.chassisNumber);
+    inferredStatus = hasChassisOnly ? 'not_registered' : 'registered';
+  }
+  vdRegStatus = inferredStatus;
+  updateVdRegStatusUI();
+}
+
+async function saveVehicleDetailsAndAdvance() {
+  const isRegistered = vdRegStatus === 'registered';
+  const reg = document.getElementById('vd-reg').value.trim().toUpperCase();
+  const regErrEl = document.getElementById('vd-reg-err');
+  if (isRegistered && !reg) { toast('Registration plate is required.', 'warning'); return; }
+  if (isRegistered && !FinemarkValidation.isValidKeRegistration(reg, vdCategoryEl().value)) {
+    regErrEl.classList.remove('hidden');
+    document.getElementById('vd-reg').focus();
+    toast('Registration format is invalid — e.g. KCA 123A.', 'warning');
+    return;
+  }
+  regErrEl.classList.add('hidden');
+
+  // VIN/Chassis Number — required instead of the registration plate when the
+  // vehicle isn't registered yet (otherwise optional). No format/length check —
+  // real-world chassis numbers on older or non-standard vehicles don't always
+  // fit the strict 17-character ISO 3779 shape, so free text is accepted.
+  const vin = document.getElementById('vd-vin').value.trim().toUpperCase();
+  const vinErrEl = document.getElementById('vd-vin-err');
+  if (!isRegistered && !vin) {
+    toast('Chassis number is required for an unregistered vehicle.', 'warning');
+    document.getElementById('vd-vin').focus();
+    return;
+  }
+  vinErrEl.classList.add('hidden');
+
+  // Engine Number — no single global standard, so validate a reasonable shape
+  // instead: 5–20 letters/digits/hyphens, with at least one digit so it isn't
+  // just stray letters. Optional field, only enforced when something is entered.
+  const engineNo = document.getElementById('vd-engine').value.trim().toUpperCase();
+  const ENGINE_NO_RE = /^[A-Z0-9-]{5,20}$/;
+  const engineErrEl = document.getElementById('vd-engine-err');
+  if (engineNo && (!ENGINE_NO_RE.test(engineNo) || !/\d/.test(engineNo))) {
+    engineErrEl.classList.remove('hidden');
+    document.getElementById('vd-engine').focus();
+    toast('Engine Number format is invalid.', 'warning');
+    return;
+  }
+  engineErrEl.classList.add('hidden');
+
+  const vehicleDetails = {
+    registration: reg,
+    regStatus:   vdRegStatus,
+    vehicleCategory: document.getElementById('vd-category').value || 'motor_vehicle',
+    make:        document.getElementById('vd-make').value.trim(),
+    model:       document.getElementById('vd-model').value.trim(),
+    modelNumber: document.getElementById('vd-model-number').value.trim(),
+    colour:      document.getElementById('vd-colour').value.trim(),
+    year:    document.getElementById('vd-year').value.trim(),
+    fuelType:document.getElementById('vd-fuel').value,
+    mileage: document.getElementById('vd-mileage').value.trim(),
+    bodyType:document.getElementById('vd-body').value,
+    vin:     vin,
+    engineNo:engineNo,
+  };
+  await patchTicket({ vehicleDetails, stage: 3 });
+  ticket.vehicleDetails = vehicleDetails; ticket.stage = 3;
+  goToStage(3);
+}
+
+/* ── Stage 2: Pre-Install Checks ── */
+function renderStage2() {
+  renderChecklist(PRE_INSTALL_ITEMS, 's2-list', 's2-progress', 's2-next', ticket.preInstallChecklist);
+}
+
+async function savePreInstallAndAdvance() {
+  const data = getChecklistData(PRE_INSTALL_ITEMS, 's2-list');
+  await patchTicket({ preInstallChecklist: data, stage: 4 });
+  ticket.preInstallChecklist = data; ticket.stage = 4;
+  goToStage(4);
+}
+
+/* ── Stage 3: Electrical Systems ── */
+function renderStage3() {
+  renderChecklist(ELECTRICAL_ITEMS, 's3-list', 's3-progress', 's3-next', ticket.electricalChecklist);
+}
+
+async function saveElectricalAndAdvance() {
+  const data = getChecklistData(ELECTRICAL_ITEMS, 's3-list');
+  await patchTicket({ electricalChecklist: data, stage: 5 });
+  ticket.electricalChecklist = data; ticket.stage = 5;
+  goToStage(5);
+}
+
+/* ── Stage 4: Device Installation & Config ── */
+const DEFAULT_INSTALL_POSITIONS = [
+  'Under Dashboard — Driver Side', 'Under Dashboard — Passenger Side', 'Behind Glove Box',
+  'Under Driver Seat', 'Under Passenger Seat', 'Boot / Trunk', 'Engine Bay', 'OBD-II Port', 'Other',
+];
+
+async function renderStage4() {
+  // Load mount positions from API (once) — shared across every device's dropdown
+  if (!positionsLoaded) {
+    const posData = await APP.apiFetch('/installation-positions').catch(() => null);
+    const positions = (posData?.data || posData || []);
+    installPositions = Array.isArray(positions) && positions.length
+      ? positions.map(p => p.label || p)
+      : DEFAULT_INSTALL_POSITIONS;
+    positionsLoaded = true;
+  }
+
+  // Each device gets its own install record — location, mounting, and cable routing
+  // can legitimately differ per device on the same job. Normalize legacy tickets
+  // that saved a single flat object (from before per-device tracking existed) by
+  // seeding every currently-selected device with those same saved values.
+  const raw = ticket.deviceInstall || {};
+  const looksLegacyFlat = (raw.mountLocation !== undefined || raw.confirmedAt !== undefined)
+    && !selectedDeviceIds.some(id => raw[id]);
+  deviceInstallData = looksLegacyFlat
+    ? Object.fromEntries(selectedDeviceIds.map(id => [id, { ...raw }]))
+    : { ...raw };
+
+  document.getElementById('s4-cards').innerHTML = selectedDeviceIds.length
+    ? selectedDeviceIds.map(deviceInstallCardHtml).join('')
+    : '<p class="text-sm text-slate-400 text-center py-6">No devices selected.</p>';
+  checkS4Valid();
+}
+
+function deviceInstallCardHtml(deviceId) {
+  const dev = myDevices.find(d => d.id === deviceId);
+  const sim = imeiSimPairings[deviceId];
+  const name  = deviceDisplayName(dev);
+  const model = dev?.serialNumber && dev?.deviceModel ? ` — ${dev.deviceModel}` : '';
+  const imei  = dev?.imei && dev.imei !== '—encrypted—' ? ` · IMEI: ${dev.imei}` : '';
+  const iccid = sim?.simIccid ? ` · SIM: ${sim.simIccid}` : '';
+  const msisdn = sim?.msisdn ? ` · ${sim.msisdn}` : '';
+  const d = deviceInstallData[deviceId] || {};
+  const positionOptions = installPositions.map(p =>
+    `<option value="${escAttr(p)}" ${d.mountLocation === p ? 'selected' : ''}>${escAttr(p)}</option>`).join('');
+  const customOption = d.mountLocation && !installPositions.includes(d.mountLocation)
+    ? `<option value="${escAttr(d.mountLocation)}" selected>${escAttr(d.mountLocation)}</option>` : '';
+  return `
+  <div class="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 shadow-sm space-y-4" id="s4-card-${deviceId}">
+    <p class="text-sm font-semibold text-blue-800 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">📟 ${name}${model}${imei}${iccid}${msisdn}</p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="col-span-2">
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Location Designation <span class="text-red-500">*</span></label>
+        <select id="s4-location-${deviceId}" onchange="updateDeviceInstallField('${deviceId}','mountLocation',this.value); checkS4Valid();"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-white">
+          <option value="">— Select install location —</option>
+          ${positionOptions}
+          ${customOption}
+        </select>
+      </div>
+      <div class="col-span-2">
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Mount Description</label>
+        <input id="s4-mount-${deviceId}" type="text" placeholder="e.g. Double-sided tape secured to bracket" value="${escAttr(d.mountDescription || '')}"
+          oninput="updateDeviceInstallField('${deviceId}','mountDescription',this.value)"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+      </div>
+      <div class="col-span-2">
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Cable Routing</label>
+        <input id="s4-cable-${deviceId}" type="text" placeholder="e.g. Run along A-pillar, tucked under carpet to boot" value="${escAttr(d.cableRouting || '')}"
+          oninput="updateDeviceInstallField('${deviceId}','cableRouting',this.value)"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+      </div>
+      <div class="col-span-2">
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Installation Notes</label>
+        <textarea id="s4-notes-${deviceId}" rows="2" placeholder="Any observations or specific details about this installation…"
+          oninput="updateDeviceInstallField('${deviceId}','notes',this.value)"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 resize-none">${escAttr(d.notes || '')}</textarea>
+      </div>
+      <div class="col-span-2" id="s4-photo-wrap-${deviceId}">${deviceInstallPhotoHtml(deviceId)}</div>
+    </div>
+    <label class="flex items-start gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+      <input type="checkbox" id="s4-confirm-${deviceId}" ${d.confirmedAt ? 'checked' : ''}
+        onchange="updateDeviceInstallField('${deviceId}','confirmedAt', this.checked ? new Date().toISOString() : null); checkS4Valid();"
+        class="mt-0.5 w-4 h-4 accent-green-600 flex-shrink-0 cursor-pointer" />
+      <div>
+        <p class="text-sm font-semibold text-slate-800">I confirm this device has been physically installed and secured</p>
+        <p class="text-xs text-slate-500 mt-0.5">Device is properly mounted, all connectors are secured, and wiring is routed safely.</p>
+      </div>
+    </label>
+  </div>`;
+}
+
+function updateDeviceInstallField(deviceId, field, value) {
+  if (!deviceInstallData[deviceId]) deviceInstallData[deviceId] = {};
+  deviceInstallData[deviceId][field] = value;
+}
+
+// Optional per-device installation photo — same attach/replace/remove pattern used
+// for checklist evidence, scoped to this device's card instead of a checklist item.
+function deviceInstallPhotoHtml(deviceId) {
+  const url = (deviceInstallData[deviceId] || {}).photo;
+  return `
+    <div class="flex items-center gap-2">
+      <label class="flex-1 cursor-pointer">
+        <input type="file" accept="image/*" class="hidden" onchange="handleDeviceInstallPhoto('${deviceId}', this)" />
+        <span class="inline-flex w-full items-center justify-center gap-1.5 py-1.5 rounded-lg border border-dashed border-slate-300 text-xs font-medium text-slate-600 hover:bg-slate-50">
+          📷 ${url ? 'Replace installation photo' : 'Attach installation photo (optional)'}
+        </span>
+      </label>
+      ${url ? `<button type="button" onclick="removeDeviceInstallPhoto('${deviceId}')" class="text-xs text-red-500 hover:text-red-700 px-1">Remove</button>` : ''}
+    </div>
+    ${url ? `<img src="${url}" class="w-full max-h-32 object-cover rounded-lg border border-slate-200" alt="Installation photo" />` : ''}
+  `;
+}
+
+async function handleDeviceInstallPhoto(deviceId, input) {
+  const file = input.files[0]; if (!file) return;
+  const wrap = document.getElementById(`s4-photo-wrap-${deviceId}`);
+  if (wrap) wrap.style.opacity = '0.5';
+  try {
+    const result = await uploadFile(file);
+    updateDeviceInstallField(deviceId, 'photo', result.url);
+  } catch (e) {
+    toast(e.message || 'Photo upload failed', 'error');
+  } finally {
+    if (wrap) { wrap.style.opacity = ''; wrap.innerHTML = deviceInstallPhotoHtml(deviceId); }
+  }
+}
+
+function removeDeviceInstallPhoto(deviceId) {
+  updateDeviceInstallField(deviceId, 'photo', null);
+  const wrap = document.getElementById(`s4-photo-wrap-${deviceId}`);
+  if (wrap) wrap.innerHTML = deviceInstallPhotoHtml(deviceId);
+}
+
+function checkS4Valid() {
+  const ok = selectedDeviceIds.length > 0 && selectedDeviceIds.every(id => {
+    const d = deviceInstallData[id] || {};
+    return !!d.mountLocation && !!d.confirmedAt;
+  });
+  const btn = document.getElementById('s4-next');
+  if (btn) btn.disabled = !ok;
+}
+
+async function saveDeviceInstallAndAdvance() {
+  const deviceInstall = { ...deviceInstallData };
+  await patchTicket({ deviceInstall, stage: 6 });
+  ticket.deviceInstall = deviceInstall; ticket.stage = 6;
+  goToStage(6);
+}
+
+/* ── Stage 5: Activation ── */
+let s5PollTimer = null;
+
+function renderStage5() {
+  const role = getUserRole();
+  // ISO, Technical, and Admin can perform activation directly
+  const canActivate = ['Technical', 'Support', 'Admin', 'InstallOffice', 'ISO'].includes(role);
+  const waiting = document.getElementById('s5-waiting');
+  const form = document.getElementById('s5-form');
+  const backBtn = document.getElementById('s5-back');
+  const nextBtn = document.getElementById('s5-next');
+
+  if (canActivate) {
+    if (s5PollTimer) { clearInterval(s5PollTimer); s5PollTimer = null; }
+    waiting.classList.add('hidden');
+    form.classList.remove('hidden');
+    backBtn.classList.remove('hidden');
+    nextBtn.classList.remove('hidden');
+
+    const raw = ticket.activation || {};
+    const looksLegacyFlat = (raw.platformUrl !== undefined || raw.confirmedAt !== undefined)
+      && !selectedDeviceIds.some(id => raw[id]);
+    deviceActivationData = looksLegacyFlat
+      ? Object.fromEntries(selectedDeviceIds.map(id => [id, {
+          ...raw,
+          screenshotUrl: raw.screenshotUrl || raw.locationScreenshot || raw.platformScreenshotUrl || '',
+        }]))
+      : { ...raw };
+
+    document.getElementById('s5-cards').innerHTML = selectedDeviceIds.length
+      ? selectedDeviceIds.map(deviceActivationCardHtml).join('')
+      : '<p class="text-sm text-slate-400 text-center py-6 bg-white border border-slate-200 rounded-xl">No devices selected.</p>';
+    checkS5Valid();
+  } else if (ticket.activationApprovedAt || ticket.activation?.confirmedAt
+    || Object.values(ticket.activation || {}).some(v => v && typeof v === 'object' && v.confirmedAt)) {
+    // Already activated / approved — technician can proceed
+    if (s5PollTimer) { clearInterval(s5PollTimer); s5PollTimer = null; }
+    form.classList.add('hidden');
+    waiting.classList.remove('hidden');
+    document.getElementById('s5-waiting-inner').innerHTML = `
+      <div class="text-center space-y-3">
+        <div class="mx-auto w-14 h-14 bg-green-100 rounded-full flex items-center justify-center text-2xl">✅</div>
+        <h2 class="text-lg font-bold text-slate-900">Device Activated</h2>
+        <p class="text-sm text-slate-500 max-w-sm mx-auto">The Installation Support Engineer has confirmed device activation. You may proceed to post-installation checks.</p>
+      </div>`;
+    backBtn.classList.remove('hidden');
+    nextBtn.classList.remove('hidden');
+    nextBtn.textContent = 'Continue →';
+    nextBtn.disabled = false;
+    nextBtn.onclick = () => goToStage(7);
+  } else {
+    // Technician waiting — show ISO notify panel (or, for an assisted installation,
+    // an informational panel only: the assisting ISO is already handling activation
+    // directly in their own session, so asking the technician to "notify" them is redundant).
+    form.classList.add('hidden');
+    backBtn.classList.remove('hidden');
+    nextBtn.classList.add('hidden');
+    waiting.classList.remove('hidden');
+    const isoName = ticket.isoName || 'the Installation Support Officer';
+
+    if (assistActive()) {
+      document.getElementById('s5-waiting-inner').innerHTML = `
+        <div class="space-y-5">
+          <div class="flex items-start gap-4">
+            <div class="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-2xl shrink-0">🧑‍🔧</div>
+            <div>
+              <h2 class="text-base font-bold text-slate-900">ISO Assisted Installation In Progress</h2>
+              <p class="text-sm text-slate-500 mt-0.5"><strong>${isoName}</strong> is running this installation on your behalf, including device activation. No action is needed from you here — this screen will update automatically once activation is complete.</p>
+            </div>
+          </div>
+        </div>`;
+    } else {
+      const alreadyNotified = !!ticket.activationRequestedAt;
+      const notifiedTime = alreadyNotified
+        ? new Date(ticket.activationRequestedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : '';
+      document.getElementById('s5-waiting-inner').innerHTML = `
+        <div class="space-y-5">
+          <div class="flex items-start gap-4">
+            <div class="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-2xl shrink-0">⏳</div>
+            <div>
+              <h2 class="text-base font-bold text-slate-900">Awaiting Device Activation</h2>
+              <p class="text-sm text-slate-500 mt-0.5">This step is performed by <strong>${isoName}</strong>. Notify them to open the job card and activate the device on the tracking platform.</p>
+            </div>
+          </div>
+          <div class="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800 space-y-1">
+            <p class="font-semibold">What the ISO does:</p>
+            <ul class="list-disc list-inside text-xs text-blue-700 space-y-0.5 mt-1">
+              <li>Logs in and opens this job card (${ticket.ticketNo || ''})</li>
+              <li>Confirms the IMEI and SIM on the tracking platform</li>
+              <li>Verifies the device is pinging and GPS is live</li>
+              <li>Completes activation and hands the job back to you</li>
+            </ul>
+          </div>
+          ${alreadyNotified
+            ? `<div class="flex items-center gap-3 rounded-lg bg-green-50 border border-green-200 px-4 py-3">
+                 <span class="text-green-600 text-lg">✓</span>
+                 <div>
+                   <p class="text-sm font-semibold text-green-800">Notification sent at ${notifiedTime}</p>
+                   <p class="text-xs text-green-600 mt-0.5">Waiting for the ISO to complete activation…</p>
+                 </div>
+               </div>
+               <button id="s5-notify-btn" onclick="s5NotifyISO()" class="w-full px-4 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition">
+                 Resend Notification
+               </button>`
+            : `<button id="s5-notify-btn" onclick="s5NotifyISO()" class="w-full px-5 py-3 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2">
+                 <span>🔔</span> Notify ISO for Activation
+               </button>`
+          }
+        </div>`;
+    }
+    // Poll every 20 s for activation completion
+    if (!s5PollTimer) {
+      s5PollTimer = setInterval(async () => {
+        try {
+          const d = await APP.apiFetch(`/installation-tickets/${realTicketId || jobId}`);
+          const t = d?.data || d;
+          if (t?.activationApprovedAt || t?.activation?.confirmedAt) {
+            ticket.activationApprovedAt = t.activationApprovedAt;
+            ticket.activation = t.activation;
+            clearInterval(s5PollTimer); s5PollTimer = null;
+            renderStage5();
+          }
+        } catch {}
+      }, 20000);
+    }
+  }
+}
+
+async function s5NotifyISO() {
+  const btn = document.getElementById('s5-notify-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  try {
+    const d = await APP.apiFetch(`/installation-tickets/${realTicketId || jobId}/notify-iso`, { method: 'POST', body: {} });
+    const t = d?.data || d;
+    if (t) ticket.activationRequestedAt = t.activationRequestedAt || new Date().toISOString();
+    toast('ISO notified successfully', 'success');
+    renderStage5();
+  } catch {
+    toast('Failed to send notification', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '🔔 Notify ISO for Activation'; }
+  }
+}
+
+function deviceActivationCardHtml(deviceId) {
+  const d = myDevices.find(x => x.id === deviceId);
+  const sm = imeiSimPairings[deviceId];
+  const a = deviceActivationData[deviceId] || {};
+  const iccid = sm?.simIccid || d?.simIccid || '';
+  const msisdn = sm?.msisdn || '';
+  return `
+    <div class="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 shadow-sm space-y-4" data-device-id="${deviceId}">
+      <div class="flex items-center gap-2 pb-3 border-b border-slate-100">
+        <span class="text-lg">📟</span>
+        <div>
+          <p class="text-sm font-semibold text-slate-800">${deviceDisplayName(d)}</p>
+          <p class="text-xs text-slate-500">${d?.deviceModel ? d.deviceModel + ' · ' : ''}${d?.imei ? 'IMEI: ' + d.imei : ''}${iccid ? ' · SIM: ' + iccid : ''}${msisdn ? ' · ' + msisdn : ''}</p>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="col-span-2">
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Tracking Platform URL</label>
+          <input type="url" value="${a.platformUrl || ''}" oninput="updateDeviceActivationField('${deviceId}','platformUrl',this.value)"
+            placeholder="https://platform.finemark.co.ke/vehicles/…"
+            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">IMEI Confirmed</label>
+          <input type="text" value="${a.imeiConfirmed ?? d?.imei ?? ''}" oninput="updateDeviceActivationField('${deviceId}','imeiConfirmed',this.value)"
+            placeholder="IMEI as shown on platform"
+            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">SIM Number</label>
+          ${d?.requiresSim === false
+            ? `<div class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-400 bg-slate-50">Not applicable — SIM-exempt device</div>`
+            : `<input type="text" value="${a.simConfirmed ?? iccid}" oninput="updateDeviceActivationField('${deviceId}','simConfirmed',this.value)"
+            placeholder="SIM / ICCID"
+            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/40" />`}
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Signal Strength</label>
+          <select onchange="updateDeviceActivationField('${deviceId}','signalStrength',this.value)"
+            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-white">
+            <option value="">— Select —</option>
+            ${['Excellent','Good','Fair','Poor'].map(s => `<option ${a.signalStrength === s ? 'selected' : ''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Tracker SIM Phone Number</label>
+          ${d?.requiresSim === false
+            ? `<div class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-400 bg-slate-50">Not applicable — SIM-exempt device</div>`
+            : `<input type="tel" value="${a.trackerPhone ?? iccid}" oninput="updateDeviceActivationField('${deviceId}','trackerPhone',this.value)"
+            placeholder="+254 7xx xxx xxx"
+            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/40" />`}
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Current Location Screenshot</label>
+          <div id="s5-screenshot-wrap-${deviceId}">${deviceActivationScreenshotHtml(deviceId)}</div>
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Technician Notes</label>
+          <textarea rows="3" oninput="updateDeviceActivationField('${deviceId}','notes',this.value)"
+            placeholder="Activation notes, issues encountered, or observations…"
+            class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 resize-none">${a.notes || ''}</textarea>
+        </div>
+      </div>
+      <label class="flex items-start gap-3 p-4 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+        <input type="checkbox" ${a.confirmedAt ? 'checked' : ''} class="mt-0.5 w-4 h-4 accent-green-600 flex-shrink-0 cursor-pointer"
+          onchange="onDeviceActivationPingToggle('${deviceId}', this.checked)" />
+        <div>
+          <p class="text-sm font-semibold text-slate-800">Device is pinging and active on the tracking platform</p>
+          <p class="text-xs text-slate-500 mt-0.5">Confirmed live GPS data received; ignition events working correctly.</p>
+        </div>
+      </label>
+    </div>`;
+}
+
+function deviceActivationScreenshotHtml(deviceId) {
+  const a = deviceActivationData[deviceId] || {};
+  if (a.screenshotUrl) {
+    return `
+      <div class="relative border border-slate-200 rounded-lg overflow-hidden">
+        <img src="${a.screenshotUrl}" class="max-h-48 w-full object-contain bg-slate-50" />
+        <div class="flex items-center justify-between px-3 py-2 bg-slate-50 border-t border-slate-200 text-xs">
+          <span class="text-green-600 font-medium">✓ Screenshot uploaded</span>
+          <div class="flex gap-3">
+            <label class="text-blue-600 hover:underline cursor-pointer">Replace
+              <input type="file" accept="image/*" class="hidden" onchange="handleActivationScreenshot('${deviceId}', this)" />
+            </label>
+            <button type="button" onclick="removeActivationScreenshot('${deviceId}')" class="text-red-600 hover:underline">Remove</button>
+          </div>
+        </div>
+      </div>`;
+  }
+  return `
+    <label class="relative border-2 border-dashed border-slate-200 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 transition block">
+      <span class="text-2xl">📷</span>
+      <p class="text-xs text-slate-500 mt-1">Tap to upload current location screenshot from tracking platform</p>
+      <input type="file" accept="image/*" class="hidden" onchange="handleActivationScreenshot('${deviceId}', this)" />
+    </label>`;
+}
+
+async function handleActivationScreenshot(deviceId, input) {
+  const file = input.files[0]; if (!file) return;
+  const wrap = document.getElementById(`s5-screenshot-wrap-${deviceId}`);
+  if (wrap) wrap.style.opacity = '0.5';
+  try {
+    const result = await uploadFile(file);
+    updateDeviceActivationField(deviceId, 'screenshotUrl', result.url);
+    if (wrap) wrap.innerHTML = deviceActivationScreenshotHtml(deviceId);
+  } catch (e) {
+    toast(e.message || 'Screenshot upload failed', 'error');
+  } finally {
+    if (wrap) wrap.style.opacity = '';
+  }
+}
+
+function removeActivationScreenshot(deviceId) {
+  updateDeviceActivationField(deviceId, 'screenshotUrl', '');
+  const wrap = document.getElementById(`s5-screenshot-wrap-${deviceId}`);
+  if (wrap) wrap.innerHTML = deviceActivationScreenshotHtml(deviceId);
+}
+
+function updateDeviceActivationField(deviceId, field, value) {
+  if (!deviceActivationData[deviceId]) deviceActivationData[deviceId] = {};
+  deviceActivationData[deviceId][field] = value;
+}
+
+function onDeviceActivationPingToggle(deviceId, checked) {
+  updateDeviceActivationField(deviceId, 'confirmedAt', checked ? new Date().toISOString() : '');
+  checkS5Valid();
+}
+
+function checkS5Valid() {
+  const ok = selectedDeviceIds.length > 0
+    && selectedDeviceIds.every(id => !!(deviceActivationData[id] || {}).confirmedAt);
+  const btn = document.getElementById('s5-next');
+  if (btn) btn.disabled = !ok;
+}
+
+async function saveActivationAndAdvance() {
+  const activation = { ...deviceActivationData };
+  const combinedNotes = selectedDeviceIds
+    .map(id => activation[id]?.notes)
+    .filter(Boolean)
+    .join('\n');
+  const firstScreenshot = selectedDeviceIds
+    .map(id => activation[id]?.screenshotUrl)
+    .find(Boolean) || '';
+  const btn = document.getElementById('s5-next');
+  if (btn) { btn.disabled = true; btn.textContent = 'Approving…'; }
+  try {
+    // Record activation details + mark approved
+    await APP.apiFetch(`/installation-tickets/${realTicketId || jobId}/activation-approve`, {
+      method: 'POST',
+      body: { notes: combinedNotes, ignitionOk: true, locationOk: true, platformScreenshotUrl: firstScreenshot },
+    });
+    // Also persist per-device activation details for display
+    await patchTicket({ activation, engineerSignedOff: true, stage: 7 });
+    ticket.activation = activation;
+    ticket.activationApprovedAt = new Date().toISOString();
+    ticket.stage = 7; engineerSignedOff = true;
+    toast('Activation approved — job advanced to post-install checks');
+    goToStage(7);
+  } catch (e) {
+    toast(e.message || 'Failed to approve activation', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Confirm Activation →'; }
+  }
+}
+
+/* ── Stage 6: Post-Install Checks ── */
+function renderStage6() {
+  renderChecklist(POST_INSTALL_ITEMS, 's6-list', 's6-progress', 's6-next', ticket.postInstallChecklist);
+}
+
+async function savePostInstallAndAdvance() {
+  const data = getChecklistData(POST_INSTALL_ITEMS, 's6-list');
+  await patchTicket({ postInstallChecklist: data, stage: 8 });
+  ticket.postInstallChecklist = data; ticket.stage = 8;
+  goToStage(8);
+}
+
+/* ── Stage 7: Site Photos (optional) ── */
+function renderStage7() {
+  // Restore persisted photos if re-entering stage
+  if (ticket.sitePhotos && typeof ticket.sitePhotos === 'object' && !Object.keys(photoFiles).length) {
+    photoFiles = { ...ticket.sitePhotos };
+  }
+  document.getElementById('photo-grid').innerHTML = PHOTO_SLOTS.map(slot => {
+    const src = photoFiles[slot.id];
+    return `<div class="photo-slot ${src ? 'filled' : ''}" id="ps-${slot.id}">
+      ${src ? `<span class="p-check">✓</span><img src="${src}" alt="${slot.label}" />`
+             : `<span class="p-icon">📷</span><span class="p-lbl">${slot.label}</span>`}
+      <input type="file" accept="image/*" onchange="handlePhoto('${slot.id}',this)" title="${slot.label}" />
+    </div>`;
+  }).join('');
+  document.getElementById('s7-count').textContent = `${Object.keys(photoFiles).length} / 10`;
+}
+
+async function handlePhoto(slotId, input) {
+  const file = input.files[0]; if (!file) return;
+  const slot = document.getElementById(`ps-${slotId}`);
+  if (slot) slot.style.opacity = '0.5';
+  try {
+    const result = await uploadFile(file);
+    photoFiles[slotId] = result.url;
+    renderStage7();
+  } catch (e) {
+    toast(e.message || 'Photo upload failed', 'error');
+  } finally {
+    if (slot) slot.style.opacity = '';
+  }
+}
+
+async function savePhotosAndAdvance() {
+  await patchTicket({ sitePhotos: photoFiles, stage: 9 });
+  ticket.sitePhotos = { ...photoFiles }; ticket.stage = 9; goToStage(9);
+}
+
+async function skipPhotosAndAdvance() {
+  await patchTicket({ stage: 9 });
+  ticket.stage = 9; goToStage(9);
+}
+
+/* ── Stage 8: Sign-off ── */
+async function renderStage8() {
+  const role = getUserRole();
+  const canEngineer = ['Technical', 'Support', 'Admin', 'InstallOffice'].includes(role);
+
+  // Engineer sign-off section is always visible — always required
+  const engSection = document.getElementById('s8-eng-section');
+  engSection.style.display = '';
+
+  // Only Technical/Support/Admin can perform the engineer sign-off action
+  const engForm = document.getElementById('s8-eng-form');
+  const engBtn  = document.getElementById('s8-eng-btn');
+  const engChk  = document.getElementById('s8-eng-chk');
+
+  techSignedOff = !!ticket.technicianSignedOffAt;
+  engineerSignedOff = !!ticket.engineerSignedOffAt;
+
+  jobCardPhotoUrl = ticket.jobCardPhotoUrl || '';
+  document.getElementById('s8-jobcard-photo-wrap').innerHTML = jobCardPhotoHtml();
+
+  // ── Technician sign-off: who may sign, and how the form is labelled ──
+  const onBehalf = assistActive() && canActAsIso() && !isAssignedTechOrCoTech();
+  const canSignTech = isAssignedTechOrCoTech() || onBehalf || role === 'Admin';
+  const techForm = document.getElementById('s8-tech-form');
+  const techRestricted = document.getElementById('s8-tech-restricted');
+  const techHeading = document.getElementById('s8-tech-heading');
+  const techChkLabel = document.getElementById('s8-tech-chk-label');
+  const techBtn = document.getElementById('s8-tech-btn');
+
+  if (onBehalf) {
+    const techName = (await resolveAssignedTechInfo())?.name || 'the technician';
+    techHeading.textContent = 'Technician Sign-off (on behalf)';
+    techChkLabel.textContent = `I confirm that Technician ${techName} has physically completed this installation and I am signing on their behalf as the assisting ISO.`;
+    techBtn.textContent = 'Sign on behalf of Technician';
+  } else {
+    techHeading.textContent = 'Technician Sign-off';
+    techChkLabel.textContent = 'I confirm that the device has been installed correctly and this job is ready for handover.';
+    techBtn.textContent = 'Sign off as Technician';
+  }
+
+  if (!techSignedOff) {
+    techForm.classList.toggle('hidden', !canSignTech);
+    techRestricted.classList.toggle('hidden', canSignTech);
+  }
+
+  if (techSignedOff) {
+    document.getElementById('s8-tech-form').classList.add('hidden');
+    document.getElementById('s8-tech-restricted').classList.add('hidden');
+    document.getElementById('s8-tech-done').classList.remove('hidden');
+    document.getElementById('s8-tech-at').textContent =
+      ticket.technicianSignedOffAt ? new Date(ticket.technicianSignedOffAt).toLocaleString() : '';
+    const attrEl = document.getElementById('s8-tech-attribution');
+    if (ticket.technicianSignedOffOnBehalf && ticket.technicianSignedOffByName) {
+      attrEl.textContent = `Signed by ${ticket.technicianSignedOffByName} (ISO) on behalf of the technician.`;
+      attrEl.classList.remove('hidden');
+    } else {
+      attrEl.classList.add('hidden');
+    }
+    document.getElementById('s8-tech-done-photo').innerHTML = jobCardPhotoUrl
+      ? `<a href="${jobCardPhotoUrl}" target="_blank" rel="noopener" class="inline-block">
+           <img src="${jobCardPhotoUrl}" class="max-h-32 rounded-lg border border-green-200" />
+         </a>`
+      : '';
+  }
+  if (engineerSignedOff) {
+    engForm.classList.add('hidden');
+    document.getElementById('s8-eng-done').classList.remove('hidden');
+    document.getElementById('s8-eng-at').textContent =
+      ticket.engineerSignedOffAt ? new Date(ticket.engineerSignedOffAt).toLocaleString() : '';
+  } else if (!canEngineer) {
+    // Non-ISO viewer: replace form with an "awaiting" notice instead of interactive form
+    engForm.innerHTML = `<div class="flex items-center gap-3 py-2 text-sm text-slate-500">
+      <span class="text-xl">⏳</span>
+      <span>${techSignedOff ? 'Technician has signed off. Awaiting Installation Support Officer confirmation.' : 'Awaiting technician sign-off, then ISO confirmation.'}</span>
+    </div>`;
+  }
+  if (ticket.csatScore) {
+    document.getElementById('s8-csat-form').classList.add('hidden');
+    document.getElementById('s8-csat-done').classList.remove('hidden');
+    document.getElementById('s8-csat-score-display').textContent = `${ticket.csatScore} ★`;
+  }
+  updateS8CloseBtn(canEngineer);
+}
+
+function jobCardPhotoHtml() {
+  if (jobCardPhotoUrl) {
+    return `
+      <div class="relative border border-slate-200 rounded-lg overflow-hidden">
+        <img src="${jobCardPhotoUrl}" class="max-h-48 w-full object-contain bg-slate-50" />
+        <div class="flex items-center justify-between px-3 py-2 bg-slate-50 border-t border-slate-200 text-xs">
+          <span class="text-green-600 font-medium">✓ Job card photo attached</span>
+          <div class="flex gap-3">
+            <label class="text-blue-600 hover:underline cursor-pointer">Replace
+              <input type="file" accept="image/*" class="hidden" onchange="handleJobCardPhoto(this)" />
+            </label>
+            <button type="button" onclick="removeJobCardPhoto()" class="text-red-600 hover:underline">Remove</button>
+          </div>
+        </div>
+      </div>`;
+  }
+  return `
+    <label class="relative border-2 border-dashed border-slate-200 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 transition block">
+      <span class="text-2xl">📋</span>
+      <p class="text-xs text-slate-500 mt-1">Tap to take or upload a photo of the physical job card</p>
+      <input type="file" accept="image/*" class="hidden" onchange="handleJobCardPhoto(this)" />
+    </label>`;
+}
+
+async function handleJobCardPhoto(input) {
+  const file = input.files[0]; if (!file) return;
+  const wrap = document.getElementById('s8-jobcard-photo-wrap');
+  if (wrap) wrap.style.opacity = '0.5';
+  try {
+    const result = await uploadFile(file);
+    jobCardPhotoUrl = result.url;
+    if (wrap) { wrap.innerHTML = jobCardPhotoHtml(); wrap.style.opacity = ''; }
+    updateS8Buttons();
+  } catch (e) {
+    toast(e.message || 'Photo upload failed', 'error');
+    if (wrap) wrap.style.opacity = '';
+  }
+}
+
+function removeJobCardPhoto() {
+  jobCardPhotoUrl = '';
+  const wrap = document.getElementById('s8-jobcard-photo-wrap');
+  if (wrap) wrap.innerHTML = jobCardPhotoHtml();
+  updateS8Buttons();
+}
+
+function updateS8Buttons() {
+  document.getElementById('s8-tech-btn').disabled =
+    !document.getElementById('s8-tech-chk').checked || !jobCardPhotoUrl;
+  const engChk = document.getElementById('s8-eng-chk');
+  if (engChk) document.getElementById('s8-eng-btn').disabled = !engChk.checked;
+}
+
+function updateS8CloseBtn(canEngineer) {
+  const bothSigned = techSignedOff && engineerSignedOff;
+  // Only Technical/Support/Admin can press the Close button
+  const canClose = canEngineer && bothSigned;
+  const btn = document.getElementById('s8-close-btn');
+  btn.disabled = !canClose;
+  let hint;
+  if (!techSignedOff) {
+    hint = 'Waiting for technician sign-off.';
+  } else if (!engineerSignedOff) {
+    hint = canEngineer
+      ? 'Technician has signed off. Please complete Installation Support Officer sign-off to close.'
+      : 'Technician sign-off done. Awaiting Installation Support Officer confirmation before the job can be closed.';
+  } else {
+    hint = canEngineer
+      ? 'All sign-offs collected. You may now close the installation.'
+      : 'All sign-offs collected. The Installation Support Officer will close this job.';
+  }
+  document.getElementById('s8-close-hint').textContent = hint;
+}
+
+async function techSignOff() {
+  if (!jobCardPhotoUrl) { toast('Attach a photo of the physical job card first.', 'warning'); return; }
+  const onBehalf = assistActive() && canActAsIso() && !isAssignedTechOrCoTech();
+  const btn = document.getElementById('s8-tech-btn');
+  const btnLabel = onBehalf ? 'Sign on behalf of Technician' : 'Sign off as Technician';
+  btn.disabled = true; btn.textContent = 'Signing off…';
+  const notes = document.getElementById('s8-tech-notes').value.trim();
+  const resp = await patchTicket({ technicianSignedOff: true, notes: notes || undefined, jobCardPhotoUrl });
+  if (!resp) {
+    // Server rejected the sign-off (e.g. assist mode was turned off elsewhere, or caller
+    // is neither the assigned technician nor an assisting ISO) — don't fake success locally.
+    toast('Sign-off failed — you may not be allowed to sign for this job right now.', 'error');
+    btn.disabled = false; btn.textContent = btnLabel;
+    return;
+  }
+  const updatedTicket = resp?.data || resp;
+  if (updatedTicket) ticket = { ...ticket, ...updatedTicket };
+  techSignedOff = true;
+  ticket.jobCardPhotoUrl = jobCardPhotoUrl;
+  document.getElementById('s8-tech-form').classList.add('hidden');
+  document.getElementById('s8-tech-restricted').classList.add('hidden');
+  document.getElementById('s8-tech-done').classList.remove('hidden');
+  document.getElementById('s8-tech-at').textContent =
+    ticket.technicianSignedOffAt ? new Date(ticket.technicianSignedOffAt).toLocaleString() : new Date().toLocaleString();
+  const attrEl = document.getElementById('s8-tech-attribution');
+  if (ticket.technicianSignedOffOnBehalf && ticket.technicianSignedOffByName) {
+    attrEl.textContent = `Signed by ${ticket.technicianSignedOffByName} (ISO) on behalf of the technician.`;
+    attrEl.classList.remove('hidden');
+  } else {
+    attrEl.classList.add('hidden');
+  }
+  document.getElementById('s8-tech-done-photo').innerHTML = jobCardPhotoUrl
+    ? `<a href="${jobCardPhotoUrl}" target="_blank" rel="noopener" class="inline-block">
+         <img src="${jobCardPhotoUrl}" class="max-h-32 rounded-lg border border-green-200" />
+       </a>`
+    : '';
+  toast('Technician sign-off recorded');
+  const isISO = ['Technical', 'Support', 'Admin', 'InstallOffice'].includes(getUserRole());
+  // If current user is not ISO, refresh the awaiting-notice to reflect tech signed off
+  if (!isISO && !engineerSignedOff) {
+    const engForm = document.getElementById('s8-eng-form');
+    if (engForm) engForm.innerHTML = `<div class="flex items-center gap-3 py-2 text-sm text-slate-500">
+      <span class="text-xl">⏳</span>
+      <span>Technician has signed off. Awaiting Installation Support Officer confirmation.</span>
+    </div>`;
+  }
+  updateS8CloseBtn(isISO);
+}
+
+async function engineerSignOff() {
+  const btn = document.getElementById('s8-eng-btn');
+  btn.disabled = true; btn.textContent = 'Signing off…';
+  await patchTicket({ engineerSignedOff: true });
+  engineerSignedOff = true;
+  ticket.engineerSignedOffAt = new Date().toISOString();
+  document.getElementById('s8-eng-form').classList.add('hidden');
+  document.getElementById('s8-eng-done').classList.remove('hidden');
+  document.getElementById('s8-eng-at').textContent = new Date().toLocaleString();
+  toast('Engineer sign-off recorded');
+  updateS8CloseBtn(true);
+}
+
+let csatChannel = 'email';
+
+function setCsatChannel(ch) {
+  csatChannel = ch;
+  ['email', 'sms', 'whatsapp'].forEach(c => {
+    const btn = document.getElementById(`ch-${c}`);
+    const active = c === ch;
+    btn.classList.toggle('bg-blue-600', active);
+    btn.classList.toggle('text-white', active);
+    btn.classList.toggle('border-blue-600', active);
+    btn.classList.toggle('bg-white', !active);
+    btn.classList.toggle('text-slate-600', !active);
+    btn.classList.toggle('border-slate-300', !active);
+  });
+  const input = document.getElementById('s8-cust-contact');
+  input.placeholder = ch === 'email' ? 'Customer email address' : 'Customer phone number (e.g. +254700123456)';
+  input.value = '';
+}
+
+async function sendCsatOtp() {
+  const contact = document.getElementById('s8-cust-contact').value.trim();
+  const label = csatChannel === 'email' ? 'email address' : 'phone number';
+  if (!contact) { toast(`Enter customer ${label} first.`, 'warning'); return; }
+  const btn = document.getElementById('s8-send-otp-btn');
+  btn.disabled = true; btn.textContent = 'Sending…';
+  const res = await APP.apiFetch(`/installation-tickets/${realTicketId || jobId}/send-csat`, {
+    method: 'POST', body: { contact, channel: csatChannel },
+  }).catch(() => null);
+  btn.disabled = false; btn.textContent = 'Resend OTP';
+  if (!res) { toast('Failed to send OTP. Please try again.', 'error'); return; }
+  document.getElementById('s8-otp-section').classList.remove('hidden');
+  const via = csatChannel === 'email' ? 'email' : csatChannel === 'sms' ? 'SMS' : 'WhatsApp';
+  if (res.otp) {
+    // Delivery not configured — show OTP directly so technician can read it to customer
+    const otpDisplay = document.getElementById('s8-otp-direct');
+    if (otpDisplay) { otpDisplay.textContent = res.otp; otpDisplay.closest('.s8-otp-direct-wrap').classList.remove('hidden'); }
+    toast(`Delivery not available — read this code to the customer: ${res.otp}`, 'warning');
+  } else {
+    toast(`OTP sent to customer via ${via}`);
+  }
+}
+
+function setStars(v) {
+  csatStars = v;
+  document.querySelectorAll('.star-btn').forEach(s => s.classList.toggle('lit', Number(s.dataset.v) <= v));
+}
+
+async function submitCsat() {
+  const otp = document.getElementById('s8-otp-input').value.trim();
+  if (!otp || otp.length !== 6) { toast('Enter the 6-digit OTP.', 'warning'); return; }
+  if (!csatStars) { toast('Please select a star rating.', 'warning'); return; }
+  const comment = document.getElementById('s8-csat-comment').value.trim();
+  const btn = document.getElementById('s8-submit-csat');
+  btn.disabled = true; btn.textContent = 'Submitting…';
+  // CSAT endpoint is public (no auth token needed)
+  const res = await fetch(`/api/installation-tickets/${realTicketId || jobId}/csat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ otp, csatScore: csatStars, csatComment: comment }),
+  }).catch(() => null);
+  btn.disabled = false; btn.textContent = 'Submit Customer Rating';
+  if (!res || !res.ok) { toast('Failed to submit — check the OTP and try again.', 'error'); return; }
+  ticket.csatScore = csatStars;
+  document.getElementById('s8-csat-form').classList.add('hidden');
+  document.getElementById('s8-csat-done').classList.remove('hidden');
+  document.getElementById('s8-csat-score-display').textContent = `${csatStars} ★`;
+  toast('Customer rating submitted');
+}
+
+async function closeInstallation() {
+  const btn = document.getElementById('s8-close-btn');
+  btn.disabled = true; btn.textContent = 'Closing…';
+  await patchTicket({ status: 'Completed', stage: 10 });
+  ticket.status = 'Completed'; ticket.stage = 10;
+  isLocked = true;
+  goToStage(10);
+}
+
+/* ── Stage 9: Done ── */
+function renderStage9() {
+  const deviceSummary = selectedDeviceIds.map(id => {
+    const d = myDevices.find(x => x.id === id);
+    return d ? deviceDisplayName(d) : null;
+  }).filter(Boolean).join(', ');
+  document.getElementById('s9-sub').textContent =
+    [ticket.customerName, ticket.vehicleRegistration, deviceSummary ? 'Device(s): ' + deviceSummary : null]
+      .filter(Boolean).join(' · ') || 'Installation has been marked complete.';
+  document.getElementById('s9-back-jobs').href =
+    getUserRole() === 'Technician' ? 'technician-jobs.html' : 'technical.html';
+  document.getElementById('s9-details').href = `job-details.html?id=${encodeURIComponent(ticket.viInstallationId || jobId)}`;
+}
+
+(async () => { await APP?.requirePageAccess?.(); init(); })();
+</script>
+</body>
+</html>

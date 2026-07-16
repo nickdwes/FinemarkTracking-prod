@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invoice Inventory - Finemark</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-6xl mx-auto space-y-6">
+          <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h1 class="text-2xl font-semibold text-slate-900">Invoice Inventory</h1>
+                <p class="mt-1 text-sm text-slate-600">Search, preview, download, print, or email invoices.</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button id="export-csv" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Export CSV</button>
+                <a href="create-invoice.html" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Create Invoice</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+            <div class="grid gap-3 md:grid-cols-5">
+              <div class="md:col-span-2">
+                <label class="text-xs font-semibold text-slate-600">Search</label>
+                <input id="filter-search" type="text" placeholder="Invoice no, customer, rep..." class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="text-xs font-semibold text-slate-600">Start Date</label>
+                <input id="filter-start" type="date" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="text-xs font-semibold text-slate-600">End Date</label>
+                <input id="filter-end" type="date" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="text-xs font-semibold text-slate-600">Rep</label>
+                <input id="filter-rep" type="text" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <button id="btn-apply" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+                Apply
+              </button>
+              <button id="btn-reset" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                Reset
+              </button>
+              <span id="result-count" class="text-xs text-slate-500"></span>
+            </div>
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <div class="overflow-x-auto">
+              <table class="w-full min-w-[920px] text-sm">
+                <thead class="text-left text-xs text-slate-500">
+                  <tr>
+                    <th class="py-2">Tax Date</th>
+                    <th class="py-2">Invoice No</th>
+                    <th class="py-2">Invoice To</th>
+                    <th class="py-2">Rep</th>
+                    <th class="py-2">Subtotal</th>
+                    <th class="py-2">VAT</th>
+                    <th class="py-2">Total</th>
+                    <th class="py-2 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="invoice-table" class="divide-y divide-slate-200"></tbody>
+              </table>
+            </div>
+            <div id="empty-state" class="hidden py-10 text-center text-sm text-slate-500">
+              No invoices found.
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+
+    <div id="preview-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 px-4">
+      <div class="w-full max-w-5xl rounded-xl bg-white shadow-lg">
+        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+          <div>
+            <p id="preview-title" class="text-sm font-semibold text-slate-900">Invoice Preview</p>
+            <p id="preview-subtitle" class="text-xs text-slate-500"></p>
+          </div>
+          <button id="preview-close" class="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-700 hover:bg-slate-50">Close</button>
+        </div>
+        <div class="grid gap-4 p-5 md:grid-cols-[1fr_240px]">
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-2">
+            <iframe id="preview-frame" class="h-[70vh] w-full rounded-lg bg-white" title="Invoice preview"></iframe>
+          </div>
+          <div class="space-y-3">
+            <label class="inline-flex items-center gap-2 text-xs text-slate-600">
+              <input id="debug-toggle" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900" />
+              Debug alignment
+            </label>
+            <a id="debug-link" href="#" target="_blank" class="text-xs text-blue-600 hover:underline">Open debug PDF</a>
+            <button id="preview-download" class="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800">Download</button>
+            <button id="preview-print" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Print</button>
+            <button id="preview-email" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Send Email</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="email-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 px-4">
+      <div class="w-full max-w-md rounded-xl bg-white shadow-lg">
+        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+          <p class="text-sm font-semibold text-slate-900">Send Invoice</p>
+          <button id="email-close" class="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-700 hover:bg-slate-50">Close</button>
+        </div>
+        <div class="p-5 space-y-3">
+          <div>
+            <label class="text-xs font-semibold text-slate-600">To Email</label>
+            <input id="email-to" type="email" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Subject</label>
+            <input id="email-subject" type="text" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Message</label>
+            <textarea id="email-message" rows="4" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"></textarea>
+          </div>
+          <div class="flex items-center justify-end gap-2">
+            <button id="email-send" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        window.FINEMARK_APP?.requirePageAccess?.();
+        window.FINEMARK_APP?.requireRole?.(["Sales", "Admin", "Finance"]);
+
+        const state = { items: [], activeId: null, activeItem: null };
+        const tableBody = document.getElementById("invoice-table");
+        const emptyState = document.getElementById("empty-state");
+        const resultCount = document.getElementById("result-count");
+        const previewModal = document.getElementById("preview-modal");
+        const previewFrame = document.getElementById("preview-frame");
+        const previewTitle = document.getElementById("preview-title");
+        const previewSubtitle = document.getElementById("preview-subtitle");
+        const emailModal = document.getElementById("email-modal");
+        const debugToggle = document.getElementById("debug-toggle");
+        const debugLink = document.getElementById("debug-link");
+
+        const formatKes = (value) => `KES ${Number(value || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const formatDate = (value) => {
+          if (!value) return "-";
+          const date = new Date(value);
+          if (Number.isNaN(date.getTime())) return value;
+          return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+        };
+
+        const fetchInvoices = async () => {
+          const params = new URLSearchParams();
+          const search = document.getElementById("filter-search").value.trim();
+          const startDate = document.getElementById("filter-start").value;
+          const endDate = document.getElementById("filter-end").value;
+          const rep = document.getElementById("filter-rep").value.trim();
+          if (search) params.set("search", search);
+          if (startDate) params.set("startDate", startDate);
+          if (endDate) params.set("endDate", endDate);
+          if (rep) params.set("rep", rep);
+          params.set("page", "1");
+          params.set("pageSize", "200");
+
+          const response = await window.FINEMARK_APP.apiFetch(`/invoices?${params.toString()}`);
+          state.items = response.data || [];
+          renderTable();
+        };
+
+        const renderTable = () => {
+          tableBody.innerHTML = "";
+          if (!state.items.length) {
+            emptyState.classList.remove("hidden");
+          } else {
+            emptyState.classList.add("hidden");
+          }
+          state.items.forEach((item) => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+              <td class="py-2">${formatDate(item.taxDate || item.issuedOn)}</td>
+              <td class="py-2 font-medium">${item.invoiceNumber}</td>
+              <td class="py-2">${item.customer}</td>
+              <td class="py-2">${item.representative || "-"}</td>
+              <td class="py-2">${formatKes(item.subtotal ?? item.amount)}</td>
+              <td class="py-2">${formatKes(item.vatTotal ?? 0)}</td>
+              <td class="py-2">${formatKes(item.total ?? item.amount)}</td>
+              <td class="py-2 text-right">
+                <button data-action="preview" data-id="${item.id}" class="text-blue-600 hover:underline text-xs">Preview</button>
+                <span class="mx-1 text-slate-300">|</span>
+                <button data-action="download" data-id="${item.id}" class="text-blue-600 hover:underline text-xs">Download</button>
+                <span class="mx-1 text-slate-300">|</span>
+                <button data-action="print" data-id="${item.id}" class="text-blue-600 hover:underline text-xs">Print</button>
+                <span class="mx-1 text-slate-300">|</span>
+                <button data-action="email" data-id="${item.id}" class="text-blue-600 hover:underline text-xs">Email</button>
+                <span class="mx-1 text-slate-300">|</span>
+                <a href="installation-ticket.html?invoiceId=${item.id}&invoiceNo=${encodeURIComponent(item.invoiceNumber)}&customer=${encodeURIComponent(item.customer)}" class="text-violet-600 hover:underline text-xs font-medium">↗ Install</a>
+              </td>
+            `;
+            tableBody.appendChild(row);
+          });
+          resultCount.textContent = `Total: ${state.items.length}`;
+        };
+
+        const getToken = () => {
+          const session = window.FINEMARK_APP.getSession?.();
+          return session?.accessToken || "";
+        };
+        const buildPdfUrl = (id, debug = false, disposition = "") => {
+          const base = `${window.FINEMARK_APP.CONFIG.API_BASE_URL}/invoices/${id}/pdf`;
+          const params = new URLSearchParams();
+          const token = getToken();
+          if (token) params.set("token", token);
+          if (debug) {
+            params.set("debug", "1");
+            params.set("grid", "1");
+          }
+          if (disposition) params.set("disposition", disposition);
+          const query = params.toString();
+          return `${base}${query ? `?${query}` : ""}`;
+        };
+
+        const openPreview = (id) => {
+          const item = state.items.find((row) => row.id === id);
+          state.activeId = id;
+          state.activeItem = item || null;
+          previewTitle.textContent = item ? `Invoice ${item.invoiceNumber}` : "Invoice Preview";
+          previewSubtitle.textContent = item ? item.customer : "";
+          const debugOn = debugToggle.checked;
+          previewFrame.src = buildPdfUrl(id, debugOn);
+          previewModal.classList.remove("hidden");
+          previewModal.classList.add("flex");
+          debugLink.href = buildPdfUrl(id, true);
+        };
+
+        const downloadPdf = (id) => {
+          window.open(buildPdfUrl(id, false, "attachment"), "_blank");
+        };
+
+        const printPdf = (id) => {
+          const win = window.open(buildPdfUrl(id, false), "_blank");
+          if (win) {
+            win.addEventListener("load", () => win.print());
+          }
+        };
+
+        const openEmail = (id) => {
+          const item = state.items.find((row) => row.id === id);
+          state.activeId = id;
+          state.activeItem = item || null;
+          document.getElementById("email-to").value = "";
+          document.getElementById("email-subject").value = `Invoice ${item?.invoiceNumber || ""} - ${item?.customer || ""}`;
+          document.getElementById("email-message").value = `Please find attached invoice ${item?.invoiceNumber || ""}.`;
+          emailModal.classList.remove("hidden");
+          emailModal.classList.add("flex");
+        };
+
+        const sendEmail = async () => {
+          const toEmail = document.getElementById("email-to").value.trim();
+          const subject = document.getElementById("email-subject").value.trim();
+          const message = document.getElementById("email-message").value.trim();
+          if (!toEmail) {
+            window.FINEMARK_APP.showToast("Recipient email is required", "error");
+            return;
+          }
+          await window.FINEMARK_APP.apiFetch(`/invoices/${state.activeId}/email`, {
+            method: "POST",
+            body: { toEmail, subject, message },
+          });
+          window.FINEMARK_APP.showToast("Email sent");
+          emailModal.classList.add("hidden");
+          emailModal.classList.remove("flex");
+        };
+
+        const exportCsv = () => {
+          const header = ["Tax Date", "Invoice No", "Invoice To", "Rep", "Subtotal", "VAT", "Total"];
+          const rows = state.items.map((item) => [
+            item.taxDate || item.issuedOn,
+            item.invoiceNumber,
+            item.customer,
+            item.representative || "",
+            item.subtotal ?? item.amount ?? 0,
+            item.vatTotal ?? 0,
+            item.total ?? item.amount ?? 0,
+          ]);
+          const content = [header, ...rows]
+            .map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(","))
+            .join("\n");
+          const blob = new Blob([content], { type: "text/csv" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `invoice-inventory_${new Date().toISOString().slice(0, 10)}.csv`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          URL.revokeObjectURL(url);
+        };
+
+        document.getElementById("btn-apply").addEventListener("click", fetchInvoices);
+        document.getElementById("btn-reset").addEventListener("click", () => {
+          document.getElementById("filter-search").value = "";
+          document.getElementById("filter-start").value = "";
+          document.getElementById("filter-end").value = "";
+          document.getElementById("filter-rep").value = "";
+          fetchInvoices();
+        });
+        document.getElementById("export-csv").addEventListener("click", exportCsv);
+
+        tableBody.addEventListener("click", (event) => {
+          const target = event.target;
+          if (!(target instanceof HTMLElement)) return;
+          const action = target.getAttribute("data-action");
+          const id = target.getAttribute("data-id");
+          if (!action || !id) return;
+          if (action === "preview") return openPreview(id);
+          if (action === "download") return downloadPdf(id);
+          if (action === "print") return printPdf(id);
+          if (action === "email") return openEmail(id);
+        });
+
+        document.getElementById("preview-close").addEventListener("click", () => {
+          previewModal.classList.add("hidden");
+          previewModal.classList.remove("flex");
+          previewFrame.src = "";
+        });
+        debugToggle.addEventListener("change", () => {
+          if (!state.activeId) return;
+          previewFrame.src = buildPdfUrl(state.activeId, debugToggle.checked);
+        });
+        document.getElementById("preview-download").addEventListener("click", () => {
+          if (state.activeId) downloadPdf(state.activeId);
+        });
+        document.getElementById("preview-print").addEventListener("click", () => {
+          if (state.activeId) printPdf(state.activeId);
+        });
+        document.getElementById("preview-email").addEventListener("click", () => {
+          if (state.activeId) openEmail(state.activeId);
+        });
+        document.getElementById("email-close").addEventListener("click", () => {
+          emailModal.classList.add("hidden");
+          emailModal.classList.remove("flex");
+        });
+        document.getElementById("email-send").addEventListener("click", sendEmail);
+
+        fetchInvoices();
+      });
+    </script>
+  </body>
+</html>

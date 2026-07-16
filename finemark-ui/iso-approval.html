@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | ISO Activation Queue</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    @keyframes fadein { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+    .fade-in { animation:fadein .22s ease; }
+    .badge { display:inline-flex;align-items:center;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid transparent; }
+    .card { background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,.04); }
+    /* Signature pad */
+    #sig-canvas { touch-action:none; cursor:crosshair; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-4 sm:p-6 max-w-4xl mx-auto">
+
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">ISO Activation Queue</h1>
+        <p class="text-sm text-slate-500 mt-0.5">Tickets awaiting your activation approval</p>
+      </div>
+      <button onclick="loadQueue()" class="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">
+        ↺ Refresh
+      </button>
+    </div>
+
+    <div id="err-banner" class="hidden mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"></div>
+
+    <!-- Loading skeleton -->
+    <div id="skeleton" class="space-y-3">
+      <div class="h-32 bg-slate-200 rounded-xl animate-pulse"></div>
+      <div class="h-32 bg-slate-200 rounded-xl animate-pulse"></div>
+    </div>
+
+    <!-- Empty state -->
+    <div id="empty-state" class="hidden card p-10 text-center">
+      <div class="mx-auto w-14 h-14 bg-green-100 rounded-full flex items-center justify-center text-2xl mb-3">✅</div>
+      <h2 class="text-lg font-semibold text-slate-800">Queue Clear</h2>
+      <p class="text-sm text-slate-500 mt-1">No tickets are awaiting activation approval right now.</p>
+    </div>
+
+    <!-- Queue list -->
+    <div id="queue-list" class="hidden space-y-4 fade-in"></div>
+
+  </main>
+</div>
+<div id="fm-footer"></div>
+<div id="toast-root" class="fixed top-4 right-4 z-50 space-y-2 pointer-events-none"></div>
+
+<!-- ── Approve / Reject Modal ─────────────────────────────────────────── -->
+<div id="modal" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/40">
+  <div class="card w-full max-w-lg fade-in">
+    <div class="px-6 pt-5 pb-4 border-b border-slate-100 flex items-center justify-between">
+      <h2 id="modal-title" class="text-base font-semibold text-slate-900"></h2>
+      <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+    </div>
+
+    <!-- Approve panel -->
+    <div id="modal-approve" class="hidden px-6 pt-4 pb-5 space-y-4">
+      <div id="ap-ticket-info" class="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800 space-y-1"></div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <label class="flex items-center gap-2 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+          <input type="checkbox" id="ap-ignition" class="w-4 h-4 accent-green-600" />
+          <span class="text-sm text-slate-700">Ignition events OK</span>
+        </label>
+        <label class="flex items-center gap-2 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+          <input type="checkbox" id="ap-location" class="w-4 h-4 accent-green-600" />
+          <span class="text-sm text-slate-700">Location / GPS OK</span>
+        </label>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Platform Screenshot URL <span class="text-slate-400 font-normal">(optional)</span></label>
+        <input id="ap-screenshot-url" type="url" placeholder="https://…"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Upload Platform Screenshot <span class="text-slate-400 font-normal">(optional)</span></label>
+        <div id="ap-upload-area" class="border-2 border-dashed border-slate-200 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 transition" onclick="document.getElementById('ap-file-input').click()">
+          <div id="ap-upload-placeholder"><span class="text-xl">📷</span><p class="text-xs text-slate-500 mt-1">Click to upload screenshot</p></div>
+          <div id="ap-upload-preview" class="hidden"><img id="ap-preview-img" src="" class="max-h-32 mx-auto rounded" /><p class="text-xs text-green-600 mt-1 font-medium">✓ Screenshot ready</p></div>
+          <input type="file" id="ap-file-input" accept="image/*,application/pdf" class="hidden" onchange="handleApproveUpload(this)" />
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">ISO Notes <span class="text-slate-400 font-normal">(optional)</span></label>
+        <textarea id="ap-notes" rows="3" placeholder="Any observations, platform URL, or activation notes…"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"></textarea>
+      </div>
+
+      <!-- Signature pad -->
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <label class="text-xs font-semibold text-slate-600">ISO Signature</label>
+          <button onclick="clearSig()" class="text-xs text-slate-400 hover:text-slate-700">Clear</button>
+        </div>
+        <div class="border border-slate-200 rounded-lg overflow-hidden bg-white">
+          <canvas id="sig-canvas" width="500" height="130" class="w-full"></canvas>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">Draw your signature above using mouse or touch.</p>
+      </div>
+
+      <button onclick="submitApprove()"
+        class="w-full py-2.5 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition">
+        ✓ Approve Activation
+      </button>
+    </div>
+
+    <!-- Reject panel -->
+    <div id="modal-reject" class="hidden px-6 pt-4 pb-5 space-y-4">
+      <div id="rj-ticket-info" class="rounded-lg bg-rose-50 border border-rose-200 px-4 py-3 text-sm text-rose-800 space-y-1"></div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Rejection Reason <span class="text-red-500">*</span></label>
+        <textarea id="rj-reason" rows="4" placeholder="Describe what needs to be fixed before activation can be approved…"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/40 resize-none"></textarea>
+      </div>
+      <button onclick="submitReject()"
+        class="w-full py-2.5 bg-rose-600 text-white rounded-lg text-sm font-semibold hover:bg-rose-700 transition">
+        ✗ Reject — Send Back to Technician
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/app.js?v=202607011748"></script>
+<script src="assets/layout.js?v=202607011748"></script>
+<script>
+const APP = window.FINEMARK_APP;
+
+let queue = [];
+let activeTicketId = null;
+let activeMode = null; // 'approve' | 'reject'
+let apUploadedUrl = '';
+
+/* ── Toast ── */
+function toast(msg, type = 'success') {
+  const root = document.getElementById('toast-root');
+  const div = document.createElement('div');
+  const cls = type === 'error' ? 'bg-red-600' : type === 'warning' ? 'bg-amber-500' : 'bg-emerald-600';
+  div.className = `${cls} text-white text-sm px-4 py-2.5 rounded-xl shadow-lg pointer-events-auto`;
+  div.textContent = msg;
+  root.appendChild(div);
+  setTimeout(() => div.remove(), 3500);
+}
+
+/* ── Status badge ── */
+function badgeCls(s) {
+  return ({ Pending:'border-slate-200 bg-slate-100 text-slate-600',
+    Assigned:'border-blue-200 bg-blue-50 text-blue-700',
+    InProgress:'border-yellow-200 bg-yellow-50 text-yellow-700',
+    Completed:'border-green-200 bg-green-50 text-green-700',
+    Cancelled:'border-red-200 bg-red-50 text-red-700' })[s] || 'border-slate-200 bg-slate-100 text-slate-500';
+}
+
+function relTime(iso) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.round(diff / 60000);
+  if (m < 2)  return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.round(h/24)}d ago`;
+}
+
+/* ── Load queue ── */
+async function loadQueue() {
+  document.getElementById('skeleton').classList.remove('hidden');
+  document.getElementById('queue-list').classList.add('hidden');
+  document.getElementById('empty-state').classList.add('hidden');
+  document.getElementById('err-banner').classList.add('hidden');
+
+  try {
+    // Fetch all tickets then filter to those with activation_requested_at set and not yet approved
+    const data = await APP.apiFetch('/installation-tickets?limit=200');
+    const all = data?.data || data || [];
+    queue = (Array.isArray(all) ? all : [])
+      .filter(t => t.activationRequestedAt && !t.activationApprovedAt && !t.activationRejectedAt);
+  } catch(e) {
+    document.getElementById('skeleton').classList.add('hidden');
+    const eb = document.getElementById('err-banner');
+    eb.textContent = 'Failed to load queue — ' + (e?.message || 'check connection');
+    eb.classList.remove('hidden');
+    return;
+  }
+
+  document.getElementById('skeleton').classList.add('hidden');
+
+  if (!queue.length) {
+    document.getElementById('empty-state').classList.remove('hidden');
+    return;
+  }
+
+  document.getElementById('queue-list').classList.remove('hidden');
+  document.getElementById('queue-list').innerHTML = queue.map(t => renderCard(t)).join('');
+}
+
+function renderCard(t) {
+  const devices = (t.devices || []).slice(0, 3).map(d =>
+    `<span class="inline-flex items-center gap-1 text-xs font-mono bg-slate-100 px-2 py-0.5 rounded">${d.serialNumber || d.imei || d.id}</span>`
+  ).join('');
+  const ac = t.activation || {};
+  const techInfo = [t.assignedToEmail, t.coTechnicianEmail].filter(Boolean).join(', ');
+
+  return `
+  <div class="card p-5 fade-in space-y-3" id="card-${t.id}">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="font-semibold text-slate-900">${t.ticketNo}</span>
+          <span class="badge ${badgeCls(t.status)}">${t.status}</span>
+          <span class="text-xs text-slate-400">${relTime(t.activationRequestedAt)}</span>
+        </div>
+        <p class="text-sm text-slate-500 mt-0.5">${[t.customerName, t.vehicleRegistration].filter(Boolean).join(' · ') || '—'}</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a href="job-details.html?id=${encodeURIComponent(t.viInstallationId || t.id)}" target="_blank"
+          class="px-3 py-1.5 text-xs border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition">
+          View Details ↗
+        </a>
+        <button onclick="openReject('${t.id}')"
+          class="px-3 py-1.5 text-xs border border-rose-200 rounded-lg text-rose-600 hover:bg-rose-50 transition font-semibold">
+          Reject
+        </button>
+        <button onclick="openApprove('${t.id}')"
+          class="px-3 py-1.5 text-xs bg-green-600 rounded-lg text-white hover:bg-green-700 transition font-semibold">
+          Approve
+        </button>
+      </div>
+    </div>
+
+    ${devices ? `<div class="flex flex-wrap gap-1.5"><span class="text-xs text-slate-400 mr-1">Devices:</span>${devices}</div>` : ''}
+
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+      <div class="bg-slate-50 rounded-lg px-3 py-2">
+        <p class="text-slate-400 mb-0.5">Technician</p>
+        <p class="font-medium text-slate-700 truncate">${techInfo || '—'}</p>
+      </div>
+      <div class="bg-slate-50 rounded-lg px-3 py-2">
+        <p class="text-slate-400 mb-0.5">Stage</p>
+        <p class="font-medium text-slate-700">${t.stage ?? '—'}</p>
+      </div>
+      <div class="bg-slate-50 rounded-lg px-3 py-2">
+        <p class="text-slate-400 mb-0.5">Requested</p>
+        <p class="font-medium text-slate-700">${t.activationRequestedAt ? new Date(t.activationRequestedAt).toLocaleString([], {dateStyle:'short',timeStyle:'short'}) : '—'}</p>
+      </div>
+      <div class="bg-slate-50 rounded-lg px-3 py-2">
+        <p class="text-slate-400 mb-0.5">Location</p>
+        <p class="font-medium text-slate-700 truncate">${t.installationLocation || '—'}</p>
+      </div>
+    </div>
+
+    ${ac.platformUrl ? `<div class="text-xs text-blue-600"><a href="${ac.platformUrl}" target="_blank" class="underline hover:text-blue-800">📡 Platform: ${ac.platformUrl}</a></div>` : ''}
+    ${ac.imeiConfirmed ? `<p class="text-xs text-slate-500 font-mono">IMEI: ${ac.imeiConfirmed}${ac.simConfirmed ? ' · SIM: '+ac.simConfirmed : ''}</p>` : ''}
+    ${ac.engineerNotes ? `<div class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800"><strong>Tech notes:</strong> ${ac.engineerNotes}</div>` : ''}
+  </div>`;
+}
+
+/* ── Modal helpers ── */
+function getTicket(id) { return queue.find(t => t.id === id); }
+
+function openApprove(id) {
+  activeTicketId = id; activeMode = 'approve'; apUploadedUrl = '';
+  const t = getTicket(id);
+  document.getElementById('modal-title').textContent = `Approve Activation — ${t?.ticketNo || id}`;
+  document.getElementById('modal-approve').classList.remove('hidden');
+  document.getElementById('modal-reject').classList.add('hidden');
+  const infoEl = document.getElementById('ap-ticket-info');
+  infoEl.innerHTML = [
+    ['Ticket', t?.ticketNo], ['Customer', t?.customerName || '—'],
+    ['Vehicle', t?.vehicleRegistration || '—'], ['Technician', t?.assignedToEmail || '—'],
+  ].map(([k,v]) => `<div class="flex gap-3"><span class="w-24 text-blue-600 shrink-0">${k}</span><span class="font-medium">${v}</span></div>`).join('');
+  document.getElementById('ap-ignition').checked = false;
+  document.getElementById('ap-location').checked = false;
+  document.getElementById('ap-notes').value = '';
+  document.getElementById('ap-screenshot-url').value = '';
+  document.getElementById('ap-upload-preview').classList.add('hidden');
+  document.getElementById('ap-upload-placeholder').classList.remove('hidden');
+  clearSig();
+  document.getElementById('modal').classList.remove('hidden');
+  initSig();
+}
+
+function openReject(id) {
+  activeTicketId = id; activeMode = 'reject';
+  const t = getTicket(id);
+  document.getElementById('modal-title').textContent = `Reject Activation — ${t?.ticketNo || id}`;
+  document.getElementById('modal-approve').classList.add('hidden');
+  document.getElementById('modal-reject').classList.remove('hidden');
+  const infoEl = document.getElementById('rj-ticket-info');
+  infoEl.innerHTML = [
+    ['Ticket', t?.ticketNo], ['Customer', t?.customerName || '—'], ['Vehicle', t?.vehicleRegistration || '—'],
+  ].map(([k,v]) => `<div class="flex gap-3"><span class="w-24 text-rose-600 shrink-0">${k}</span><span class="font-medium">${v}</span></div>`).join('');
+  document.getElementById('rj-reason').value = '';
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.add('hidden');
+  activeTicketId = null; activeMode = null;
+}
+document.getElementById('modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+
+/* ── Signature pad ── */
+let sigCanvas, sigCtx, sigDrawing = false, sigHasData = false;
+function initSig() {
+  sigCanvas = document.getElementById('sig-canvas');
+  sigCtx = sigCanvas.getContext('2d');
+  // Resize canvas to match CSS display size for crisp rendering
+  const rect = sigCanvas.getBoundingClientRect();
+  sigCanvas.width = Math.round(rect.width * window.devicePixelRatio || 1);
+  sigCanvas.height = Math.round(rect.height * window.devicePixelRatio || 1);
+  sigCtx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+  sigCtx.strokeStyle = '#1e293b'; sigCtx.lineWidth = 2; sigCtx.lineCap = 'round'; sigCtx.lineJoin = 'round';
+
+  function pos(e) {
+    const r = sigCanvas.getBoundingClientRect();
+    const src = e.touches ? e.touches[0] : e;
+    return { x: src.clientX - r.left, y: src.clientY - r.top };
+  }
+  sigCanvas.onmousedown  = e => { sigDrawing = true; const p = pos(e); sigCtx.beginPath(); sigCtx.moveTo(p.x, p.y); };
+  sigCanvas.onmousemove  = e => { if (!sigDrawing) return; const p = pos(e); sigCtx.lineTo(p.x, p.y); sigCtx.stroke(); sigHasData = true; };
+  sigCanvas.onmouseup    = () => { sigDrawing = false; };
+  sigCanvas.onmouseleave = () => { sigDrawing = false; };
+  sigCanvas.ontouchstart = e => { e.preventDefault(); sigDrawing = true; const p = pos(e); sigCtx.beginPath(); sigCtx.moveTo(p.x, p.y); };
+  sigCanvas.ontouchmove  = e => { e.preventDefault(); if (!sigDrawing) return; const p = pos(e); sigCtx.lineTo(p.x, p.y); sigCtx.stroke(); sigHasData = true; };
+  sigCanvas.ontouchend   = () => { sigDrawing = false; };
+}
+function clearSig() {
+  if (!sigCtx) return;
+  sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+  sigHasData = false;
+}
+function sigDataUrl() {
+  if (!sigCanvas) return null;
+  return sigHasData ? sigCanvas.toDataURL('image/png') : null;
+}
+
+/* ── Upload screenshot inside approve modal ── */
+async function handleApproveUpload(input) {
+  const file = input.files[0]; if (!file || !activeTicketId) return;
+  const area = document.getElementById('ap-upload-area');
+  area.style.opacity = '0.5';
+  try {
+    const session = APP.getSession?.();
+    const token = session?.accessToken || session?.user?.accessToken;
+    const fd = new FormData(); fd.append('file', file);
+    const resp = await fetch(`/api/installation-tickets/${activeTicketId}/upload`, {
+      method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {}, body: fd,
+    });
+    const data = await resp.json();
+    if (resp.ok && data?.data?.url) {
+      apUploadedUrl = data.data.url;
+      document.getElementById('ap-preview-img').src = apUploadedUrl;
+      document.getElementById('ap-upload-preview').classList.remove('hidden');
+      document.getElementById('ap-upload-placeholder').classList.add('hidden');
+    } else { toast('Upload failed', 'error'); }
+  } catch { toast('Upload failed — check connection', 'error'); }
+  finally { area.style.opacity = ''; }
+}
+
+/* ── Submit approve ── */
+async function submitApprove() {
+  if (!activeTicketId) return;
+  const notes      = document.getElementById('ap-notes').value.trim();
+  const ignitionOk = document.getElementById('ap-ignition').checked;
+  const locationOk = document.getElementById('ap-location').checked;
+  const screenshotUrl = apUploadedUrl || document.getElementById('ap-screenshot-url').value.trim();
+
+  const btn = document.querySelector('#modal-approve button:last-child');
+  if (btn) { btn.disabled = true; btn.textContent = 'Approving…'; }
+
+  try {
+    await APP.apiFetch(`/installation-tickets/${activeTicketId}/activation-approve`, {
+      method: 'POST',
+      body: { notes, ignitionOk, locationOk, platformScreenshotUrl: screenshotUrl },
+    });
+    toast('Activation approved — technician notified');
+    closeModal();
+    // Remove from queue
+    queue = queue.filter(t => t.id !== activeTicketId);
+    document.getElementById(`card-${activeTicketId}`)?.remove();
+    if (!queue.length) {
+      document.getElementById('queue-list').classList.add('hidden');
+      document.getElementById('empty-state').classList.remove('hidden');
+    }
+  } catch(e) {
+    toast(e.message || 'Approval failed', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '✓ Approve Activation'; }
+  }
+}
+
+/* ── Submit reject ── */
+async function submitReject() {
+  if (!activeTicketId) return;
+  const reason = document.getElementById('rj-reason').value.trim();
+  if (!reason) { toast('Rejection reason is required.', 'warning'); return; }
+
+  const btn = document.querySelector('#modal-reject button:last-child');
+  if (btn) { btn.disabled = true; btn.textContent = 'Rejecting…'; }
+
+  try {
+    await APP.apiFetch(`/installation-tickets/${activeTicketId}/activation-reject`, {
+      method: 'POST', body: { reason },
+    });
+    toast('Activation rejected — technician notified', 'warning');
+    closeModal();
+    queue = queue.filter(t => t.id !== activeTicketId);
+    document.getElementById(`card-${activeTicketId}`)?.remove();
+    if (!queue.length) {
+      document.getElementById('queue-list').classList.add('hidden');
+      document.getElementById('empty-state').classList.remove('hidden');
+    }
+  } catch(e) {
+    toast(e.message || 'Rejection failed', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '✗ Reject — Send Back to Technician'; }
+  }
+}
+
+/* ── Init ── */
+APP.ready(() => {
+  const session = APP.getSession?.();
+  const role = session?.user?.role || session?.role || '';
+  if (!['ISO', 'Technical', 'Admin', 'InstallOffice'].includes(role)) {
+    document.getElementById('err-banner').textContent = 'Access denied — this page is for ISO officers only.';
+    document.getElementById('err-banner').classList.remove('hidden');
+    document.getElementById('skeleton').classList.add('hidden');
+    return;
+  }
+  loadQueue();
+});
+</script>
+</body>
+</html>

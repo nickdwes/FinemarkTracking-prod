@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Access Control</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+    <div class="max-w-7xl mx-auto space-y-6">
+
+      <!-- Page header -->
+      <div class="flex flex-wrap items-center gap-3 justify-between">
+        <div class="flex items-center gap-3">
+          <a href="admin.html"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 transition shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            Back
+          </a>
+          <div>
+            <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Access Control</h1>
+            <p class="text-sm text-slate-600">Configure role capabilities and create custom roles.</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="inline-flex items-center rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 border border-red-100">Admin Only</span>
+          <button id="btn-new-role" type="button" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+            + New Custom Role
+          </button>
+        </div>
+      </div>
+
+      <!-- Info banner -->
+      <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 flex gap-2">
+        <svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span><strong>System roles</strong> cannot be deleted. You can adjust their capability set. <strong>Custom roles</strong> inherit API permissions from a base system role and use capabilities for page-level access.</span>
+      </div>
+
+      <!-- Main layout: roles list + capability editor side by side on larger screens -->
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+
+        <!-- Left: Roles list (2 cols) -->
+        <div class="lg:col-span-2 bg-white border border-slate-200/80 rounded-xl shadow-sm shadow-slate-200/60 overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h2 class="font-semibold text-slate-800">Roles</h2>
+            <span id="roles-count" class="text-xs text-slate-500">Loading…</span>
+          </div>
+          <div id="roles-list" class="divide-y divide-slate-100">
+            <div class="px-5 py-8 text-center text-sm text-slate-400">Loading roles…</div>
+          </div>
+        </div>
+
+        <!-- Right: Capability editor (3 cols) -->
+        <div id="capability-panel" class="lg:col-span-3 bg-white border border-slate-200/80 rounded-xl shadow-sm shadow-slate-200/60 overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <h2 id="editor-role-name" class="font-semibold text-slate-800">Select a role to edit</h2>
+              <p id="editor-role-meta" class="text-xs text-slate-500 mt-0.5"></p>
+            </div>
+            <div id="editor-actions" class="hidden flex items-center gap-2">
+              <button id="btn-delete-role" type="button" class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 hidden">Delete Role</button>
+              <button id="btn-save-caps" type="button" class="rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-blue-700">Save Changes</button>
+            </div>
+          </div>
+          <div id="editor-placeholder" class="px-5 py-16 text-center text-sm text-slate-400">
+            <svg class="w-10 h-10 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+            Select a role from the list to view and edit its capabilities.
+          </div>
+          <div id="editor-body" class="hidden px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto"></div>
+        </div>
+      </div><!-- /grid -->
+
+    </div><!-- /max-w -->
+  </main>
+</div>
+
+<!-- ================================ NEW ROLE MODAL ================================ -->
+<div id="modal-new-role" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+  <div class="absolute inset-0 bg-black/40" id="modal-new-role-backdrop"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+      <h3 class="text-lg font-semibold text-slate-900">New Custom Role</h3>
+      <button id="btn-close-new-role" type="button" class="text-slate-400 hover:text-slate-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="overflow-y-auto flex-1 px-6 py-5 space-y-5">
+      <!-- Basic fields -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="space-y-1.5">
+          <label class="block text-sm font-medium text-slate-700" for="nr-display-name">Display Name <span class="text-red-500">*</span></label>
+          <input id="nr-display-name" type="text" placeholder="e.g. Senior Sales" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/30" />
+          <p id="err-nr-display-name" class="text-xs text-red-600 hidden"></p>
+        </div>
+        <div class="space-y-1.5">
+          <label class="block text-sm font-medium text-slate-700" for="nr-role-key">Role Key <span class="text-red-500">*</span></label>
+          <input id="nr-role-key" type="text" placeholder="e.g. senior_sales" maxlength="40" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono focus:outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/30" />
+          <p class="text-xs text-slate-500">Lowercase, letters/numbers/underscores only.</p>
+          <p id="err-nr-role-key" class="text-xs text-red-600 hidden"></p>
+        </div>
+        <div class="space-y-1.5">
+          <label class="block text-sm font-medium text-slate-700" for="nr-base-role">Base System Role <span class="text-red-500">*</span></label>
+          <select id="nr-base-role" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/30">
+            <option value="">— select base role —</option>
+          </select>
+          <p class="text-xs text-slate-500">API-level permissions are inherited from this role.</p>
+          <p id="err-nr-base-role" class="text-xs text-red-600 hidden"></p>
+        </div>
+        <div class="space-y-1.5">
+          <label class="block text-sm font-medium text-slate-700" for="nr-badge-color">Badge Colour</label>
+          <div class="flex items-center gap-2">
+            <input id="nr-badge-color" type="color" value="#6b7280" class="h-9 w-14 rounded-lg border border-slate-200 cursor-pointer p-1" />
+            <span class="text-xs text-slate-500">Shown in user management tables.</span>
+          </div>
+        </div>
+        <div class="sm:col-span-2 space-y-1.5">
+          <label class="block text-sm font-medium text-slate-700" for="nr-description">Description</label>
+          <input id="nr-description" type="text" placeholder="Brief description of this role's purpose" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/30" />
+        </div>
+      </div>
+
+      <!-- Capability checkboxes -->
+      <div>
+        <h4 class="text-sm font-semibold text-slate-700 mb-3">Capabilities</h4>
+        <div id="nr-caps-container" class="space-y-4">
+          <p class="text-sm text-slate-400">Loading capability list…</p>
+        </div>
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 shrink-0">
+      <button id="btn-cancel-new-role" type="button" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
+      <button id="btn-create-role" type="button" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Create Role</button>
+    </div>
+  </div>
+</div>
+<div id="fm-footer"></div>
+
+<!-- ================================ SCRIPTS ================================ -->
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+(async () => {
+  await FINEMARK_APP.requirePageAccess();
+
+  const { apiFetch, showToast, RoleConfigService } = FINEMARK_APP;
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  let allRoles = [];
+  let capDefs = {};    // { cap_key: { label, pages } }
+  let capModules = {}; // { module_key: { label, capabilities[] } }
+  let selectedRoleId = null;
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  const $ = (id) => document.getElementById(id);
+
+  function roleBadge(role) {
+    const color = role.badge_color || '#6b7280';
+    return `<span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold border"
+              style="background-color:${color}18;color:${color};border-color:${color}30">
+              ${escHtml(role.display_name)}
+            </span>`;
+  }
+
+  function escHtml(str) {
+    return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Load capability definitions once ──────────────────────────────────────
+  async function loadCapDefs() {
+    try {
+      const data = await RoleConfigService.capabilityDefinitions();
+      capDefs = data.capabilities || {};
+      capModules = data.modules || {};
+    } catch (e) {
+      console.error('Could not load capability definitions', e);
+    }
+  }
+
+  // ── Render capabilities checkboxes into a container ───────────────────────
+  function renderCapCheckboxes(containerId, selectedCaps) {
+    const container = $(containerId);
+    if (!container) return;
+    const selected = new Set(selectedCaps || []);
+    const html = Object.entries(capModules).map(([modKey, mod]) => {
+      const checkboxes = mod.capabilities.map((cap) => {
+        const def = capDefs[cap] || { label: cap };
+        const chk = selected.has(cap) ? 'checked' : '';
+        return `<label class="flex items-start gap-2 cursor-pointer group">
+          <input type="checkbox" value="${escHtml(cap)}" ${chk}
+            class="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cap-checkbox" />
+          <span class="text-sm text-slate-700 group-hover:text-slate-900 leading-snug">
+            ${escHtml(def.label)}
+            <span class="block text-xs text-slate-400 font-mono">${escHtml(cap)}</span>
+          </span>
+        </label>`;
+      }).join('');
+
+      // Count selected in this module
+      const selectedInMod = mod.capabilities.filter((c) => selected.has(c)).length;
+
+      return `<div class="rounded-lg border border-slate-100 overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-100">
+          <span class="text-xs font-semibold uppercase tracking-wide text-slate-600">${escHtml(mod.label)}</span>
+          <span class="text-xs text-slate-400 mod-count" data-mod="${modKey}">${selectedInMod}/${mod.capabilities.length}</span>
+        </div>
+        <div class="px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-2" data-mod-caps="${modKey}">
+          ${checkboxes}
+        </div>
+      </div>`;
+    }).join('');
+    container.innerHTML = html;
+
+    // Update module counts dynamically
+    container.addEventListener('change', () => updateModCounts(container));
+  }
+
+  function updateModCounts(container) {
+    Object.entries(capModules).forEach(([modKey, mod]) => {
+      const checked = container.querySelectorAll(`[data-mod-caps="${modKey}"] .cap-checkbox:checked`).length;
+      const el = container.querySelector(`[data-mod="${modKey}"]`);
+      if (el) el.textContent = `${checked}/${mod.capabilities.length}`;
+    });
+  }
+
+  function getCheckedCaps(containerId) {
+    return Array.from(
+      document.querySelectorAll(`#${containerId} .cap-checkbox:checked`)
+    ).map((el) => el.value);
+  }
+
+  // ── Load & render roles list ───────────────────────────────────────────────
+  async function loadRoles() {
+    try {
+      const data = await RoleConfigService.list();
+      allRoles = data.roles || [];
+      renderRolesList();
+    } catch (e) {
+      $('roles-list').innerHTML = `<div class="px-5 py-8 text-center text-sm text-red-500">Failed to load roles.</div>`;
+    }
+  }
+
+  function renderRolesList() {
+    $('roles-count').textContent = `${allRoles.length} role${allRoles.length !== 1 ? 's' : ''}`;
+    if (!allRoles.length) {
+      $('roles-list').innerHTML = `<div class="px-5 py-8 text-center text-sm text-slate-400">No roles found.</div>`;
+      return;
+    }
+    $('roles-list').innerHTML = allRoles.map((role) => {
+      const isSelected = role.id === selectedRoleId;
+      const capCount = (role.capabilities || []).length;
+      const typeTag = role.is_system
+        ? `<span class="rounded-full bg-slate-100 text-slate-500 px-2 py-0.5 text-xs">System</span>`
+        : `<span class="rounded-full bg-blue-50 text-blue-600 px-2 py-0.5 text-xs">Custom</span>`;
+      const baseTag = !role.is_system && role.base_role
+        ? `<span class="text-xs text-slate-400">↳ ${escHtml(role.base_role)}</span>`
+        : '';
+      return `<button type="button" data-role-id="${role.id}"
+          class="w-full text-left px-5 py-3.5 hover:bg-slate-50 transition-colors focus:outline-none focus-visible:bg-blue-50 role-list-item
+          ${isSelected ? 'bg-blue-50 border-l-2 border-blue-500' : 'border-l-2 border-transparent'}">
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color:${escHtml(role.badge_color || '#6b7280')}"></span>
+              <span class="font-medium text-slate-800 text-sm truncate">${escHtml(role.display_name)}</span>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              ${typeTag}
+              <span class="text-xs text-slate-400">${capCount} cap${capCount !== 1 ? 's' : ''}</span>
+            </div>
+          </div>
+          ${baseTag ? `<div class="mt-0.5 pl-5">${baseTag}</div>` : ''}
+          ${role.description ? `<p class="mt-1 pl-5 text-xs text-slate-400 truncate">${escHtml(role.description)}</p>` : ''}
+        </button>`;
+    }).join('');
+
+    // Bind click events
+    $('roles-list').querySelectorAll('.role-list-item').forEach((btn) => {
+      btn.addEventListener('click', () => selectRole(btn.dataset.roleId));
+    });
+  }
+
+  // ── Select a role and populate the editor ─────────────────────────────────
+  function selectRole(roleId) {
+    selectedRoleId = roleId;
+    const role = allRoles.find((r) => r.id === roleId);
+    if (!role) return;
+
+    // Highlight in list
+    renderRolesList();
+
+    // Populate editor header
+    $('editor-role-name').textContent = role.display_name;
+    const meta = [
+      `Key: ${role.role_key}`,
+      role.is_system ? 'System role' : `Custom · base: ${role.base_role || '—'}`,
+      role.description || '',
+    ].filter(Boolean).join(' · ');
+    $('editor-role-meta').textContent = meta;
+
+    // Show/hide delete button (custom roles only)
+    const deleteBtn = $('btn-delete-role');
+    if (role.is_system) {
+      deleteBtn.classList.add('hidden');
+    } else {
+      deleteBtn.classList.remove('hidden');
+      deleteBtn.dataset.roleId = role.id;
+      deleteBtn.dataset.roleKey = role.role_key;
+      deleteBtn.dataset.displayName = role.display_name;
+    }
+
+    // Show editor
+    $('editor-placeholder').classList.add('hidden');
+    $('editor-body').classList.remove('hidden');
+    $('editor-actions').classList.remove('hidden');
+
+    // Render capability checkboxes
+    $('editor-body').innerHTML = `<div id="editor-caps-container" class="space-y-4"></div>`;
+    renderCapCheckboxes('editor-caps-container', role.capabilities || []);
+  }
+
+  // ── Save capabilities for selected role ───────────────────────────────────
+  async function saveCapabilities() {
+    if (!selectedRoleId) return;
+    const caps = getCheckedCaps('editor-caps-container');
+    const btn = $('btn-save-caps');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    try {
+      await RoleConfigService.update(selectedRoleId, { capabilities: caps });
+      showToast('Capabilities updated successfully.');
+      await loadRoles();
+      selectRole(selectedRoleId);
+    } catch (e) {
+      showToast(e?.message || 'Failed to save capabilities.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Save Changes';
+    }
+  }
+
+  // ── Delete custom role ─────────────────────────────────────────────────────
+  async function deleteRole(roleId, displayName) {
+    if (!confirm(`Delete role "${displayName}"? Users assigned this role will lose access until reassigned.`)) return;
+    try {
+      await RoleConfigService.remove(roleId);
+      showToast(`Role "${displayName}" deleted.`);
+      selectedRoleId = null;
+      $('editor-placeholder').classList.remove('hidden');
+      $('editor-body').classList.add('hidden');
+      $('editor-actions').classList.add('hidden');
+      $('editor-role-name').textContent = 'Select a role to edit';
+      $('editor-role-meta').textContent = '';
+      await loadRoles();
+    } catch (e) {
+      showToast(e?.message || 'Failed to delete role.', 'error');
+    }
+  }
+
+  // ── New Role modal ─────────────────────────────────────────────────────────
+  function openNewRoleModal() {
+    // Populate base role options from system roles
+    const select = $('nr-base-role');
+    const systemRoles = allRoles.filter((r) => r.is_system);
+    select.innerHTML = `<option value="">— select base role —</option>` +
+      systemRoles.map((r) => `<option value="${escHtml(r.role_key)}">${escHtml(r.display_name)}</option>`).join('');
+
+    // Populate capability checkboxes
+    renderCapCheckboxes('nr-caps-container', []);
+
+    // Auto-slug display name → role_key
+    $('nr-display-name').addEventListener('input', () => {
+      const slug = $('nr-display-name').value
+        .toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+      $('nr-role-key').value = slug;
+    });
+
+    $('modal-new-role').classList.remove('hidden');
+  }
+
+  function closeNewRoleModal() {
+    $('modal-new-role').classList.add('hidden');
+    $('nr-display-name').value = '';
+    $('nr-role-key').value = '';
+    $('nr-base-role').value = '';
+    $('nr-description').value = '';
+    $('nr-badge-color').value = '#6b7280';
+    ['nr-display-name','nr-role-key','nr-base-role'].forEach((id) => {
+      const el = $('err-' + id);
+      if (el) { el.textContent = ''; el.classList.add('hidden'); }
+    });
+  }
+
+  async function createRole() {
+    // Validate
+    let valid = true;
+    const fields = [
+      { id: 'nr-display-name', errId: 'err-nr-display-name', label: 'Display name is required.' },
+      { id: 'nr-role-key',     errId: 'err-nr-role-key',     label: 'Role key is required.' },
+      { id: 'nr-base-role',    errId: 'err-nr-base-role',    label: 'Base role is required.' },
+    ];
+    fields.forEach(({ id, errId, label }) => {
+      const val = $(id).value.trim();
+      const errEl = $(errId);
+      if (!val) {
+        errEl.textContent = label; errEl.classList.remove('hidden'); valid = false;
+      } else {
+        errEl.textContent = ''; errEl.classList.add('hidden');
+      }
+    });
+    if (!valid) return;
+
+    const roleKey = $('nr-role-key').value.trim();
+    if (!/^[a-z][a-z0-9_]*$/.test(roleKey)) {
+      $('err-nr-role-key').textContent = 'Role key must be lowercase alphanumeric with underscores.';
+      $('err-nr-role-key').classList.remove('hidden');
+      return;
+    }
+
+    const caps = getCheckedCaps('nr-caps-container');
+    const btn = $('btn-create-role');
+    btn.disabled = true; btn.textContent = 'Creating…';
+
+    try {
+      await RoleConfigService.create({
+        roleKey,
+        displayName: $('nr-display-name').value.trim(),
+        baseRole: $('nr-base-role').value,
+        description: $('nr-description').value.trim() || undefined,
+        badgeColor: $('nr-badge-color').value,
+        capabilities: caps,
+      });
+      showToast('Role created successfully.');
+      closeNewRoleModal();
+      await loadRoles();
+    } catch (e) {
+      showToast(e?.message || 'Failed to create role.', 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Create Role';
+    }
+  }
+
+  // ── Wire up static event listeners ────────────────────────────────────────
+  $('btn-save-caps').addEventListener('click', saveCapabilities);
+
+  $('btn-delete-role').addEventListener('click', () => {
+    const btn = $('btn-delete-role');
+    deleteRole(btn.dataset.roleId, btn.dataset.displayName);
+  });
+
+  $('btn-new-role').addEventListener('click', openNewRoleModal);
+  $('btn-close-new-role').addEventListener('click', closeNewRoleModal);
+  $('btn-cancel-new-role').addEventListener('click', closeNewRoleModal);
+  $('modal-new-role-backdrop').addEventListener('click', closeNewRoleModal);
+  $('btn-create-role').addEventListener('click', createRole);
+
+  // ── Bootstrap ─────────────────────────────────────────────────────────────
+  await loadCapDefs();
+  await loadRoles();
+})();
+</script>
+  </body>
+</html>

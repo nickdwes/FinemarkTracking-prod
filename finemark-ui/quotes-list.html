@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quotes | Finemark</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+    <div class="max-w-6xl mx-auto space-y-6">
+      <!-- Header -->
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Quotes</h1>
+          <p class="text-sm text-slate-600 mt-1">Manage customer quotes and proposals</p>
+        </div>
+        <button id="btn-create-quote" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition">
+          <span>+</span> New Quote
+        </button>
+      </div>
+
+      <!-- Filters -->
+      <div class="bg-white rounded-lg border border-slate-200 p-4 space-y-4">
+        <div class="grid gap-4 md:grid-cols-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1.5">Search</label>
+            <input id="search-quote" type="text" placeholder="Quote number, customer..." class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1.5">Status</label>
+            <select id="filter-status" class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40">
+              <option value="">All Statuses</option>
+              <option value="Draft">Draft</option>
+              <option value="Sent">Sent</option>
+              <option value="Accepted">Accepted</option>
+              <option value="Rejected">Rejected</option>
+              <option value="Expired">Expired</option>
+            </select>
+          </div>
+          <div class="flex items-end">
+            <button id="btn-filter-clear" class="w-full rounded-md bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 transition">
+              Clear Filters
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quotes List -->
+      <div id="quote-list-container" class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th class="px-6 py-3 text-left font-semibold text-slate-700">Quote #</th>
+                <th class="px-6 py-3 text-left font-semibold text-slate-700">Customer</th>
+                <th class="px-6 py-3 text-right font-semibold text-slate-700">Amount</th>
+                <th class="px-6 py-3 text-left font-semibold text-slate-700">Status</th>
+                <th class="px-6 py-3 text-left font-semibold text-slate-700">Rev</th>
+                <th class="px-6 py-3 text-left font-semibold text-slate-700">Valid Until</th>
+                <th class="px-6 py-3 text-center font-semibold text-slate-700">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="quote-tbody" class="divide-y divide-slate-200">
+              <tr><td colspan="7" class="px-6 py-8 text-center text-slate-500">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div id="pagination-container" class="flex items-center justify-between">
+        <div class="text-sm text-slate-600" id="pagination-info"></div>
+        <div class="flex gap-2">
+          <button id="btn-prev-page" class="rounded-md border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50 transition">← Previous</button>
+          <button id="btn-next-page" class="rounded-md border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50 transition">Next →</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Create Quote Modal -->
+<div id="modal-create-quote" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4 sticky top-0 bg-white">
+      <h2 class="text-lg font-semibold text-slate-900">Create Quote</h2>
+      <button id="btn-close-modal" class="text-slate-500 hover:text-slate-700 text-2xl leading-none">×</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">Customer ID</label>
+        <input id="customer-id" type="text" placeholder="Customer ID" class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">Valid Until</label>
+        <input id="valid-until" type="date" class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">Tax Rate (%)</label>
+        <input id="tax-rate" type="number" value="0" min="0" max="100" step="0.01" class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+      </div>
+      <div id="items-container" class="space-y-2">
+        <h3 class="font-semibold text-slate-900">Items</h3>
+        <div class="bg-slate-50 p-3 rounded-md space-y-3">
+          <div class="grid gap-2 md:grid-cols-3">
+            <input class="quote-item-name rounded-md border border-slate-200 px-2 py-1.5 text-sm" placeholder="Product" />
+            <input type="number" class="quote-item-qty rounded-md border border-slate-200 px-2 py-1.5 text-sm" placeholder="Qty" />
+            <input type="number" class="quote-item-price rounded-md border border-slate-200 px-2 py-1.5 text-sm" placeholder="Unit Price" />
+          </div>
+        </div>
+        <button id="btn-add-item" class="text-sm text-blue-600 hover:text-blue-700 font-medium">+ Add Item</button>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">Terms & Conditions</label>
+        <textarea id="terms-conditions" placeholder="Payment terms, delivery, etc..." class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm h-20 focus:outline-none focus:ring-2 focus:ring-blue-500/40"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">Notes</label>
+        <textarea id="quote-notes" placeholder="Internal notes..." class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm h-16 focus:outline-none focus:ring-2 focus:ring-blue-500/40"></textarea>
+      </div>
+    </div>
+    <div class="border-t border-slate-200 px-6 py-4 flex gap-2 justify-end bg-slate-50">
+      <button id="btn-cancel-modal" class="rounded-md border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50 transition">Cancel</button>
+      <button id="btn-save-quote" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition">Create Quote</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/app.js?v=202607011016"></script>
+<script>
+  let currentPage = 1;
+  let pageSize = 50;
+  const API_BASE = `http://localhost:3000/api`;
+
+  async function loadQuotes() {
+    try {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        pageSize: pageSize.toString(),
+        status: document.getElementById('filter-status').value || ''
+      });
+
+      const response = await fetch(`${API_BASE}/quotes?${params}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (!response.ok) throw new Error(await response.text());
+
+      const { data, meta } = await response.json();
+
+      const tbody = document.getElementById('quote-tbody');
+      tbody.innerHTML = data.length ? data.map(quote => `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="px-6 py-4 font-medium text-blue-600 cursor-pointer" onclick="viewQuote('${quote.id}')">${quote.quoteNumber}</td>
+          <td class="px-6 py-4">${quote.customerId}</td>
+          <td class="px-6 py-4 text-right font-medium">KES ${(quote.totalAmount || 0).toLocaleString()}</td>
+          <td class="px-6 py-4"><span class="inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(quote.status)}">${quote.status}</span></td>
+          <td class="px-6 py-4">${quote.revisionNumber}</td>
+          <td class="px-6 py-4 text-sm">${new Date(quote.validUntil).toLocaleDateString()}</td>
+          <td class="px-6 py-4 text-center">
+            <div class="flex gap-1 justify-center text-xs">
+              ${quote.status === 'Draft' ? `<button onclick="editQuote('${quote.id}')" class="text-blue-600 hover:underline">Edit</button>` : ''}
+              ${quote.status !== 'Sent' && quote.status !== 'Expired' ? `<button onclick="sendQuote('${quote.id}')" class="text-green-600 hover:underline">Send</button>` : ''}
+              <button onclick="viewQuote('${quote.id}')" class="text-slate-600 hover:underline">🖨 Print</button>
+            </div>
+          </td>
+        </tr>
+      `).join('') : '<tr><td colspan="7" class="px-6 py-8 text-center text-slate-500">No quotes found</td></tr>';
+
+      document.getElementById('pagination-info').textContent = `Page ${currentPage} of ${Math.ceil(meta.total / pageSize)} (${meta.total} total)`;
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  function getStatusColor(status) {
+    const colors = {
+      'Draft': 'bg-slate-100 text-slate-700',
+      'Sent': 'bg-blue-100 text-blue-700',
+      'Accepted': 'bg-green-100 text-green-700',
+      'Rejected': 'bg-red-100 text-red-700',
+      'Expired': 'bg-amber-100 text-amber-700'
+    };
+    return colors[status] || 'bg-slate-100 text-slate-700';
+  }
+
+  function viewQuote(id) { window.open(`quote-print.html?id=${encodeURIComponent(id)}`, '_blank'); }
+  function editQuote(id) { console.log('Edit:', id); }
+  function sendQuote(id) { console.log('Send:', id); }
+
+  // Events
+  document.getElementById('btn-create-quote').onclick = () => document.getElementById('modal-create-quote').classList.remove('hidden');
+  document.getElementById('btn-close-modal').onclick = () => document.getElementById('modal-create-quote').classList.add('hidden');
+  document.getElementById('btn-cancel-modal').onclick = () => document.getElementById('modal-create-quote').classList.add('hidden');
+
+  document.getElementById('filter-status').onchange = () => {
+    currentPage = 1;
+    loadQuotes();
+  };
+
+  document.getElementById('btn-filter-clear').onclick = () => {
+    document.getElementById('filter-status').value = '';
+    currentPage = 1;
+    loadQuotes();
+  };
+
+  document.getElementById('btn-prev-page').onclick = () => {
+    if (currentPage > 1) {
+      currentPage--;
+      loadQuotes();
+    }
+  };
+
+  document.getElementById('btn-next-page').onclick = () => {
+    currentPage++;
+    loadQuotes();
+  };
+
+  document.getElementById('btn-add-item').onclick = () => {
+    const container = document.querySelector('#items-container .bg-slate-50');
+    const newItem = document.createElement('div');
+    newItem.className = 'grid gap-2 md:grid-cols-3';
+    newItem.innerHTML = `
+      <input class="quote-item-name rounded-md border border-slate-200 px-2 py-1.5 text-sm" placeholder="Product" />
+      <input type="number" class="quote-item-qty rounded-md border border-slate-200 px-2 py-1.5 text-sm" placeholder="Qty" />
+      <input type="number" class="quote-item-price rounded-md border border-slate-200 px-2 py-1.5 text-sm" placeholder="Unit Price" />
+    `;
+    container.appendChild(newItem);
+  };
+
+  document.getElementById('btn-save-quote').onclick = async () => {
+    const customerId = document.getElementById('customer-id').value;
+    const validUntil = document.getElementById('valid-until').value;
+    const taxRate = parseFloat(document.getElementById('tax-rate').value) / 100;
+
+    if (!customerId || !validUntil) {
+      alert('Please fill in required fields');
+      return;
+    }
+
+    const items = [];
+    const names = document.querySelectorAll('.quote-item-name');
+    const qtys = document.querySelectorAll('.quote-item-qty');
+    const prices = document.querySelectorAll('.quote-item-price');
+
+    for (let i = 0; i < names.length; i++) {
+      if (names[i].value && qtys[i].value && prices[i].value) {
+        items.push({
+          productName: names[i].value,
+          quantity: parseFloat(qtys[i].value),
+          unitPrice: parseFloat(prices[i].value)
+        });
+      }
+    }
+
+    if (items.length === 0) {
+      alert('Add at least one item');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/quotes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          customerId,
+          validUntil,
+          taxRate,
+          items,
+          termsConditions: document.getElementById('terms-conditions').value,
+          notes: document.getElementById('quote-notes').value
+        })
+      });
+
+      if (!response.ok) throw new Error(await response.text());
+
+      document.getElementById('modal-create-quote').classList.add('hidden');
+      currentPage = 1;
+      loadQuotes();
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  };
+
+  loadQuotes();
+</script>
+</body>
+</html>

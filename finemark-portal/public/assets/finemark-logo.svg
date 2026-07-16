@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Finemark logo">
+  <defs>
+    <style>
+      .fm-blue { fill: #2f3c93; }
+      .fm-cyan { fill: #2fa9df; }
+      .fm-stroke-blue { stroke: #2f3c93; }
+      .fm-stroke-cyan { stroke: #2fa9df; }
+    </style>
+  </defs>
+  <path class="fm-stroke-blue" d="M44 60c40-36 128-36 168 0" fill="none" stroke-width="12" stroke-linecap="round"/>
+  <path class="fm-stroke-cyan" d="M56 84c32-28 112-28 144 0" fill="none" stroke-width="16" stroke-linecap="round"/>
+  <text x="28" y="190" font-family="Arial, sans-serif" font-size="120" font-weight="700" class="fm-blue">F</text>
+  <text x="118" y="190" font-family="Arial, sans-serif" font-size="120" font-weight="700" class="fm-cyan">M</text>
+  <path class="fm-blue" d="M168 104c0-22.1-17.9-40-40-40s-40 17.9-40 40c0 30 40 78 40 78s40-48 40-78z"/>
+  <circle class="fm-cyan" cx="128" cy="104" r="18"/>
+</svg>

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+*.sqlite
+finemark.sqlite
+uploads/
+.git/
+.gitignore
+README.md
+RBAC-ABAC-STRATEGY.md

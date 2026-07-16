@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Invoice Detail</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+
+    <!-- Skeleton -->
+    <div id="inv-skeleton" class="max-w-5xl mx-auto space-y-4">
+      <div class="h-8 w-64 rounded-lg bg-slate-200 animate-pulse"></div>
+      <div class="h-56 rounded-xl bg-slate-100 animate-pulse"></div>
+    </div>
+
+    <!-- Content -->
+    <div id="inv-content" class="hidden max-w-5xl mx-auto space-y-6">
+
+      <!-- Breadcrumb + actions -->
+      <div class="flex flex-wrap items-start gap-3 justify-between">
+        <div>
+          <nav class="text-xs text-slate-500 mb-1">
+            <a href="create-invoice.html" class="hover:underline">Invoices</a> /
+            <span id="hdr-inv-no" class="font-medium text-slate-700">—</span>
+          </nav>
+          <h1 class="text-2xl font-semibold text-slate-900" id="hdr-title">Invoice Detail</h1>
+          <div class="flex flex-wrap gap-2 mt-1" id="badge-row"></div>
+        </div>
+        <div class="flex flex-wrap gap-2 mt-1" id="action-buttons"></div>
+      </div>
+
+      <!-- Meta + items grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Invoice summary -->
+        <div class="bg-white rounded-xl border border-slate-200/80 p-5 shadow-sm space-y-3">
+          <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Invoice Summary</h2>
+          <div class="grid grid-cols-2 gap-y-2 text-sm">
+            <span class="text-slate-500">Invoice No</span>   <span id="inv-no" class="font-mono"></span>
+            <span class="text-slate-500">Customer</span>     <span id="inv-cust"></span>
+            <span class="text-slate-500">Sales Person</span> <span id="inv-sales"></span>
+            <span class="text-slate-500">Issued</span>       <span id="inv-issued"></span>
+            <span class="text-slate-500">Due</span>          <span id="inv-due"></span>
+            <span class="text-slate-500">VAT Mode</span>     <span id="inv-vatmode"></span>
+            <span class="text-slate-500">PIN No</span>       <span id="inv-pin"></span>
+          </div>
+          <div id="inv-payment-section" class="pt-2 border-t border-slate-100 space-y-1 text-sm">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Payment</p>
+            <div class="grid grid-cols-2 gap-y-1">
+              <span class="text-slate-500">Paybill</span>   <span id="inv-paybill"></span>
+              <span class="text-slate-500">Account</span>   <span id="inv-account"></span>
+              <span class="text-slate-500">Bank</span>      <span id="inv-bank"></span>
+              <span class="text-slate-500">Acct No</span>   <span id="inv-bankacct"></span>
+            </div>
+          </div>
+          <div id="inv-links-section" class="pt-2 border-t border-slate-100 text-sm space-y-1">
+            <p id="inv-quote-link" class="hidden text-slate-600">Quote: <a id="inv-quote-anchor" href="#" class="text-blue-600 hover:underline font-mono"></a></p>
+            <p id="inv-pf-link" class="hidden text-slate-600">Proforma: <a id="inv-pf-anchor" href="#" class="text-blue-600 hover:underline font-mono"></a></p>
+          </div>
+        </div>
+
+        <!-- Line items -->
+        <div class="bg-white rounded-xl border border-slate-200/80 p-5 shadow-sm space-y-3">
+          <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Line Items</h2>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="border-b border-slate-100 text-slate-500">
+                  <th class="py-1 text-left w-28">Item</th>
+                  <th class="py-1 text-left">Description</th>
+                  <th class="py-1 text-center w-10">Qty</th>
+                  <th class="py-1 text-right w-20">Unit</th>
+                  <th class="py-1 text-right w-16">VAT</th>
+                  <th class="py-1 text-right w-20">Total</th>
+                </tr>
+              </thead>
+              <tbody id="items-tbody" class="divide-y divide-slate-50"></tbody>
+            </table>
+          </div>
+          <!-- Totals -->
+          <div class="pt-2 border-t border-slate-100 text-sm space-y-1">
+            <div class="flex justify-between"><span class="text-slate-500">Subtotal</span><span id="inv-subtotal" class="font-mono"></span></div>
+            <div class="flex justify-between"><span class="text-slate-500">VAT (16%)</span><span id="inv-vat" class="font-mono"></span></div>
+            <div class="flex justify-between font-semibold text-slate-900"><span>Total</span><span id="inv-total" class="font-mono"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- eTIMS Panel -->
+      <div class="bg-white rounded-xl border border-slate-200/80 p-5 shadow-sm" id="etims-panel">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-wide">KRA eTIMS Signing</h2>
+            <p id="etims-status-text" class="text-sm text-slate-600 mt-1">Not signed yet.</p>
+          </div>
+          <div class="flex gap-2 flex-wrap" id="etims-actions"></div>
+        </div>
+        <!-- eTIMS detail (shown after signing) -->
+        <div id="etims-detail" class="hidden mt-4 border-t border-slate-100 pt-3 grid grid-cols-2 md:grid-cols-3 gap-y-2 text-sm">
+          <span class="text-slate-500">Control No</span>  <span id="etims-ctrl" class="font-mono col-span-2 md:col-span-1"></span>
+          <span class="text-slate-500">Receipt No</span>  <span id="etims-rcpt" class="font-mono col-span-2 md:col-span-1"></span>
+          <span class="text-slate-500">Signed At</span>   <span id="etims-at"  class="col-span-2 md:col-span-1"></span>
+          <span class="text-slate-500">Signed By</span>   <span id="etims-by"  class="col-span-2 md:col-span-1"></span>
+        </div>
+      </div>
+
+      <!-- Manual eTIMS form (hidden, shown for Finance/Admin when gateway unavailable) -->
+      <div id="etims-manual-form" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-5 space-y-3">
+        <h3 class="text-sm font-semibold text-amber-700">Manual eTIMS Entry</h3>
+        <p class="text-xs text-amber-600">The eTIMS gateway is not reachable. Enter the control and receipt numbers manually.</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">Control Number</label>
+            <input id="manual-ctrl" type="text" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. CTRL-2024-0001"/>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">Receipt Number</label>
+            <input id="manual-rcpt" type="text" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. RCP-2024-0001"/>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button id="btn-manual-submit" class="rounded-lg bg-amber-600 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-700">Submit Manual Entry</button>
+          <button id="btn-manual-cancel" class="rounded-lg border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Notification status row -->
+      <div id="notif-row" class="hidden bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
+        <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Notification History</h2>
+        <div class="flex flex-wrap gap-4 text-sm">
+          <span class="text-slate-500">Email sent: <span id="notif-email" class="font-medium text-slate-700">—</span></span>
+          <span class="text-slate-500">WhatsApp sent: <span id="notif-wa" class="font-medium text-slate-700">—</span></span>
+        </div>
+      </div>
+
+      <!-- Installation ticket status -->
+      <div id="ticket-panel" class="bg-white rounded-xl border border-slate-200/80 p-5 shadow-sm hidden">
+        <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Installation Tickets</h2>
+        <div id="ticket-list" class="space-y-2"></div>
+        <div id="ticket-empty" class="hidden text-sm text-slate-400">No tickets raised yet.</div>
+      </div>
+
+      <!-- Credit Notes / Adjustments -->
+      <div id="credit-notes-panel" class="bg-white rounded-xl border border-slate-200/80 p-5 shadow-sm hidden">
+        <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Credit Notes / Adjustments</h2>
+        <div id="credit-notes-list" class="space-y-2"></div>
+        <div id="credit-notes-empty" class="hidden text-sm text-slate-400">No credit notes issued against this invoice.</div>
+      </div>
+
+    </div><!-- /inv-content -->
+  </main>
+</div><!-- /flex -->
+
+<!-- Send Email Modal -->
+<div id="modal-email" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6 space-y-4">
+    <h3 class="text-lg font-semibold text-slate-800">Send Invoice by Email</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs font-medium text-slate-700 mb-1">Recipient Email *</label>
+        <input id="email-to" type="email" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="customer@example.com"/>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-700 mb-1">Subject</label>
+        <input id="email-subject" type="text" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-700 mb-1">Message</label>
+        <textarea id="email-body" rows="4" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+      </div>
+    </div>
+    <div class="flex gap-2 justify-end">
+      <button id="btn-email-cancel" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+      <button id="btn-email-send" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Send Email</button>
+    </div>
+  </div>
+</div>
+
+<!-- Send WhatsApp Modal -->
+<div id="modal-wa" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6 space-y-4">
+    <h3 class="text-lg font-semibold text-slate-800">Send Invoice via WhatsApp</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs font-medium text-slate-700 mb-1">Phone Number (E.164) *</label>
+        <input id="wa-phone" type="tel" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="+254712345678"/>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-700 mb-1">Message</label>
+        <textarea id="wa-body" rows="4" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"></textarea>
+      </div>
+    </div>
+    <div class="flex gap-2 justify-end">
+      <button id="btn-wa-cancel" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+      <button id="btn-wa-send" class="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700">Send WhatsApp</button>
+    </div>
+  </div>
+</div>
+
+<!-- Update Status Modal (Finance only) -->
+<div id="modal-status" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6 space-y-4">
+    <h3 class="text-lg font-semibold text-slate-800">Update Invoice Status</h3>
+    <div>
+      <label class="block text-xs font-medium text-slate-700 mb-1">Status</label>
+      <select id="status-select" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <option>Unpaid</option>
+        <option>Partial</option>
+        <option>Paid</option>
+        <option>Cancelled</option>
+        <option>Overdue</option>
+      </select>
+    </div>
+    <div class="flex gap-2 justify-end">
+      <button id="btn-status-cancel" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+      <button id="btn-status-save" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/app.js?v=202607011016"></script>
+<script>
+(async () => {
+  const { apiFetch, requirePageAccess, showToast, formatKES } = window.FINEMARK_APP;
+  requirePageAccess(["Finance","Admin","Sales","Technical"]);
+
+  const params = new URLSearchParams(location.search);
+  const invoiceId = params.get("id");
+  if (!invoiceId) { document.getElementById("inv-skeleton").textContent = "No invoice ID provided."; return; }
+
+  const fmt = (v) => v ? new Date(v).toLocaleDateString("en-KE",{year:"numeric",month:"short",day:"numeric"}) : "—";
+  const kes = (v) => v != null ? "KES " + Number(v).toLocaleString("en-KE",{minimumFractionDigits:2,maximumFractionDigits:2}) : "—";
+
+  function statusBadge(s) {
+    const map = { Paid:"bg-green-100 text-green-700", Unpaid:"bg-red-100 text-red-700", Partial:"bg-yellow-100 text-yellow-700", Overdue:"bg-orange-100 text-orange-700", Cancelled:"bg-slate-100 text-slate-600" };
+    const cls = map[s] || "bg-slate-100 text-slate-600";
+    return `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${cls}">${s}</span>`;
+  }
+
+  let inv = null;
+  let userRole = null;
+
+  async function loadInvoice() {
+    try {
+      const session = JSON.parse(localStorage.getItem("finemark_session") || "{}");
+      userRole = session?.user?.role;
+      const res = await apiFetch(`/invoices/${invoiceId}`);
+      // Route returns { data: { invoice: {…}, items: […] } }
+      const payload = res.data || res;
+      if (payload.invoice) {
+        inv = { ...payload.invoice, items: payload.items || [] };
+      } else {
+        inv = payload;
+      }
+      renderInvoice();
+    } catch(e) {
+      document.getElementById("inv-skeleton").textContent = "Failed to load invoice.";
+      console.error(e);
+    }
+  }
+
+  function renderInvoice() {
+    document.getElementById("inv-skeleton").classList.add("hidden");
+    document.getElementById("inv-content").classList.remove("hidden");
+
+    const d = inv;
+    document.title = `Invoice ${d.invoiceNumber || d.invoice_number} | Finemark`;
+    const invNo = d.invoiceNumber || d.invoice_number;
+    document.getElementById("hdr-inv-no").textContent = invNo;
+    document.getElementById("hdr-title").textContent = `Invoice ${invNo}`;
+    document.getElementById("inv-no").textContent = invNo;
+    document.getElementById("inv-cust").textContent = d.customer || "—";
+    document.getElementById("inv-sales").textContent = d.salesPerson || d.sales_person || "—";
+    document.getElementById("inv-issued").textContent = fmt(d.issuedOn || d.issued_on);
+    document.getElementById("inv-due").textContent = fmt(d.dueOn || d.due_on);
+    document.getElementById("inv-vatmode").textContent = d.vatMode || d.vat_mode || "—";
+    document.getElementById("inv-pin").textContent = d.pinNo || d.pin_no || "—";
+    document.getElementById("inv-paybill").textContent = d.paymentPaybill || d.payment_paybill || "—";
+    document.getElementById("inv-account").textContent = d.paymentAccountHint || d.payment_account_hint || "—";
+    document.getElementById("inv-bank").textContent = d.bankName || d.bank_name || "—";
+    document.getElementById("inv-bankacct").textContent = d.bankAccountNo || d.bank_account_no || "—";
+    document.getElementById("inv-subtotal").textContent = kes(d.subtotal);
+    document.getElementById("inv-vat").textContent = kes(d.vatTotal || d.vat_total);
+    document.getElementById("inv-total").textContent = kes(d.total || d.amount);
+
+    // Badges
+    const badgeRow = document.getElementById("badge-row");
+    const status = d.status || "Unpaid";
+    let badges = statusBadge(status);
+    if (d.etimsSigned || d.etims_signed) {
+      badges += `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-700">eTIMS ✓</span>`;
+    }
+    badgeRow.innerHTML = badges;
+
+    // Quote / Proforma links
+    if (d.quoteId || d.quote_id) {
+      document.getElementById("inv-quote-link").classList.remove("hidden");
+      document.getElementById("inv-quote-anchor").textContent = d.quoteId || d.quote_id;
+      document.getElementById("inv-quote-anchor").href = `crm-quote-detail.html?id=${d.quoteId || d.quote_id}`;
+    }
+    if (d.proformaId || d.proforma_id) {
+      document.getElementById("inv-pf-link").classList.remove("hidden");
+      document.getElementById("inv-pf-anchor").textContent = d.proformaId || d.proforma_id;
+      document.getElementById("inv-pf-anchor").href = `crm-proforma.html?id=${d.proformaId || d.proforma_id}`;
+    }
+
+    // Line items
+    const tbody = document.getElementById("items-tbody");
+    tbody.innerHTML = "";
+    const items = d.items || [];
+    if (items.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-xs text-slate-400 py-3">No line items.</td></tr>`;
+    } else {
+      items.forEach(it => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-50";
+        tr.innerHTML = `
+          <td class="py-1.5 pr-2 font-mono text-slate-700">${it.item || "—"}</td>
+          <td class="py-1.5 pr-2 text-slate-600 max-w-xs truncate">${it.description || ""}</td>
+          <td class="py-1.5 text-center">${it.qty || 0}</td>
+          <td class="py-1.5 text-right font-mono">${kes(it.rate)}</td>
+          <td class="py-1.5 text-right font-mono">${kes(it.vat)}</td>
+          <td class="py-1.5 text-right font-mono font-semibold">${kes(it.amount)}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // eTIMS Panel
+    renderEtims();
+
+    // Notification row
+    const sentEmail = d.sentEmailAt || d.sent_email_at;
+    const sentWa = d.sentWhatsappAt || d.sent_whatsapp_at;
+    if (sentEmail || sentWa) {
+      document.getElementById("notif-row").classList.remove("hidden");
+      document.getElementById("notif-email").textContent = sentEmail ? fmt(sentEmail) : "—";
+      document.getElementById("notif-wa").textContent = sentWa ? fmt(sentWa) : "—";
+    }
+
+    // Action buttons
+    renderActions();
+
+    // Load tickets
+    loadTickets();
+    loadCreditNotes();
+  }
+
+  function renderEtims() {
+    const d = inv;
+    const signed = d.etimsSigned || d.etims_signed;
+    const panel = document.getElementById("etims-panel");
+    const text = document.getElementById("etims-status-text");
+    const actions = document.getElementById("etims-actions");
+    const detail = document.getElementById("etims-detail");
+
+    if (signed) {
+      text.innerHTML = `<span class="text-emerald-600 font-medium">✓ Signed with eTIMS</span>`;
+      detail.classList.remove("hidden");
+      document.getElementById("etims-ctrl").textContent = d.etimsControlNo || d.etims_control_no || "—";
+      document.getElementById("etims-rcpt").textContent = d.etimsReceiptNo || d.etims_receipt_no || d.etrReceiptNo || "—";
+      document.getElementById("etims-at").textContent = fmt(d.etimsSignedAt || d.etims_signed_at);
+      document.getElementById("etims-by").textContent = d.etimsSignedBy || d.etims_signed_by || "—";
+    } else {
+      text.textContent = "Not yet submitted to KRA eTIMS.";
+      if (["Finance","Admin"].includes(userRole)) {
+        actions.innerHTML = `
+          <button id="btn-etims-sign" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">Submit to eTIMS</button>
+          <button id="btn-etims-manual" class="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50">Manual Entry</button>`;
+        document.getElementById("btn-etims-sign").addEventListener("click", signEtims);
+        document.getElementById("btn-etims-manual").addEventListener("click", () => {
+          document.getElementById("etims-manual-form").classList.remove("hidden");
+        });
+      }
+    }
+  }
+
+  async function signEtims() {
+    const btn = document.getElementById("btn-etims-sign");
+    if (!btn) return;
+    btn.disabled = true;
+    btn.textContent = "Signing…";
+    try {
+      const res = await apiFetch(`/invoices/${invoiceId}/etims-sign`, { method: "POST" });
+      Object.assign(inv, {
+        etimsSigned: true, etims_signed: true,
+        etimsControlNo: res.data?.etimsControlNo, etims_control_no: res.data?.etimsControlNo,
+        etimsReceiptNo: res.data?.etimsReceiptNo, etims_receipt_no: res.data?.etimsReceiptNo,
+        etimsSignedAt: res.data?.etimsSignedAt, etims_signed_at: res.data?.etimsSignedAt,
+      });
+      showToast(res.message || "Invoice signed with eTIMS", "success");
+      renderEtims();
+      document.getElementById("badge-row").innerHTML += `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-700">eTIMS ✓</span>`;
+    } catch(e) {
+      showToast(e.message || "eTIMS sign failed", "error");
+      btn.disabled = false;
+      btn.textContent = "Submit to eTIMS";
+    }
+  }
+
+  document.getElementById("btn-manual-submit")?.addEventListener("click", async () => {
+    const ctrl = document.getElementById("manual-ctrl").value.trim();
+    const rcpt = document.getElementById("manual-rcpt").value.trim();
+    if (!ctrl || !rcpt) { showToast("Enter both control and receipt numbers.", "error"); return; }
+    const btn = document.getElementById("btn-manual-submit");
+    btn.disabled = true; btn.textContent = "Saving…";
+    try {
+      const res = await apiFetch(`/invoices/${invoiceId}/etims-sign`, { method: "POST", body: { manualControlNo: ctrl, manualReceiptNo: rcpt } });
+      Object.assign(inv, { etimsSigned: true, etims_signed: true, etimsControlNo: ctrl, etimsReceiptNo: rcpt });
+      document.getElementById("etims-manual-form").classList.add("hidden");
+      showToast(res.message || "Saved.", "success");
+      renderEtims();
+    } catch(e) {
+      showToast(e.message || "Failed to save.", "error");
+      btn.disabled = false; btn.textContent = "Submit Manual Entry";
+    }
+  });
+
+  document.getElementById("btn-manual-cancel")?.addEventListener("click", () => {
+    document.getElementById("etims-manual-form").classList.add("hidden");
+  });
+
+  function renderActions() {
+    const container = document.getElementById("action-buttons");
+    const buttons = [];
+    buttons.push(`<a href="invoice-print.html?id=${invoiceId}" target="_blank" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 shadow-sm">🖨 Print / PDF</a>`);
+    if (["Finance","Admin","Sales"].includes(userRole)) {
+      buttons.push(`<button id="btn-open-email" class="rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 shadow-sm">✉ Send Email</button>`);
+      buttons.push(`<button id="btn-open-wa" class="rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-100 shadow-sm">💬 Send WhatsApp</button>`);
+    }
+    if (["Sales","Admin"].includes(userRole)) {
+      buttons.push(`<button id="btn-raise-ticket" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 shadow-sm">🔧 Raise Install Ticket</button>`);
+    }
+    if (["Finance","Admin"].includes(userRole)) {
+      buttons.push(`<button id="btn-open-status" class="rounded-lg bg-slate-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 shadow-sm">Update Status</button>`);
+    }
+    container.innerHTML = buttons.join("");
+
+    document.getElementById("btn-open-email")?.addEventListener("click", openEmailModal);
+    document.getElementById("btn-open-wa")?.addEventListener("click", openWaModal);
+    document.getElementById("btn-raise-ticket")?.addEventListener("click", raiseTicket);
+    document.getElementById("btn-open-status")?.addEventListener("click", openStatusModal);
+  }
+
+  // ── Email modal ──────────────────────────────────────────────────────────────
+  function openEmailModal() {
+    const invNo = inv.invoiceNumber || inv.invoice_number;
+    document.getElementById("email-subject").value = `Invoice ${invNo} — ${inv.customer || ""}`;
+    document.getElementById("email-body").value = `Dear ${inv.customer},\n\nPlease find attached invoice ${invNo} for KES ${Number(inv.total || inv.amount).toLocaleString()}.\n\nDue: ${fmt(inv.dueOn || inv.due_on)}\n\nThank you for choosing Finemark Tracking.`;
+    document.getElementById("modal-email").classList.remove("hidden");
+  }
+  document.getElementById("btn-email-cancel")?.addEventListener("click", () => document.getElementById("modal-email").classList.add("hidden"));
+  document.getElementById("btn-email-send")?.addEventListener("click", async () => {
+    const toEmail = document.getElementById("email-to").value.trim();
+    if (!toEmail) { showToast("Recipient email required.", "error"); return; }
+    const btn = document.getElementById("btn-email-send");
+    btn.disabled = true; btn.textContent = "Sending…";
+    try {
+      await apiFetch(`/invoices/${invoiceId}/email`, { method: "POST", body: { toEmail, subject: document.getElementById("email-subject").value, message: document.getElementById("email-body").value } });
+      document.getElementById("modal-email").classList.add("hidden");
+      showToast("Email sent successfully.", "success");
+      inv.sentEmailAt = new Date().toISOString();
+      document.getElementById("notif-row").classList.remove("hidden");
+      document.getElementById("notif-email").textContent = fmt(inv.sentEmailAt);
+    } catch(e) { showToast(e.message || "Failed to send email.", "error"); }
+    finally { btn.disabled = false; btn.textContent = "Send Email"; }
+  });
+
+  // ── WhatsApp modal ────────────────────────────────────────────────────────────
+  function openWaModal() {
+    const invNo = inv.invoiceNumber || inv.invoice_number;
+    document.getElementById("wa-body").value = `Dear ${inv.customer},\n\nPlease find your invoice *${invNo}* for *KES ${Number(inv.total || inv.amount).toLocaleString()}*.\n\nDue: ${fmt(inv.dueOn || inv.due_on)}\n\nThank you for choosing Finemark Tracking.`;
+    document.getElementById("modal-wa").classList.remove("hidden");
+  }
+  document.getElementById("btn-wa-cancel")?.addEventListener("click", () => document.getElementById("modal-wa").classList.add("hidden"));
+  document.getElementById("btn-wa-send")?.addEventListener("click", async () => {
+    const phone = document.getElementById("wa-phone").value.trim();
+    if (!phone) { showToast("Phone number required.", "error"); return; }
+    const btn = document.getElementById("btn-wa-send");
+    btn.disabled = true; btn.textContent = "Sending…";
+    try {
+      await apiFetch(`/invoices/${invoiceId}/whatsapp`, { method: "POST", body: { phone, message: document.getElementById("wa-body").value } });
+      document.getElementById("modal-wa").classList.add("hidden");
+      showToast("WhatsApp message sent.", "success");
+      inv.sentWhatsappAt = new Date().toISOString();
+      document.getElementById("notif-row").classList.remove("hidden");
+      document.getElementById("notif-wa").textContent = fmt(inv.sentWhatsappAt);
+    } catch(e) { showToast(e.message || "Failed to send.", "error"); }
+    finally { btn.disabled = false; btn.textContent = "Send WhatsApp"; }
+  });
+
+  // ── Update Status modal ───────────────────────────────────────────────────────
+  function openStatusModal() {
+    document.getElementById("status-select").value = inv.status || "Unpaid";
+    document.getElementById("modal-status").classList.remove("hidden");
+  }
+  document.getElementById("btn-status-cancel")?.addEventListener("click", () => document.getElementById("modal-status").classList.add("hidden"));
+  document.getElementById("btn-status-save")?.addEventListener("click", async () => {
+    const newStatus = document.getElementById("status-select").value;
+    const btn = document.getElementById("btn-status-save");
+    btn.disabled = true; btn.textContent = "Saving…";
+    try {
+      await apiFetch(`/invoices/${invoiceId}`, { method: "PATCH", body: { status: newStatus } });
+      inv.status = newStatus;
+      document.getElementById("modal-status").classList.add("hidden");
+      document.getElementById("badge-row").innerHTML = statusBadge(newStatus) + (inv.etimsSigned ? `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-700">eTIMS ✓</span>` : "");
+      showToast("Status updated.", "success");
+    } catch(e) { showToast(e.message || "Failed to update status.", "error"); }
+    finally { btn.disabled = false; btn.textContent = "Save"; }
+  });
+
+  // ── Raise Installation Ticket ─────────────────────────────────────────────────
+  function raiseTicket() {
+    const customerId = inv.customerId || inv.customer_id || "";
+    const params = new URLSearchParams({ invoiceId });
+    if (customerId) params.set("customerId", customerId);
+    location.href = `installation-ticket.html?${params}`;
+  }
+
+  // ── Load linked tickets ───────────────────────────────────────────────────────
+  async function loadTickets() {
+    try {
+      const res = await apiFetch(`/installation-tickets/for-invoice/${invoiceId}`);
+      const tickets = res.data || [];
+      const panel = document.getElementById("ticket-panel");
+      const list = document.getElementById("ticket-list");
+      const empty = document.getElementById("ticket-empty");
+      panel.classList.remove("hidden");
+      if (!tickets.length) {
+        empty.classList.remove("hidden");
+        return;
+      }
+      const statusColor = { Pending:"bg-yellow-100 text-yellow-700", Assigned:"bg-blue-100 text-blue-700", InProgress:"bg-indigo-100 text-indigo-700", Completed:"bg-green-100 text-green-700", Cancelled:"bg-slate-100 text-slate-500" };
+      tickets.forEach(t => {
+        const div = document.createElement("div");
+        div.className = "flex items-center justify-between text-sm rounded-lg border border-slate-100 px-3 py-2 bg-slate-50";
+        const sc = statusColor[t.status] || "bg-slate-100 text-slate-500";
+        div.innerHTML = `
+          <div><span class="font-mono font-medium text-slate-700">${t.ticketNo}</span>
+            <span class="ml-2 text-xs text-slate-500">${t.vehicleRegistration || "No vehicle"}</span></div>
+          <div class="flex items-center gap-2">
+            <span class="rounded-full px-2 py-0.5 text-xs font-medium ${sc}">${t.status}</span>
+            <a href="installation-ticket.html?id=${t.id}" class="text-xs text-blue-600 hover:underline">View</a>
+          </div>`;
+        list.appendChild(div);
+      });
+    } catch(e) { /* tickets panel hidden on error */ }
+  }
+
+  // ── Load credit notes / billing adjustments ───────────────────────────────────
+  async function loadCreditNotes() {
+    if (!["Finance","Admin"].includes(userRole)) return; // sensitive breakdown — Finance/Admin only
+    try {
+      const res = await apiFetch(`/credit-notes?invoiceId=${invoiceId}`);
+      const notes = res.data || [];
+      const panel = document.getElementById("credit-notes-panel");
+      const list = document.getElementById("credit-notes-list");
+      const empty = document.getElementById("credit-notes-empty");
+      panel.classList.remove("hidden");
+      list.innerHTML = "";
+      if (!notes.length) { empty.classList.remove("hidden"); return; }
+      empty.classList.add("hidden");
+      const outcomeColor = { Approved: "bg-green-100 text-green-700", Rejected: "bg-red-100 text-red-700" };
+      notes.forEach(n => {
+        const div = document.createElement("div");
+        div.className = "flex items-center justify-between text-sm rounded-lg border border-slate-100 px-3 py-2 bg-slate-50";
+        div.innerHTML = `
+          <div>
+            <span class="font-mono font-medium text-slate-700">${n.creditNoteNo || "—"}</span>
+            <span class="ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${outcomeColor[n.outcome] || "bg-slate-100 text-slate-600"}">${n.outcome}</span>
+            ${n.reimbursementIssued ? `<span class="ml-2 text-xs text-slate-500">${n.method === "ChequePayment" ? `Cheque ${n.chequeNumber || ""}` : "Credit Note"} · Net ${kes(n.netAmount)}</span>` : ""}
+          </div>
+          <a href="crm-ticket-detail.html?id=${n.ticketId}" class="text-xs text-blue-600 hover:underline">${n.ticketNo || "View ticket"}</a>`;
+        list.appendChild(div);
+      });
+    } catch(e) { /* panel stays hidden on error */ }
+  }
+
+  await loadInvoice();
+})();
+</script>
+</body>
+</html>

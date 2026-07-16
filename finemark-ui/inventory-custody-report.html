@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Technician Custody Report</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+    <div class="max-w-7xl mx-auto space-y-6">
+
+      <div class="flex flex-wrap items-center gap-3 justify-between">
+        <div>
+          <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Technician Custody Report</h1>
+          <p class="text-sm text-slate-500">Devices and SIMs currently in technicians' custody.</p>
+        </div>
+        <div class="flex gap-2">
+          <a href="inventory-items.html" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-slate-50">Device Ledger</a>
+          <a href="inventory-sim-issuance.html" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-slate-50">SIM Issuance</a>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wide">Devices Transferred</p>
+          <p id="kpi-dev-transferred" class="text-2xl font-bold text-blue-600 mt-1">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wide">Devices Issued (acked)</p>
+          <p id="kpi-dev-issued" class="text-2xl font-bold text-indigo-600 mt-1">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wide">SIMs Transferred</p>
+          <p id="kpi-sim-transferred" class="text-2xl font-bold text-blue-600 mt-1">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wide">SIMs Issued (acked)</p>
+          <p id="kpi-sim-issued" class="text-2xl font-bold text-indigo-600 mt-1">—</p>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm">
+        <div class="flex flex-wrap items-end gap-3 px-4 py-3 border-b border-slate-100">
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Search technician</label>
+            <input id="filter-tech" type="text" placeholder="Name…" class="w-64 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:border-teal-500" />
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th class="text-left px-4 py-3 font-medium text-slate-500">Technician</th>
+                <th class="text-right px-4 py-3 font-medium text-slate-500">Dev. Transferred</th>
+                <th class="text-right px-4 py-3 font-medium text-slate-500">Dev. Issued</th>
+                <th class="text-right px-4 py-3 font-medium text-slate-500">SIM Transferred</th>
+                <th class="text-right px-4 py-3 font-medium text-slate-500">SIM Issued</th>
+                <th class="text-right px-4 py-3 font-medium text-slate-500">Oldest Pending Ack</th>
+                <th class="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody id="report-tbody" class="divide-y divide-slate-100">
+              <tr><td colspan="7" class="text-center py-8 text-slate-400">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Drilldown -->
+      <div id="drill-section" class="hidden bg-white rounded-xl border border-slate-200/80 shadow-sm">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+          <h2 class="text-sm font-semibold text-slate-700">Custody — <span id="drill-tech-name" class="text-teal-700"></span></h2>
+          <button id="btn-drill-close" class="text-xs text-slate-400 hover:text-slate-700">Close</button>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-slate-100">
+          <div class="p-4">
+            <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Devices</h3>
+            <table class="w-full text-xs">
+              <thead><tr class="text-slate-400">
+                <th class="text-left py-1">IMEI / Serial</th>
+                <th class="text-left py-1">Model</th>
+                <th class="text-left py-1">Status</th>
+                <th class="text-left py-1">Issued</th>
+              </tr></thead>
+              <tbody id="drill-devices"><tr><td colspan="4" class="py-4 text-center text-slate-400">—</td></tr></tbody>
+            </table>
+          </div>
+          <div class="p-4">
+            <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">SIMs</h3>
+            <table class="w-full text-xs">
+              <thead><tr class="text-slate-400">
+                <th class="text-left py-1">ICCID</th>
+                <th class="text-left py-1">MSISDN</th>
+                <th class="text-left py-1">Status</th>
+                <th class="text-left py-1">Issued</th>
+              </tr></thead>
+              <tbody id="drill-sims"><tr><td colspan="4" class="py-4 text-center text-slate-400">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div id="fm-footer"></div>
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+(() => {
+  const APP = window.FINEMARK_APP;
+  const apiFetch = (...a) => APP.apiFetch(...a);
+
+  let allDevices = [];   // status = Issued for Installation
+  let allSims    = [];   // status = issued
+  let technicians = [];
+
+  function fmt(d) { return d ? new Date(d).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" }) : "—"; }
+  function ageDays(d) {
+    if (!d) return null;
+    return Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+  }
+
+  async function loadAll() {
+    const [techR, devR, simR] = await Promise.all([
+      apiFetch("/technical-team/members?role=Technician").catch(() => ({ data: [] })),
+      apiFetch("/inventory/items?status=Issued for Installation&pageSize=1000").catch(() => ({ data: [] })),
+      apiFetch("/inventory/sims?status=issued&pageSize=1000").catch(() => ({ data: [] })),
+    ]);
+    technicians = techR?.data ?? [];
+    allDevices  = devR?.data ?? [];
+    allSims     = simR?.data ?? [];
+    render();
+  }
+
+  function buildRows() {
+    // Aggregate per tech
+    const byTech = new Map();
+    function ensure(id, name) {
+      if (!byTech.has(id)) byTech.set(id, {
+        id, name, devTransferred: 0, devIssued: 0,
+        simTransferred: 0, simIssued: 0,
+        oldestPending: null,
+      });
+      return byTech.get(id);
+    }
+    technicians.forEach(t => ensure(t.id, t.fullName || t.email || "—"));
+    for (const d of allDevices) {
+      const id = d.issued_to_id || d.issuedToId;
+      if (!id) continue;
+      const r = ensure(id, d.issued_to_name || d.issuedToName || "—");
+      if (d.acknowledged_at) r.devIssued++;
+      else {
+        r.devTransferred++;
+        const t = d.issued_at || d.issuedAt;
+        if (t && (!r.oldestPending || t < r.oldestPending)) r.oldestPending = t;
+      }
+    }
+    for (const s of allSims) {
+      const id = s.issued_to_id;
+      if (!id) continue;
+      const r = ensure(id, s.issued_to_name || "—");
+      if (s.acknowledged_at) r.simIssued++;
+      else {
+        r.simTransferred++;
+        if (s.issued_at && (!r.oldestPending || s.issued_at < r.oldestPending)) r.oldestPending = s.issued_at;
+      }
+    }
+    return [...byTech.values()].filter(r =>
+      r.devTransferred + r.devIssued + r.simTransferred + r.simIssued > 0
+    ).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  function render() {
+    const rows = buildRows();
+    // KPIs
+    let dt=0, di=0, st=0, si=0;
+    rows.forEach(r => { dt+=r.devTransferred; di+=r.devIssued; st+=r.simTransferred; si+=r.simIssued; });
+    document.getElementById("kpi-dev-transferred").textContent = dt;
+    document.getElementById("kpi-dev-issued").textContent = di;
+    document.getElementById("kpi-sim-transferred").textContent = st;
+    document.getElementById("kpi-sim-issued").textContent = si;
+
+    const q = document.getElementById("filter-tech").value.trim().toLowerCase();
+    const filtered = q ? rows.filter(r => r.name.toLowerCase().includes(q)) : rows;
+
+    const tbody = document.getElementById("report-tbody");
+    if (!filtered.length) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-400">No technicians have items in custody.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = filtered.map(r => {
+      const age = ageDays(r.oldestPending);
+      const ageBadge = age == null ? "—"
+        : age >= 7 ? `<span class="text-red-600 font-semibold">${age}d</span>`
+        : age >= 3 ? `<span class="text-amber-600 font-semibold">${age}d</span>`
+        : `<span class="text-slate-500">${age}d</span>`;
+      return `<tr class="hover:bg-slate-50">
+        <td class="px-4 py-3 font-medium text-slate-800">${r.name}</td>
+        <td class="px-4 py-3 text-right">${r.devTransferred || ""}</td>
+        <td class="px-4 py-3 text-right text-indigo-700 font-semibold">${r.devIssued || ""}</td>
+        <td class="px-4 py-3 text-right">${r.simTransferred || ""}</td>
+        <td class="px-4 py-3 text-right text-indigo-700 font-semibold">${r.simIssued || ""}</td>
+        <td class="px-4 py-3 text-right text-xs">${ageBadge}</td>
+        <td class="px-4 py-3 text-right">
+          <button class="btn-drill text-xs px-2 py-1 rounded border border-teal-300 text-teal-700 hover:bg-teal-50"
+            data-id="${r.id}" data-name="${r.name.replace(/"/g,'&quot;')}">View</button>
+        </td>
+      </tr>`;
+    }).join("");
+    tbody.querySelectorAll(".btn-drill").forEach(b => {
+      b.addEventListener("click", () => drilldown(b.dataset.id, b.dataset.name));
+    });
+  }
+
+  function drilldown(techId, techName) {
+    document.getElementById("drill-tech-name").textContent = techName;
+    document.getElementById("drill-section").classList.remove("hidden");
+    const devs = allDevices.filter(d => (d.issued_to_id || d.issuedToId) === techId);
+    const sims = allSims.filter(s => s.issued_to_id === techId);
+    const dEl = document.getElementById("drill-devices");
+    const sEl = document.getElementById("drill-sims");
+    dEl.innerHTML = devs.length ? devs.map(d => {
+      const ack = d.acknowledged_at ? `<span class="text-indigo-700 font-medium">Issued</span>` : `<span class="text-blue-700 font-medium">Transferred</span>`;
+      return `<tr>
+        <td class="py-1 font-mono">${d.imei || d.serial_number || "—"}</td>
+        <td class="py-1">${d.product_name || d.device_model || "—"}</td>
+        <td class="py-1">${ack}</td>
+        <td class="py-1 text-slate-500">${fmt(d.issued_at || d.issuedAt)}</td>
+      </tr>`;
+    }).join("") : `<tr><td colspan="4" class="py-4 text-center text-slate-400">No devices.</td></tr>`;
+    sEl.innerHTML = sims.length ? sims.map(s => {
+      const ack = s.acknowledged_at ? `<span class="text-indigo-700 font-medium">Issued</span>` : `<span class="text-blue-700 font-medium">Transferred</span>`;
+      return `<tr>
+        <td class="py-1 font-mono text-blue-700">${s.iccid}</td>
+        <td class="py-1">${s.msisdn || "—"}</td>
+        <td class="py-1">${ack}</td>
+        <td class="py-1 text-slate-500">${fmt(s.issued_at)}</td>
+      </tr>`;
+    }).join("") : `<tr><td colspan="4" class="py-4 text-center text-slate-400">No SIMs.</td></tr>`;
+    document.getElementById("drill-section").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  document.getElementById("btn-drill-close").addEventListener("click", () =>
+    document.getElementById("drill-section").classList.add("hidden"));
+
+  let searchT;
+  document.getElementById("filter-tech").addEventListener("input", () => {
+    clearTimeout(searchT); searchT = setTimeout(render, 200);
+  });
+
+  loadAll();
+})();
+</script>
+</body>
+</html>

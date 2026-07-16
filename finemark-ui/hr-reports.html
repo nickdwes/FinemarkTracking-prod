@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | HR Reports</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-6xl mx-auto space-y-6">
+
+          <!-- Header -->
+          <div>
+            <nav class="text-xs text-slate-400 mb-1">
+              <a href="hr-dashboard.html" class="hover:text-teal-600">HR</a> / Reports
+            </nav>
+            <h1 class="text-2xl font-semibold text-slate-900">HR Reports</h1>
+          </div>
+
+          <!-- Tabs -->
+          <div class="flex gap-1 border-b border-slate-200">
+            <button data-tab="headcount" class="tab-btn px-4 py-2 text-sm font-medium text-teal-600 border-b-2 border-teal-500">Headcount</button>
+            <button data-tab="hires" class="tab-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent">New Hires</button>
+            <button data-tab="attrition" class="tab-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent">Attrition</button>
+            <button data-tab="benefits" class="tab-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent">Benefits</button>
+            <button data-tab="dsar" class="tab-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent">DSAR Export</button>
+          </div>
+
+          <!-- ── HEADCOUNT ─────────── -->
+          <div id="tab-headcount" class="tab-panel space-y-4">
+            <div class="grid sm:grid-cols-2 gap-4">
+              <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
+                <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+                  <h3 class="text-sm font-semibold text-slate-700">By Department / Unit</h3>
+                  <button onclick="exportTableCSV('hc-unit-tbody', ['Unit','Active','Total'],'headcount-by-unit')" class="text-xs text-teal-600 hover:underline">Export CSV</button>
+                </div>
+                <table class="w-full text-sm">
+                  <thead><tr class="border-b border-slate-100"><th class="text-left px-5 py-2 text-xs text-slate-400">Unit</th><th class="text-center px-5 py-2 text-xs text-slate-400">Active</th><th class="text-center px-5 py-2 text-xs text-slate-400">Total</th></tr></thead>
+                  <tbody id="hc-unit-tbody" class="divide-y divide-slate-50"></tbody>
+                </table>
+              </div>
+              <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
+                <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+                  <h3 class="text-sm font-semibold text-slate-700">By Employment Type</h3>
+                  <button onclick="exportTableCSV('hc-type-tbody', ['Type','Status','Count'],'headcount-by-type')" class="text-xs text-teal-600 hover:underline">Export CSV</button>
+                </div>
+                <table class="w-full text-sm">
+                  <thead><tr class="border-b border-slate-100"><th class="text-left px-5 py-2 text-xs text-slate-400">Type</th><th class="text-left px-5 py-2 text-xs text-slate-400">Status</th><th class="text-center px-5 py-2 text-xs text-slate-400">Count</th></tr></thead>
+                  <tbody id="hc-type-tbody" class="divide-y divide-slate-50"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── NEW HIRES ─────────── -->
+          <div id="tab-hires" class="tab-panel hidden space-y-4">
+            <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm p-5 flex flex-wrap gap-4 items-end">
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">From</label>
+                <input id="hires-from" type="date" class="border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">To</label>
+                <input id="hires-to" type="date" class="border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <button onclick="loadHires()" class="px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700">Run</button>
+              <button onclick="exportTableCSV('hires-tbody', ['Name','No.','Role','Unit','Start Date'],'new-hires')" class="px-4 py-2 bg-slate-100 text-sm text-slate-700 rounded-lg hover:bg-slate-200">Export CSV</button>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
+              <table class="w-full text-sm">
+                <thead><tr class="border-b border-slate-100">
+                  <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Name</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">No.</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Role</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Unit</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Start Date</th>
+                </tr></thead>
+                <tbody id="hires-tbody" class="divide-y divide-slate-50"></tbody>
+              </table>
+              <p id="hires-empty" class="hidden py-8 text-center text-sm text-slate-400">No new hires in this period.</p>
+            </div>
+          </div>
+
+          <!-- ── ATTRITION ─────────── -->
+          <div id="tab-attrition" class="tab-panel hidden space-y-4">
+            <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm p-5 flex flex-wrap gap-4 items-end">
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">From</label>
+                <input id="attr-from" type="date" class="border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">To</label>
+                <input id="attr-to" type="date" class="border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <button onclick="loadAttrition()" class="px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700">Run</button>
+              <button onclick="exportTableCSV('attr-tbody', ['Name','No.','Role','Unit','Start Date'],'attrition')" class="px-4 py-2 bg-slate-100 text-sm text-slate-700 rounded-lg hover:bg-slate-200">Export CSV</button>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
+              <table class="w-full text-sm">
+                <thead><tr class="border-b border-slate-100">
+                  <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Name</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">No.</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Role</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Unit</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Start Date</th>
+                </tr></thead>
+                <tbody id="attr-tbody" class="divide-y divide-slate-50"></tbody>
+              </table>
+              <p id="attr-empty" class="hidden py-8 text-center text-sm text-slate-400">No terminations in this period.</p>
+            </div>
+          </div>
+
+          <!-- ── BENEFITS DIST ─────── -->
+          <div id="tab-benefits" class="tab-panel hidden space-y-4">
+            <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
+              <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-slate-700">Benefit Plan Distribution</h3>
+                <button onclick="exportTableCSV('dist-tbody', ['Plan','Employee Count'],'benefit-distribution')" class="text-xs text-teal-600 hover:underline">Export CSV</button>
+              </div>
+              <table class="w-full text-sm">
+                <thead><tr class="border-b border-slate-100">
+                  <th class="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Plan</th>
+                  <th class="text-center px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Employee Count</th>
+                </tr></thead>
+                <tbody id="dist-tbody" class="divide-y divide-slate-50"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- ── DSAR EXPORT ──────── -->
+          <div id="tab-dsar" class="tab-panel hidden space-y-5">
+            <div class="bg-amber-50 border border-amber-200/60 rounded-xl p-4 text-sm text-amber-800">
+              <p class="font-medium mb-1">Kenya Data Protection Act 2019 — Subject Access Request (DSAR)</p>
+              <p class="text-xs">This export includes all personal data held for the selected employee. Accessible by HR Admins only. All exports are audit-logged.</p>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm p-5 space-y-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Search Employee</label>
+                <div class="flex gap-3">
+                  <input id="dsar-search" type="text" placeholder="Name or employee number…" class="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+                  <button onclick="searchDsarEmployee()" class="px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700">Search</button>
+                </div>
+              </div>
+              <div id="dsar-results" class="space-y-2"></div>
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+
+    <script src="assets/app.js?v=202607011016"></script>
+    <script src="assets/layout.js?v=202607011016"></script>
+    <script>
+      // ── TAB SWITCHING ────────────────────────────────────────────────────
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".tab-btn").forEach(b => {
+            b.classList.remove("text-teal-600", "border-teal-500");
+            b.classList.add("text-slate-500", "border-transparent");
+          });
+          btn.classList.add("text-teal-600", "border-teal-500");
+          btn.classList.remove("text-slate-500", "border-transparent");
+          document.querySelectorAll(".tab-panel").forEach(p => p.classList.add("hidden"));
+          document.getElementById("tab-" + btn.dataset.tab).classList.remove("hidden");
+        });
+      });
+
+      // ── CSV EXPORT ───────────────────────────────────────────────────────
+      const exportTableCSV = (tbodyId, headers, filename) => {
+        const rows = document.getElementById(tbodyId)?.querySelectorAll("tr");
+        if (!rows?.length) { alert("No data to export."); return; }
+        const lines = [headers.join(",")];
+        rows.forEach(row => {
+          const cells = [...row.querySelectorAll("td")].map(td => `"${td.textContent.trim().replace(/"/g, '""')}"`);
+          lines.push(cells.join(","));
+        });
+        const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `${filename}_${new Date().toISOString().slice(0,10)}.csv`;
+        a.click();
+      };
+
+      // ── HEADCOUNT ────────────────────────────────────────────────────────
+      const loadHeadcount = async () => {
+        const [unitRes, typeRes] = await Promise.all([
+          window.FINEMARK_APP.apiFetch("/hr/reports/headcount-by-unit"),
+          window.FINEMARK_APP.apiFetch("/hr/reports/headcount-by-type"),
+        ]);
+        const unitRows = unitRes?.data || [];
+        const typeRows = typeRes?.data || [];
+        document.getElementById("hc-unit-tbody").innerHTML = unitRows.length
+          ? unitRows.map(r => `<tr class="hover:bg-slate-50"><td class="px-5 py-2">${r.unit_name || "Unassigned"}</td><td class="px-5 py-2 text-center font-medium text-teal-600">${r.active_count ?? 0}</td><td class="px-5 py-2 text-center text-slate-500">${r.total_count ?? 0}</td></tr>`).join("")
+          : `<tr><td colspan="3" class="px-5 py-4 text-sm text-slate-400 text-center">No data.</td></tr>`;
+        document.getElementById("hc-type-tbody").innerHTML = typeRows.length
+          ? typeRows.map(r => `<tr class="hover:bg-slate-50"><td class="px-5 py-2">${r.employment_type || "—"}</td><td class="px-5 py-2 text-slate-500">${r.status || "—"}</td><td class="px-5 py-2 text-center font-medium">${r.count ?? 0}</td></tr>`).join("")
+          : `<tr><td colspan="3" class="px-5 py-4 text-sm text-slate-400 text-center">No data.</td></tr>`;
+      };
+
+      // ── NEW HIRES ────────────────────────────────────────────────────────
+      const loadHires = async () => {
+        const from = document.getElementById("hires-from").value;
+        const to = document.getElementById("hires-to").value;
+        const params = new URLSearchParams();
+        if (from) params.set("from", from);
+        if (to) params.set("to", to);
+        const { data } = await window.FINEMARK_APP.apiFetch(`/hr/reports/new-hires?${params}`);
+        const rows = data || [];
+        const tbody = document.getElementById("hires-tbody");
+        const empty = document.getElementById("hires-empty");
+        if (!rows.length) { tbody.innerHTML = ""; empty.classList.remove("hidden"); return; }
+        empty.classList.add("hidden");
+        tbody.innerHTML = rows.map(e => `
+          <tr class="hover:bg-slate-50">
+            <td class="px-5 py-3 font-medium text-slate-800"><a href="hr-employee-profile.html?id=${e.id}" class="hover:text-teal-600">${e.full_name}</a></td>
+            <td class="px-5 py-3 font-mono text-xs text-slate-500">${e.employee_no}</td>
+            <td class="px-5 py-3 text-slate-600">${e.job_role_title || "—"}</td>
+            <td class="px-5 py-3 text-slate-600">${e.org_unit_name || "—"}</td>
+            <td class="px-5 py-3 text-slate-500">${e.start_date}</td>
+          </tr>`).join("");
+      };
+
+      // ── ATTRITION ────────────────────────────────────────────────────────
+      const loadAttrition = async () => {
+        const from = document.getElementById("attr-from").value;
+        const to = document.getElementById("attr-to").value;
+        const params = new URLSearchParams();
+        if (from) params.set("from", from);
+        if (to) params.set("to", to);
+        const { data } = await window.FINEMARK_APP.apiFetch(`/hr/reports/attrition?${params}`);
+        const rows = data || [];
+        const tbody = document.getElementById("attr-tbody");
+        const empty = document.getElementById("attr-empty");
+        if (!rows.length) { tbody.innerHTML = ""; empty.classList.remove("hidden"); return; }
+        empty.classList.add("hidden");
+        tbody.innerHTML = rows.map(e => `
+          <tr class="hover:bg-slate-50">
+            <td class="px-5 py-3 font-medium text-slate-800"><a href="hr-employee-profile.html?id=${e.id}" class="hover:text-teal-600">${e.full_name}</a></td>
+            <td class="px-5 py-3 font-mono text-xs text-slate-500">${e.employee_no}</td>
+            <td class="px-5 py-3 text-slate-600">${e.job_role_title || "—"}</td>
+            <td class="px-5 py-3 text-slate-600">${e.org_unit_name || "—"}</td>
+            <td class="px-5 py-3 text-slate-500">${e.start_date}</td>
+          </tr>`).join("");
+      };
+
+      // ── BENEFIT DISTRIBUTION ─────────────────────────────────────────────
+      const loadDistribution = async () => {
+        const { data } = await window.FINEMARK_APP.apiFetch("/hr/reports/benefit-distribution");
+        const rows = data || [];
+        document.getElementById("dist-tbody").innerHTML = rows.length
+          ? rows.map(r => `<tr class="hover:bg-slate-50"><td class="px-5 py-3 text-slate-800">${r.plan_name || "Unassigned"}</td><td class="px-5 py-3 text-center font-medium text-teal-600">${r.employee_count ?? 0}</td></tr>`).join("")
+          : `<tr><td colspan="2" class="px-5 py-4 text-sm text-slate-400 text-center">No data.</td></tr>`;
+      };
+
+      // ── DSAR ─────────────────────────────────────────────────────────────
+      const searchDsarEmployee = async () => {
+        const q = document.getElementById("dsar-search").value.trim();
+        if (!q) return;
+        const { data } = await window.FINEMARK_APP.apiFetch(`/hr/employees?search=${encodeURIComponent(q)}&limit=10`);
+        const employees = data?.employees || data || [];
+        const el = document.getElementById("dsar-results");
+        if (!employees.length) { el.innerHTML = `<p class="text-sm text-slate-400">No employees found.</p>`; return; }
+        el.innerHTML = employees.map(e => `
+          <div class="flex items-center justify-between border border-slate-100 rounded-xl px-4 py-3 bg-white">
+            <div>
+              <p class="text-sm font-medium text-slate-800">${e.fullName}</p>
+              <p class="text-xs text-slate-400">${e.employeeNo} · ${e.jobRoleTitle || "—"}</p>
+            </div>
+            <button onclick="exportDSAR('${e.id}', '${e.fullName.replace(/'/g,"\\'")}', '${e.employeeNo}')"
+              class="px-3 py-1.5 text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100">
+              Export Data
+            </button>
+          </div>`).join("");
+      };
+
+      const exportDSAR = async (id, name, no) => {
+        try {
+          const { data } = await window.FINEMARK_APP.apiFetch(`/hr/reports/data-export/${id}`);
+          const json = JSON.stringify(data, null, 2);
+          const blob = new Blob([json], { type: "application/json" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = `DSAR_${no}_${new Date().toISOString().slice(0,10)}.json`;
+          a.click();
+        } catch (err) { alert(err?.message || "Export failed"); }
+      };
+
+      // ── DEFAULT DATES ────────────────────────────────────────────────────
+      const setDefaultDates = () => {
+        const now = new Date();
+        const firstOfMonth = new Date(now.getFullYear(), now.getMonth() - 2, 1).toISOString().slice(0,10);
+        const today = now.toISOString().slice(0,10);
+        ["hires-from","hires-to","attr-from","attr-to"].forEach(id => {
+          const el = document.getElementById(id);
+          el.value = id.endsWith("-from") ? firstOfMonth : today;
+        });
+      };
+
+      (async () => {
+        await window.FINEMARK_APP.requirePageAccess();
+        setDefaultDates();
+        await Promise.all([loadHeadcount(), loadDistribution()]);
+      })();
+    </script>
+  </body>
+</html>

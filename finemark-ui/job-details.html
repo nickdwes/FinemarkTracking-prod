@@ -1,0 +1,1983 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Job Details</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-3 sm:p-6 min-w-0">
+    <div class="max-w-5xl mx-auto space-y-6">
+
+      <a href="technician-jobs.html" class="inline-flex items-center text-sm text-blue-600 hover:underline">← Back to My Jobs</a>
+
+      <!-- Loading skeleton -->
+      <div id="loading-state" class="space-y-4">
+        <div class="h-8 w-64 bg-slate-200 rounded-lg animate-pulse"></div>
+        <div class="h-4 w-48 bg-slate-200 rounded animate-pulse"></div>
+        <div class="h-40 bg-slate-200 rounded-xl animate-pulse"></div>
+      </div>
+
+      <!-- Not found -->
+      <div id="job-not-found" class="hidden rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+        Job not found. Return to <a href="technician-jobs.html" class="text-blue-600 hover:underline">My Jobs</a>.
+      </div>
+
+      <!-- Error -->
+      <div id="job-error" class="hidden rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700"></div>
+
+      <!-- Main content -->
+      <div id="job-details" class="hidden space-y-4">
+
+        <!-- Tab navigation -->
+        <div class="flex items-center gap-1 border-b border-slate-200 -mx-1 px-1">
+          <button data-tab="details" class="tab-btn tab-active px-4 py-2 text-sm font-medium rounded-t-lg">Details</button>
+          <button data-tab="history" class="tab-btn px-4 py-2 text-sm font-medium rounded-t-lg text-slate-500 hover:text-slate-700">History</button>
+          <button data-tab="sla"     class="tab-btn px-4 py-2 text-sm font-medium rounded-t-lg text-slate-500 hover:text-slate-700">SLA</button>
+        </div>
+
+        <!-- ── TAB: DETAILS ──────────────────────────────────────────── -->
+        <div id="tab-details">
+
+        <!-- Header -->
+        <div class="flex flex-wrap items-start gap-3 justify-between">
+          <div>
+            <h1 id="header-customer" class="text-2xl font-semibold tracking-tight text-slate-900">—</h1>
+            <p class="text-sm text-slate-500 mt-0.5">
+              <span id="header-vehicle" class="font-mono"></span>
+              <span class="mx-1.5 text-slate-300">·</span>
+              <span id="header-schedule"></span>
+            </p>
+          </div>
+          <span id="status-badge" class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border">—</span>
+        </div>
+
+        <!-- ISO / Technician missing warning -->
+        <div id="iso-warning" class="hidden rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 flex items-start gap-3">
+          <svg class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <div class="flex-1 min-w-0">
+            <p id="iso-warning-title" class="text-sm font-semibold text-amber-800">Assignment incomplete</p>
+            <p id="iso-warning-body" class="text-xs text-amber-700 mt-0.5"></p>
+          </div>
+          <button id="iso-warning-assign" class="hidden shrink-0 rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 transition">+ Assign ISO</button>
+        </div>
+
+        <!-- Info grid -->
+        <div class="grid gap-4 md:grid-cols-2">
+
+          <!-- Job info -->
+          <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm space-y-3">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Job Information</h2>
+            <div class="grid grid-cols-2 gap-3 text-sm">
+              <div><p class="text-xs text-slate-400">Ticket Ref</p><p id="ticket-ref" class="font-mono font-medium text-slate-800">—</p></div>
+              <div><p class="text-xs text-slate-400">Stage</p><p id="stage-name" class="font-medium text-slate-800">—</p></div>
+              <div><p class="text-xs text-slate-400">Assigned</p><p id="assigned-at" class="text-slate-700">—</p></div>
+              <div class="col-span-2"><p class="text-xs text-slate-400">Technician</p><p id="tech-name" class="text-slate-700">—</p></div>
+              <div class="col-span-2 flex items-center gap-2">
+                <div class="flex-1"><p class="text-xs text-slate-400">ISO Officer</p><p id="iso-name" class="text-slate-700">—</p></div>
+                <button id="btn-iso-claim" type="button" class="hidden rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100">Claim as ISO</button>
+                <button id="btn-iso-assign" type="button" class="hidden rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100">+ Assign ISO Officer</button>
+              </div>
+              <div class="col-span-2 flex items-center gap-2">
+                <div class="flex-1"><p class="text-xs text-slate-400">Co-Technician</p><p id="co-tech-name" class="text-slate-700">—</p></div>
+                <button id="btn-co-assign" type="button" class="hidden rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-100">+ Assign Co-Technician</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Vehicle info -->
+          <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm space-y-3">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Vehicle</h2>
+            <div class="grid grid-cols-2 gap-3 text-sm">
+              <div><p class="text-xs text-slate-400">Registration</p><p id="veh-reg" class="font-mono font-bold text-slate-900">—</p></div>
+              <div><p class="text-xs text-slate-400">Make / Model</p><p id="veh-make-model" class="text-slate-700">—</p></div>
+              <div><p class="text-xs text-slate-400">Color</p><p id="veh-color" class="text-slate-700">—</p></div>
+              <div><p class="text-xs text-slate-400">Year</p><p id="veh-year" class="text-slate-700">—</p></div>
+            </div>
+          </div>
+
+          <!-- Customer info -->
+          <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm space-y-3">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Customer</h2>
+            <div class="grid grid-cols-2 gap-3 text-sm">
+              <div><p class="text-xs text-slate-400">Name</p><p id="cust-name" class="font-medium text-slate-800">—</p></div>
+              <div><p class="text-xs text-slate-400">Account No.</p><p id="cust-acct" class="font-mono text-slate-700">—</p></div>
+              <div><p class="text-xs text-slate-400">Phone</p><p id="cust-phone" class="text-slate-700">—</p></div>
+              <div><p class="text-xs text-slate-400">Email</p><p id="cust-email" class="text-slate-700 break-all">—</p></div>
+              <div><p class="text-xs text-slate-400">Partner</p><p id="cust-partner" class="text-slate-700">—</p></div>
+              <div><p class="text-xs text-slate-400">Financed</p><p id="cust-financed" class="text-slate-700">—</p></div>
+              <div><p class="text-xs text-slate-400">Segment</p><p id="cust-segment" class="text-slate-700">—</p></div>
+            </div>
+          </div>
+
+          <!-- Gadgets -->
+          <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm space-y-3">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Assigned Gadgets</h2>
+            <div id="gadgets-list" class="text-sm text-slate-500 italic">No gadgets assigned yet.</div>
+            <div class="pt-2 border-t border-slate-100">
+              <label for="expected-gadget-count" class="block text-xs text-slate-400 mb-1">Expected No. of Gadgets to be Installed</label>
+              <div class="flex items-center gap-2">
+                <input id="expected-gadget-count" type="number" min="0" step="1" placeholder="e.g. 3"
+                  class="w-28 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+                <button id="btn-save-gadget-count" type="button"
+                  class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100">
+                  Save
+                </button>
+                <span id="gadget-count-saved" class="hidden text-xs text-emerald-600">Saved ✓</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm space-y-2 md:col-span-2">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Notes</h2>
+            <p id="post-install-notes" class="text-sm text-slate-700">—</p>
+          </div>
+
+          <!-- Installation Location & Contacts (from retail lead) -->
+          <div id="install-info-card" class="hidden bg-amber-50/40 border border-amber-100 rounded-xl p-5 shadow-sm space-y-3 md:col-span-2">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-amber-600">Installation Location &amp; Contacts</h2>
+            <div class="grid grid-cols-2 gap-3 text-sm">
+              <div><p class="text-xs text-slate-400">Installation Location</p><p id="info-install-location" class="text-slate-700">—</p></div>
+              <div><p class="text-xs text-slate-400">Financer</p><p id="info-install-financer" class="text-slate-700">—</p></div>
+              <div><p class="text-xs text-slate-400">Contact Name</p><p id="info-contact-name" class="text-slate-700">—</p></div>
+              <div><p class="text-xs text-slate-400">Contact Phone</p><p id="info-contact-phone" class="text-slate-700">—</p></div>
+            </div>
+            <div id="info-sales-notes-row" class="hidden">
+              <p class="text-xs text-slate-400 mb-1">Sales Notes</p>
+              <p id="info-sales-notes" class="text-sm text-slate-700 whitespace-pre-wrap">—</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Installation Summary (all steps) -->
+        <div id="install-summary" class="hidden space-y-2">
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 px-1">Installation Summary</h2>
+          <div id="summary-steps" class="space-y-2"></div>
+        </div>
+
+        <!-- Actions -->
+        <div id="actions-panel" class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm space-y-3">
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Actions</h2>
+          <div class="flex flex-wrap items-center gap-3">
+            <button id="btn-accept" type="button" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed">
+              Start Job
+            </button>
+            <button id="btn-job-card" type="button" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
+              Proceed to Job Card
+            </button>
+            <button id="btn-iso-assist" type="button" class="hidden rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-40 disabled:cursor-not-allowed">
+              Start ISO Assisted Installation
+            </button>
+            <button id="btn-assign" type="button" class="hidden rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-40 disabled:cursor-not-allowed">
+              Assign Technician
+            </button>
+          </div>
+          <!-- Travel / Arrival buttons — shown after acknowledgement -->
+          <div id="travel-panel" class="hidden flex flex-wrap items-center gap-3 pt-1 border-t border-slate-100">
+            <button id="btn-travel" type="button"
+              class="rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100 disabled:opacity-40 disabled:cursor-not-allowed">
+              🚦 Start Travel
+            </button>
+            <button id="btn-arrived" type="button"
+              class="hidden rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed">
+              📍 Mark Arrived
+            </button>
+            <span id="travel-status-text" class="text-xs text-slate-400"></span>
+          </div>
+          <p id="action-note" class="text-xs text-slate-400"></p>
+        </div>
+
+        <!-- Map preview — shown when installation_location_lat/lng are set -->
+        <div id="map-card" class="hidden bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm space-y-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Job Site Location</h2>
+            <a id="map-open-link" href="#" target="_blank" rel="noopener"
+               class="text-xs text-blue-600 hover:underline">Open in Google Maps ↗</a>
+          </div>
+          <iframe id="map-iframe" src="" class="w-full rounded-lg border border-slate-100" style="height:200px;" loading="lazy" referrerpolicy="no-referrer"></iframe>
+        </div>
+
+        <!-- Certificate Panel -->
+        <div id="cert-panel" class="hidden">
+          <!-- Loading state -->
+          <div id="cert-loading" class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm flex items-center gap-3">
+            <svg class="w-4 h-4 text-slate-400 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+            <span class="text-sm text-slate-400">Checking certificate status…</span>
+          </div>
+
+          <!-- Certificate exists -->
+          <div id="cert-exists" class="hidden bg-white border border-emerald-200 rounded-xl p-5 shadow-sm space-y-4">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <h2 class="text-sm font-semibold text-slate-800">Installation Certificate</h2>
+                <span id="cert-status-badge" class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold border"></span>
+              </div>
+              <div class="flex items-center gap-2">
+                <a id="cert-view-pdf" href="#" target="_blank"
+                   class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                  View PDF
+                </a>
+                <a id="cert-edit-link" href="#"
+                   class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                  Edit Certificate
+                </a>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+              <div><p class="text-slate-400 mb-0.5">Serial No.</p><p id="cert-serial" class="font-mono font-semibold text-slate-800">—</p></div>
+              <div><p class="text-slate-400 mb-0.5">System Type</p><p id="cert-system-type" class="text-slate-700">—</p></div>
+              <div><p class="text-slate-400 mb-0.5">Valid From</p><p id="cert-start" class="text-slate-700">—</p></div>
+              <div><p class="text-slate-400 mb-0.5">Valid Until</p><p id="cert-end" class="font-medium text-slate-700">—</p></div>
+              <div><p class="text-slate-400 mb-0.5">Owner Name</p><p id="cert-name" class="text-slate-700">—</p></div>
+              <div><p class="text-slate-400 mb-0.5">Phone</p><p id="cert-phone" class="font-mono text-slate-700">—</p></div>
+              <div><p class="text-slate-400 mb-0.5">IMEI 1</p><p id="cert-imei1" class="font-mono text-slate-700">—</p></div>
+              <div><p class="text-slate-400 mb-0.5">Tracker No.</p><p id="cert-tracker1" class="font-mono text-slate-700">—</p></div>
+            </div>
+            <!-- Inline PDF preview -->
+            <div id="cert-pdf-preview-wrap" class="hidden">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">PDF Preview</p>
+                <button id="cert-hide-preview" class="text-xs text-slate-400 hover:text-slate-600">Hide</button>
+              </div>
+              <iframe id="cert-pdf-frame" src="" class="w-full rounded-lg border border-slate-200" style="height:520px;"></iframe>
+            </div>
+            <button id="cert-show-preview" class="text-xs text-blue-600 hover:underline">Show PDF preview ↓</button>
+          </div>
+
+          <!-- No certificate yet -->
+          <div id="cert-none" class="hidden bg-white border border-dashed border-slate-300 rounded-xl p-6 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center">
+                  <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                </div>
+                <div>
+                  <p class="text-sm font-semibold text-slate-800">No Certificate Yet</p>
+                  <p class="text-xs text-slate-400 mt-0.5">No installation certificate has been issued for this vehicle.</p>
+                </div>
+              </div>
+              <a id="cert-generate-link" href="#"
+                 class="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                Generate Certificate
+              </a>
+            </div>
+          </div>
+
+          <!-- Certificate exists for this registration, but under a different customer
+               name than this ticket — likely a change of vehicle ownership. Don't present
+               someone else's certificate as this ticket's; require human verification. -->
+          <div id="cert-mismatch" class="hidden bg-white border border-amber-300 rounded-xl p-5 shadow-sm space-y-3">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                <h2 class="text-sm font-semibold text-slate-800">Existing Certificate — Different Customer</h2>
+              </div>
+              <div class="flex items-center gap-2">
+                <a id="cert-mismatch-view-pdf" href="#" target="_blank"
+                   class="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50">
+                  View PDF
+                </a>
+                <a id="cert-mismatch-generate-link" href="#"
+                   class="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-2 text-xs font-semibold text-white hover:bg-purple-700">
+                  Generate New Certificate
+                </a>
+              </div>
+            </div>
+            <p class="text-xs text-slate-600 leading-relaxed">
+              Registration <span id="cert-mismatch-reg" class="font-mono font-semibold text-slate-800"></span> already has a
+              certificate (<span id="cert-mismatch-serial" class="font-mono text-slate-800"></span>) issued to
+              <span id="cert-mismatch-name" class="font-semibold text-slate-800"></span>, which does not match this
+              installation's customer (<span id="cert-mismatch-customer" class="font-semibold text-slate-800"></span>).
+              This usually means the vehicle changed ownership — verify before assuming the existing certificate applies here.
+            </p>
+          </div>
+        </div>
+
+        </div><!-- /tab-details -->
+
+        <!-- ── TAB: HISTORY ─────────────────────────────────────────── -->
+        <div id="tab-history" class="hidden">
+          <div id="history-loading" class="flex items-center gap-2 py-8 justify-center text-sm text-slate-400">
+            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+            Loading history…
+          </div>
+          <div id="history-error" class="hidden rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700"></div>
+          <ol id="history-timeline" class="hidden relative border-l border-slate-200 ml-3 space-y-6 pl-6"></ol>
+          <p id="history-empty" class="hidden py-10 text-center text-sm text-slate-400">No activity recorded yet.</p>
+        </div><!-- /tab-history -->
+
+        <!-- ── TAB: SLA ──────────────────────────────────────────────── -->
+        <div id="tab-sla" class="hidden space-y-4">
+          <div id="sla-loading" class="flex items-center gap-2 py-8 justify-center text-sm text-slate-400">
+            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+            Computing SLA…
+          </div>
+          <div id="sla-error" class="hidden rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700"></div>
+          <!-- Overall badge -->
+          <div id="sla-overview" class="hidden bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm">
+            <div class="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Overall SLA Status</p>
+                <p id="sla-overall-badge" class="mt-1 inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold border">—</p>
+              </div>
+              <div class="text-right">
+                <p class="text-xs text-slate-400">Total elapsed</p>
+                <p id="sla-total-elapsed" class="text-lg font-bold text-slate-800">—</p>
+              </div>
+            </div>
+          </div>
+          <!-- Gate cards -->
+          <div id="sla-gates" class="hidden grid gap-4 sm:grid-cols-2"></div>
+        </div><!-- /tab-sla -->
+
+      </div><!-- /job-details -->
+    </div><!-- /max-w -->
+  </main>
+</div>
+<div id="fm-footer"></div>
+
+<div id="toast" class="fixed top-4 right-4 hidden">
+  <div id="toast-msg" class="bg-slate-900 text-white text-sm px-4 py-2 rounded-lg shadow-lg">Done</div>
+</div>
+
+<!-- Acknowledgement Modal -->
+<div id="ack-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm" role="dialog" aria-modal="true">
+  <div class="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-200 p-6 mx-4">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold text-slate-900">Job Assignment</h2>
+      <button id="ack-modal-close" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&#x2715;</button>
+    </div>
+    <!-- Summary row -->
+    <div class="rounded-xl bg-slate-50 border border-slate-100 p-4 mb-4 grid grid-cols-2 gap-3 text-sm">
+      <div><p class="text-xs text-slate-400">Ticket</p><p id="ack-ticket-no" class="font-mono font-semibold text-slate-800">—</p></div>
+      <div><p class="text-xs text-slate-400">Customer</p><p id="ack-customer" class="font-medium text-slate-800">—</p></div>
+      <div><p class="text-xs text-slate-400">Vehicle</p><p id="ack-vehicle" class="font-medium text-slate-800">—</p></div>
+      <div><p class="text-xs text-slate-400">Scheduled</p><p id="ack-scheduled" class="text-slate-700">—</p></div>
+    </div>
+    <!-- SLA expectations -->
+    <div class="rounded-xl border border-amber-100 bg-amber-50/60 p-3 mb-4 text-xs text-amber-800 space-y-1">
+      <p class="font-semibold mb-1">SLA Expectations</p>
+      <p>• Acknowledgement must be recorded now (within <span id="ack-sla-ack">4h</span> of assignment)</p>
+      <p>• Job must start within <span id="ack-sla-start">24h</span> of assignment</p>
+      <p>• Installation sign-off within <span id="ack-sla-signoff">48h</span> of job start</p>
+    </div>
+    <!-- Accept / Reject tabs -->
+    <div class="flex gap-2 mb-4">
+      <button id="ack-tab-accept" type="button"
+        class="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+        ✓ Accept Assignment
+      </button>
+      <button id="ack-tab-reject" type="button"
+        class="flex-1 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100">
+        ✗ Reject
+      </button>
+    </div>
+    <!-- Reject reason (hidden by default) -->
+    <div id="ack-reject-section" class="hidden mb-4 space-y-2">
+      <label class="text-xs font-medium text-slate-600 block">Reason for rejection <span class="text-red-500">*</span></label>
+      <textarea id="ack-reject-reason" rows="3" placeholder="Provide a clear reason (e.g. unavailable, device not ready)…"
+        class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300/50 resize-none"></textarea>
+    </div>
+    <div id="ack-gps-note" class="text-xs text-slate-400 mb-3">GPS location will be captured to confirm acknowledgement.</div>
+    <div id="ack-error" class="hidden rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700 mb-3"></div>
+    <div class="flex items-center justify-end gap-3">
+      <button id="ack-cancel-btn" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
+      <button id="ack-confirm-btn" class="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
+        Confirm Accept
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ISO Assign Modal -->
+<div id="iso-assign-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-sm" role="dialog" aria-modal="true">
+  <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-6 mx-4">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold text-slate-900">Assign ISO Officer</h2>
+      <button id="iso-assign-modal-close" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&#x2715;</button>
+    </div>
+    <p class="text-xs text-slate-500 mb-4">Select the ISO officer responsible for overseeing this installation.</p>
+    <div class="space-y-4">
+      <div>
+        <label class="text-xs font-medium text-slate-600 block mb-1">ISO Officer</label>
+        <select id="modal-iso-select" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40">
+          <option value="">Loading…</option>
+        </select>
+      </div>
+      <div id="iso-assign-modal-err" class="hidden text-xs text-red-500"></div>
+      <div class="flex items-center justify-end gap-3 pt-1">
+        <button id="iso-assign-cancel-btn" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
+        <button id="iso-assign-confirm-btn" class="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Co-Technician Modal -->
+<div id="co-assign-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-sm" role="dialog" aria-modal="true">
+  <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-6 mx-4">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold text-slate-900">Assign Co-Technician</h2>
+      <button id="co-assign-modal-close" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&#x2715;</button>
+    </div>
+    <p class="text-xs text-slate-500 mb-4">Select a second technician who worked on this job. They will see it on their dashboard too.</p>
+    <div class="space-y-4">
+      <div>
+        <label class="text-xs font-medium text-slate-600 block mb-1">Co-Technician</label>
+        <select id="modal-co-tech-select" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/40">
+          <option value="">Loading…</option>
+        </select>
+      </div>
+      <div id="co-assign-modal-err" class="hidden text-xs text-red-500"></div>
+      <div class="flex items-center justify-end gap-3 pt-1">
+        <button id="co-assign-cancel-btn" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
+        <button id="co-assign-confirm-btn" class="rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Assign Technician Modal -->
+<div id="assign-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-sm" role="dialog" aria-modal="true">
+  <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-6 mx-4">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold text-slate-900">Assign Technician</h2>
+      <button id="assign-modal-close" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&#x2715;</button>
+    </div>
+    <p id="assign-modal-job" class="text-xs text-slate-500 mb-4"></p>
+    <div class="space-y-4">
+      <div>
+        <label class="text-xs font-medium text-slate-600 block mb-1">Technician</label>
+        <select id="modal-tech-select" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40">
+          <option value="">Loading…</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-slate-600 block mb-1">Scheduled Date &amp; Time</label>
+        <input id="modal-sched-date" type="datetime-local" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40" />
+      </div>
+      <div id="assign-modal-err" class="hidden text-xs text-red-500"></div>
+      <div class="flex items-center justify-end gap-3 pt-1">
+        <button id="assign-cancel-btn" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
+        <button id="assign-confirm-btn" class="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="assets/contracts.js"></script>
+<!-- Certificate generation modal (fullscreen iframe overlay) -->
+<div id="cert-gen-modal" class="hidden fixed inset-0 z-50 items-center justify-center bg-black/60 p-2 sm:p-4">
+  <div class="relative w-full max-w-5xl h-[92vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
+      <span class="text-sm font-semibold text-slate-700">Certificate</span>
+      <button id="cert-modal-close"
+        class="flex h-8 w-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors"
+        title="Close">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <iframe id="cert-gen-frame" src="" class="flex-1 w-full border-0" allow="downloads"></iframe>
+  </div>
+</div>
+
+<script src="assets/app.js?v=202607011748"></script>
+<script src="assets/layout.js?v=202607011748"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    window.FINEMARK_APP?.requirePageAccess?.();
+  });
+</script>
+<script>
+  const APP          = window.FINEMARK_APP;
+  const jobId        = new URLSearchParams(location.search).get("id");
+  // ?ticketId= is used when no VI installation exists (pure installation-ticket jobs)
+  const ticketOnlyId = new URLSearchParams(location.search).get("ticketId");
+  const session = APP.getSession?.() || {};
+  const myRole  = session.user?.role || "";
+  const myId    = session.user?.id || "";
+  const myEmail = session.user?.email || "";
+  const CAN_ASSIGN = ["Admin", "Finance", "Technical", "InstallOffice"].includes(myRole);
+  const IS_TECHNICAL = myRole === "Technical";
+  const IS_INSTALL_OFFICE = myRole === "InstallOffice";
+
+  const $   = id => document.getElementById(id);
+  const fmt = dt => dt ? new Date(dt).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" }) : "—";
+
+  // ── ISO Assisted Installation: entry-point button + "was assisted" indicator ──
+  // Shared by both load paths below (with vs. without a linked vi_installation).
+  function wireIsoAssist(tk, ticketId) {
+    const btn = $("btn-iso-assist");
+    const isThisTicketIso = tk.isoUserId === myId || (tk.isoEmail && tk.isoEmail === myEmail);
+    const canAssist = (myRole === "Admin" || isThisTicketIso) && !!tk.assignedToUserId && !!tk.isoUserId && tk.status !== "Completed";
+    if (btn && canAssist) {
+      btn.classList.remove("hidden");
+      btn.addEventListener("click", () => {
+        location.href = `job-card.html?id=${encodeURIComponent(ticketId)}`;
+      });
+    }
+    // Permanent "this job was ISO-assisted" indicator — persists even after assist
+    // mode is later turned off, next to the main status badge.
+    if (tk.assistStartedAt) {
+      const badge = $("status-badge");
+      if (badge && !$("iso-assist-badge")) {
+        const chip = document.createElement("span");
+        chip.id = "iso-assist-badge";
+        chip.className = "ml-2 inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800";
+        chip.textContent = "🧑‍🔧 ISO Assisted";
+        badge.insertAdjacentElement("afterend", chip);
+      }
+    }
+  }
+
+  function showToast(msg, color = "bg-slate-900") {
+    $("toast-msg").className = `${color} text-white text-sm px-4 py-2 rounded-lg shadow-lg`;
+    $("toast-msg").textContent = msg;
+    $("toast").classList.remove("hidden");
+    setTimeout(() => $("toast").classList.add("hidden"), 2200);
+  }
+
+  const STATUS_COLORS = {
+    Pending:               "bg-slate-100 text-slate-700 border-slate-200",
+    Assigned:              "bg-blue-50 text-blue-700 border-blue-100",
+    "In Progress":         "bg-amber-50 text-amber-700 border-amber-100",
+    "Awaiting Confirmation":"bg-purple-50 text-purple-700 border-purple-100",
+    Completed:             "bg-emerald-50 text-emerald-700 border-emerald-100",
+    Cancelled:             "bg-red-50 text-red-700 border-red-100",
+  };
+
+  async function load() {
+    if (!jobId && !ticketOnlyId) { $("loading-state").classList.add("hidden"); $("job-not-found").classList.remove("hidden"); return; }
+    if (!jobId && ticketOnlyId) return loadByTicket(ticketOnlyId);
+    try {
+      const res  = await APP.apiFetch(`/vehicle-installations/${encodeURIComponent(jobId)}`);
+      if (!res) {
+        $("loading-state").classList.add("hidden");
+        $("job-error").textContent = "Your session has expired. Please log in again.";
+        $("job-error").classList.remove("hidden");
+        return;
+      }
+      const inst = res.installation || res;
+      const v    = inst.vehicle   || {};
+      const c    = inst.customer  || {};
+      const tech = inst.technician || {};
+      const gadgets = res.gadgets || [];
+
+      $("loading-state").classList.add("hidden");
+      $("job-details").classList.remove("hidden");
+
+      // Header
+      $("header-customer").textContent  = c.name || "—";
+      $("header-vehicle").textContent   = [v.registration, v.make, v.model].filter(Boolean).join(" – ");
+      $("header-schedule").textContent  = inst.assignedAt ? `Assigned ${fmt(inst.assignedAt)}` : "Not yet assigned";
+
+      const badge = $("status-badge");
+      badge.className = `inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border ${STATUS_COLORS[inst.status] || STATUS_COLORS.Pending}`;
+      badge.textContent = inst.status || "—";
+
+      // Job info
+      $("ticket-ref").textContent  = inst.ticketRef || "—";
+      $("stage-name").textContent  = inst.stageName || (inst.stage > 0 ? `Stage ${inst.stage}` : "Unassigned");
+      $("assigned-at").textContent = fmt(inst.assignedAt);
+      $("tech-name").textContent   = tech.name || inst.assignedTechnicianEmail || "—";
+
+      // Vehicle
+      $("veh-reg").textContent        = v.registration || "—";
+      $("veh-make-model").textContent = [v.make, v.model].filter(Boolean).join(" ") || "—";
+      $("veh-color").textContent      = v.color || "—";
+      $("veh-year").textContent       = v.year  || "—";
+
+      // Customer
+      $("cust-name").textContent  = c.name    || "—";
+      $("cust-acct").textContent  = c.accountNo || "—";
+      $("cust-phone").textContent = c.phone   || "—";
+      $("cust-email").textContent = c.email   || "—";
+
+      // Gadgets
+      if (gadgets.length) {
+        $("gadgets-list").innerHTML = gadgets.map(g => `
+          <div class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
+            <div>
+              <p class="font-medium text-slate-800">${g.deviceModel || g.deviceType || "—"}</p>
+              <p class="text-xs text-slate-400 font-mono">${g.serialNumber || ""}</p>
+            </div>
+            <span class="text-xs rounded-full px-2 py-0.5 border ${g.installationStatus === "Installed" ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-slate-100 text-slate-600 border-slate-200"}">${g.installationStatus || "Pending"}</span>
+          </div>`).join("");
+      }
+
+      // Notes
+      $("post-install-notes").textContent = inst.postInstallNotes || inst.electricalNotes || "—";
+
+      // Action buttons
+      const canAccept  = ["Pending", "Assigned"].includes(inst.status);
+      const canJobCard = ["In Progress", "Awaiting Confirmation"].includes(inst.status);
+      const isComplete = inst.status === "Completed";
+      // Start Job is a technician action — hide it for supervisory roles
+      if (IS_INSTALL_OFFICE) {
+        $("btn-accept").classList.add("hidden");
+      } else {
+        $("btn-accept").disabled  = !canAccept;
+      }
+      $("btn-job-card").disabled = !canJobCard;
+
+      // Load ISO + co-tech data from installation-tickets (matches by vi_installation_id / ticket id)
+      let installTicketId = null;
+      try {
+        const tickRes = await APP.apiFetch(`/installation-tickets/${encodeURIComponent(jobId)}`);
+        const tk = tickRes?.data || tickRes;
+        if (tk) {
+          installTicketId = tk.id;
+          _currentTicketIdForHistory = tk.id;
+          $("cust-partner").textContent  = tk.partnerName || "—";
+          $("cust-financed").textContent = tk.installationFinancer
+            ? (tk.installationFinancer.toLowerCase().includes("bank") ? `Yes (${tk.installationFinancer})` : "No")
+            : "—";
+          $("cust-segment").textContent  = tk.customerSegment || "—";
+          $("expected-gadget-count").value = tk.expectedGadgetCount ?? "";
+          const coName = tk.coTechnicianName || tk.coTechnicianEmail || null;
+          $("co-tech-name").textContent = coName || "None assigned";
+
+          // ISO Officer row
+          $("iso-name").textContent = tk.isoName || tk.isoEmail || "Not yet assigned";
+          // Warning: technician assigned but no ISO, or ISO assigned but no technician
+          const hasTech = !!(inst.assignedTechnicianId || inst.assignedTechnicianEmail || tk.assignedToEmail);
+          const hasIso  = !!(tk.isoName || tk.isoEmail);
+          if (hasTech && !hasIso) {
+            $("iso-warning-title").textContent = "No ISO Officer assigned";
+            $("iso-warning-body").textContent  = "This job has a technician assigned but no ISO officer has been selected. Please assign an ISO officer before the installation proceeds.";
+            $("iso-warning").classList.remove("hidden");
+            const warnBtn = $("iso-warning-assign");
+            if (warnBtn && ["Admin","Finance","InstallOffice"].includes(myRole)) {
+              warnBtn.textContent = "+ Assign ISO";
+              warnBtn.classList.remove("hidden");
+              warnBtn.addEventListener("click", () => openIsoAssignModal(installTicketId));
+            }
+          } else if (hasIso && !hasTech) {
+            $("iso-warning-title").textContent = "No Technician assigned";
+            $("iso-warning-body").textContent  = "An ISO officer has been selected but no technician has been assigned to this job yet.";
+            $("iso-warning").classList.remove("hidden");
+            const warnBtn = $("iso-warning-assign");
+            if (warnBtn && ["Admin","Finance","InstallOffice"].includes(myRole)) {
+              warnBtn.textContent = "+ Assign Tech";
+              warnBtn.classList.remove("hidden");
+              warnBtn.addEventListener("click", () => openAssignModal(inst, installTicketId));
+            }
+          }
+
+          // Technician from ticket (authoritative for assigned technician name)
+          if (tk.assignedToEmail) $("tech-name").textContent = tk.assignedToEmail;
+
+          // Stage label: ticket stage is authoritative when vi_installation stage is 0 (not yet advanced)
+          if (inst.stage === 0 && tk.stage > 0) {
+            const TK_STAGE_LABELS = ['','Device Selection','Vehicle Details','Pre-Installation Check',
+              'Electrical Systems','Device Installation','Activation','Post-Installation','Sign-off','Close Installation'];
+            $("stage-name").textContent = TK_STAGE_LABELS[tk.stage] || `Stage ${tk.stage}`;
+          }
+
+          // ISO claim button: show to Technical role only if no ISO claimed yet
+          const isMyIso = IS_TECHNICAL && (tk.isoUserId === myId || tk.isoEmail === myEmail);
+          if (IS_TECHNICAL && !isComplete && !tk.isoUserId) {
+            $("btn-iso-claim").classList.remove("hidden");
+          }
+
+      // Assign Technician button: Admin/Finance/InstallOffice always; Technical only if they ARE the ISO
+          if (!isComplete && (["Admin", "Finance", "InstallOffice"].includes(myRole) || isMyIso)) {
+            $("btn-assign").classList.remove("hidden");
+          }
+
+          wireIsoAssist(tk, installTicketId);
+
+          // Supplement vehicle fields from ticket CRM record if vi_installation JOIN returned nulls
+          const vr = tk.vehicleRecord || {};
+          if (!v.make && vr.make)
+            $("veh-make-model").textContent = [vr.make, vr.model].filter(Boolean).join(" ") || "—";
+          if (!v.color && vr.color) $("veh-color").textContent = vr.color;
+          if (!v.year && vr.yearOfManufacture) $("veh-year").textContent = vr.yearOfManufacture;
+
+          // Installation location & contacts from retail lead
+          const hasInstallInfo = tk.installationLocation || tk.installationContactName ||
+                                  tk.installationContactPhone || tk.installationFinancer || tk.salesNotes;
+          if (hasInstallInfo) {
+            $('install-info-card').classList.remove('hidden');
+            $('info-install-location').textContent = tk.installationLocation || '—';
+            $('info-install-financer').textContent  = tk.installationFinancer  || '—';
+            $('info-contact-name').textContent      = tk.installationContactName  || '—';
+            $('info-contact-phone').textContent     = tk.installationContactPhone || '—';
+            if (tk.salesNotes) {
+              $('info-sales-notes').textContent = tk.salesNotes;
+              $('info-sales-notes-row').classList.remove('hidden');
+            }
+          }
+
+          // Supplement gadgets from ticket device when vi_gadgets table is empty
+          if (!gadgets.length) {
+            const tkDevList = tk.assignedDevice
+              ? [tk.assignedDevice]
+              : (tk.devices?.length ? tk.devices : []);
+            if (tkDevList.length) {
+              $("gadgets-list").innerHTML = tkDevList.map(d => `
+                <div class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
+                  <div>
+                    <p class="font-medium text-slate-800">${d.deviceModel || d.productName || d.type || "—"}</p>
+                    <p class="text-xs text-slate-400 font-mono">${d.serialNumber || d.imei || ""}</p>
+                  </div>
+                </div>`).join("");
+            }
+          }
+
+          // Update header assignment label from ticket if vi_installation had no assigned_at
+          if (!inst.assignedAt && tk.assignedAt) {
+            $("header-schedule").textContent = `Assigned ${fmt(tk.assignedAt)}`;
+          }
+
+          renderSummary(tk);
+
+          // ── Phase 2: Acknowledgement + Travel/Arrived ─────────────────
+          wirePhase2(tk, installTicketId);
+
+          // Load certificate panel for this job
+          loadCertificatePanel(v.registration, installTicketId, tk.customerName);
+        } else {
+          // No ticket yet — Admin/Finance can still assign via vi-installations
+          if (CAN_ASSIGN && !isComplete) $("btn-assign").classList.remove("hidden");
+        }
+      } catch {
+        if (CAN_ASSIGN && !isComplete) $("btn-assign").classList.remove("hidden");
+      }
+
+      // co-assign always visible to CAN_ASSIGN roles on non-completed jobs
+      if (CAN_ASSIGN && !isComplete) $("btn-co-assign").classList.remove("hidden");
+
+      // ISO assign for Admin/Finance/InstallOffice
+      if (["Admin", "Finance", "InstallOffice"].includes(myRole) && !isComplete) {
+        $("btn-iso-assign").classList.remove("hidden");
+        if (IS_INSTALL_OFFICE) $("btn-iso-assign").textContent = "Assign Yourself as ISO";
+      }
+
+      $("btn-co-assign").addEventListener("click", () => openCoAssignModal(installTicketId));
+      $("btn-iso-claim").addEventListener("click", () => claimAsISO(installTicketId));
+      $("btn-iso-assign").addEventListener("click", IS_INSTALL_OFFICE
+        ? () => claimAsISO(installTicketId)
+        : () => openIsoAssignModal(installTicketId));
+
+      if (isComplete) {
+        $('actions-panel').classList.add('hidden');
+      } else if (inst.status === 'In Progress') {
+        $('btn-accept').textContent = 'Accepted';
+        $('action-note').textContent = IS_INSTALL_OFFICE
+          ? 'Job is in progress — monitor via job card.'
+          : 'Job is in progress — proceed to job card to advance stages.';
+      } else if (inst.status === 'Pending' || inst.status === 'Assigned') {
+        $('action-note').textContent = IS_INSTALL_OFFICE
+          ? 'Assign an ISO officer and a technician to begin this job.'
+          : "Click 'Start Job' to accept this assignment and begin work.";
+      }
+
+      $("btn-accept").addEventListener("click", async () => {
+        $("btn-accept").disabled = true;
+        $("btn-accept").textContent = "Starting…";
+        try {
+          await APP.apiFetch(`/vehicle-installations/${jobId}/accept`, { method: "POST" });
+          showToast("Job started — status updated to In Progress.", "bg-emerald-700");
+          setTimeout(() => location.reload(), 1200);
+        } catch (e) {
+          showToast(e.message || "Failed to start job.", "bg-red-700");
+          $("btn-accept").disabled = false;
+          $("btn-accept").textContent = "Start Job";
+        }
+      });
+
+      $("btn-job-card").addEventListener("click", () => {
+        location.href = `job-card.html?id=${encodeURIComponent(jobId)}`;
+      });
+
+      $("btn-assign").addEventListener("click", () => openAssignModal(inst, installTicketId));
+
+    } catch (e) {
+      $("loading-state").classList.add("hidden");
+      if (e.status === 404) {
+        $("job-not-found").classList.remove("hidden");
+      } else {
+        $("job-error").textContent = e.message || "Failed to load job details.";
+        $("job-error").classList.remove("hidden");
+      }
+    }
+  }
+
+  // ── Ticket-only load path (no VI installation) ────────────────────────────
+  async function loadByTicket(tid) {
+    try {
+      const tkRes = await APP.apiFetch(`/installation-tickets/${encodeURIComponent(tid)}`);
+      const tk = tkRes?.data || tkRes;
+      if (!tk) throw { status: 404 };
+
+      const vd = tk.vehicleRecord || tk.vehicleDetails || {};
+      const STAGE_NAMES = ['Unassigned','Device Selected','Vehicle Confirmed','Pre-Install Done','Electrical Done','Device Installed','Activated','Post-Install Done'];
+
+      $("loading-state").classList.add("hidden");
+      $("job-details").classList.remove("hidden");
+
+      // Header
+      $("header-customer").textContent = tk.customerName || "—";
+      $("header-vehicle").textContent  = [tk.vehicleRegistration, vd.make, vd.model].filter(Boolean).join(" – ");
+      $("header-schedule").textContent = tk.assignedAt ? `Assigned ${fmt(tk.assignedAt)}` : "Not yet assigned";
+      const badge = $("status-badge");
+      badge.className = `inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border ${STATUS_COLORS[tk.status] || STATUS_COLORS.Pending}`;
+      badge.textContent = tk.status || "—";
+
+      // Job info
+      $("ticket-ref").textContent   = tk.ticketNo || "—";
+      $("stage-name").textContent   = STAGE_NAMES[tk.stage] || (tk.stage > 0 ? `Stage ${tk.stage}` : "Unassigned");
+      $("assigned-at").textContent  = fmt(tk.assignedAt);
+      $("tech-name").textContent    = tk.assignedToEmail || "—";
+      $("co-tech-name").textContent = tk.coTechnicianName || tk.coTechnicianEmail || "None assigned";
+      $("iso-name").textContent     = tk.isoName || tk.isoEmail || "Not yet assigned";
+      // Warning: assignment incomplete — check both directions
+      const hasTech2 = !!(tk.assignedToEmail || tk.assignedToUserId);
+      const hasIso2  = !!(tk.isoName || tk.isoEmail);
+      if (hasTech2 && !hasIso2) {
+        $("iso-warning-title").textContent = "No ISO Officer assigned";
+        $("iso-warning-body").textContent  = "This job has a technician assigned but no ISO officer has been selected. Please assign an ISO officer before the installation proceeds.";
+        $("iso-warning").classList.remove("hidden");
+        const warnBtn = $("iso-warning-assign");
+        if (warnBtn && ["Admin","Finance","InstallOffice"].includes(myRole)) {
+          warnBtn.textContent = "+ Assign ISO";
+          warnBtn.classList.remove("hidden");
+          warnBtn.addEventListener("click", () => openIsoAssignModal(tk.id));
+        }
+      } else if (hasIso2 && !hasTech2) {
+        $("iso-warning-title").textContent = "No Technician assigned";
+        $("iso-warning-body").textContent  = "An ISO officer has been selected but no technician has been assigned to this job yet.";
+        $("iso-warning").classList.remove("hidden");
+        const warnBtn = $("iso-warning-assign");
+        if (warnBtn && ["Admin","Finance","InstallOffice"].includes(myRole)) {
+          const fakeInst2 = { ticketRef: tk.ticketNo, assignedAt: tk.assignedAt, assignedTechnicianId: tk.assignedToUserId };
+          warnBtn.textContent = "+ Assign Tech";
+          warnBtn.classList.remove("hidden");
+          warnBtn.addEventListener("click", () => openAssignModal(fakeInst2, tk.id));
+        }
+      }
+
+      // Vehicle
+      $("veh-reg").textContent        = tk.vehicleRegistration || "—";
+      $("veh-make-model").textContent = [vd.make, vd.model].filter(Boolean).join(" ") || "—";
+      $("veh-color").textContent      = vd.color || "—";
+      $("veh-year").textContent       = vd.yearOfManufacture || vd.year  || "—";
+
+      // Customer (name only — contact details are in CRM, not duplicated on ticket)
+      $("cust-name").textContent  = tk.customerName || "—";
+      $("cust-acct").textContent  = "—";
+      $("cust-phone").textContent = "—";
+      $("cust-email").textContent = "—";
+      $("cust-partner").textContent  = tk.partnerName || "—";
+      $("cust-financed").textContent = tk.installationFinancer
+        ? (tk.installationFinancer.toLowerCase().includes("bank") ? `Yes (${tk.installationFinancer})` : "No")
+        : "—";
+      $("cust-segment").textContent  = tk.customerSegment || "—";
+
+      // Devices
+      const devList = tk.assignedDevice
+        ? [tk.assignedDevice]
+        : (tk.devices || []);
+      if (devList.length) {
+        $("gadgets-list").innerHTML = devList.map(d =>
+          `<div class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
+            <div>
+              <p class="font-medium text-slate-800">${d.deviceModel || d.productName || d.type || "—"}</p>
+              <p class="text-xs text-slate-400 font-mono">${d.serialNumber || d.imei || ""}</p>
+            </div>
+          </div>`
+        ).join("");
+      }
+      $("expected-gadget-count").value = tk.expectedGadgetCount ?? "";
+
+      // Notes
+      $("post-install-notes").textContent = tk.notes || "—";
+
+      // Action buttons
+      const isComplete = tk.status === "Completed";
+      $("btn-accept").classList.add("hidden"); // No VI job to start
+
+      const canJobCard = ["In Progress", "Awaiting Confirmation"].includes(tk.status);
+      $("btn-job-card").disabled = !canJobCard;
+      $("btn-job-card").addEventListener("click", () => {
+        location.href = `job-card.html?id=${encodeURIComponent(tid)}`;
+      });
+
+      const isMyIso = IS_TECHNICAL && (tk.isoUserId === myId || tk.isoEmail === myEmail);
+      if (IS_TECHNICAL && !isComplete && !tk.isoUserId) {
+        $("btn-iso-claim").classList.remove("hidden");
+      }
+      if (!isComplete && (["Admin", "Finance", "InstallOffice"].includes(myRole) || isMyIso)) {
+        $("btn-assign").classList.remove("hidden");
+      }
+      wireIsoAssist(tk, tk.id);
+      if (CAN_ASSIGN && !isComplete) $("btn-co-assign").classList.remove("hidden");
+
+      // ISO assign for Admin/Finance/InstallOffice
+      if (["Admin", "Finance", "InstallOffice"].includes(myRole) && !isComplete) {
+        $("btn-iso-assign").classList.remove("hidden");
+        if (IS_INSTALL_OFFICE) $("btn-iso-assign").textContent = "Assign Yourself as ISO";
+      }
+
+      // Load certificate panel for this ticket
+      loadCertificatePanel(tk.vehicleRegistration, tk.id, tk.customerName);
+      _currentTicketIdForHistory = tk.id;
+
+      renderSummary(tk);
+      wirePhase2(tk, tk.id);
+
+      // Bind action handlers with ticket data
+      const fakeInst = { ticketRef: tk.ticketNo, assignedAt: tk.assignedAt, assignedTechnicianId: tk.assignedToUserId };
+      $("btn-assign").addEventListener("click", () => openAssignModal(fakeInst, tk.id));
+      $("btn-co-assign").addEventListener("click", () => openCoAssignModal(tk.id));
+      $("btn-iso-claim").addEventListener("click", () => claimAsISO(tk.id));
+      $("btn-iso-assign").addEventListener("click", IS_INSTALL_OFFICE
+        ? () => claimAsISO(tk.id)
+        : () => openIsoAssignModal(tk.id));
+
+      if (isComplete) {
+        $("action-note").textContent = "This job has been completed.";
+      } else if (tk.status === "Assigned") {
+        $("action-note").textContent = "Assigned — the technician can proceed to the job card.";
+      }
+
+    } catch (e) {
+      $("loading-state").classList.add("hidden");
+      if (e.status === 404) {
+        $("job-not-found").classList.remove("hidden");
+      } else {
+        $("job-error").textContent = e.message || "Failed to load job details.";
+        $("job-error").classList.remove("hidden");
+      }
+    }
+  }
+
+  // ── Phase 2: GPS helper ───────────────────────────────────────────────────
+  function requestGps(timeoutMs = 8000) {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition(
+        pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }),
+        ()  => resolve(null),
+        { timeout: timeoutMs, maximumAge: 30000, enableHighAccuracy: true }
+      );
+    });
+  }
+
+  // ── Phase 2: Ack modal + travel/arrived wiring ────────────────────────────
+  let _ackAccepting = true; // true = Accept mode, false = Reject mode
+
+  function wirePhase2(tk, ticketId) {
+    if (!ticketId) return;
+    const isMyTicket = tk.assignedToUserId === myId || tk.assignedToEmail === myEmail;
+    const isTechRole = ["Technician", "Technical", "Admin"].includes(myRole);
+    const isComplete = tk.status === "Completed" || tk.status === "Closed";
+
+    // Show map if coordinates are set
+    if (tk.installationLocationLat != null && tk.installationLocationLng != null) {
+      const lat = tk.installationLocationLat, lng = tk.installationLocationLng;
+      $("map-iframe").src = `https://www.openstreetmap.org/export/embed.html?bbox=${lng-0.01},${lat-0.01},${lng+0.01},${lat+0.01}&layer=mapnik&marker=${lat},${lng}`;
+      $("map-open-link").href = `https://www.google.com/maps/?q=${lat},${lng}`;
+      $("map-card").classList.remove("hidden");
+    }
+
+    // Acknowledgement modal: shown when assigned tech hasn't acknowledged yet
+    if (isMyTicket && isTechRole && !tk.acknowledgedAt && !isComplete && tk.assignedAt) {
+      // Pre-fill modal summary
+      $("ack-ticket-no").textContent  = tk.ticketNo || "—";
+      $("ack-customer").textContent   = tk.customerName || $("cust-name").textContent || "—";
+      $("ack-vehicle").textContent    = tk.vehicleRegistration || $("veh-reg").textContent || "—";
+      $("ack-scheduled").textContent  = fmt(tk.assignedAt);
+      $("ack-sla-ack").textContent     = (tk.slaAckHours    || 4)  + "h";
+      $("ack-sla-start").textContent   = (tk.slaStartHours  || 24) + "h";
+      $("ack-sla-signoff").textContent = (tk.slaSignoffHours || 48) + "h";
+      // Show modal automatically after a brief delay
+      setTimeout(() => {
+        $("ack-modal").classList.remove("hidden");
+        $("ack-modal").classList.add("flex");
+      }, 600);
+    }
+
+    // Travel / Arrived panel: show to assigned tech
+    if (isMyTicket && isTechRole && !isComplete) {
+      if (tk.acknowledgedAt) {
+        $("travel-panel").classList.remove("hidden");
+        if (tk.travelStartedAt) {
+          $("btn-travel").classList.add("hidden");
+          if (!tk.arrivedAt) {
+            $("btn-arrived").classList.remove("hidden");
+          } else {
+            $("travel-status-text").textContent = "Arrived on site — " + fmt(tk.arrivedAt);
+          }
+        } else {
+          $("travel-status-text").textContent = "Acknowledged — tap when you leave for the job.";
+        }
+      }
+    }
+
+    // Bind travel button
+    $("btn-travel").addEventListener("click", async () => {
+      $("btn-travel").disabled = true; $("btn-travel").textContent = "Getting GPS…";
+      const gps = await requestGps();
+      $("btn-travel").textContent = "Starting Travel…";
+      try {
+        await APP.apiFetch(`/installation-tickets/${encodeURIComponent(ticketId)}/travel-start`, {
+          method: "POST", body: { gpsLat: gps?.lat ?? null, gpsLng: gps?.lng ?? null, gpsAccuracy: gps?.accuracy ?? null },
+        });
+        showToast("Travel started — good luck!", "bg-sky-700");
+        $("btn-travel").classList.add("hidden");
+        $("btn-arrived").classList.remove("hidden");
+        $("travel-status-text").textContent = "Travelling to site…";
+      } catch (e) {
+        showToast((e && e.message) || "Failed to record travel.", "bg-red-700");
+        $("btn-travel").disabled = false; $("btn-travel").textContent = "🚦 Start Travel";
+      }
+    });
+
+    // Bind arrived button
+    $("btn-arrived").addEventListener("click", async () => {
+      $("btn-arrived").disabled = true; $("btn-arrived").textContent = "Getting GPS…";
+      const gps = await requestGps();
+      $("btn-arrived").textContent = "Saving…";
+      try {
+        const res = await APP.apiFetch(`/installation-tickets/${encodeURIComponent(ticketId)}/arrived`, {
+          method: "POST", body: { gpsLat: gps?.lat ?? null, gpsLng: gps?.lng ?? null, gpsAccuracy: gps?.accuracy ?? null },
+        });
+        const dist = res?.distanceFromSiteKm;
+        showToast("Arrival recorded" + (dist != null ? ` (${dist} km from site)` : "") + ".", "bg-emerald-700");
+        $("btn-arrived").classList.add("hidden");
+        $("travel-status-text").textContent = "Arrived on site" + (dist != null ? ` · ${dist} km from planned location` : "") + ".";
+      } catch (e) {
+        showToast((e && e.message) || "Failed to record arrival.", "bg-red-700");
+        $("btn-arrived").disabled = false; $("btn-arrived").textContent = "📍 Mark Arrived";
+      }
+    });
+  }
+
+  // ── Acknowledgement modal JS ──────────────────────────────────────────────
+  function openAckModal() { $("ack-modal").classList.remove("hidden"); $("ack-modal").classList.add("flex"); }
+  function closeAckModal() { $("ack-modal").classList.add("hidden"); $("ack-modal").classList.remove("flex"); }
+
+  $("ack-modal-close").addEventListener("click", closeAckModal);
+  $("ack-cancel-btn").addEventListener("click", closeAckModal);
+  $("ack-modal").addEventListener("click", e => { if (e.target === $("ack-modal")) closeAckModal(); });
+
+  $("ack-tab-accept").addEventListener("click", () => {
+    _ackAccepting = true;
+    $("ack-reject-section").classList.add("hidden");
+    $("ack-confirm-btn").textContent = "Confirm Accept";
+    $("ack-confirm-btn").className = "rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50";
+  });
+  $("ack-tab-reject").addEventListener("click", () => {
+    _ackAccepting = false;
+    $("ack-reject-section").classList.remove("hidden");
+    $("ack-confirm-btn").textContent = "Confirm Rejection";
+    $("ack-confirm-btn").className = "rounded-lg bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50";
+  });
+
+  $("ack-confirm-btn").addEventListener("click", async () => {
+    const btn = $("ack-confirm-btn");
+    btn.disabled = true;
+    $("ack-error").classList.add("hidden");
+    const ticketId = _currentTicketIdForHistory;
+    if (!ticketId) { $("ack-error").textContent = "Cannot identify ticket."; $("ack-error").classList.remove("hidden"); btn.disabled = false; return; }
+
+    if (!_ackAccepting) {
+      const reason = $("ack-reject-reason").value.trim();
+      if (!reason) { $("ack-error").textContent = "Please provide a rejection reason."; $("ack-error").classList.remove("hidden"); btn.disabled = false; return; }
+      btn.textContent = "Sending…";
+      try {
+        await APP.apiFetch(`/installation-tickets/${encodeURIComponent(ticketId)}/acknowledge`, {
+          method: "POST", body: { accept: false, rejectionReason: reason },
+        });
+        showToast("Ticket rejected. Technical Manager has been notified.", "bg-amber-700");
+        closeAckModal();
+        setTimeout(() => location.reload(), 1500);
+      } catch (e) {
+        $("ack-error").textContent = (e && e.message) || "Rejection failed.";
+        $("ack-error").classList.remove("hidden");
+        btn.disabled = false; btn.textContent = "Confirm Rejection";
+      }
+      return;
+    }
+
+    // Accept path — capture GPS first
+    btn.textContent = "Getting GPS…";
+    const gps = await requestGps(6000);
+    btn.textContent = "Saving…";
+    try {
+      await APP.apiFetch(`/installation-tickets/${encodeURIComponent(ticketId)}/acknowledge`, {
+        method: "POST",
+        body: { accept: true, gpsLat: gps?.lat ?? null, gpsLng: gps?.lng ?? null, gpsAccuracy: gps?.accuracy ?? null },
+      });
+      showToast("Job accepted. SLA clock running — travel when ready.", "bg-emerald-700");
+      closeAckModal();
+      $("travel-panel").classList.remove("hidden");
+      $("travel-status-text").textContent = "Acknowledged — tap when you leave for the job.";
+    } catch (e) {
+      $("ack-error").textContent = (e && e.message) || "Acknowledgement failed.";
+      $("ack-error").classList.remove("hidden");
+      btn.disabled = false; btn.textContent = "Confirm Accept";
+    }
+  });
+
+  // ── Tab switching ─────────────────────────────────────────────────────────
+  let _historyLoaded = false;
+  let _slaLoaded = false;
+  let _currentTicketIdForHistory = null;
+
+  // Inject tab-active style
+  const tabStyle = document.createElement('style');
+  tabStyle.textContent = '.tab-active { border-bottom: 2px solid #2563eb; color: #1d4ed8; font-weight: 600; }';
+  document.head.appendChild(tabStyle);
+
+  function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      const active = b.dataset.tab === name;
+      b.classList.toggle('tab-active', active);
+      if (active) {
+        b.classList.remove('text-slate-500', 'hover:text-slate-700');
+      } else {
+        b.classList.add('text-slate-500', 'hover:text-slate-700');
+      }
+    });
+    ['details', 'history', 'sla'].forEach(t => {
+      document.getElementById('tab-' + t)?.classList.toggle('hidden', t !== name);
+    });
+    if (name === 'history' && !_historyLoaded && _currentTicketIdForHistory) loadHistory(_currentTicketIdForHistory);
+    if (name === 'sla'     && !_slaLoaded     && _currentTicketIdForHistory) loadSla(_currentTicketIdForHistory);
+  }
+
+  document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+
+  // ── History ───────────────────────────────────────────────────────────────
+  const EVENT_META = {
+    TICKET_CREATED:         { icon: '🎫', color: 'bg-blue-100 text-blue-700' },
+    TICKET_ASSIGNED:        { icon: '👤', color: 'bg-indigo-100 text-indigo-700' },
+    CO_TECHNICIAN_ASSIGNED: { icon: '👥', color: 'bg-violet-100 text-violet-700' },
+    CO_TECHNICIAN_CLEARED:  { icon: '✖', color: 'bg-slate-100 text-slate-500' },
+    ISO_ASSIGNED:           { icon: '🏅', color: 'bg-emerald-100 text-emerald-700' },
+    ISO_NOTIFIED:           { icon: '📡', color: 'bg-teal-100 text-teal-700' },
+    STATUS_CHANGED:         { icon: '🔄', color: 'bg-amber-100 text-amber-700' },
+    STAGE_ADVANCED:         { icon: '⏩', color: 'bg-sky-100 text-sky-700' },
+    VEHICLE_UPDATED:        { icon: '🚗', color: 'bg-orange-100 text-orange-700' },
+    TECHNICIAN_ACCEPTED:    { icon: '✅', color: 'bg-emerald-100 text-emerald-700' },
+    TECHNICIAN_REJECTED:    { icon: '❌', color: 'bg-red-100 text-red-700' },
+    TRAVEL_STARTED:         { icon: '🚦', color: 'bg-sky-100 text-sky-700' },
+    ARRIVED_ON_SITE:        { icon: '📍', color: 'bg-green-100 text-green-700' },
+    JOB_STARTED:            { icon: '🔧', color: 'bg-blue-100 text-blue-700' },
+    STEP_COMPLETED:         { icon: '✓',  color: 'bg-slate-100 text-slate-700' },
+    ACTIVATION_APPROVED:    { icon: '🟢', color: 'bg-emerald-100 text-emerald-700' },
+    ACTIVATION_REJECTED:    { icon: '🔴', color: 'bg-red-100 text-red-700' },
+    CUSTOMER_SIGNED_OFF:    { icon: '✍',  color: 'bg-purple-100 text-purple-700' },
+    TICKET_CLOSED:          { icon: '🏁', color: 'bg-slate-100 text-slate-600' },
+    SLA_AT_RISK:            { icon: '⚠',  color: 'bg-amber-100 text-amber-700' },
+    SLA_BREACHED:           { icon: '🚨', color: 'bg-red-100 text-red-700' },
+  };
+
+  function relativeTime(iso) {
+    if (!iso) return '';
+    const diff = Date.now() - new Date(iso).getTime();
+    const s = Math.floor(diff / 1000);
+    if (s < 60) return 'just now';
+    const m = Math.floor(s / 60);
+    if (m < 60) return m + 'm ago';
+    const h = Math.floor(m / 60);
+    if (h < 24) return h + 'h ago';
+    const d = Math.floor(h / 24);
+    if (d < 30) return d + 'd ago';
+    return new Date(iso).toLocaleDateString('en-KE', { dateStyle: 'medium' });
+  }
+
+  async function loadHistory(ticketId) {
+    _historyLoaded = true;
+    try {
+      const res = await APP.apiFetch('/installation-tickets/' + encodeURIComponent(ticketId) + '/history');
+      const { history } = res?.data || {};
+      document.getElementById('history-loading').classList.add('hidden');
+      const tl = document.getElementById('history-timeline');
+      const empty = document.getElementById('history-empty');
+      if (!history?.length) { empty.classList.remove('hidden'); return; }
+      tl.innerHTML = history.map(ev => {
+        const meta = EVENT_META[ev.eventType] || { icon: '•', color: 'bg-slate-100 text-slate-600' };
+        const sc = (ev.statusBefore && ev.statusAfter && ev.statusBefore !== ev.statusAfter)
+          ? '<span class="ml-1 text-xs text-slate-400">' + ev.statusBefore + ' → ' + ev.statusAfter + '</span>' : '';
+        const stc = (ev.stageBefore != null && ev.stageAfter != null && ev.stageBefore !== ev.stageAfter)
+          ? '<span class="ml-1 text-xs text-slate-400">Stage ' + ev.stageBefore + '→' + ev.stageAfter + '</span>' : '';
+        const det = ev.details ? Object.entries(ev.details)
+          .filter(([, v]) => v != null && v !== '')
+          .map(([k, v]) => '<span class="text-xs text-slate-400">' + k + ': <span class="text-slate-600 font-mono">' + String(v).substring(0, 60) + '</span></span>')
+          .join(' · ') : '';
+        return '<li class="relative">' +
+          '<span class="absolute -left-8 flex h-6 w-6 items-center justify-center rounded-full text-xs ' + meta.color + ' ring-2 ring-white">' + meta.icon + '</span>' +
+          '<div class="bg-white border border-slate-200/80 rounded-xl p-3 shadow-sm">' +
+            '<div class="flex items-start justify-between gap-2">' +
+              '<div>' +
+                '<p class="text-sm font-medium text-slate-800">' + (ev.eventLabel || ev.eventType) + sc + stc + '</p>' +
+                '<p class="text-xs text-slate-400 mt-0.5">' + (ev.performedByEmail || 'System') + (det ? ' · ' + det : '') + '</p>' +
+              '</div>' +
+              '<time class="shrink-0 text-xs text-slate-400 whitespace-nowrap" title="' + (ev.performedAt || '') + '">' + relativeTime(ev.performedAt) + '</time>' +
+            '</div>' +
+          '</div>' +
+        '</li>';
+      }).join('');
+      tl.classList.remove('hidden');
+    } catch (e) {
+      document.getElementById('history-loading').classList.add('hidden');
+      document.getElementById('history-error').textContent = (e && e.message) || 'Failed to load history.';
+      document.getElementById('history-error').classList.remove('hidden');
+    }
+  }
+
+  // ── SLA ───────────────────────────────────────────────────────────────────
+  const SLA_COLORS = {
+    OnTrack: { badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', bar: 'bg-emerald-500', label: 'On Track' },
+    AtRisk:  { badge: 'bg-amber-50 text-amber-700 border-amber-200',       bar: 'bg-amber-400',   label: 'At Risk' },
+    Breached:{ badge: 'bg-red-50 text-red-700 border-red-200',             bar: 'bg-red-500',     label: 'Breached' },
+    Met:     { badge: 'bg-blue-50 text-blue-700 border-blue-200',          bar: 'bg-blue-500',    label: 'Met ✓' },
+    Pending: { badge: 'bg-slate-100 text-slate-500 border-slate-200',      bar: 'bg-slate-200',   label: 'Pending' },
+  };
+
+  async function loadSla(ticketId) {
+    _slaLoaded = true;
+    try {
+      const res = await APP.apiFetch('/installation-tickets/' + encodeURIComponent(ticketId) + '/history');
+      const { sla } = res?.data || {};
+      document.getElementById('sla-loading').classList.add('hidden');
+      if (!sla) {
+        document.getElementById('sla-error').textContent = 'SLA data unavailable.';
+        document.getElementById('sla-error').classList.remove('hidden');
+        return;
+      }
+      const oc = SLA_COLORS[sla.overallStatus] || SLA_COLORS.Pending;
+      const ob = document.getElementById('sla-overall-badge');
+      ob.textContent = oc.label;
+      ob.className = 'mt-1 inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold border ' + oc.badge;
+      document.getElementById('sla-total-elapsed').textContent =
+        sla.totalElapsedHours != null ? sla.totalElapsedHours.toFixed(1) + 'h' : '—';
+      document.getElementById('sla-overview').classList.remove('hidden');
+
+      const gatesEl = document.getElementById('sla-gates');
+      gatesEl.innerHTML = sla.gates.map(g => {
+        const gc = SLA_COLORS[g.status] || SLA_COLORS.Pending;
+        const pct = g.targetHours > 0 && g.elapsedHours != null
+          ? Math.min(100, Math.round((g.elapsedHours / g.targetHours) * 100)) : 0;
+        const elapsed = g.elapsedHours != null ? g.elapsedHours.toFixed(1) + 'h elapsed' : 'Not started';
+        const remaining = g.remainingHours != null
+          ? (g.remainingHours < 0
+            ? Math.abs(g.remainingHours).toFixed(1) + 'h overdue'
+            : g.remainingHours.toFixed(1) + 'h left')
+          : (g.completedAt ? 'Completed' : '');
+        const dueAt = g.targetAt ? 'Due: ' + fmt(g.targetAt) : '';
+        return '<div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm space-y-2">' +
+          '<div class="flex items-center justify-between gap-2">' +
+            '<p class="text-sm font-semibold text-slate-800">' + g.label + '</p>' +
+            '<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border ' + gc.badge + '">' + gc.label + '</span>' +
+          '</div>' +
+          '<div class="w-full bg-slate-100 rounded-full h-1.5">' +
+            '<div class="h-1.5 rounded-full ' + gc.bar + ' transition-all" style="width:' + pct + '%"></div>' +
+          '</div>' +
+          '<div class="flex items-center justify-between text-xs text-slate-400">' +
+            '<span>' + elapsed + (remaining ? ' · ' + remaining : '') + '</span>' +
+            '<span>Target: ' + g.targetHours + 'h</span>' +
+          '</div>' +
+          (dueAt ? '<p class="text-xs text-slate-400">' + dueAt + '</p>' : '') +
+        '</div>';
+      }).join('');
+      gatesEl.classList.remove('hidden');
+    } catch (e) {
+      document.getElementById('sla-loading').classList.add('hidden');
+      document.getElementById('sla-error').textContent = (e && e.message) || 'Failed to load SLA.';
+      document.getElementById('sla-error').classList.remove('hidden');
+    }
+  }
+
+  // ── ISO Claim ─────────────────────────────────────────────────────────────
+  async function claimAsISO(ticketId) {
+    // If no installation_tickets record exists yet, create one first using the VI installation ID
+    if (!ticketId) {
+      const viId = jobId || ticketOnlyId;
+      if (!viId) { showToast("Cannot identify job.", "bg-red-700"); return; }
+      const isoBtn = $("btn-iso-assign");
+      if (isoBtn) { isoBtn.disabled = true; isoBtn.textContent = "Creating ticket…"; }
+      try {
+        const created = await APP.apiFetch("/installation-tickets", {
+          method: "POST",
+          body: { viInstallationId: viId },
+        });
+        ticketId = (created?.data || created)?.id || null;
+      } catch (e) {
+        showToast(e.message || "Failed to initialise ticket.", "bg-red-700");
+        if (isoBtn) { isoBtn.disabled = false; isoBtn.textContent = "Assign Yourself as ISO"; }
+        return;
+      }
+      if (!ticketId) { showToast("Failed to initialise ticket.", "bg-red-700"); return; }
+    }
+    const btn = $("btn-iso-claim");
+    const isoBtn2 = $("btn-iso-assign");
+    if (btn) { btn.disabled = true; btn.textContent = "Claiming…"; }
+    if (isoBtn2) { isoBtn2.disabled = true; isoBtn2.textContent = "Claiming…"; }
+    try {
+      const res = await APP.apiFetch(`/installation-tickets/${encodeURIComponent(ticketId)}/iso-assign`, { method: "POST" });
+      const tk = res?.data || res;
+      $("iso-name").textContent = tk?.isoName || tk?.isoEmail || "You";
+      if (btn) btn.classList.add("hidden");
+      if (isoBtn2) isoBtn2.classList.add("hidden");
+      $("btn-assign").classList.remove("hidden"); // ISO can now assign technician
+      showToast("You have claimed this ticket as ISO officer.", "bg-emerald-700");
+    } catch (e) {
+      showToast(e.message || "Claim failed.", "bg-red-700");
+      if (btn) { btn.disabled = false; btn.textContent = "Claim as ISO"; }
+      if (isoBtn2) { isoBtn2.disabled = false; isoBtn2.textContent = "Assign Yourself as ISO"; }
+    }
+  }
+
+  // ── Assign Technician Modal ────────────────────────────────────────────────
+  let _assignTicketId = null;
+  async function openAssignModal(inst, ticketId) {
+    _assignTicketId = ticketId || null;
+    $("assign-modal-job").textContent =
+      `${inst.ticketRef || (jobId || ticketOnlyId || "").slice(0,8).toUpperCase()} — ${$("cust-name").textContent}`;
+    $("assign-modal-err").classList.add("hidden");
+    $("modal-tech-select").innerHTML = "<option value=''>Loading…</option>";
+    $("assign-modal").classList.remove("hidden");
+    $("assign-modal").classList.add("flex");
+
+    // Pre-fill scheduled date if already set
+    if (inst.assignedAt) {
+      const d = new Date(inst.assignedAt);
+      $("modal-sched-date").value = d.toISOString().slice(0, 16);
+    }
+
+    try {
+      // Only technicians with devices InCustody are eligible for assignment
+      const techRes = await APP.apiFetch("/installation-tickets/available-technicians");
+      const techs = techRes?.data || [];
+
+      if (!techs.length) {
+        $("modal-tech-select").innerHTML = "<option value=''>No technicians with devices in custody</option>";
+      } else {
+        $("modal-tech-select").innerHTML =
+          "<option value=''>— Select technician —</option>" +
+          techs.map(t => {
+            const deviceLabel = t.deviceCount === 1 ? "1 device" : `${t.deviceCount} devices`;
+            const simCount = t.simCount || 0;
+            const simLabel = simCount === 1 ? "1 SIM" : `${simCount} SIMs`;
+            const selected = t.id === inst.assignedTechnicianId ? " selected" : "";
+            return `<option value="${t.id}" data-email="${t.email}"${selected}>${t.fullName} (${deviceLabel}, ${simLabel} in custody)</option>`;
+          }).join("");
+      }
+    } catch {
+      $("modal-tech-select").innerHTML = "<option value=''>Failed to load — try again</option>";
+    }
+  }
+
+  function closeAssignModal() {
+    $("assign-modal").classList.add("hidden");
+    $("assign-modal").classList.remove("flex");
+  }
+
+  async function confirmAssignment() {
+    const techId = $("modal-tech-select").value;
+    const sched  = $("modal-sched-date").value;
+    if (!techId) {
+      $("assign-modal-err").textContent = "Please select a technician.";
+      $("assign-modal-err").classList.remove("hidden");
+      return;
+    }
+    const btn = $("assign-confirm-btn");
+    btn.disabled = true; btn.textContent = "Saving…";
+    $("assign-modal-err").classList.add("hidden");
+    try {
+      const opt = $("modal-tech-select").options[$("modal-tech-select").selectedIndex];
+      const techEmail = opt?.dataset?.email || "";
+      if (_assignTicketId) {
+        // Preferred: assign via installation-tickets (includes ISO + device validation)
+        await APP.apiFetch(`/installation-tickets/${encodeURIComponent(_assignTicketId)}/assign`, {
+          method: "PATCH",
+          body: { technicianUserId: techId, technicianEmail: techEmail },
+        });
+      } else {
+        // Fallback: vi-installations path (when no installation-ticket exists)
+        await APP.apiFetch(`/vehicle-installations/${jobId}/assign`, {
+          method: "PATCH",
+          body: { technicianId: techId, assignedAt: sched || undefined },
+        });
+      }
+      showToast("Technician assigned successfully.", "bg-emerald-700");
+      closeAssignModal();
+      setTimeout(() => location.reload(), 1000);
+    } catch (e) {
+      $("assign-modal-err").textContent = e.message || "Assignment failed. Please try again.";
+      $("assign-modal-err").classList.remove("hidden");
+    } finally {
+      btn.disabled = false; btn.textContent = "Confirm";
+    }
+  }
+
+  // ── Installation Summary ──────────────────────────────────────────────────
+  const PRE_INSTALL_ITEMS = [
+    { id:'vi-bay-clear',       label:'Vehicle in a clear, well-lit work bay' },
+    { id:'vi-engine-off',      label:'Engine off and keys removed' },
+    { id:'vi-battery-ok',      label:'Battery voltage ≥12V confirmed' },
+    { id:'vi-fire-ex',         label:'Fire extinguisher on hand' },
+    { id:'vi-location-agreed', label:'Install location on vehicle confirmed' },
+    { id:'vi-wiring-route',    label:'Wiring route planned and clear of moving parts' },
+    { id:'vi-interior-clear',  label:'Interior access cleared (panels/trim removed)' },
+  ];
+  const ELECTRICAL_ITEMS = [
+    { id:'el-constant-12v', label:'12V constant power wire identified and tested' },
+    { id:'el-ignition',     label:'Ignition-switched wire identified and tested' },
+    { id:'el-ground',       label:'Clean chassis ground point identified' },
+    { id:'el-fused',        label:'Inline fuse fitted on constant power wire' },
+    { id:'el-no-shorts',    label:'No exposed bare wires; all connections insulated' },
+    { id:'el-power-ok',     label:'Device powers on from car supply' },
+    { id:'el-no-fault',     label:'No dashboard warning lights triggered' },
+  ];
+  const POST_INSTALL_ITEMS = [
+    { id:'po-gps-lock',       label:'GPS lock acquired (≥4 satellites)' },
+    { id:'po-server-ping',    label:'Device pinging tracking server' },
+    { id:'po-ignition-event', label:'Ignition on/off events received correctly' },
+    { id:'po-speed-ok',       label:'Speed readings appear correct' },
+    { id:'po-trim-replaced',  label:'All removed trim and panels refitted' },
+    { id:'po-wiring-secured', label:'All wiring secured and tidy' },
+    { id:'po-customer-demo',  label:'Customer shown live tracking on platform' },
+    { id:'po-docs-given',     label:'Installation documentation given to customer' },
+  ];
+  const PHOTO_SLOTS = [
+    { id:'ext-front',   label:'Exterior — Front' },
+    { id:'ext-back',    label:'Exterior — Back' },
+    { id:'ext-right',   label:'Exterior — Right side' },
+    { id:'ext-left',    label:'Exterior — Left side' },
+    { id:'dashboard',   label:'Dashboard' },
+    { id:'interior',    label:'Interior' },
+    { id:'engine-bay',  label:'Engine bay' },
+    { id:'device-loc',  label:'Device location' },
+    { id:'vin',         label:'VIN number' },
+    { id:'engine-no',   label:'Engine number' },
+  ];
+
+  function renderChecklist(items, checkedIds) {
+    const checked = checkedIds || [];
+    return items.map(it => {
+      const done = checked.includes(it.id);
+      return '<div class="flex items-center gap-2 py-1">' +
+        '<span class="shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-xs ' + (done ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400') + '">' +
+        (done ? '✓' : '·') + '</span>' +
+        '<span class="text-xs ' + (done ? 'text-slate-700' : 'text-slate-400 line-through') + '">' + it.label + '</span>' +
+        '</div>';
+    }).join('');
+  }
+
+  function fmtTs(ts) { return ts ? new Date(ts).toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short' }) : '—'; }
+
+  function stepCard(num, label, done, content) {
+    const icon = done
+      ? '<div class="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center shrink-0"><svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>'
+      : '<div class="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center shrink-0 text-xs font-bold text-slate-500">' + num + '</div>';
+    return '<details class="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden" ' + (done ? 'open' : '') + '>' +
+      '<summary class="flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none list-none">' +
+        icon +
+        '<span class="font-semibold text-sm text-slate-800 flex-1">' + label + '</span>' +
+        '<svg class="summary-chevron w-4 h-4 text-slate-400 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>' +
+      '</summary>' +
+      '<div class="px-5 pb-4 border-t border-slate-100 pt-3">' + (content || '<p class="text-xs text-slate-400 italic">Not yet completed.</p>') + '</div>' +
+    '</details>';
+  }
+
+  function renderSummary(tk) {
+    if (!tk || tk.stage < 1) return;
+    document.getElementById('install-summary').classList.remove('hidden');
+    const s = tk.stage || 0;
+    const steps = [];
+
+    // Stage 0 → Device
+    const dev = tk.assignedDeviceId;
+    steps.push(stepCard(1, 'Device Selection', s >= 1,
+      dev ? '<p class="text-xs text-slate-600">Device ID: <span class="font-mono font-medium text-slate-800">' + dev + '</span></p>' : null
+    ));
+
+    // Stage 1 → Vehicle
+    const vd = tk.vehicleDetails || {};
+    const vContent = Object.keys(vd).length ? [
+      ['Registration',   vd.registration || '—'],
+      ['Make',           vd.make || '—'],
+      ['Model',          vd.model || '—'],
+      ['Year',           vd.year || '—'],
+      ['Color',          vd.color || '—'],
+      ['Chassis No.',    vd.chassisNo || '—'],
+      ['Engine No.',     vd.engineNo || '—'],
+    ].filter(([,v]) => v !== '—').map(([k,v]) =>
+      '<div class="flex gap-3 text-xs py-0.5"><span class="w-28 text-slate-400 shrink-0">' + k + '</span><span class="font-medium text-slate-800">' + v + '</span></div>'
+    ).join('') : null;
+    steps.push(stepCard(2, 'Vehicle Details', s >= 2, vContent));
+
+    // Stage 2 → Pre-Check
+    const preC = tk.preInstallChecklist || [];
+    steps.push(stepCard(3, 'Pre-Installation Check', s >= 3,
+      s >= 3 ? '<div class="space-y-0.5">' + renderChecklist(PRE_INSTALL_ITEMS, preC) + '</div>' +
+        '<p class="text-xs text-slate-400 mt-2">' + preC.length + '/' + PRE_INSTALL_ITEMS.length + ' items completed</p>' : null
+    ));
+
+    // Stage 3 → Electrical
+    const elC = tk.electricalChecklist || [];
+    steps.push(stepCard(4, 'Electrical Systems', s >= 4,
+      s >= 4 ? '<div class="space-y-0.5">' + renderChecklist(ELECTRICAL_ITEMS, elC) + '</div>' +
+        '<p class="text-xs text-slate-400 mt-2">' + elC.length + '/' + ELECTRICAL_ITEMS.length + ' items completed</p>' : null
+    ));
+
+    // Stage 4 → Device Install
+    const di = tk.deviceInstall || {};
+    const diContent = s >= 5 && Object.keys(di).length ? [
+      ['Mount Location', di.mountLocation || '—'],
+      ['Mount Method',   di.mountDescription || '—'],
+      ['Cable Routing',  di.cableRouting || '—'],
+      ['Notes',          di.notes || '—'],
+      ['Confirmed At',   fmtTs(di.confirmedAt)],
+    ].filter(([,v]) => v !== '—').map(([k,v]) =>
+      '<div class="flex gap-3 text-xs py-0.5"><span class="w-28 text-slate-400 shrink-0">' + k + '</span><span class="font-medium text-slate-800">' + v + '</span></div>'
+    ).join('') : null;
+    steps.push(stepCard(5, 'Device Installation', s >= 5, diContent));
+
+    // Stage 5 → Activation
+    const ac = tk.activation || {};
+    let acContent = null;
+    if (s >= 6 && Object.keys(ac).length) {
+      acContent = [
+        ['Platform URL',   ac.platformUrl || '—'],
+        ['IMEI',           ac.imeiConfirmed || '—'],
+        ['SIM ICCID',      ac.simConfirmed || '—'],
+        ['Signal',         ac.signalStrength || '—'],
+        ['Tracker Phone',  ac.trackerPhone || '—'],
+        ['Engineer Notes', ac.engineerNotes || '—'],
+        ['Confirmed At',   fmtTs(ac.confirmedAt)],
+      ].filter(([,v]) => v !== '—').map(([k,v]) =>
+        '<div class="flex gap-3 text-xs py-0.5"><span class="w-28 text-slate-400 shrink-0">' + k + '</span><span class="font-medium text-slate-800">' + v + '</span></div>'
+      ).join('');
+      if (ac.locationScreenshot && ac.locationScreenshot.startsWith('data:')) {
+        acContent += '<div class="mt-3"><p class="text-xs text-slate-400 mb-1">Location Screenshot</p>' +
+          '<img src="' + ac.locationScreenshot + '" class="max-h-40 rounded-lg border border-slate-200 object-contain" /></div>';
+      }
+    }
+    steps.push(stepCard(6, 'Device Activation', s >= 6, acContent));
+
+    // Stage 6 → Post-Check
+    const poC = tk.postInstallChecklist || [];
+    steps.push(stepCard(7, 'Post-Installation Check', s >= 7,
+      s >= 7 ? '<div class="space-y-0.5">' + renderChecklist(POST_INSTALL_ITEMS, poC) + '</div>' +
+        '<p class="text-xs text-slate-400 mt-2">' + poC.length + '/' + POST_INSTALL_ITEMS.length + ' items completed</p>' : null
+    ));
+
+    // Stage 7 → Photos
+    const photos = tk.sitePhotos || {};
+    const photoCount = Object.keys(photos).length;
+    let photoContent = null;
+    if (s >= 8) {
+      if (photoCount) {
+        photoContent = '<div class="grid grid-cols-2 sm:grid-cols-3 gap-2">' +
+          PHOTO_SLOTS.filter(sl => photos[sl.id]).map(sl =>
+            '<div class="rounded-lg overflow-hidden border border-slate-200">' +
+              '<img src="' + photos[sl.id] + '" class="w-full h-28 object-cover" loading="lazy" />' +
+              '<p class="text-xs text-slate-500 px-2 py-1 bg-slate-50 truncate">' + sl.label + '</p>' +
+            '</div>'
+          ).join('') + '</div>' +
+          '<p class="text-xs text-slate-400 mt-2">' + photoCount + ' of ' + PHOTO_SLOTS.length + ' photos taken</p>';
+      } else {
+        photoContent = '<p class="text-xs text-slate-400 italic">No photos were uploaded for this job.</p>';
+      }
+    }
+    steps.push(stepCard(8, 'Site Photos', s >= 8, photoContent));
+
+    // Stage 8 → Sign-off
+    const techAt = tk.technicianSignedOffAt;
+    const engAt  = tk.engineerSignedOffAt;
+    const coAt   = tk.customerOtpVerifiedAt;
+    const csat   = tk.csatScore;
+    let soContent = null;
+    if (s >= 9) {
+      soContent = '<div class="space-y-2">' +
+        '<div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full flex items-center justify-center text-xs ' + (techAt ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400') + '">' + (techAt ? '✓' : '·') + '</span><span class="text-xs text-slate-600">Technician signed off' + (techAt ? ' — ' + fmtTs(techAt) : ': pending') + '</span></div>' +
+        '<div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full flex items-center justify-center text-xs ' + (engAt ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400') + '">' + (engAt ? '✓' : '·') + '</span><span class="text-xs text-slate-600">ISO engineer signed off' + (engAt ? ' — ' + fmtTs(engAt) : ': pending') + '</span></div>' +
+        (coAt ? '<div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs">✓</span><span class="text-xs text-slate-600">Customer OTP verified — ' + fmtTs(coAt) + '</span></div>' : '') +
+        (csat ? '<div class="flex items-center gap-2 mt-1"><span class="text-xs text-slate-400">CSAT:</span> ' + Array.from({length:5},(_,i) => '<span style="color:' + (i<csat?'#f59e0b':'#d1d5db') + ';font-size:1rem">★</span>').join('') + '</div>' : '') +
+      '</div>';
+    }
+    steps.push(stepCard(9, 'Sign-off & CSAT', s >= 9, soContent));
+
+    document.getElementById('summary-steps').innerHTML = steps.join('');
+
+    // Chevron rotation on open/close
+    document.querySelectorAll('#summary-steps details').forEach(d => {
+      d.addEventListener('toggle', () => {
+        const chev = d.querySelector('.summary-chevron');
+        if (chev) chev.style.transform = d.open ? 'rotate(180deg)' : '';
+      });
+    });
+  }
+
+  $("assign-modal-close").addEventListener("click", closeAssignModal);
+  $("assign-cancel-btn").addEventListener("click", closeAssignModal);
+  $("assign-confirm-btn").addEventListener("click", confirmAssignment);
+  $("assign-modal").addEventListener("click", e => { if (e.target === $("assign-modal")) closeAssignModal(); });
+
+  // ── Co-Technician Modal ───────────────────────────────────────────────────
+  let _coTicketId = null;
+  async function openCoAssignModal(ticketId) {
+    _coTicketId = ticketId;
+    $("co-assign-modal-err").classList.add("hidden");
+    $("modal-co-tech-select").innerHTML = "<option value=''>Loading…</option>";
+    $("co-assign-modal").classList.remove("hidden");
+    $("co-assign-modal").classList.add("flex");
+    try {
+      const techRes = await APP.apiFetch("/technical-team/members?role=Technician");
+      const techs = (techRes?.data || []).map(e => ({ id: e.id, email: e.email, name: e.fullName || e.email }));
+      if (!techs.length) {
+        $("modal-co-tech-select").innerHTML = "<option value=''>No active technicians found</option>";
+      } else {
+        $("modal-co-tech-select").innerHTML =
+          "<option value=''>— Select co-technician —</option>" +
+          techs.map(t => `<option value="${t.id}" data-email="${t.email}" data-name="${t.name}">${t.name}</option>`).join("") +
+          "<option value='__clear__'>— Remove co-technician —</option>";
+      }
+    } catch {
+      $("modal-co-tech-select").innerHTML = "<option value=''>Failed to load</option>";
+    }
+  }
+  function closeCoAssignModal() {
+    $("co-assign-modal").classList.add("hidden");
+    $("co-assign-modal").classList.remove("flex");
+  }
+  async function confirmCoAssignment() {
+    if (!_coTicketId) {
+      $("co-assign-modal-err").textContent = "Could not identify the installation ticket.";
+      $("co-assign-modal-err").classList.remove("hidden");
+      return;
+    }
+    const sel = $("modal-co-tech-select");
+    const val = sel.value;
+    const btn = $("co-assign-confirm-btn");
+    btn.disabled = true; btn.textContent = "Saving…";
+    $("co-assign-modal-err").classList.add("hidden");
+    const clearing = val === "__clear__";
+    const opt = sel.options[sel.selectedIndex];
+    const body = clearing
+      ? { coTechnicianUserId: null, coTechnicianEmail: null, coTechnicianName: null }
+      : { coTechnicianUserId: val, coTechnicianEmail: opt?.dataset.email || null, coTechnicianName: opt?.dataset.name || null };
+    if (!clearing && !val) {
+      $("co-assign-modal-err").textContent = "Please select a co-technician.";
+      $("co-assign-modal-err").classList.remove("hidden");
+      btn.disabled = false; btn.textContent = "Confirm";
+      return;
+    }
+    try {
+      const res = await APP.apiFetch(`/installation-tickets/${encodeURIComponent(_coTicketId)}/assign-co-technician`, { method: "PATCH", body });
+      const coName = res?.data?.coTechnicianName || res?.data?.coTechnicianEmail || null;
+      $("co-tech-name").textContent = coName || "None assigned";
+      showToast(clearing ? "Co-technician removed." : "Co-technician assigned.", "bg-emerald-700");
+      closeCoAssignModal();
+    } catch (e) {
+      $("co-assign-modal-err").textContent = e.message || "Failed to save. Try again.";
+      $("co-assign-modal-err").classList.remove("hidden");
+    } finally {
+      btn.disabled = false; btn.textContent = "Confirm";
+    }
+  }
+  $("co-assign-modal-close").addEventListener("click", closeCoAssignModal);
+  $("co-assign-cancel-btn").addEventListener("click", closeCoAssignModal);
+  $("co-assign-confirm-btn").addEventListener("click", confirmCoAssignment);
+  $("co-assign-modal").addEventListener("click", e => { if (e.target === $("co-assign-modal")) closeCoAssignModal(); });
+
+  // ── ISO Assign Modal ──────────────────────────────────────────────────────
+  let _isoTicketId = null;
+  async function openIsoAssignModal(ticketId) {
+    _isoTicketId = ticketId;
+    $("iso-assign-modal-err").classList.add("hidden");
+    $("modal-iso-select").innerHTML = "<option value=''>Loading…</option>";
+    $("iso-assign-modal").classList.remove("hidden");
+    $("iso-assign-modal").classList.add("flex");
+    try {
+      const res = await APP.apiFetch("/technical-team/members?role=ISO");
+      const isos = (res?.data || []).map(e => ({ id: e.id, email: e.email, name: e.fullName || e.email }));
+      if (!isos.length) {
+        $("modal-iso-select").innerHTML = "<option value=''>No active ISO officers found</option>";
+      } else {
+        $("modal-iso-select").innerHTML =
+          "<option value=''>— Select ISO officer —</option>" +
+          isos.map(t => `<option value="${t.id}" data-email="${t.email}" data-name="${t.name}">${t.name}</option>`).join("");
+      }
+    } catch {
+      $("modal-iso-select").innerHTML = "<option value=''>Failed to load</option>";
+    }
+  }
+  function closeIsoAssignModal() {
+    $("iso-assign-modal").classList.add("hidden");
+    $("iso-assign-modal").classList.remove("flex");
+  }
+  async function confirmIsoAssignment() {
+    if (!_isoTicketId) {
+      $("iso-assign-modal-err").textContent = "Could not identify the installation ticket.";
+      $("iso-assign-modal-err").classList.remove("hidden");
+      return;
+    }
+    const sel = $("modal-iso-select");
+    const val = sel.value;
+    if (!val) {
+      $("iso-assign-modal-err").textContent = "Please select an ISO officer.";
+      $("iso-assign-modal-err").classList.remove("hidden");
+      return;
+    }
+    const btn = $("iso-assign-confirm-btn");
+    btn.disabled = true; btn.textContent = "Saving…";
+    $("iso-assign-modal-err").classList.add("hidden");
+    const opt = sel.options[sel.selectedIndex];
+    try {
+      const res = await APP.apiFetch(`/installation-tickets/${encodeURIComponent(_isoTicketId)}/iso-assign`, {
+        method: "POST",
+        body: { isoUserId: val, isoEmail: opt?.dataset.email || null, isoName: opt?.dataset.name || null },
+      });
+      $("iso-name").textContent = res?.data?.isoName || res?.data?.isoEmail || opt?.dataset.name || "Assigned";
+      showToast("ISO officer assigned.", "bg-emerald-700");
+      closeIsoAssignModal();
+    } catch (e) {
+      $("iso-assign-modal-err").textContent = e.message || "Failed to assign. Try again.";
+      $("iso-assign-modal-err").classList.remove("hidden");
+    } finally {
+      btn.disabled = false; btn.textContent = "Confirm";
+    }
+  }
+  $("iso-assign-modal-close").addEventListener("click", closeIsoAssignModal);
+  $("iso-assign-cancel-btn").addEventListener("click", closeIsoAssignModal);
+  $("iso-assign-confirm-btn").addEventListener("click", confirmIsoAssignment);
+  $("iso-assign-modal").addEventListener("click", e => { if (e.target === $("iso-assign-modal")) closeIsoAssignModal(); });
+
+  // ── Certificate panel ──────────────────────────────────────────────────────
+  // NOTE: certificates have no customer_id/ticket_id link — /certificates/check only
+  // matches on (registration, systemType), so a plate that changed hands can surface a
+  // previous owner's certificate here. customerName (when known) guards against silently
+  // presenting someone else's certificate as this ticket's own.
+  async function loadCertificatePanel(vehicleReg, ticketId, customerName) {
+    if (!vehicleReg) return;
+    // Only Admins can generate; all roles can view
+    const panel = $('cert-panel');
+    panel.classList.remove('hidden');
+    $('cert-loading').classList.remove('hidden');
+    $('cert-exists').classList.add('hidden');
+    $('cert-none').classList.add('hidden');
+    $('cert-mismatch').classList.add('hidden');
+
+    try {
+      // Try each known system type — use the first match found
+      const SYSTEM_TYPES = [
+        'GPS/GSM/GPRS Tracking system',
+        'GPS/GSM/GPRS Tracking system and anti theft device',
+        'GPS/GSM/Anti theft device',
+      ];
+      let cert = null;
+      for (const st of SYSTEM_TYPES) {
+        try {
+          const r = await APP.apiFetch(
+            `/certificates/check?registration=${encodeURIComponent(vehicleReg)}&systemType=${encodeURIComponent(st)}`
+          );
+          if (r?.exists && r?.certificate) { cert = r.certificate; break; }
+        } catch { /* try next */ }
+      }
+
+      $('cert-loading').classList.add('hidden');
+
+      // A certificate matched on (registration, systemType) alone — but if we know this
+      // ticket's customer name and it doesn't match the certificate's owner name, this is
+      // very likely a different person (change of vehicle ownership), not this customer's
+      // certificate. Don't present it as such; flag it for human verification instead.
+      const norm = (s) => (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      const nameMismatch = !!(cert && customerName && cert.name && norm(customerName) !== norm(cert.name));
+
+      if (cert && nameMismatch) {
+        $('cert-mismatch-reg').textContent      = vehicleReg;
+        $('cert-mismatch-serial').textContent   = cert.serialNo || cert.serial_no || '—';
+        $('cert-mismatch-name').textContent     = cert.name || '—';
+        $('cert-mismatch-customer').textContent = customerName || '—';
+        const _mismatchPdfId = cert.id;
+        $('cert-mismatch-view-pdf').onclick = async (e) => {
+          e.preventDefault();
+          try {
+            const token = APP.getSession?.()?.accessToken;
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            const r = await fetch(`${APP.CONFIG.API_BASE_URL}/certificates/${_mismatchPdfId}/pdf`, { headers });
+            if (!r.ok) throw new Error('Failed');
+            window.open(URL.createObjectURL(await r.blob()), '_blank');
+          } catch { APP.showToast?.('Failed to open PDF.', 'error'); }
+        };
+        const genLink = $('cert-mismatch-generate-link');
+        if (myRole === 'CertAdmin') {
+          genLink.href = `create-certificate.html?ticketId=${encodeURIComponent(ticketId || '')}&registration=${encodeURIComponent(vehicleReg)}`;
+          genLink.classList.remove('hidden');
+        } else {
+          genLink.classList.add('hidden');
+        }
+        $('cert-mismatch').classList.remove('hidden');
+        return;
+      }
+
+      if (cert) {
+        // ── Cert found — render details ──
+        const today = new Date().toISOString().slice(0, 10);
+        const in60  = new Date(Date.now() + 60 * 86400e3).toISOString().slice(0, 10);
+        const end   = cert.endDate || cert.end_date || '';
+        const statusLabel = !end ? 'Unknown'
+          : end < today  ? 'Expired'
+          : end <= in60  ? 'Nearing Expiry'
+          : 'Active';
+        const statusCls = statusLabel === 'Active'
+          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+          : statusLabel === 'Nearing Expiry'
+          ? 'bg-amber-50 text-amber-700 border-amber-200'
+          : 'bg-red-50 text-red-600 border-red-200';
+
+        $('cert-status-badge').textContent  = statusLabel;
+        $('cert-status-badge').className    = `inline-flex rounded-full px-2 py-0.5 text-xs font-semibold border ${statusCls}`;
+        $('cert-serial').textContent        = cert.serialNo  || cert.serial_no  || '—';
+        $('cert-system-type').textContent   = cert.systemType|| cert.system_type|| '—';
+        $('cert-start').textContent         = cert.startDate || cert.start_date || '—';
+        $('cert-end').textContent           = end || '—';
+        $('cert-name').textContent          = cert.name  || '—';
+        $('cert-phone').textContent         = cert.phone || '—';
+        $('cert-imei1').textContent         = cert.imei1 || cert.imei_1 || '—';
+        $('cert-tracker1').textContent      = cert.trackerNo1 || cert.tracker_no_1 || '—';
+
+        const _certPdfId = cert.id;
+        $('cert-view-pdf').href  = '#';
+        $('cert-view-pdf').onclick = async (e) => {
+          e.preventDefault();
+          try {
+            const token = APP.getSession?.()?.accessToken;
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            const r = await fetch(`${APP.CONFIG.API_BASE_URL}/certificates/${_certPdfId}/pdf`, { headers });
+            if (!r.ok) throw new Error('Failed');
+            const url = URL.createObjectURL(await r.blob());
+            window.open(url, '_blank');
+          } catch { APP.showToast?.('Failed to open PDF.', 'error'); }
+        };
+        $('cert-edit-link').href = `create-certificate.html?ticketId=${encodeURIComponent(ticketId || '')}&certId=${encodeURIComponent(cert.id)}`;
+
+        $('cert-show-preview').addEventListener('click', async () => {
+          try {
+            const token = APP.getSession?.()?.accessToken;
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            const r = await fetch(`${APP.CONFIG.API_BASE_URL}/certificates/${_certPdfId}/pdf`, { headers });
+            if (!r.ok) throw new Error('Failed');
+            $('cert-pdf-frame').src = URL.createObjectURL(await r.blob());
+            $('cert-pdf-preview-wrap').classList.remove('hidden');
+            $('cert-show-preview').classList.add('hidden');
+          } catch { APP.showToast?.('Failed to load PDF preview.', 'error'); }
+        });
+        $('cert-hide-preview').addEventListener('click', () => {
+          $('cert-pdf-preview-wrap').classList.add('hidden');
+          $('cert-pdf-frame').src = '';
+          $('cert-show-preview').classList.remove('hidden');
+        });
+
+        $('cert-exists').classList.remove('hidden');
+      } else {
+        // ── No cert — only CertAdmin can generate ──
+        if (myRole === 'CertAdmin') {
+          const link = `create-certificate.html?ticketId=${encodeURIComponent(ticketId || '')}&registration=${encodeURIComponent(vehicleReg)}`;
+          $('cert-generate-link').href = link;
+          $('cert-none').classList.remove('hidden');
+        }
+      }
+    } catch {
+      $('cert-loading').classList.add('hidden');
+      // Silently hide on error — certificate panel is non-critical
+    }
+  }
+  // ── Certificate generation modal ─────────────────────────────────────────────
+  const certModal      = $('cert-gen-modal');
+  const certModalFrame = $('cert-gen-frame');
+
+  function openCertModal(url) {
+    certModalFrame.src = url + (url.includes('?') ? '&' : '?') + 'embedded=1';
+    certModal.classList.remove('hidden');
+    certModal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeCertModal() {
+    certModal.classList.add('hidden');
+    certModal.classList.remove('flex');
+    certModalFrame.src = '';
+    document.body.style.overflow = '';
+  }
+
+  $('cert-modal-close').addEventListener('click', closeCertModal);
+  certModal.addEventListener('click', e => { if (e.target === certModal) closeCertModal(); });
+
+  // Intercept cert links so they open in the modal
+  document.addEventListener('click', e => {
+    const a = e.target.closest('#cert-generate-link, #cert-edit-link, #cert-view-pdf');
+    if (!a) return;
+    const href = a.getAttribute('href');
+    if (!href || href === '#') return;
+    // View PDF → open in new tab (not modal), but cert generation/edit → modal
+    if (a.id === 'cert-view-pdf') return; // handled by onclick above
+    e.preventDefault();
+    openCertModal(href);
+  });
+
+  // Listen for "cert saved" message from the iframe and refresh the cert panel
+  window.addEventListener('message', e => {
+    if (e.data?.type === 'CERT_SAVED' || e.data?.type === 'CERT_UPDATED') {
+      closeCertModal();
+      // Re-run cert panel for current vehicle reg
+      const certPanel = $('cert-panel');
+      certPanel.classList.add('hidden');
+      // Re-read reg from the rendered veh-reg element and re-run
+      const reg = ($('veh-reg')?.textContent || '').replace('—','').trim();
+      if (reg) {
+        // Find active ticketId from last load call via certGenerateLink href
+        const genHref = $('cert-generate-link')?.getAttribute('href') || '';
+        const ticketMatch = genHref.match(/ticketId=([^&]*)/);
+        const tid = ticketMatch ? decodeURIComponent(ticketMatch[1]) : '';
+        const custName = ($('cust-name')?.textContent || '').replace('—', '').trim();
+        loadCertificatePanel(reg, tid, custName);
+      }
+    }
+  });
+
+  $("btn-save-gadget-count")?.addEventListener("click", async () => {
+    const ticketId = _currentTicketIdForHistory;
+    if (!ticketId) { showToast("Cannot identify ticket.", "bg-red-700"); return; }
+    const raw = $("expected-gadget-count").value.trim();
+    const val = raw === "" ? null : parseInt(raw, 10);
+    if (raw !== "" && (Number.isNaN(val) || val < 0)) { showToast("Enter a valid non-negative number.", "bg-red-700"); return; }
+    const btn = $("btn-save-gadget-count");
+    btn.disabled = true;
+    try {
+      await APP.apiFetch(`/installation-tickets/${encodeURIComponent(ticketId)}/status`, {
+        method: "PATCH", body: { expectedGadgetCount: val },
+      });
+      const saved = $("gadget-count-saved");
+      saved.classList.remove("hidden");
+      setTimeout(() => saved.classList.add("hidden"), 2000);
+    } catch (e) {
+      showToast(e.message || "Failed to save.", "bg-red-700");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  load();
+</script>
+</body>
+</html>

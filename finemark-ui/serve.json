@@ -1,0 +1,7 @@
+{
+  "cleanUrls": false,
+  "rewrites": [
+    { "source": "/:page", "destination": "/:page.html" },
+    { "source": "/pages/:section/:page", "destination": "/pages/:section/:page.html" }
+  ]
+}

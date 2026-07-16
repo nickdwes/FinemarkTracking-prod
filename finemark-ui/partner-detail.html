@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Partner 360</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-7xl mx-auto space-y-6">
+
+          <!-- Back + Header -->
+          <div class="flex flex-wrap items-start gap-3 justify-between">
+            <div class="flex items-center gap-3">
+              <a href="partners.html" class="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+              </a>
+              <div>
+                <h1 id="partner-name" class="text-3xl font-semibold tracking-tight text-slate-900">Partner 360°</h1>
+                <p id="partner-sub" class="text-sm text-slate-500 mt-0.5">Loading partner details…</p>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button id="btn-edit" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 transition">Edit Partner</button>
+              <button id="btn-portal-user" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition">+ Portal User</button>
+            </div>
+          </div>
+          <nav class="text-xs text-slate-500"><a href="partners.html" class="hover:underline">Sales</a> / <a href="partners.html" class="hover:underline">Partners</a> / <span id="nav-name">—</span></nav>
+
+          <!-- Stats bar -->
+          <div class="grid grid-cols-3 sm:grid-cols-5 gap-3">
+            <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm text-center">
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Total Leads</p>
+              <p id="stat-leads" class="text-2xl font-bold text-slate-900 mt-1">—</p>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm text-center">
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Converted</p>
+              <p id="stat-converted" class="text-2xl font-bold text-green-600 mt-1">—</p>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm text-center">
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Conv. Rate</p>
+              <p id="stat-rate" class="text-2xl font-bold text-blue-600 mt-1">—</p>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm text-center">
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Vehicles</p>
+              <p id="stat-vehicles" class="text-2xl font-bold text-indigo-600 mt-1">—</p>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm text-center">
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Portal Users</p>
+              <p id="stat-users" class="text-2xl font-bold text-teal-600 mt-1">—</p>
+            </div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+            <div class="flex border-b border-slate-100 px-4 overflow-x-auto">
+              <button data-tab="overview" class="tab-btn py-4 px-4 text-sm font-medium border-b-2 border-blue-600 text-blue-700 whitespace-nowrap">Overview</button>
+              <button data-tab="leads" class="tab-btn py-4 px-4 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap">Leads</button>
+              <button data-tab="vehicles" class="tab-btn py-4 px-4 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap">Vehicles & Loans</button>
+              <button data-tab="portal-users" class="tab-btn py-4 px-4 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap">Portal Users</button>
+              <button data-tab="contracts" class="tab-btn py-4 px-4 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap">Contracts</button>
+              <button data-tab="invoices" class="tab-btn py-4 px-4 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap">Invoices</button>
+            </div>
+
+            <!-- Overview Tab -->
+            <div id="tab-overview" class="p-6">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div class="space-y-4">
+                  <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Organisation</h3>
+                  <div class="space-y-3">
+                    <div class="flex justify-between text-sm">
+                      <span class="text-slate-500">Business Reg</span>
+                      <span id="ov-reg" class="text-slate-900 font-medium">—</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-slate-500">Tier</span>
+                      <span id="ov-tier" class="text-slate-900 font-medium">—</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-slate-500">Status</span>
+                      <span id="ov-status">—</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-slate-500">Regions</span>
+                      <span id="ov-regions" class="text-slate-900 text-xs text-right max-w-xs">—</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="space-y-4">
+                  <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Contact</h3>
+                  <div class="space-y-3">
+                    <div class="flex justify-between text-sm">
+                      <span class="text-slate-500">Primary Contact</span>
+                      <span id="ov-contact-name" class="text-slate-900">—</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-slate-500">Email</span>
+                      <span id="ov-email" class="text-slate-900">—</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-slate-500">Phone</span>
+                      <span id="ov-phone" class="text-slate-900">—</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="space-y-4">
+                  <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Contract</h3>
+                  <div class="space-y-3">
+                    <div class="flex justify-between text-sm">
+                      <span class="text-slate-500">Ref</span>
+                      <span id="ov-contract-ref" class="text-slate-900">—</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-slate-500">Start</span>
+                      <span id="ov-contract-start" class="text-slate-900">—</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-slate-500">Expiry</span>
+                      <span id="ov-contract-expiry" class="text-slate-900">—</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-slate-500">KAM</span>
+                      <span id="ov-kam" class="text-slate-900">—</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="space-y-2">
+                  <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Notes</h3>
+                  <p id="ov-notes" class="text-sm text-slate-600 leading-relaxed whitespace-pre-line">—</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Leads Tab -->
+            <div id="tab-leads" class="hidden p-6">
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="text-left text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                      <th class="pb-3 pr-4">Lead No</th>
+                      <th class="pb-3 pr-4">Customer</th>
+                      <th class="pb-3 pr-4">Source</th>
+                      <th class="pb-3 pr-4">Status</th>
+                      <th class="pb-3 pr-4">Lead Date</th>
+                    </tr>
+                  </thead>
+                  <tbody id="leads-tbody">
+                    <tr><td colspan="5" class="py-8 text-center text-slate-400">No leads linked.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Vehicles Tab -->
+            <div id="tab-vehicles" class="hidden p-6">
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="text-left text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                      <th class="pb-3 pr-4">Registration</th>
+                      <th class="pb-3 pr-4">Make / Model</th>
+                      <th class="pb-3 pr-4">Customer</th>
+                      <th class="pb-3 pr-4">Loan Tenure</th>
+                      <th class="pb-3 pr-4">Loan Start</th>
+                      <th class="pb-3 pr-4">Loan Expiry</th>
+                      <th class="pb-3 pr-4">Days Left</th>
+                      <th class="pb-3 pr-4">Invoice</th>
+                      <th class="pb-3">Certificate</th>
+                    </tr>
+                  </thead>
+                  <tbody id="vehicles-tbody">
+                    <tr><td colspan="9" class="py-8 text-center text-slate-400">No vehicles linked.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Portal Users Tab -->
+            <div id="tab-portal-users" class="hidden p-6 space-y-4">
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="text-left text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                      <th class="pb-3 pr-4">Name</th>
+                      <th class="pb-3 pr-4">Email</th>
+                      <th class="pb-3 pr-4">Role</th>
+                      <th class="pb-3 pr-4">Status</th>
+                      <th class="pb-3">Last Login</th>
+                    </tr>
+                  </thead>
+                  <tbody id="pu-tbody">
+                    <tr><td colspan="5" class="py-8 text-center text-slate-400">No portal users yet.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Invoices Tab -->
+            <div id="tab-invoices" class="hidden p-6">
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="text-left text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                      <th class="pb-3 pr-4">Invoice #</th>
+                      <th class="pb-3 pr-4">Customer</th>
+                      <th class="pb-3 pr-4">Amount (KES)</th>
+                      <th class="pb-3 pr-4">Status</th>
+                      <th class="pb-3 pr-4">eTIMS</th>
+                      <th class="pb-3 pr-4">Issued</th>
+                      <th class="pb-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="partner-invoices-tbody">
+                    <tr><td colspan="7" class="py-8 text-center text-slate-400">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Contracts Tab -->
+            <div id="tab-contracts" class="hidden p-6 space-y-4">
+              <div class="flex justify-end">
+                <button id="btn-upload-contract" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition">+ Add Contract</button>
+              </div>
+              <div id="contracts-list" class="space-y-2">
+                <p class="text-sm text-slate-400 text-center py-4">No contract documents.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+
+    <!-- Add Portal User Modal -->
+    <div id="pu-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="flex items-center justify-between p-6 border-b border-slate-100">
+          <h2 class="text-lg font-semibold text-slate-900">Add Portal User</h2>
+          <button onclick="document.getElementById('pu-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-1 rounded hover:bg-slate-100">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <form id="pu-form" class="p-6 space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Full Name *</label>
+            <input id="pu-name" type="text" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Email *</label>
+            <input id="pu-email" type="email" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Phone</label>
+            <input id="pu-phone" type="tel" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Role</label>
+            <select id="pu-role" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500">
+              <option value="PartnerUser">PartnerUser</option>
+              <option value="PartnerAdmin">PartnerAdmin</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Temporary Password *</label>
+            <input id="pu-pass" type="password" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+          <div id="pu-error" class="hidden rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700"></div>
+          <div class="flex justify-end gap-3 pt-2">
+            <button type="button" onclick="document.getElementById('pu-modal').classList.add('hidden')" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
+            <button type="submit" id="pu-save" class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700">Create User</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Add Contract Modal -->
+    <div id="contract-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="flex items-center justify-between p-6 border-b border-slate-100">
+          <h2 class="text-lg font-semibold text-slate-900">Add Contract Document</h2>
+          <button onclick="document.getElementById('contract-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-1 rounded hover:bg-slate-100">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <form id="contract-form" class="p-6 space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">File Name *</label>
+            <input id="ct-name" type="text" required placeholder="e.g. Partnership_Agreement_2024.pdf" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">File Path / URL *</label>
+            <input id="ct-path" type="text" required placeholder="/uploads/contracts/…" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+          <div id="ct-error" class="hidden rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700"></div>
+          <div class="flex justify-end gap-3 pt-2">
+            <button type="button" onclick="document.getElementById('contract-modal').classList.add('hidden')" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
+            <button type="submit" class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="fm-footer"></div>
+    <script src="assets/app.js?v=202607011748"></script>
+    <script src="assets/layout.js?v=202607011748"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => window.FINEMARK_APP?.requirePageAccess?.());
+
+      // PDF links can't just be <a href="...pdf?token=..."> — the backend no longer accepts
+      // the access token as a URL query param (that leaked into server logs / browser
+      // history), so plain navigation 401s. Fetch with a proper Bearer header instead and
+      // hand the browser a blob: object URL for viewing/downloading.
+      async function openPdfBlob(url, mode, filename) {
+        try {
+          const token = window.FINEMARK_APP?.getSession?.()?.accessToken || "";
+          const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+          if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err?.error?.message || "Failed to load PDF.");
+          }
+          const blob = await resp.blob();
+          const objUrl = URL.createObjectURL(blob);
+          if (mode === "download") {
+            const a = document.createElement("a");
+            a.href = objUrl; a.download = filename || "document.pdf";
+            document.body.appendChild(a); a.click(); a.remove();
+          } else {
+            window.open(objUrl, "_blank");
+          }
+          setTimeout(() => URL.revokeObjectURL(objUrl), 60000);
+        } catch (e) {
+          window.FINEMARK_APP?.showToast?.(e.message || "Failed to load PDF.", "error");
+        }
+      }
+
+      const partnerId = new URLSearchParams(location.search).get("id");
+      if (!partnerId) location.href = "partners.html";
+
+      const LEAD_STATUS_BADGE = {
+        New: `<span class="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200">New</span>`,
+        Qualified: `<span class="inline-flex rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700 border border-indigo-200">Qualified</span>`,
+        Converted: `<span class="inline-flex rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700 border border-green-200">Converted</span>`,
+        Disqualified: `<span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500 border border-slate-200">Disqualified</span>`,
+      };
+
+      function urgencyClass(days) {
+        if (days == null) return "";
+        if (days <= 0) return "text-red-700 font-bold";
+        if (days <= 7) return "text-red-600 font-semibold";
+        if (days <= 30) return "text-orange-600 font-semibold";
+        if (days <= 90) return "text-amber-600";
+        return "text-green-700";
+      }
+
+      async function load360() {
+        try {
+          const d = await window.FINEMARK_APP.apiFetch(`/partners/${partnerId}/360`);
+          const p = d.partner;
+
+          document.getElementById("partner-name").textContent = p.name;
+          document.getElementById("partner-sub").textContent = `${p.tier} · ${p.status} · ${(p.regions||[]).join(", ")}`;
+          document.getElementById("nav-name").textContent = p.name;
+
+          // Stats
+          document.getElementById("stat-leads").textContent = d.stats.totalLeads;
+          document.getElementById("stat-converted").textContent = d.stats.convertedLeads;
+          document.getElementById("stat-rate").textContent = d.stats.conversionRate + "%";
+          document.getElementById("stat-vehicles").textContent = d.stats.totalVehicles;
+          document.getElementById("stat-users").textContent = d.stats.activePortalUsers;
+
+          // Overview fields
+          document.getElementById("ov-reg").textContent = p.businessRegNo || "—";
+          document.getElementById("ov-tier").textContent = p.tier || "—";
+          document.getElementById("ov-status").innerHTML = p.status === "Active"
+            ? `<span class="inline-flex rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700 border border-green-200">Active</span>`
+            : `<span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">${p.status}</span>`;
+          document.getElementById("ov-regions").textContent = (p.regions||["All"]).join(", ");
+          document.getElementById("ov-contact-name").textContent = p.primaryContactName || "—";
+          document.getElementById("ov-email").textContent = p.contactEmail || "—";
+          document.getElementById("ov-phone").textContent = p.contactPhone || "—";
+          document.getElementById("ov-contract-ref").textContent = p.contractRef || "—";
+          document.getElementById("ov-contract-start").textContent = p.contractStart ? p.contractStart.slice(0,10) : "—";
+          document.getElementById("ov-contract-expiry").textContent = p.contractExpiry ? p.contractExpiry.slice(0,10) : "—";
+          document.getElementById("ov-kam").textContent = p.kamEmail || "—";
+          document.getElementById("ov-notes").textContent = p.notes || "—";
+
+          // Leads
+          if (d.leads.length) {
+            document.getElementById("leads-tbody").innerHTML = d.leads.map(l => `
+              <tr class="hover:bg-slate-50/60 transition-colors border-b border-slate-50">
+                <td class="py-3 pr-4 font-mono text-xs text-slate-700">${l.leadNo || "—"}</td>
+                <td class="py-3 pr-4 text-slate-900">${l.customerName}</td>
+                <td class="py-3 pr-4 text-xs text-slate-500">${l.leadSource || "—"}</td>
+                <td class="py-3 pr-4">${LEAD_STATUS_BADGE[l.status] || l.status}</td>
+                <td class="py-3 text-xs text-slate-500">${l.leadDate ? l.leadDate.slice(0,10) : "—"}</td>
+              </tr>`).join("");
+          }
+
+          // Vehicles
+          if (d.vehicles.length) {
+            document.getElementById("vehicles-tbody").innerHTML = d.vehicles.map(v => {
+              const dl = v.loanDaysLeft;
+              const dlClass = urgencyClass(dl);
+              const dlText = dl == null ? "—" : dl <= 0 ? `<span class="text-red-700 font-bold">EXPIRED</span>` : `<span class="${dlClass}">${dl}d</span>`;
+
+              // Invoice cell
+              const INV_COLOR = { Paid: "bg-green-50 text-green-700 border-green-200", Unpaid: "bg-yellow-50 text-yellow-700 border-yellow-200", Overdue: "bg-red-50 text-red-700 border-red-200", Sent: "bg-blue-50 text-blue-700 border-blue-200" };
+              const invBadge = v.invoiceStatus ? `<span class="inline-flex rounded-full ${INV_COLOR[v.invoiceStatus] || 'bg-slate-100 text-slate-600 border-slate-200'} px-2 py-0.5 text-xs font-semibold border">${v.invoiceStatus}</span>` : '';
+              const invCell = v.invoiceNumber
+                ? `<a href="invoice-detail.html?id=${v.invoiceId}" class="text-indigo-600 hover:underline font-mono text-xs">${v.invoiceNumber}</a> ${invBadge}`
+                : '—';
+
+              // Certificate cell
+              const apiBase = window.FINEMARK_APP?.CONFIG?.API_BASE_URL || '/api';
+              const todayStr = new Date().toISOString().slice(0,10);
+              const certExpired = v.certEndDate && v.certEndDate < todayStr;
+              const certNearing = v.certEndDate && !certExpired && v.certEndDate <= new Date(Date.now() + 60*86400000).toISOString().slice(0,10);
+              const certColor = certExpired ? 'text-red-600 font-bold' : certNearing ? 'text-amber-600 font-semibold' : 'text-green-700';
+              const certPdfUrl = `${apiBase}/certificates/${v.certId}/pdf`;
+              const certFilename = `Certificate_${v.registration}.pdf`;
+              const certCell = v.certSerialNo
+                ? `<div>
+                    <span class="font-mono text-xs font-semibold ${certColor}">${v.certSerialNo}</span>
+                    <span class="block text-xs text-slate-400">${v.certEndDate ? 'exp ' + v.certEndDate : ''}</span>
+                    <div class="flex gap-2 mt-1">
+                      <a href="#" onclick="openPdfBlob('${certPdfUrl}','view','${certFilename}'); return false;" class="text-xs text-indigo-600 hover:underline">View</a>
+                      <a href="#" onclick="openPdfBlob('${certPdfUrl}','download','${certFilename}'); return false;" class="text-xs text-slate-600 hover:underline">Download</a>
+                    </div>
+                  </div>`
+                : '—';
+
+              return `
+                <tr class="hover:bg-slate-50/60 transition-colors border-b border-slate-50">
+                  <td class="py-3 pr-4 font-mono text-xs font-semibold text-slate-800">${v.registration}</td>
+                  <td class="py-3 pr-4 text-xs text-slate-700">${v.make} ${v.model}</td>
+                  <td class="py-3 pr-4 text-slate-900">${v.customerName}</td>
+                  <td class="py-3 pr-4 text-xs text-slate-600">${v.loanTenureMonths ? v.loanTenureMonths + ' mo' : '—'}</td>
+                  <td class="py-3 pr-4 text-xs text-slate-600">${v.loanStartDate ? v.loanStartDate.slice(0,10) : '—'}</td>
+                  <td class="py-3 pr-4 text-xs text-slate-600">${v.loanExpiry || '—'}</td>
+                  <td class="py-3 pr-4 text-xs">${dlText}</td>
+                  <td class="py-3 pr-4">${invCell}</td>
+                  <td class="py-3">${certCell}</td>
+                </tr>`;
+            }).join("");
+          }
+
+          // Portal users
+          if (d.portalUsers.length) {
+            document.getElementById("pu-tbody").innerHTML = d.portalUsers.map(u => `
+              <tr class="hover:bg-slate-50/60 transition-colors border-b border-slate-50">
+                <td class="py-3 pr-4 font-medium text-slate-900">${u.fullName}</td>
+                <td class="py-3 pr-4 text-slate-600 text-xs">${u.email}</td>
+                <td class="py-3 pr-4"><span class="inline-flex rounded-full ${u.role==='PartnerAdmin'?'bg-purple-50 text-purple-700 border-purple-200':'bg-slate-100 text-slate-600 border-slate-200'} px-2 py-0.5 text-xs font-semibold border">${u.role}</span></td>
+                <td class="py-3 pr-4"><span class="inline-flex rounded-full ${u.status==='Active'?'bg-green-50 text-green-700 border-green-200':'bg-slate-100 text-slate-500 border-slate-200'} px-2 py-0.5 text-xs font-semibold border">${u.status}</span></td>
+                <td class="py-3 text-xs text-slate-500">${u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : 'Never'}</td>
+              </tr>`).join("");
+          }
+
+          // Contracts
+          if (d.contracts.length) {
+            document.getElementById("contracts-list").innerHTML = d.contracts.map(c => `
+              <div class="flex items-center justify-between rounded-lg border border-slate-200 p-3 bg-white hover:bg-slate-50 transition">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center">
+                    <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0121 9.414V19a2 2 0 01-2 2z"/></svg>
+                  </div>
+                  <div>
+                    <p class="text-sm font-medium text-slate-900">${c.fileName}</p>
+                    <p class="text-xs text-slate-500">${c.uploadedAt ? new Date(c.uploadedAt).toLocaleDateString() : "—"}</p>
+                  </div>
+                </div>
+                <button onclick="removeContract('${c.id}')" class="text-xs text-red-500 hover:text-red-700">Remove</button>
+              </div>`).join("");
+          }
+
+        } catch (e) {
+          document.getElementById("partner-name").textContent = "Error loading partner";
+        }
+      }
+
+      // Tab switching
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".tab-btn").forEach(b => b.classList.replace("border-blue-600", "border-transparent") || b.classList.replace("text-blue-700", "text-slate-500"));
+          btn.classList.replace("border-transparent", "border-blue-600");
+          btn.classList.replace("text-slate-500", "text-blue-700");
+          document.querySelectorAll("[id^='tab-']").forEach(t => t.classList.add("hidden"));
+          document.getElementById(`tab-${btn.dataset.tab}`).classList.remove("hidden");
+        });
+      });
+
+      // Portal user creation
+      document.getElementById("btn-portal-user").addEventListener("click", () => {
+        document.getElementById("pu-form").reset();
+        document.getElementById("pu-error").classList.add("hidden");
+        document.getElementById("pu-modal").classList.remove("hidden");
+      });
+
+      document.getElementById("pu-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const errEl = document.getElementById("pu-error");
+        errEl.classList.add("hidden");
+        const body = {
+          fullName: document.getElementById("pu-name").value.trim(),
+          email: document.getElementById("pu-email").value.trim(),
+          phone: document.getElementById("pu-phone").value.trim() || null,
+          role: document.getElementById("pu-role").value,
+          password: document.getElementById("pu-pass").value,
+        };
+        try {
+          document.getElementById("pu-save").disabled = true;
+          document.getElementById("pu-save").textContent = "Creating…";
+          await window.FINEMARK_APP.apiFetch(`/partners/${partnerId}/users`, { method: "POST", body });
+          document.getElementById("pu-modal").classList.add("hidden");
+          load360();
+        } catch (err) {
+          errEl.textContent = err.message || "Failed to create user.";
+          errEl.classList.remove("hidden");
+        } finally {
+          document.getElementById("pu-save").disabled = false;
+          document.getElementById("pu-save").textContent = "Create User";
+        }
+      });
+
+      // Contract upload
+      document.getElementById("btn-upload-contract").addEventListener("click", () => {
+        document.getElementById("contract-form").reset();
+        document.getElementById("ct-error").classList.add("hidden");
+        document.getElementById("contract-modal").classList.remove("hidden");
+      });
+
+      document.getElementById("contract-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const body = {
+          fileName: document.getElementById("ct-name").value.trim(),
+          filePath: document.getElementById("ct-path").value.trim(),
+        };
+        try {
+          await window.FINEMARK_APP.apiFetch(`/partners/${partnerId}/contracts`, { method: "POST", body });
+          document.getElementById("contract-modal").classList.add("hidden");
+          load360();
+        } catch (err) {
+          document.getElementById("ct-error").textContent = err.message || "Failed to save.";
+          document.getElementById("ct-error").classList.remove("hidden");
+        }
+      });
+
+      async function removeContract(cid) {
+        if (!confirm("Remove this contract document?")) return;
+        try {
+          await window.FINEMARK_APP.apiFetch(`/partners/${partnerId}/contracts/${cid}`, { method: "DELETE" });
+          load360();
+        } catch (e) { alert("Failed to remove."); }
+      }
+
+      // Edit partner — redirect to partners.html with pre-fill (handled via openEdit there)
+      document.getElementById("btn-edit").addEventListener("click", () => {
+        window.location.href = `partners.html?edit=${partnerId}`;
+      });
+
+      // Invoices tab — lazy load on first click
+      let partnerInvoicesLoaded = false;
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if (btn.dataset.tab === "invoices" && !partnerInvoicesLoaded) {
+            partnerInvoicesLoaded = true;
+            await loadPartnerInvoices();
+          }
+        });
+      });
+
+      async function loadPartnerInvoices() {
+        const tbody = document.getElementById("partner-invoices-tbody");
+        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">Loading…</td></tr>`;
+        try {
+          const res = await window.FINEMARK_APP.apiFetch(`/invoices/for-partner/${partnerId}`);
+          const rows = res.data || [];
+          if (!rows.length) {
+            tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">No invoices found for this partner.</td></tr>`;
+            return;
+          }
+          const apiBase = window.FINEMARK_APP?.CONFIG?.API_BASE_URL || "/api";
+          const fmtKes = v => `KES ${Number(v||0).toLocaleString("en-KE",{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+          const fmtDate = v => v ? new Date(v).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}) : "—";
+          tbody.innerHTML = rows.map(inv => {
+            const statusCls = inv.status === "paid" ? "bg-green-50 text-green-700" : inv.status === "overdue" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700";
+            const etimsBadge = inv.etimsSigned ? `<span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 text-xs px-2 py-0.5 font-semibold">✓ Signed</span>` : `<span class="text-xs text-slate-400">Unsigned</span>`;
+            const pdfUrl = `${apiBase}/invoices/${inv.id}/pdf`;
+            const pdfFilename = `Invoice_${inv.invoiceNumber || inv.id}.pdf`;
+            return `<tr class="border-b border-slate-50 hover:bg-slate-50">
+              <td class="py-2.5 pr-4 font-medium text-slate-900">${inv.invoiceNumber || "—"}</td>
+              <td class="py-2.5 pr-4 text-slate-600 max-w-[160px] truncate">${inv.customer || "—"}</td>
+              <td class="py-2.5 pr-4 text-slate-800 font-mono text-xs">${fmtKes(inv.total ?? inv.amount)}</td>
+              <td class="py-2.5 pr-4"><span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${statusCls}">${(inv.status||"pending").toUpperCase()}</span></td>
+              <td class="py-2.5 pr-4">${etimsBadge}</td>
+              <td class="py-2.5 pr-4 text-slate-500 text-xs">${fmtDate(inv.issuedOn)}</td>
+              <td class="py-2.5">
+                <a href="invoice-detail.html?id=${inv.id}" class="text-blue-600 hover:underline text-xs mr-3">Detail</a>
+                <a href="#" onclick="openPdfBlob('${pdfUrl}','view','${pdfFilename}'); return false;" class="text-blue-600 hover:underline text-xs">PDF</a>
+              </td>
+            </tr>`;
+          }).join("");
+        } catch (e) {
+          document.getElementById("partner-invoices-tbody").innerHTML = `<tr><td colspan="7" class="py-8 text-center text-red-400">Failed to load invoices.</td></tr>`;
+        }
+      }
+
+      load360();
+    </script>
+  </body>
+</html>

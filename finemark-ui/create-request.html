@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Create Request</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+
+          <div class="max-w-5xl mx-auto space-y-6">
+            <div id="page-header" class="flex flex-wrap items-center gap-3 justify-between">
+              <div>
+                <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Create Request</h1>
+              </div>
+              <span id="type-badge" class="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 border border-blue-100">
+                Installation Request
+              </span>
+            </div>
+            <div id="installation-header-card" class="hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div class="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <h2 class="text-2xl font-semibold text-slate-900">Installation Request</h2>
+                  <p class="text-sm text-slate-600">Capture vehicle, customer, and installation details</p>
+                  <p class="mt-2 text-xs text-slate-500">Fields marked * are required.</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span id="installation-role-badge" class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 border border-slate-200">
+                    Role: --
+                  </span>
+                  <span class="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 border border-blue-100">
+                    Draft
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <form id="request-form" class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm shadow-slate-200/60 space-y-6" novalidate>
+              <div id="request-notification" class="hidden rounded-lg border px-4 py-3 text-sm"></div>
+              <div id="type-warning" class="hidden rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                Please select a request type.
+              </div>
+              <div id="core-customer-fields" class="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="customer-name">Customer Name</label>
+                  <input id="customer-name" type="text" placeholder="Customer name" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  <p class="fm-error hidden" data-error-for="customer-name"></p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="phone">Phone</label>
+                  <input id="phone" type="tel" required placeholder="+1 (555) 123-4567" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  <p class="fm-error hidden" data-error-for="phone"></p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="email">Email</label>
+                  <input id="email" type="email" required placeholder="name@company.com" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  <p class="fm-error hidden" data-error-for="email"></p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="location">Location</label>
+                  <input id="location" type="text" placeholder="City, State" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  <p class="fm-error hidden" data-error-for="location"></p>
+                </div>
+              </div>
+
+              <div id="section-installation" class="space-y-4">
+                <div id="installation-stepper" class="hidden rounded-lg border border-slate-200 bg-white px-4 py-3">
+                  <div class="flex flex-wrap items-center justify-between gap-3 text-sm">
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs font-semibold text-slate-500">Step</span>
+                      <span id="step-indicator" class="font-semibold text-slate-900">1 of 4</span>
+                    </div>
+                    <div class="hidden md:flex items-center gap-4">
+                      <div class="flex items-center gap-2">
+                        <span class="step-dot h-2.5 w-2.5 rounded-full bg-blue-600" data-step="0"></span>
+                        <span class="text-xs font-semibold text-slate-700">Vehicle</span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <span class="step-dot h-2.5 w-2.5 rounded-full bg-slate-200" data-step="1"></span>
+                        <span class="text-xs font-semibold text-slate-500">Customer</span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <span class="step-dot h-2.5 w-2.5 rounded-full bg-slate-200" data-step="2"></span>
+                        <span class="text-xs font-semibold text-slate-500">Installation</span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <span class="step-dot h-2.5 w-2.5 rounded-full bg-slate-200" data-step="3"></span>
+                        <span class="text-xs font-semibold text-slate-500">Quote</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div id="step-vehicle" class="installation-step space-y-3">
+                  <h3 class="text-sm font-semibold text-slate-700">Vehicle</h3>
+                  <div class="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="vehicle-registration">Vehicle Registration</label>
+                    <input id="vehicle-registration" type="text" placeholder="KDA 123A" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                    <p class="fm-error hidden" data-error-for="vehicle-registration"></p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="vehicle-model">Vehicle Model</label>
+                    <input id="vehicle-model" type="text" placeholder="Toyota Hilux" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                    <p class="fm-error hidden" data-error-for="vehicle-model"></p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="tracker-location">Tracker Location</label>
+                    <input id="tracker-location" type="text" placeholder="Under dashboard" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="number-trackers">Number of Trackers</label>
+                    <select id="number-trackers" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                      <option value="" disabled>Select</option>
+                      <option value="1" selected>1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                      <option value="5">5</option>
+                      <option value="6">6</option>
+                      <option value="7">7</option>
+                      <option value="8">8</option>
+                      <option value="9">9</option>
+                      <option value="10">10</option>
+                    </select>
+                    <p class="fm-error hidden" data-error-for="number-trackers"></p>
+                  </div>
+                </div>
+                </div>
+
+                <div id="step-customer" class="installation-step space-y-3">
+                  <h3 class="text-sm font-semibold text-slate-700">Customer</h3>
+                  <div id="step-customer-core" class="space-y-4"></div>
+                  <div class="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="contact-name">Contact</label>
+                    <input id="contact-name" type="text" placeholder="Contact person" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                    <p class="fm-error hidden" data-error-for="contact-name"></p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="bank-name">Bank</label>
+                    <input id="bank-name" type="text" placeholder="Bank name" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                    <p class="fm-error hidden" data-error-for="bank-name"></p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="bank-branch">Bank Branch</label>
+                    <input id="bank-branch" type="text" placeholder="Branch name" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="c-number">C Number</label>
+                    <input id="c-number" type="text" placeholder="C number" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="loan-duration">Loan Duration</label>
+                    <input id="loan-duration" type="text" placeholder="1.4" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                    <p class="mt-1 text-xs text-slate-500">1.4 = 1 year 4 months</p>
+                  </div>
+                </div>
+                </div>
+
+                <div id="step-installation" class="installation-step space-y-3">
+                  <h3 class="text-sm font-semibold text-slate-700">Installation</h3>
+                  <div class="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="sales-person">Sales Person</label>
+                    <select id="sales-person" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                      <option value="" disabled selected>Select Sales Person</option>
+                    </select>
+                    <p class="fm-error hidden" data-error-for="sales-person"></p>
+                    <p id="sales-person-lock-note" class="mt-1 text-xs text-slate-500 hidden">Sales person is locked to your profile.</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="technician">Technician</label>
+                    <select id="technician" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                      <option value="" disabled selected>Select Technician</option>
+                    </select>
+                    <p class="fm-error hidden" data-error-for="technician"></p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="installation-date">Installation Date</label>
+                    <input id="installation-date" type="date" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  </div>
+                  <div class="flex items-center gap-4 pt-6">
+                    <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+                      <input id="tk-toggle" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/40" />
+                      TK
+                    </label>
+                    <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+                      <input id="tracksolid-toggle" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/40" />
+                      Tracksolid
+                    </label>
+                  </div>
+                </div>
+                </div>
+
+                <div id="step-quote" class="installation-step space-y-3">
+                  <h3 class="text-sm font-semibold text-slate-700">Quote</h3>
+                  <div class="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="amount-quoted">Amount Quoted (KES)</label>
+                    <input id="amount-quoted" type="number" min="0" placeholder="0.00" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                    <p class="fm-error hidden" data-error-for="amount-quoted"></p>
+                  </div>
+                </div>
+                </div>
+
+                <div id="installation-step-actions" class="hidden items-center justify-between border-t border-slate-200 pt-4">
+                  <div class="flex items-center gap-2">
+                    <button id="step-back" type="button" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                      Back
+                    </button>
+                    <button id="step-next" type="button" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                      Next
+                    </button>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button id="step-save-draft" type="button" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                      Save Draft
+                    </button>
+                    <button id="step-submit" type="button" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+                      Submit
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div id="section-quotation" class="space-y-4 hidden">
+                <div class="flex items-center justify-between">
+                  <h2 class="text-sm font-semibold text-slate-700">Quotation Items</h2>
+                  <button id="add-quotation-item" type="button" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                    Add line item
+                  </button>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-sm min-w-[640px]">
+                    <thead class="text-left text-slate-500">
+                      <tr>
+                        <th class="py-2">Item</th>
+                        <th class="py-2">Qty</th>
+                        <th class="py-2">Unit Price</th>
+                        <th class="py-2">Line Total</th>
+                      </tr>
+                    </thead>
+                    <tbody id="quotation-items" class="divide-y divide-slate-200"></tbody>
+                  </table>
+                </div>
+                <div class="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="valid-until">Valid Until</label>
+                    <input id="valid-until" type="date" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                  </div>
+                  <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 space-y-1">
+                    <div class="flex items-center justify-between">
+                      <span>Subtotal</span>
+                      <span id="quote-subtotal" data-value="0">KES 0</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                      <span>Tax (10%)</span>
+                      <span id="quote-tax" data-value="0">KES 0</span>
+                    </div>
+                    <div class="flex items-center justify-between font-semibold text-slate-900">
+                      <span>Total</span>
+                      <span id="quote-total" data-value="0">KES 0</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="section-invoice" class="space-y-4 hidden">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 class="text-sm font-semibold text-slate-700">Invoice Details</h2>
+                    <p class="text-xs text-slate-500">Invoice Number: <span id="invoice-number" class="font-medium text-slate-700">INV-0000</span></p>
+                  </div>
+                  <button id="add-invoice-item" type="button" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                    Add line item
+                  </button>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="payment-terms">Payment Terms</label>
+                  <select id="payment-terms" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                    <option>Net 7</option>
+                    <option>Net 14</option>
+                    <option>Net 30</option>
+                  </select>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-sm min-w-[640px]">
+                    <thead class="text-left text-slate-500">
+                      <tr>
+                        <th class="py-2">Item</th>
+                        <th class="py-2">Qty</th>
+                        <th class="py-2">Unit Price</th>
+                        <th class="py-2">Line Total</th>
+                      </tr>
+                    </thead>
+                    <tbody id="invoice-items" class="divide-y divide-slate-200"></tbody>
+                  </table>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 space-y-1">
+                  <div class="flex items-center justify-between font-semibold text-slate-900">
+                    <span>Amount Due</span>
+                    <span id="invoice-total" data-value="0">KES 0</span>
+                  </div>
+                </div>
+              </div>
+
+              <div id="form-actions" class="flex flex-wrap items-center gap-3 justify-between border-t border-slate-200 pt-4">
+                <a href="sales.html" class="text-sm text-blue-600 hover:underline">Back to Dashboard</a>
+                <div class="flex items-center gap-3">
+                  <button id="submit-request" type="button" class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+                    Cancel
+                  </button>
+                  <button id="save-draft" type="button" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+                    Submit
+                  </button>
+                </div>
+              </div>
+              <div id="request-inline-error" class="hidden mt-3"></div>
+            </form>
+          </div>
+        
+  </main>
+</div>
+<div id="fm-footer"></div>
+
+<script src="assets/contracts.js"></script>
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    window.FINEMARK_APP?.requirePageAccess?.();
+  });
+</script>
+<script>
+      const userData = window.FINEMARK_APP.getSession()?.user;
+
+      const typeMap = {
+        installation: "Installation Request",
+        quotation: "Quotation",
+        invoice: "Invoice",
+      };
+
+      const queryType = new URLSearchParams(window.location.search).get("type");
+      const typeKey = Object.keys(typeMap).includes(queryType) ? queryType : null;
+      const typeBadge = document.getElementById("type-badge");
+      const breadcrumbType = document.getElementById("breadcrumb-type");
+      const warningBanner = document.getElementById("type-warning");
+      const pageTitle = document.querySelector("h1");
+      const saveDraftBtn = document.getElementById("save-draft");
+
+      if (typeKey) {
+        typeBadge.textContent = typeMap[typeKey];
+        if (breadcrumbType) breadcrumbType.textContent = typeMap[typeKey];
+        if (pageTitle) pageTitle.textContent = typeMap[typeKey];
+        warningBanner.classList.add("hidden");
+        saveDraftBtn.disabled = false;
+        saveDraftBtn.classList.remove("opacity-60", "cursor-not-allowed");
+      } else {
+        typeBadge.textContent = "Select a type";
+        if (breadcrumbType) breadcrumbType.textContent = "Create Request";
+        if (pageTitle) pageTitle.textContent = "Create Request";
+        warningBanner.classList.remove("hidden");
+        saveDraftBtn.disabled = true;
+        saveDraftBtn.classList.add("opacity-60", "cursor-not-allowed");
+      }
+
+      const sections = {
+        installation: document.getElementById("section-installation"),
+        quotation: document.getElementById("section-quotation"),
+        invoice: document.getElementById("section-invoice"),
+      };
+
+      Object.keys(sections).forEach((key) => {
+        sections[key].classList.toggle("hidden", !typeKey || key !== typeKey);
+      });
+
+      const customerName = document.getElementById("customer-name");
+      const locationInput = document.getElementById("location");
+      const requestForm = document.getElementById("request-form");
+      const saveDraft = document.getElementById("save-draft");
+      const toast = document.getElementById("toast");
+
+      const quotationItems = document.getElementById("quotation-items");
+      const invoiceItems = document.getElementById("invoice-items");
+      const addQuoteItem = document.getElementById("add-quotation-item");
+      const addInvoiceItem = document.getElementById("add-invoice-item");
+      const quoteSubtotal = document.getElementById("quote-subtotal");
+      const quoteTax = document.getElementById("quote-tax");
+      const quoteTotal = document.getElementById("quote-total");
+      const invoiceTotal = document.getElementById("invoice-total");
+      const invoiceNumber = document.getElementById("invoice-number");
+      const salesPersonSelect = document.getElementById("sales-person");
+      const technicianSelect = document.getElementById("technician");
+      const installationDateInput = document.getElementById("installation-date");
+      const salesPersonLockNote = document.getElementById("sales-person-lock-note");
+      const headerCard = document.getElementById("installation-header-card");
+      const roleBadge = document.getElementById("installation-role-badge");
+      const pageHeader = document.getElementById("page-header");
+      const stepper = document.getElementById("installation-stepper");
+      const stepIndicator = document.getElementById("step-indicator");
+      const stepDots = Array.from(document.querySelectorAll(".step-dot"));
+      const stepPanels = Array.from(document.querySelectorAll(".installation-step"));
+      const stepActions = document.getElementById("installation-step-actions");
+      const stepBack = document.getElementById("step-back");
+      const stepNext = document.getElementById("step-next");
+      const stepSubmit = document.getElementById("step-submit");
+      const stepSaveDraft = document.getElementById("step-save-draft");
+      const formActions = document.getElementById("form-actions");
+      const customerCoreFields = document.getElementById("core-customer-fields");
+      const customerCoreSlot = document.getElementById("step-customer-core");
+      let currentStep = 0;
+      let salesUserMap = new Map();
+      let techUserMap = new Map();
+
+      const formatCurrency = (value) => {
+        if (window.FINEMARK_APP?.formatKES) {
+          return window.FINEMARK_APP.formatKES(value);
+        }
+        return `KES ${Number(value || 0).toLocaleString("en-KE")}`;
+      };
+
+      const createItemRow = (container) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td class="py-2">
+            <input type="text" placeholder="Item" class="item-name w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+          </td>
+          <td class="py-2">
+            <input type="number" min="0" value="1" class="item-qty w-20 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+          </td>
+          <td class="py-2">
+            <input type="number" min="0" step="0.01" value="0" class="item-price w-28 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+          </td>
+          <td class="py-2 text-slate-700">
+            <span class="item-total" data-value="0">KES 0</span>
+          </td>
+        `;
+        container.appendChild(row);
+      };
+
+      const parseNumber = (value) => {
+        if (value === null || value === undefined) return NaN;
+        const normalized = String(value).replace(/,/g, "").trim();
+        return normalized === "" ? NaN : Number(normalized);
+      };
+
+      const calculateTotals = () => {
+        const calcSubtotal = (container) => {
+          let subtotal = 0;
+          container.querySelectorAll("tr").forEach((row) => {
+            const qty = parseNumber(row.querySelector(".item-qty").value);
+            const price = parseNumber(row.querySelector(".item-price").value);
+            const safeQty = Number.isFinite(qty) ? qty : 0;
+            const safePrice = Number.isFinite(price) ? price : 0;
+            const total = safeQty * safePrice;
+            const totalEl = row.querySelector(".item-total");
+            totalEl.textContent = formatCurrency(total);
+            totalEl.dataset.value = String(total);
+            subtotal += total;
+          });
+          return subtotal;
+        };
+
+        if (quotationItems) {
+          const subtotal = calcSubtotal(quotationItems);
+          const tax = subtotal * 0.1;
+          quoteSubtotal.textContent = formatCurrency(subtotal);
+          quoteSubtotal.dataset.value = String(subtotal);
+          quoteTax.textContent = formatCurrency(tax);
+          quoteTax.dataset.value = String(tax);
+          quoteTotal.textContent = formatCurrency(subtotal + tax);
+          quoteTotal.dataset.value = String(subtotal + tax);
+        }
+
+        if (invoiceItems) {
+          const subtotal = calcSubtotal(invoiceItems);
+          invoiceTotal.textContent = formatCurrency(subtotal);
+          invoiceTotal.dataset.value = String(subtotal);
+        }
+      };
+
+      const showPageNotice = (type, message) => {
+        const notice = document.getElementById("request-notification");
+        if (!notice) return;
+        const styles =
+          type === "success"
+            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+            : type === "error"
+            ? "border-rose-200 bg-rose-50 text-rose-700"
+            : "border-blue-200 bg-blue-50 text-blue-700";
+        notice.className = `rounded-lg border px-4 py-3 text-sm ${styles}`;
+        notice.textContent = message;
+        notice.classList.remove("hidden");
+      };
+
+      if (quotationItems) {
+        addQuoteItem.addEventListener("click", () => {
+          createItemRow(quotationItems);
+          updateSubmitState();
+        });
+        createItemRow(quotationItems);
+        quotationItems.addEventListener("input", () => { calculateTotals(); updateSubmitState(); });
+        quotationItems.addEventListener("change", () => { calculateTotals(); updateSubmitState(); });
+      }
+
+      if (invoiceItems) {
+        addInvoiceItem.addEventListener("click", () => {
+          createItemRow(invoiceItems);
+          updateSubmitState();
+        });
+        createItemRow(invoiceItems);
+        invoiceItems.addEventListener("input", () => { calculateTotals(); updateSubmitState(); });
+        invoiceItems.addEventListener("change", () => { calculateTotals(); updateSubmitState(); });
+      }
+
+      const invoiceId = `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      if (invoiceNumber) {
+        invoiceNumber.textContent = invoiceId;
+      }
+
+      const populateUserSelect = (selectEl, users, label) => {
+        if (!selectEl) return;
+        selectEl.innerHTML = `<option value="" disabled selected>Select ${label}</option>`;
+        users.forEach((user) => {
+          const option = document.createElement("option");
+          option.value = user.id;
+          option.textContent = `${user.fullName || user.name} (${user.email})`;
+          option.dataset.email = user.email;
+          option.dataset.name = user.fullName || user.name;
+          selectEl.appendChild(option);
+        });
+      };
+
+      const normalizeUsers = (response) => {
+        if (!response) return [];
+        if (Array.isArray(response)) return response;
+        if (Array.isArray(response.data)) return response.data;
+        if (Array.isArray(response.users)) return response.users;
+        if (Array.isArray(response.user)) return response.user;
+        if (Array.isArray(response.data?.data)) return response.data.data;
+        return [];
+      };
+
+      const applySalesLock = (selectedId) => {
+        if (!salesPersonSelect) return null;
+        salesPersonSelect.disabled = true;
+        salesPersonSelect.classList.add("bg-slate-100", "text-slate-500");
+        if (salesPersonLockNote) salesPersonLockNote.classList.remove("hidden");
+        let hidden = document.getElementById("sales-person-locked");
+        if (!hidden) {
+          hidden = document.createElement("input");
+          hidden.type = "hidden";
+          hidden.id = "sales-person-locked";
+          hidden.name = "sales-person-locked";
+          salesPersonSelect.parentElement?.appendChild(hidden);
+        }
+        hidden.value = selectedId || "";
+        return hidden.value;
+      };
+
+      const preselectSalesPerson = (users) => {
+        const session = window.FINEMARK_APP?.getSession?.();
+        if (!session?.user || session.user.role !== "Sales") return;
+        let match = users.find((user) => user.id === session.user.id);
+        if (!match && session.user.email) {
+          match = users.find((user) => user.email === session.user.email);
+        }
+        if (match && salesPersonSelect) {
+          salesPersonSelect.value = match.id;
+          applySalesLock(match.id);
+          return;
+        }
+        if (salesPersonSelect && session.user.id) {
+          const option = document.createElement("option");
+          option.value = session.user.id;
+          option.textContent = `${session.user.name || session.user.email || "Sales"} (${session.user.email || "unknown"})`;
+          salesPersonSelect.appendChild(option);
+          salesPersonSelect.value = session.user.id;
+          applySalesLock(session.user.id);
+        }
+      };
+
+      const loadInstallationUsers = async () => {
+        if (!salesPersonSelect || !technicianSelect) return;
+        try {
+          const [salesRes, techRes] = await Promise.all([
+            window.FINEMARK_APP.apiFetch("/users?role=Sales&page=1&pageSize=200"),
+            window.FINEMARK_APP.apiFetch("/technical-team/members?role=Technician"),
+          ]);
+          const salesUsers = normalizeUsers(salesRes);
+          const techUsers = normalizeUsers(techRes);
+          salesUserMap = new Map(salesUsers.map((user) => [user.id, user]));
+          techUserMap = new Map(techUsers.map((user) => [user.id, user]));
+          populateUserSelect(salesPersonSelect, salesUsers, "Sales Person");
+          populateUserSelect(technicianSelect, techUsers, "Technician");
+          preselectSalesPerson(salesUsers);
+          if (technicianSelect && !technicianSelect.value && techUsers.length === 1) {
+            technicianSelect.value = techUsers[0].id;
+          }
+          updateSubmitState();
+        } catch (error) {
+          window.FINEMARK_APP.showToast("Failed to load Sales/Technician users.", "error");
+        }
+      };
+
+      if (typeKey === "installation") {
+        if (installationDateInput) {
+          const today = new Date().toISOString().slice(0, 10);
+          installationDateInput.value = today;
+        }
+        const session = window.FINEMARK_APP?.getSession?.();
+        if (headerCard) headerCard.classList.remove("hidden");
+        if (roleBadge && session?.user?.role) {
+          roleBadge.textContent = `Role: ${session.user.role}`;
+        }
+        if (pageHeader) pageHeader.classList.add("hidden");
+        if (customerCoreFields && customerCoreSlot) {
+          customerCoreSlot.appendChild(customerCoreFields);
+        }
+        if (stepper) stepper.classList.remove("hidden");
+        if (stepActions) stepActions.classList.remove("hidden");
+        if (formActions) formActions.classList.add("hidden");
+        loadInstallationUsers();
+      } else {
+        stepPanels.forEach((panel) => panel.classList.remove("hidden"));
+      }
+
+      const getSelectedSalesId = () => {
+        if (!salesPersonSelect) return "";
+        if (salesPersonSelect.disabled) {
+          const hidden = document.getElementById("sales-person-locked");
+          return hidden?.value || salesPersonSelect.value || "";
+        }
+        return salesPersonSelect.value || "";
+      };
+
+      const getSelectedTechnicianId = () => technicianSelect?.value || "";
+
+      const updateStepButtons = () => {
+        if (typeKey !== "installation") return;
+        const isValid = validateStep(currentStep, false);
+        if (stepNext) stepNext.disabled = !isValid && currentStep < stepPanels.length - 1;
+        if (stepSubmit) stepSubmit.disabled = !isValid && currentStep === stepPanels.length - 1;
+      };
+
+      const updateStepperUI = () => {
+        if (!stepIndicator) return;
+        stepIndicator.textContent = `${currentStep + 1} of 4`;
+        stepDots.forEach((dot, index) => {
+          const isCurrent = index === currentStep;
+          const isComplete = index < currentStep;
+          dot.classList.toggle("bg-blue-600", isCurrent);
+          dot.classList.toggle("bg-emerald-500", isComplete);
+          dot.classList.toggle("bg-slate-200", !isCurrent && !isComplete);
+        });
+        stepPanels.forEach((panel, index) => {
+          panel.classList.toggle("hidden", index !== currentStep);
+        });
+        if (stepBack) stepBack.disabled = currentStep === 0;
+        if (stepNext) stepNext.classList.toggle("hidden", currentStep === stepPanels.length - 1);
+        if (stepSubmit) stepSubmit.classList.toggle("hidden", currentStep !== stepPanels.length - 1);
+        updateStepButtons();
+      };
+
+      const validateStep = (stepIndex, showErrors) => {
+        if (showErrors) {
+          window.FINEMARK_APP.clearFormErrors(requestForm);
+        }
+        const setError = (input, message) => {
+          if (!showErrors) return;
+          window.FINEMARK_APP.setFieldError(input, message);
+        };
+        if (stepIndex === 0) {
+          const vehicleRegistration = document.getElementById("vehicle-registration");
+          const vehicleModel = document.getElementById("vehicle-model");
+          const numberTrackers = document.getElementById("number-trackers");
+          const regError = window.FINEMARK_APP.Validators.required(vehicleRegistration.value.trim());
+          const modelError = window.FINEMARK_APP.Validators.required(vehicleModel.value.trim());
+          const trackerError = window.FINEMARK_APP.Validators.required(numberTrackers.value);
+          if (regError) setError(vehicleRegistration, regError);
+          if (modelError) setError(vehicleModel, modelError);
+          if (trackerError) setError(numberTrackers, trackerError);
+          return !(regError || modelError || trackerError);
+        }
+        if (stepIndex === 1) {
+          const contactName = document.getElementById("contact-name");
+          const bankName = document.getElementById("bank-name");
+          const nameError = window.FINEMARK_APP.Validators.required(customerName.value.trim());
+          const locationError = window.FINEMARK_APP.Validators.required(locationInput.value.trim());
+          const phoneInput = document.getElementById("phone");
+          const emailInput = document.getElementById("email");
+          const phoneValue = phoneInput.value.trim();
+          const emailValue = emailInput.value.trim();
+          const phoneRequired = window.FINEMARK_APP.Validators.required(phoneValue);
+          const phoneError = window.FINEMARK_APP.Validators.phoneOptional(phoneValue);
+          const emailRequired = window.FINEMARK_APP.Validators.required(emailValue);
+          const emailError = window.FINEMARK_APP.Validators.email(emailValue);
+          const contactError = window.FINEMARK_APP.Validators.required(contactName.value.trim());
+          const bankError = window.FINEMARK_APP.Validators.required(bankName.value.trim());
+          if (nameError) setError(customerName, nameError);
+          if (locationError) setError(locationInput, locationError);
+          if (phoneRequired) setError(phoneInput, phoneRequired);
+          if (!phoneRequired && phoneError) setError(phoneInput, phoneError);
+          if (emailRequired) setError(emailInput, emailRequired);
+          if (!emailRequired && emailError) setError(emailInput, emailError);
+          if (contactError) setError(contactName, contactError);
+          if (bankError) setError(bankName, bankError);
+          return !(
+            nameError ||
+            locationError ||
+            phoneRequired ||
+            phoneError ||
+            emailRequired ||
+            emailError ||
+            contactError ||
+            bankError
+          );
+        }
+        if (stepIndex === 2) {
+          const salesPersonId = getSelectedSalesId();
+          const technicianId = getSelectedTechnicianId();
+          const salesPersonError = window.FINEMARK_APP.Validators.required(salesPersonId);
+          const technicianError = window.FINEMARK_APP.Validators.required(technicianId);
+          if (salesPersonError) setError(salesPersonSelect, salesPersonError);
+          if (technicianError) setError(technicianSelect, technicianError);
+          return !(salesPersonError || technicianError);
+        }
+        if (stepIndex === 3) {
+          const amountQuoted = document.getElementById("amount-quoted");
+          const amountValue = parseFloat(amountQuoted.value);
+          const amountError = Number.isFinite(amountValue) && amountValue >= 0 ? null : "Amount quoted must be 0 or greater.";
+          if (amountError) setError(amountQuoted, amountError);
+          return !amountError;
+        }
+        return true;
+      };
+
+      const isVisible = (el) => Boolean(el && el.offsetParent !== null);
+
+      const validateRequired = () => {
+        window.FINEMARK_APP.clearFormErrors(requestForm);
+        const inlineError = document.getElementById("request-inline-error");
+        inlineError.classList.add("hidden");
+        if (!typeKey) {
+          warningBanner.classList.remove("hidden");
+          return false;
+        }
+
+        const nameValue = customerName.value.trim();
+        const locationValue = locationInput.value.trim();
+        const nameError = isVisible(customerName) ? window.FINEMARK_APP.Validators.required(nameValue) : null;
+        const locationErrorMsg = isVisible(locationInput) ? window.FINEMARK_APP.Validators.required(locationValue) : null;
+        const phoneInput = document.getElementById("phone");
+        const emailInput = document.getElementById("email");
+        const phoneValue = phoneInput.value.trim();
+        const emailValue = emailInput.value.trim();
+        const shouldValidatePhone = isVisible(phoneInput);
+        const shouldValidateEmail = isVisible(emailInput);
+        const phoneRequired = shouldValidatePhone ? window.FINEMARK_APP.Validators.required(phoneValue) : null;
+        const phoneError = shouldValidatePhone ? window.FINEMARK_APP.Validators.phoneOptional(phoneValue) : null;
+        const emailRequired = shouldValidateEmail ? window.FINEMARK_APP.Validators.required(emailValue) : null;
+        const emailError = shouldValidateEmail ? window.FINEMARK_APP.Validators.email(emailValue) : null;
+        if (nameError) window.FINEMARK_APP.setFieldError(customerName, nameError);
+        if (locationErrorMsg) window.FINEMARK_APP.setFieldError(locationInput, locationErrorMsg);
+        if (phoneRequired) window.FINEMARK_APP.setFieldError(phoneInput, phoneRequired);
+        if (!phoneRequired && phoneError) window.FINEMARK_APP.setFieldError(phoneInput, phoneError);
+        if (emailRequired) window.FINEMARK_APP.setFieldError(emailInput, emailRequired);
+        if (!emailRequired && emailError) window.FINEMARK_APP.setFieldError(emailInput, emailError);
+
+        if (typeKey === "installation") {
+          const vehicleRegistration = document.getElementById("vehicle-registration");
+          const vehicleModel = document.getElementById("vehicle-model");
+          const contactName = document.getElementById("contact-name");
+          const bankName = document.getElementById("bank-name");
+          const numberTrackers = document.getElementById("number-trackers");
+          const amountQuoted = document.getElementById("amount-quoted");
+          const salesPersonId = getSelectedSalesId();
+          const technicianId = getSelectedTechnicianId();
+          const salesPersonError = window.FINEMARK_APP.Validators.required(salesPersonId);
+          const technicianError = window.FINEMARK_APP.Validators.required(technicianId);
+          const registrationError = window.FINEMARK_APP.Validators.required(vehicleRegistration.value.trim());
+          const modelError = window.FINEMARK_APP.Validators.required(vehicleModel.value.trim());
+          const contactError = window.FINEMARK_APP.Validators.required(contactName.value.trim());
+          const bankError = window.FINEMARK_APP.Validators.required(bankName.value.trim());
+          const trackerCountError = window.FINEMARK_APP.Validators.required(numberTrackers.value);
+          const amountValue = parseFloat(amountQuoted.value);
+          const amountError = Number.isFinite(amountValue) && amountValue >= 0 ? null : "Amount quoted must be 0 or greater.";
+
+          if (registrationError) window.FINEMARK_APP.setFieldError(vehicleRegistration, registrationError);
+          if (modelError) window.FINEMARK_APP.setFieldError(vehicleModel, modelError);
+          if (contactError) window.FINEMARK_APP.setFieldError(contactName, contactError);
+          if (bankError) window.FINEMARK_APP.setFieldError(bankName, bankError);
+          if (salesPersonError) window.FINEMARK_APP.setFieldError(salesPersonSelect, salesPersonError);
+          if (technicianError) window.FINEMARK_APP.setFieldError(technicianSelect, technicianError);
+          if (trackerCountError) window.FINEMARK_APP.setFieldError(numberTrackers, trackerCountError);
+          if (amountError) window.FINEMARK_APP.setFieldError(amountQuoted, amountError);
+
+          return !(
+            nameError ||
+            locationErrorMsg ||
+            phoneRequired ||
+            phoneError ||
+            emailRequired ||
+            emailError ||
+            registrationError ||
+            modelError ||
+            contactError ||
+            bankError ||
+            salesPersonError ||
+            technicianError ||
+            trackerCountError ||
+            amountError
+          );
+        }
+
+        if (typeKey === "quotation" || typeKey === "invoice") {
+          const container = typeKey === "quotation" ? quotationItems : invoiceItems;
+          const rows = container ? Array.from(container.querySelectorAll("tr")) : [];
+          let validItemsFound = false;
+          rows.forEach((row) => {
+            const qtyInput = row.querySelector(".item-qty");
+            const priceInput = row.querySelector(".item-price");
+            if (!qtyInput || !priceInput) return;
+            const qty = parseNumber(qtyInput.value);
+            const price = parseNumber(priceInput.value);
+            if (Number.isFinite(qty) && qty > 0 && Number.isFinite(price) && price > 0) {
+              validItemsFound = true;
+            }
+          });
+          if (!validItemsFound) {
+            window.FINEMARK_APP.showInlineError(inlineError, "Add at least one valid item (qty and price).");
+            inlineError.classList.remove("hidden");
+          }
+          if (typeKey === "quotation") {
+            console.log("Valid items:", collectItems(quotationItems));
+            console.log("Form data:", { customerName: nameValue, location: locationValue, phoneValue, emailValue });
+          }
+          return !(nameError || locationErrorMsg || phoneRequired || phoneError || emailRequired || emailError) && validItemsFound;
+        }
+
+        return !(nameError || locationErrorMsg || phoneRequired || phoneError || emailRequired || emailError);
+      };
+
+      const collectItems = (container) => {
+        if (!container) return [];
+        return Array.from(container.querySelectorAll("tr"))
+          .map((row) => {
+            const nameInput = row.querySelector(".item-name");
+            const qtyInput = row.querySelector(".item-qty");
+            const priceInput = row.querySelector(".item-price");
+            const totalEl = row.querySelector(".item-total");
+            if (!qtyInput || !priceInput) return null;
+            const qty = parseNumber(qtyInput.value);
+            const price = parseNumber(priceInput.value);
+            const safeQty = Number.isFinite(qty) ? qty : 0;
+            const safePrice = Number.isFinite(price) ? price : 0;
+            const description = nameInput ? nameInput.value.trim() : "";
+            const lineTotal =
+              totalEl && totalEl.dataset.value ? parseFloat(totalEl.dataset.value) || 0 : safeQty * safePrice;
+            return {
+              item: description,
+              qty: safeQty,
+              unitPrice: safePrice,
+              lineTotal,
+            };
+          })
+          .filter(Boolean);
+      };
+
+      const buildPayload = (status) => {
+        const phoneValue = document.getElementById("phone").value.trim();
+        const emailValue = document.getElementById("email").value.trim();
+        const details = {
+          customerPhone: phoneValue || undefined,
+          customerEmail: emailValue || undefined,
+          source: "sales-ui",
+        };
+
+        if (typeKey === "installation") {
+          const vehicleRegistration = document.getElementById("vehicle-registration").value.trim();
+          const vehicleModel = document.getElementById("vehicle-model").value.trim();
+          const trackerLocation = document.getElementById("tracker-location").value.trim();
+          const numberTrackers = parseInt(document.getElementById("number-trackers").value, 10) || 0;
+          const contactName = document.getElementById("contact-name").value.trim();
+          const bankName = document.getElementById("bank-name").value.trim();
+          const bankBranch = document.getElementById("bank-branch").value.trim();
+          const cNumber = document.getElementById("c-number").value.trim();
+          const loanDuration = document.getElementById("loan-duration").value.trim();
+          const amountQuoted = parseFloat(document.getElementById("amount-quoted").value) || 0;
+          const installationDate = document.getElementById("installation-date").value;
+          const tk = document.getElementById("tk-toggle").checked;
+          const tracksolid = document.getElementById("tracksolid-toggle").checked;
+
+          const salesId = getSelectedSalesId();
+          const technicianId = getSelectedTechnicianId();
+          const salesUser = salesUserMap.get(salesId);
+          const techUser = techUserMap.get(technicianId);
+
+          details.salesPerson = salesUser
+            ? { id: salesUser.id, name: salesUser.name, email: salesUser.email }
+            : null;
+          details.technician = techUser
+            ? { id: techUser.id, name: techUser.name, email: techUser.email }
+            : null;
+          details.vehicle = { registration: vehicleRegistration, model: vehicleModel };
+          details.contact = contactName;
+          details.bank = { name: bankName, branch: bankBranch || undefined };
+          details.tk = tk;
+          details.tracksolid = tracksolid;
+          details.installationDate = installationDate || null;
+          details.loanDuration = loanDuration || null;
+          details.cNumber = cNumber || null;
+          details.trackerLocation = trackerLocation || null;
+          details.amountQuoted = amountQuoted;
+          details.numberOfTrackers = numberTrackers;
+        }
+
+        if (typeKey === "quotation") {
+          const items = collectItems(quotationItems);
+          details.items = items;
+          details.validUntil = document.getElementById("valid-until").value;
+          details.totals = {
+            subtotal: parseFloat(quoteSubtotal.dataset.value || "0"),
+            tax: parseFloat(quoteTax.dataset.value || "0"),
+            total: parseFloat(quoteTotal.dataset.value || "0"),
+            currency: "KES",
+          };
+        }
+
+        if (typeKey === "invoice") {
+          const items = collectItems(invoiceItems);
+          details.items = items;
+          details.paymentTerms = document.getElementById("payment-terms").value;
+          details.totals = {
+            total: parseFloat(invoiceTotal.dataset.value || "0"),
+            currency: "KES",
+          };
+        }
+
+        return {
+          type: typeKey,
+          customer: typeKey === "installation"
+            ? document.getElementById("vehicle-registration").value.trim()
+            : customerName.value.trim(),
+          location: locationInput.value.trim(),
+          customerPhone: phoneValue,
+          customerEmail: emailValue,
+          status,
+          details,
+        };
+      };
+
+      const buildInvoicePayload = () => {
+        const phoneValue = document.getElementById("phone").value.trim();
+        const emailValue = document.getElementById("email").value.trim();
+        const items = collectItems(invoiceItems).map((item) => ({
+          description: item.item,
+          qty: item.qty,
+          unitPrice: item.unitPrice,
+        }));
+        const issuedOn = new Date().toISOString().slice(0, 10);
+        const paymentTerms = document.getElementById("payment-terms").value;
+        const termDays = paymentTerms === "Net 14" ? 14 : paymentTerms === "Net 30" ? 30 : 7;
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + termDays);
+        const sessionUser = window.FINEMARK_APP.getSession()?.user;
+        return {
+          type: "invoice",
+          customer: customerName.value.trim(),
+          location: locationInput.value.trim(),
+          status: "Draft",
+          customerPhone: phoneValue,
+          customerEmail: emailValue,
+          issuedOn,
+          dueOn: dueDate.toISOString().slice(0, 10),
+          salesPerson: sessionUser?.email,
+          items,
+          currency: "KES",
+        };
+      };
+
+      const showToast = () => {
+        const message = typeKey === "installation" ? "Installation request created" : "Request created";
+        window.FINEMARK_APP.showToast(message, "success");
+      };
+
+      function updateSubmitState() {
+        if (!saveDraft || !typeKey) return;
+        if (typeKey === "installation") {
+          updateStepButtons();
+          return;
+        }
+        const canSubmit = validateRequired();
+        saveDraft.disabled = !canSubmit;
+        saveDraft.classList.toggle("opacity-60", !canSubmit);
+        saveDraft.classList.toggle("cursor-not-allowed", !canSubmit);
+      }
+
+      updateSubmitState();
+
+      if (typeKey === "installation") {
+        const fields = [
+          "vehicle-registration",
+          "vehicle-model",
+          "customer-name",
+          "location",
+          "phone",
+          "email",
+          "contact-name",
+          "bank-name",
+          "number-trackers",
+          "amount-quoted",
+          "sales-person",
+          "technician",
+        ];
+        fields.forEach((id) => {
+          const input = document.getElementById(id);
+          if (input) {
+            input.addEventListener("input", updateSubmitState);
+            input.addEventListener("change", updateSubmitState);
+          }
+        });
+      } else if (typeKey === "quotation" || typeKey === "invoice") {
+        ["customer-name", "location", "phone", "email"].forEach((id) => {
+          const input = document.getElementById(id);
+          if (input) {
+            input.addEventListener("input", updateSubmitState);
+            input.addEventListener("change", updateSubmitState);
+          }
+        });
+      }
+
+      const saveInstallationDraft = () => {
+        if (typeKey !== "installation") return;
+        const draft = {
+          vehicleRegistration: document.getElementById("vehicle-registration").value.trim(),
+          vehicleModel: document.getElementById("vehicle-model").value.trim(),
+          trackerLocation: document.getElementById("tracker-location").value.trim(),
+          numberTrackers: document.getElementById("number-trackers").value,
+          contactName: document.getElementById("contact-name").value.trim(),
+          bankName: document.getElementById("bank-name").value.trim(),
+          bankBranch: document.getElementById("bank-branch").value.trim(),
+          cNumber: document.getElementById("c-number").value.trim(),
+          loanDuration: document.getElementById("loan-duration").value.trim(),
+          salesPersonId: getSelectedSalesId(),
+          technicianId: getSelectedTechnicianId(),
+          installationDate: document.getElementById("installation-date").value,
+          tk: document.getElementById("tk-toggle").checked,
+          tracksolid: document.getElementById("tracksolid-toggle").checked,
+          amountQuoted: document.getElementById("amount-quoted").value,
+          location: locationInput.value.trim(),
+          phone: document.getElementById("phone").value.trim(),
+          email: document.getElementById("email").value.trim(),
+          customerName: customerName.value.trim(),
+        };
+        localStorage.setItem("finemark_installation_draft", JSON.stringify(draft));
+        window.FINEMARK_APP.showToast("Draft saved.", "info");
+      };
+
+      const loadInstallationDraft = () => {
+        if (typeKey !== "installation") return;
+        try {
+          const stored = localStorage.getItem("finemark_installation_draft");
+          if (!stored) return;
+          const draft = JSON.parse(stored);
+          if (draft.vehicleRegistration) document.getElementById("vehicle-registration").value = draft.vehicleRegistration;
+          if (draft.vehicleModel) document.getElementById("vehicle-model").value = draft.vehicleModel;
+          if (draft.trackerLocation) document.getElementById("tracker-location").value = draft.trackerLocation;
+          if (draft.numberTrackers) document.getElementById("number-trackers").value = draft.numberTrackers;
+          if (draft.contactName) document.getElementById("contact-name").value = draft.contactName;
+          if (draft.bankName) document.getElementById("bank-name").value = draft.bankName;
+          if (draft.bankBranch) document.getElementById("bank-branch").value = draft.bankBranch;
+          if (draft.cNumber) document.getElementById("c-number").value = draft.cNumber;
+          if (draft.loanDuration) document.getElementById("loan-duration").value = draft.loanDuration;
+          if (draft.salesPersonId && salesPersonSelect && !salesPersonSelect.disabled) {
+            salesPersonSelect.value = draft.salesPersonId;
+          }
+          if (draft.technicianId && technicianSelect) {
+            technicianSelect.value = draft.technicianId;
+          }
+          if (draft.installationDate !== undefined) {
+            document.getElementById("installation-date").value = draft.installationDate;
+          }
+          document.getElementById("tk-toggle").checked = Boolean(draft.tk);
+          document.getElementById("tracksolid-toggle").checked = Boolean(draft.tracksolid);
+          if (draft.amountQuoted !== undefined) document.getElementById("amount-quoted").value = draft.amountQuoted;
+          if (draft.location) locationInput.value = draft.location;
+          if (draft.phone) document.getElementById("phone").value = draft.phone;
+          if (draft.email) document.getElementById("email").value = draft.email;
+          if (draft.customerName) customerName.value = draft.customerName;
+          updateSubmitState();
+          window.FINEMARK_APP.showToast("Draft loaded.", "info");
+        } catch (error) {
+          // ignore draft errors
+        }
+      };
+
+      const submitRequest = async (buttonEl = saveDraft) => {
+        const inlineError = document.getElementById("request-inline-error");
+        inlineError.classList.add("hidden");
+        window.FINEMARK_APP.setLoading(buttonEl, true, "Saving...");
+        try {
+          if (!validateRequired()) {
+            window.FINEMARK_APP.setLoading(buttonEl, false);
+            return;
+          }
+          calculateTotals();
+          if (typeKey === "invoice") {
+            const invoicePayload = buildInvoicePayload();
+            await window.FINEMARK_APP.apiFetch("/crm/records", { method: "POST", body: invoicePayload });
+          } else {
+            const payload = buildPayload("Submitted");
+            await window.FINEMARK_APP.apiFetch("/crm/records", { method: "POST", body: payload });
+          }
+          showToast();
+          showPageNotice("success", "Request submitted successfully.");
+          setTimeout(() => {
+            if (typeKey === "invoice") {
+              window.location.href = "crm-records.html?type=invoice";
+              return;
+            }
+            if (typeKey === "installation") {
+              window.location.href = "crm-records.html?tab=installations";
+              return;
+            }
+            window.location.href = "crm-records.html?range=7d";
+          }, 800);
+        } catch (error) {
+          window.FINEMARK_APP.showToast(error.message || "Failed to submit request", "error");
+          showPageNotice("error", error.message || "Failed to submit request.");
+          inlineError.classList.remove("hidden");
+          window.FINEMARK_APP.showInlineError(inlineError, error.message || "Failed to submit request", {
+            retryText: "Retry",
+            onRetry: () => saveDraft.click(),
+          });
+        } finally {
+          window.FINEMARK_APP.setLoading(buttonEl, false);
+        }
+      };
+
+      saveDraft.addEventListener("click", async () => {
+        await submitRequest(saveDraft);
+      });
+
+      if (stepSaveDraft) {
+        stepSaveDraft.addEventListener("click", saveInstallationDraft);
+      }
+      if (typeKey === "installation" && stepBack && stepNext && stepSubmit) {
+        updateStepperUI();
+        stepBack.addEventListener("click", () => {
+          if (currentStep > 0) {
+            currentStep -= 1;
+            updateStepperUI();
+          }
+        });
+        stepNext.addEventListener("click", () => {
+          if (validateStep(currentStep, true)) {
+            currentStep = Math.min(currentStep + 1, stepPanels.length - 1);
+            updateStepperUI();
+          }
+        });
+        stepSubmit.addEventListener("click", async () => {
+          if (!validateStep(currentStep, true)) return;
+          await submitRequest(stepSubmit);
+        });
+      }
+
+      calculateTotals();
+      if (typeKey === "installation") {
+        loadInstallationDraft();
+      }
+    </script>
+</body>
+</html>

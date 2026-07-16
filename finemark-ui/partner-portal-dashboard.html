@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Partner Portal – Business Dashboard</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-100 text-slate-800 min-h-screen antialiased">
+    <header class="fixed top-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
+      <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <img id="nav-logo" src="assets/finemark-logo.svg" alt="Partner Logo" class="h-9 w-9 rounded-lg object-cover border border-slate-200" />
+          <div class="min-w-0">
+            <p class="text-sm font-semibold text-slate-900 truncate">Partner Portal</p>
+            <p id="partner-name" class="text-xs text-slate-500 truncate">Partner</p>
+          </div>
+        </div>
+        <nav class="hidden md:flex items-center gap-1">
+          <a href="partner-portal-dashboard.html" class="px-3 py-2 rounded-lg text-sm font-medium bg-slate-900 text-white">Dashboard</a>
+          <a href="partner-portal-vehicles.html" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100">Vehicles</a>
+          <a href="partner-portal-support.html" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100">Support</a>
+          <a href="partner-portal-settings.html" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100">Settings</a>
+        </nav>
+        <div class="flex items-center gap-3">
+          <div class="text-right hidden sm:block">
+            <p id="user-name" class="text-xs font-medium text-slate-700">—</p>
+            <p id="user-role" class="text-xs text-slate-400">—</p>
+          </div>
+          <button id="btn-logout" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">Sign out</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="pt-20 pb-10 px-4">
+      <div class="max-w-7xl mx-auto space-y-6">
+        <section class="rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-blue-900 text-white p-6 shadow-lg">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 class="text-2xl font-semibold">Business Command Center</h1>
+              <p id="welcome-msg" class="text-sm text-blue-100 mt-1">Welcome back.</p>
+            </div>
+            <div id="last-updated" class="text-xs text-blue-200">Updated —</div>
+          </div>
+          <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="rounded-xl bg-white/10 border border-white/10 p-3">
+              <p class="text-[11px] uppercase tracking-wide text-blue-100">Vehicles Handled</p>
+              <p id="stat-vehicles" class="text-2xl font-bold mt-1">0</p>
+            </div>
+            <div class="rounded-xl bg-white/10 border border-white/10 p-3">
+              <p class="text-[11px] uppercase tracking-wide text-blue-100">Total Invoices</p>
+              <p id="stat-total-invoices" class="text-2xl font-bold mt-1">0</p>
+            </div>
+            <div class="rounded-xl bg-white/10 border border-white/10 p-3">
+              <p class="text-[11px] uppercase tracking-wide text-blue-100">Paid Amount</p>
+              <p id="stat-paid-amt" class="text-2xl font-bold mt-1">KES 0</p>
+            </div>
+            <div class="rounded-xl bg-white/10 border border-white/10 p-3">
+              <p class="text-[11px] uppercase tracking-wide text-blue-100">Unpaid Amount</p>
+              <p id="stat-unpaid-amt" class="text-2xl font-bold mt-1">KES 0</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+            <p class="text-xs uppercase tracking-wide text-slate-500">Invoice Status: Invoiced</p>
+            <p id="stat-invoiced" class="text-3xl font-bold text-blue-700 mt-2">0</p>
+          </div>
+          <div class="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+            <p class="text-xs uppercase tracking-wide text-slate-500">Invoice Status: Unpaid</p>
+            <p id="stat-unpaid" class="text-3xl font-bold text-orange-600 mt-2">0</p>
+          </div>
+          <div class="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+            <p class="text-xs uppercase tracking-wide text-slate-500">Invoice Status: Paid</p>
+            <p id="stat-paid" class="text-3xl font-bold text-emerald-600 mt-2">0</p>
+          </div>
+        </section>
+
+        <section class="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h2 class="text-base font-semibold text-slate-900">Vehicle-Invoice Tracker</h2>
+            <p class="text-xs text-slate-500">Track invoice status against each handled vehicle</p>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-xs uppercase tracking-wider text-slate-500 border-b border-slate-100">
+                  <th class="py-3 px-5">Vehicle Reg</th>
+                  <th class="py-3 px-5">Ticket</th>
+                  <th class="py-3 px-5">Invoice</th>
+                  <th class="py-3 px-5">Status</th>
+                  <th class="py-3 px-5 text-right">Amount</th>
+                  <th class="py-3 px-5">Issued</th>
+                </tr>
+              </thead>
+              <tbody id="finance-table">
+                <tr><td colspan="6" class="py-8 text-center text-slate-400">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h2 class="text-base font-semibold text-slate-900">Installations, Vehicles & Certificates</h2>
+            <p class="text-xs text-slate-500">Latest vehicle installation stage and certificate availability</p>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-xs uppercase tracking-wider text-slate-500 border-b border-slate-100">
+                  <th class="py-3 px-5">Vehicle Reg</th>
+                  <th class="py-3 px-5">Vehicle</th>
+                  <th class="py-3 px-5">Installation</th>
+                  <th class="py-3 px-5">Status</th>
+                  <th class="py-3 px-5">Invoice</th>
+                  <th class="py-3 px-5">Certificate</th>
+                  <th class="py-3 px-5">Action</th>
+                </tr>
+              </thead>
+              <tbody id="installation-table">
+                <tr><td colspan="7" class="py-8 text-center text-slate-400">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="rounded-xl bg-white border border-slate-200 shadow-sm">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h2 class="text-base font-semibold text-slate-900">Loan Term Monitoring</h2>
+              <a href="partner-portal-vehicles.html" class="text-xs font-medium text-blue-600 hover:text-blue-800">View all →</a>
+            </div>
+            <div id="loan-monitor" class="divide-y divide-slate-50">
+              <p class="p-5 text-sm text-slate-400 text-center">Loading…</p>
+            </div>
+          </div>
+
+          <div class="rounded-xl bg-white border border-slate-200 shadow-sm">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h2 class="text-base font-semibold text-slate-900">Recently Registered Vehicles</h2>
+              <a href="partner-portal-vehicles.html" class="text-xs font-medium text-blue-600 hover:text-blue-800">View all →</a>
+            </div>
+            <div id="recent-vehicles" class="divide-y divide-slate-50">
+              <p class="p-5 text-sm text-slate-400 text-center">Loading…</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const API = "/api";
+      const money = (n) => `KES ${Number(n || 0).toLocaleString()}`;
+
+      function extractErrorMessage(payload, status) {
+        if (!payload) return `Request failed (${status})`;
+
+        if (typeof payload === "string") return payload;
+
+        if (typeof payload.message === "string") return payload.message;
+        if (payload.message && typeof payload.message === "object") {
+          if (typeof payload.message.message === "string") return payload.message.message;
+          if (typeof payload.message.error === "string") return payload.message.error;
+        }
+
+        if (typeof payload.error === "string") return payload.error;
+        if (payload.error && typeof payload.error === "object") {
+          if (typeof payload.error.message === "string") return payload.error.message;
+          if (typeof payload.error.code === "string") return `${payload.error.code}${payload.error.message ? `: ${payload.error.message}` : ""}`;
+        }
+
+        try {
+          return JSON.stringify(payload);
+        } catch (_) {
+          return `Request failed (${status})`;
+        }
+      }
+
+      function getSession() {
+        try {
+          const s = JSON.parse(localStorage.getItem("finemark_partner_session") || "null");
+          if (!s?.accessToken || new Date(s.expiresAt) <= new Date()) {
+            localStorage.removeItem("finemark_partner_session");
+            return null;
+          }
+          return s;
+        } catch (_) {
+          return null;
+        }
+      }
+
+      async function portalFetch(path, opts = {}) {
+        const session = getSession();
+        if (!session) { location.href = "partner-portal-login.html"; throw new Error("No session"); }
+        const r = await fetch(`${API}/partner-portal${path}`, {
+          ...opts,
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.accessToken}`,
+            ...(opts.headers || {}),
+          },
+        });
+        let data = null;
+        try {
+          data = await r.json();
+        } catch (_) {
+          data = null;
+        }
+        if (r.status === 401) { localStorage.removeItem("finemark_partner_session"); location.href = "partner-portal-login.html"; }
+        if (!r.ok) {
+          const msg = extractErrorMessage(data, r.status);
+          throw new Error(msg);
+        }
+        return data.data || data;
+      }
+
+      async function init() {
+        const session = getSession();
+        if (!session) { location.href = "partner-portal-login.html"; return; }
+
+        document.getElementById("partner-name").textContent = session.user?.partnerName || "Partner";
+        document.getElementById("user-name").textContent = session.user?.fullName || session.user?.email;
+        document.getElementById("user-role").textContent = session.user?.role;
+        document.getElementById("welcome-msg").textContent = `Welcome back, ${session.user?.fullName?.split(" ")[0] || session.user?.email}.`;
+
+        document.getElementById("btn-logout").addEventListener("click", async () => {
+          try { await portalFetch("/auth/logout", { method: "POST" }); } catch (_) {}
+          localStorage.removeItem("finemark_partner_session");
+          location.href = "partner-portal-login.html";
+        });
+
+        await Promise.all([loadSettings(), loadDashboard()]);
+      }
+
+      async function loadSettings() {
+        try {
+          const s = await portalFetch("/settings");
+          if (s.portalLogoUrl) document.getElementById("nav-logo").src = s.portalLogoUrl;
+        } catch (_) {}
+      }
+
+      const URGENCY_STYLE = {
+        expired: "bg-red-100 text-red-700",
+        critical: "bg-red-100 text-red-700",
+        moderate: "bg-orange-100 text-orange-700",
+        warning60: "bg-amber-100 text-amber-700",
+        warning90: "bg-amber-50 text-amber-600",
+        warning180: "bg-yellow-50 text-yellow-700",
+        warning365: "bg-green-50 text-green-600",
+        ok: "bg-green-50 text-green-600",
+      };
+
+      function statusClass(status) {
+        const s = String(status || "").toLowerCase();
+        if (s === "paid") return "bg-emerald-50 text-emerald-700 border-emerald-200";
+        if (s === "unpaid" || s === "overdue") return "bg-orange-50 text-orange-700 border-orange-200";
+        return "bg-blue-50 text-blue-700 border-blue-200";
+      }
+
+      function installStatusClass(status, completedAt) {
+        if (completedAt) return "bg-emerald-50 text-emerald-700 border-emerald-200";
+        const s = String(status || "").toLowerCase();
+        if (s.includes("complete")) return "bg-emerald-50 text-emerald-700 border-emerald-200";
+        if (s.includes("progress") || s.includes("assigned") || s.includes("open")) return "bg-blue-50 text-blue-700 border-blue-200";
+        if (s.includes("pending") || s.includes("not")) return "bg-amber-50 text-amber-700 border-amber-200";
+        return "bg-slate-100 text-slate-700 border-slate-200";
+      }
+
+      async function downloadPartnerCertificate(certificateId, serialNo) {
+        const session = getSession();
+        if (!session?.accessToken) {
+          location.href = "partner-portal-login.html";
+          return;
+        }
+        try {
+          const r = await fetch(`${API}/partner-portal/certificates/${encodeURIComponent(certificateId)}/download`, {
+            headers: { "Authorization": `Bearer ${session.accessToken}` },
+          });
+          if (!r.ok) throw new Error("Failed to download certificate");
+          const blob = await r.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `certificate-${serialNo || certificateId}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          alert(e.message || "Download failed");
+        }
+      }
+      window.downloadPartnerCertificate = downloadPartnerCertificate;
+
+      async function downloadPartnerInvoice(invoiceId, invoiceNumber) {
+        const session = getSession();
+        if (!session?.accessToken) {
+          location.href = "partner-portal-login.html";
+          return;
+        }
+        try {
+          const r = await fetch(`${API}/partner-portal/invoices/${encodeURIComponent(invoiceId)}/download`, {
+            headers: { "Authorization": `Bearer ${session.accessToken}` },
+          });
+          if (!r.ok) throw new Error("Failed to download invoice");
+          const blob = await r.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `Invoice_${invoiceNumber || invoiceId}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          alert(e.message || "Invoice download failed");
+        }
+      }
+      window.downloadPartnerInvoice = downloadPartnerInvoice;
+
+      async function loadDashboard() {
+        try {
+          const d = await portalFetch("/dashboard");
+          const f = d.finance || {};
+
+          document.getElementById("stat-vehicles").textContent = d.totalVehicles ?? 0;
+          document.getElementById("stat-total-invoices").textContent = f.totalInvoices ?? 0;
+          document.getElementById("stat-paid-amt").textContent = money(f.paidAmount);
+          document.getElementById("stat-unpaid-amt").textContent = money(f.unpaidAmount);
+          document.getElementById("stat-invoiced").textContent = f.invoicedCount ?? 0;
+          document.getElementById("stat-unpaid").textContent = f.unpaidCount ?? 0;
+          document.getElementById("stat-paid").textContent = f.paidCount ?? 0;
+          document.getElementById("last-updated").textContent = `Updated ${new Date().toLocaleTimeString()}`;
+
+          const rows = f.rows || [];
+          const tbody = document.getElementById("finance-table");
+          if (!rows.length) {
+            tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">No associated invoices yet.</td></tr>`;
+          } else {
+            tbody.innerHTML = rows.map(r => `
+              <tr class="border-b border-slate-50 hover:bg-slate-50/60">
+                <td class="py-3 px-5 font-mono font-semibold text-slate-900">${r.registration || "—"}</td>
+                <td class="py-3 px-5 text-slate-600">${r.ticketNo || "—"}</td>
+                <td class="py-3 px-5 text-slate-700">
+                  ${r.invoiceId
+                    ? `<button class="text-blue-700 hover:underline font-medium" onclick="downloadPartnerInvoice('${r.invoiceId}','${r.invoiceNumber || ""}')">${r.invoiceNumber || r.invoiceId}</button>`
+                    : (r.invoiceNumber || "—")}
+                </td>
+                <td class="py-3 px-5"><span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${statusClass(r.invoiceStatus)}">${r.invoiceStatus || "Invoiced"}</span></td>
+                <td class="py-3 px-5 text-right font-semibold text-slate-900">${money(r.invoiceAmount)}</td>
+                <td class="py-3 px-5 text-slate-500 text-xs">${r.issuedOn ? new Date(r.issuedOn).toLocaleDateString() : "—"}</td>
+              </tr>
+            `).join("");
+          }
+
+          const ivRows = Array.isArray(d.installationVehicles) ? d.installationVehicles : [];
+          const ivBody = document.getElementById("installation-table");
+          if (!ivRows.length) {
+            const rvRows = (d.recentVehicles || []).map(v => ({
+              registration: v.registration,
+              makeModel: "—",
+              installationTicketNo: "—",
+              installationStatus: "Not Started",
+              installationCompletedAt: null,
+              invoiceId: null,
+              invoiceNumber: null,
+              certificateId: null,
+              certificateSerialNo: null,
+            }));
+            if (!rvRows.length) {
+              ivBody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">No vehicles or installations found.</td></tr>`;
+            } else {
+              ivBody.innerHTML = rvRows.map(r => `
+                <tr class="border-b border-slate-50 hover:bg-slate-50/60">
+                  <td class="py-3 px-5 font-mono font-semibold text-slate-900">${r.registration || "—"}</td>
+                  <td class="py-3 px-5 text-slate-700">${r.makeModel || "—"}</td>
+                  <td class="py-3 px-5 text-slate-600">${r.installationTicketNo || "—"}</td>
+                  <td class="py-3 px-5"><span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${installStatusClass(r.installationStatus, r.installationCompletedAt)}">${r.installationStatus || "Not Started"}</span></td>
+                  <td class="py-3 px-5 text-slate-700">—</td>
+                  <td class="py-3 px-5 text-slate-700">—</td>
+                  <td class="py-3 px-5"><span class="text-xs text-slate-400">No docs</span></td>
+                </tr>
+              `).join("");
+            }
+          } else {
+            ivBody.innerHTML = ivRows.slice(0, 30).map(r => `
+              <tr class="border-b border-slate-50 hover:bg-slate-50/60">
+                <td class="py-3 px-5 font-mono font-semibold text-slate-900">${r.registration || "—"}</td>
+                <td class="py-3 px-5 text-slate-700">${r.makeModel || "—"}</td>
+                <td class="py-3 px-5 text-slate-600">${r.installationTicketNo || "—"}</td>
+                <td class="py-3 px-5"><span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${installStatusClass(r.installationStatus, r.installationCompletedAt)}">${r.installationCompletedAt ? "Completed" : (r.installationStatus || "Not Started")}</span></td>
+                <td class="py-3 px-5 text-slate-700">
+                  ${r.invoiceId
+                    ? `<button class="text-blue-700 hover:underline font-medium" onclick="downloadPartnerInvoice('${r.invoiceId}','${r.invoiceNumber || ""}')">${r.invoiceNumber || r.invoiceId}</button>`
+                    : "—"}
+                </td>
+                <td class="py-3 px-5 text-slate-700">${r.certificateSerialNo || "—"}</td>
+                <td class="py-3 px-5">
+                  ${r.certificateId
+                    ? `<button class="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100" onclick="downloadPartnerCertificate('${r.certificateId}','${r.certificateSerialNo || ""}')">Download</button>`
+                    : `<span class="text-xs text-slate-400">No certificate</span>`}
+                </td>
+              </tr>
+            `).join("");
+          }
+
+          const lm = d.loanMonitoring || [];
+          if (!lm.length) {
+            document.getElementById("loan-monitor").innerHTML = `<p class="p-5 text-sm text-slate-400 text-center">No vehicles with active loan terms.</p>`;
+          } else {
+            document.getElementById("loan-monitor").innerHTML = lm.slice(0, 12).map(v => {
+              const style = URGENCY_STYLE[v.urgency] || "bg-slate-100 text-slate-600";
+              const dlText = v.daysLeft <= 0 ? "EXPIRED" : `${v.daysLeft}d left`;
+              return `
+                <div class="flex items-center justify-between px-5 py-3 hover:bg-slate-50/60 transition">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-900">${v.registration}</p>
+                    <p class="text-xs text-slate-500">${v.customerName} · Expires ${v.expiryDate}</p>
+                  </div>
+                  <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${style}">${dlText}</span>
+                </div>`;
+            }).join("");
+          }
+
+          const rv = d.recentVehicles || [];
+          if (!rv.length) {
+            document.getElementById("recent-vehicles").innerHTML = `<p class="p-5 text-sm text-slate-400 text-center">No vehicles registered yet.</p>`;
+          } else {
+            document.getElementById("recent-vehicles").innerHTML = rv.slice(0, 12).map(v => `
+              <div class="flex items-center justify-between px-5 py-3 hover:bg-slate-50/60 transition">
+                <div>
+                  <p class="text-sm font-semibold text-slate-900 font-mono">${v.registration}</p>
+                  <p class="text-xs text-slate-500">${v.customerName}</p>
+                </div>
+                <span class="text-xs text-slate-400">${v.registeredAt ? new Date(v.registeredAt).toLocaleDateString() : "—"}</span>
+              </div>`).join("");
+          }
+        } catch (e) {
+          const msg = (e && typeof e.message === "string") ? e.message : "Failed to load dashboard.";
+          console.error("Dashboard load error:", e);
+          document.getElementById("finance-table").innerHTML = `<tr><td colspan="6" class="py-8 text-center text-red-500">${msg}</td></tr>`;
+          const ivBody = document.getElementById("installation-table");
+          if (ivBody) {
+            ivBody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-red-500">${msg}</td></tr>`;
+          }
+        }
+      }
+
+      init();
+    </script>
+  </body>
+</html>

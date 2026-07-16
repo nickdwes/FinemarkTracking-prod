@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Inventory Allocation</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-3 sm:p-6 min-w-0">
+    <div class="max-w-7xl mx-auto space-y-6">
+
+      <div class="flex flex-wrap items-center gap-3 justify-between">
+        <div>
+          <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900">Inventory Allocation</h1>
+          <p class="text-sm text-slate-500">View gadget stock and assign devices to installation tickets.</p>
+        </div>
+        <button id="btn-receive" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow hover:bg-slate-50">
+          + Receive Stock
+        </button>
+      </div>
+
+      <!-- Summary cards -->
+      <div id="summary-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm animate-pulse h-20"></div>
+        <div class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm animate-pulse h-20"></div>
+        <div class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm animate-pulse h-20"></div>
+        <div class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm animate-pulse h-20"></div>
+      </div>
+
+      <!-- Stock table -->
+      <div class="bg-white rounded-xl border border-slate-200/80 p-4 sm:p-6 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row flex-wrap gap-3 sm:items-end">
+          <div class="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1 text-sm overflow-x-auto max-w-full">
+            <button class="tab-btn shrink-0 rounded-md px-3 py-1.5 bg-white shadow-sm text-slate-900" data-status="">All</button>
+            <button class="tab-btn shrink-0 rounded-md px-3 py-1.5 text-slate-600 hover:bg-white" data-status="Available">Available</button>
+            <button class="tab-btn shrink-0 rounded-md px-3 py-1.5 text-slate-600 hover:bg-white" data-status="Reserved">Reserved</button>
+            <button class="tab-btn shrink-0 rounded-md px-3 py-1.5 text-slate-600 hover:bg-white" data-status="Assigned">Assigned</button>
+            <button class="tab-btn shrink-0 rounded-md px-3 py-1.5 text-slate-600 hover:bg-white" data-status="Issued">Issued</button>
+          </div>
+          <div class="w-full sm:w-auto">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Search</label>
+            <input id="search-input" type="text" placeholder="Serial, IMEI, model…" class="w-full sm:w-56 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+          <div class="w-full sm:w-auto">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Device Type</label>
+            <select id="filter-type" class="w-full sm:w-auto rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+              <option value="">All Types</option>
+              <option>GPS Tracker</option>
+              <option>Speed Governor</option>
+              <option>Accessory</option>
+              <option>SIM Card</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="stock-skeleton" class="space-y-2">
+          <div class="h-10 rounded-lg bg-slate-100 animate-pulse"></div>
+          <div class="h-10 rounded-lg bg-slate-100 animate-pulse"></div>
+          <div class="h-10 rounded-lg bg-slate-100 animate-pulse"></div>
+        </div>
+        <div id="stock-empty" class="hidden rounded-lg border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">No stock items found.</div>
+        <div id="stock-error" class="hidden rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700"></div>
+        <div class="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <table id="stock-table" class="hidden min-w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wide">
+                <th class="py-2 pr-4 text-left font-semibold">Model</th>
+                <th class="py-2 pr-4 text-left font-semibold hidden md:table-cell">Type</th>
+                <th class="py-2 pr-4 text-left font-semibold">Serial No</th>
+                <th class="py-2 pr-4 text-left font-semibold hidden lg:table-cell">IMEI</th>
+                <th class="py-2 pr-4 text-left font-semibold hidden lg:table-cell">SIM</th>
+                <th class="py-2 pr-4 text-left font-semibold hidden md:table-cell">Location</th>
+                <th class="py-2 pr-4 text-left font-semibold">Status</th>
+                <th class="py-2 text-left font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="stock-tbody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Receive Stock Modal -->
+<div id="modal-receive" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
+  <div class="bg-white w-full sm:max-w-lg shadow-xl p-6 space-y-4 overflow-y-auto max-h-[92dvh] sm:max-h-[90vh] rounded-t-2xl sm:rounded-2xl">
+    <div class="flex items-center justify-between">
+      <h2 class="text-lg font-semibold text-slate-900">Receive Stock</h2>
+      <button id="recv-close" class="text-slate-400 hover:text-slate-700 text-xl">&times;</button>
+    </div>
+    <form id="form-receive" class="space-y-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Device Model *</label>
+          <input id="recv-model" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Device Type</label>
+          <select id="recv-type" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+            <option>GPS Tracker</option><option>Speed Governor</option><option>Accessory</option><option>SIM Card</option><option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Serial Number</label>
+          <input id="recv-serial" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">IMEI</label>
+          <input id="recv-imei" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">SIM Phone No.</label>
+          <input id="recv-sim-phone" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">SIM Serial</label>
+          <input id="recv-sim-serial" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Warehouse Location</label>
+          <input id="recv-location" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" placeholder="e.g. Shelf A-3" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Batch No.</label>
+          <input id="recv-batch" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Notes</label>
+        <textarea id="recv-notes" rows="2" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500"></textarea>
+      </div>
+      <div id="recv-error" class="hidden text-sm text-red-600"></div>
+      <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
+        <button type="button" id="recv-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
+        <button type="submit" id="recv-submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Receive Item</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Assign Modal -->
+<div id="modal-assign" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
+  <div class="bg-white w-full sm:max-w-sm shadow-xl p-6 space-y-4 rounded-t-2xl sm:rounded-2xl">
+    <h2 class="text-lg font-semibold text-slate-900">Assign to Installation</h2>
+    <p class="text-xs text-slate-500">Assign this device to a vehicle installation ticket.</p>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Installation ID / Ticket Ref *</label>
+      <input id="assign-install-id" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" placeholder="Paste installation ID or TKT-..." />
+    </div>
+    <div id="assign-error" class="hidden text-sm text-red-600"></div>
+    <div class="flex flex-col-reverse sm:flex-row justify-end gap-3">
+      <button id="assign-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
+      <button id="assign-submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Assign</button>
+    </div>
+  </div>
+</div>
+
+<div id="fm-toast-root" class="fixed bottom-4 right-4 z-[9999] space-y-2"></div>
+<script src="assets/app.js"></script>
+<script src="assets/layout.js"></script>
+<script>
+const APP = window.FINEMARK_APP;
+const api = APP.apiFetch;
+const $ = id => document.getElementById(id);
+let activeStatus = "", debounceTimer, pendingAssignId = null;
+
+const STATUS_COLORS = {
+  Available: "bg-green-50 text-green-700 border-green-200",
+  Reserved: "bg-sky-50 text-sky-700 border-sky-200",
+  Assigned: "bg-amber-50 text-amber-700 border-amber-200",
+  Issued: "bg-blue-50 text-blue-700 border-blue-200",
+  Decommissioned: "bg-slate-100 text-slate-500 border-slate-200",
+};
+
+function badge(s) {
+  const c = STATUS_COLORS[s] || "bg-slate-100 text-slate-600 border-slate-200";
+  return `<span class="inline-block rounded-full border px-2 py-0.5 text-xs font-semibold ${c}">${s}</span>`;
+}
+
+async function loadSummary() {
+  try {
+    const { data } = await api("/crm/gadget-stock/summary");
+    const grid = $("summary-grid");
+    const totals = { Available: 0, Reserved: 0, Assigned: 0, Issued: 0 };
+    data.forEach(row => {
+      totals.Available += row.available || 0;
+      totals.Reserved  += row.reserved  || 0;
+      totals.Assigned  += row.assigned  || 0;
+      totals.Issued    += row.issued    || 0;
+    });
+    grid.innerHTML = Object.entries(totals).map(([k, v]) => `
+      <div class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
+        <p class="text-xs text-slate-500">${k}</p>
+        <p class="text-2xl font-bold ${k === "Available" ? "text-green-600" : k === "Issued" ? "text-blue-600" : "text-slate-700"}">${v}</p>
+      </div>
+    `).join("");
+  } catch(e) { console.error(e); }
+}
+
+async function loadStock() {
+  $("stock-skeleton").classList.remove("hidden");
+  $("stock-table").classList.add("hidden");
+  $("stock-empty").classList.add("hidden");
+  $("stock-error").classList.add("hidden");
+
+  const p = new URLSearchParams({ pageSize: "200" });
+  if (activeStatus) p.set("status", activeStatus);
+  const q = $("search-input").value.trim();
+  const t = $("filter-type").value;
+  if (q) p.set("q", q);
+  if (t) p.set("deviceType", t);
+
+  try {
+    const { data } = await api(`/crm/gadget-stock?${p}`);
+    $("stock-skeleton").classList.add("hidden");
+
+    if (!data.length) { $("stock-empty").classList.remove("hidden"); return; }
+
+    $("stock-tbody").innerHTML = data.map(item => `
+      <tr class="hover:bg-slate-50">
+        <td class="py-2 pr-4 font-medium">${item.deviceModel}</td>
+        <td class="py-2 pr-4 text-slate-600 hidden md:table-cell">${item.deviceType}</td>
+        <td class="py-2 pr-4 font-mono text-xs">${item.serialNumber || "—"}</td>
+        <td class="py-2 pr-4 font-mono text-xs hidden lg:table-cell">${item.imei || "—"}</td>
+        <td class="py-2 pr-4 text-xs hidden lg:table-cell">${item.simPhone || "—"}</td>
+        <td class="py-2 pr-4 text-slate-500 text-xs hidden md:table-cell">${item.warehouseLocation || "—"}</td>
+        <td class="py-2 pr-4">${badge(item.status)}</td>
+        <td class="py-2 flex flex-wrap gap-1">
+          ${item.status === "Available" ? `<button onclick="openAssign('${item.id}')" class="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100">Assign</button>` : ""}
+          ${item.status === "Assigned" ? `<button onclick="doAction('${item.id}','issue')" class="rounded-md border border-green-200 bg-green-50 px-2 py-1 text-xs font-semibold text-green-700 hover:bg-green-100">Issue</button>` : ""}
+          ${item.status === "Issued" || item.status === "Assigned" ? `<button onclick="doAction('${item.id}','return')" class="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700 hover:bg-amber-100">Return</button>` : ""}
+        </td>
+      </tr>
+    `).join("");
+    $("stock-table").classList.remove("hidden");
+  } catch(e) {
+    $("stock-skeleton").classList.add("hidden");
+    $("stock-error").textContent = e.message || "Failed to load stock.";
+    $("stock-error").classList.remove("hidden");
+  }
+}
+
+async function doAction(itemId, action) {
+  try {
+    await api(`/crm/gadget-stock/${itemId}/${action}`, { method: "POST" });
+    APP.showToast("Done.", "success");
+    loadStock();
+    loadSummary();
+  } catch(e) { APP.showToast(e.message, "error"); }
+}
+
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => {
+      b.classList.remove("bg-white","shadow-sm","text-slate-900"); b.classList.add("text-slate-600");
+    });
+    btn.classList.add("bg-white","shadow-sm","text-slate-900"); btn.classList.remove("text-slate-600");
+    activeStatus = btn.dataset.status;
+    loadStock();
+  });
+});
+$("search-input").addEventListener("input", () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(loadStock, 350); });
+$("filter-type").addEventListener("change", loadStock);
+
+// Receive modal
+$("btn-receive").addEventListener("click", () => $("modal-receive").classList.remove("hidden"));
+$("recv-close").addEventListener("click", () => $("modal-receive").classList.add("hidden"));
+$("recv-cancel").addEventListener("click", () => $("modal-receive").classList.add("hidden"));
+$("form-receive").addEventListener("submit", async e => {
+  e.preventDefault();
+  $("recv-error").classList.add("hidden");
+  const model = $("recv-model").value.trim();
+  if (!model) { $("recv-error").textContent = "Device model required."; $("recv-error").classList.remove("hidden"); return; }
+  const body = {
+    deviceModel: model, deviceType: $("recv-type").value,
+    serialNumber: $("recv-serial").value.trim() || null,
+    imei: $("recv-imei").value.trim() || null,
+    simPhone: $("recv-sim-phone").value.trim() || null,
+    simSerial: $("recv-sim-serial").value.trim() || null,
+    warehouseLocation: $("recv-location").value.trim() || null,
+    batchNo: $("recv-batch").value.trim() || null,
+    notes: $("recv-notes").value || null,
+  };
+  const btn = $("recv-submit"); btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    await api("/crm/gadget-stock", { method: "POST", body });
+    $("modal-receive").classList.add("hidden");
+    APP.showToast("Stock item received.", "success");
+    loadStock(); loadSummary();
+  } catch(err) { $("recv-error").textContent = err.message; $("recv-error").classList.remove("hidden"); }
+  finally { btn.disabled = false; btn.textContent = "Receive Item"; }
+});
+
+// Assign modal
+function openAssign(id) { pendingAssignId = id; $("assign-install-id").value = ""; $("assign-error").classList.add("hidden"); $("modal-assign").classList.remove("hidden"); }
+$("assign-cancel").addEventListener("click", () => $("modal-assign").classList.add("hidden"));
+$("assign-submit").addEventListener("click", async () => {
+  $("assign-error").classList.add("hidden");
+  const installId = $("assign-install-id").value.trim();
+  if (!installId) { $("assign-error").textContent = "Installation ID required."; $("assign-error").classList.remove("hidden"); return; }
+  try {
+    await api(`/crm/gadget-stock/${pendingAssignId}/assign`, { method: "POST", body: { installationId: installId } });
+    $("modal-assign").classList.add("hidden");
+    APP.showToast("Device assigned.", "success");
+    loadStock(); loadSummary();
+  } catch(e) { $("assign-error").textContent = e.message; $("assign-error").classList.remove("hidden"); }
+});
+
+loadSummary();
+loadStock();
+</script>
+</body>
+</html>

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Support Tickets</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+    <style>
+      .badge{display:inline-flex;align-items:center;border-radius:9999px;padding:.15rem .6rem;font-size:.7rem;font-weight:600;border-width:1px;}
+      /* Status */
+      .badge-open{background:#fffbeb;color:#b45309;border-color:#fde68a;}
+      .badge-inprogress{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+      .badge-resolved{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}
+      .badge-closed{background:#f1f5f9;color:#475569;border-color:#e2e8f0;}
+      .badge-merged{background:#fdf4ff;color:#86198f;border-color:#f5d0fe;}
+      /* Priority */
+      .pri-critical{background:#fff1f2;color:#be123c;border-color:#fecdd3;}
+      .pri-high{background:#fff7ed;color:#c2410c;border-color:#fed7aa;}
+      .pri-normal{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+      .pri-low{background:#f1f5f9;color:#475569;border-color:#e2e8f0;}
+      /* Team */
+      .team-technical{background:#ecfdf5;color:#065f46;border-color:#a7f3d0;}
+      .team-finance{background:#fef9c3;color:#713f12;border-color:#fde68a;}
+      .team-support{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+      /* Category (generic fallback) */
+      .cat-generic{background:#f1f5f9;color:#334155;border-color:#e2e8f0;}
+      /* SLA */
+      .sla-ok{color:#64748b;}
+      .sla-breach{color:#dc2626;font-weight:600;}
+      /* Row hover */
+      .ticket-row{cursor:pointer;transition:background .1s;}
+      .ticket-row:hover td{background:#f8fafc;}
+      /* Tab button */
+      .tab-btn{padding:.3rem .85rem;border-radius:.5rem;font-size:.78rem;font-weight:500;color:#475569;transition:all .15s;white-space:nowrap;}
+      .tab-btn:hover{background:#fff;color:#0f172a;}
+      .tab-btn.active{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);color:#0f172a;font-weight:700;}
+      .toggle-btn{padding:.4rem .9rem;border-radius:.5rem;font-size:.8rem;font-weight:600;border:1px solid #e2e8f0;color:#475569;background:#fff;}
+      .toggle-btn.active{background:#1d4ed8;color:#fff;border-color:#1d4ed8;}
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-4 md:p-6 max-w-[1500px] mx-auto space-y-6">
+
+        <!-- Header -->
+        <div class="flex flex-wrap items-center gap-3 justify-between">
+          <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900">Support Tickets</h1>
+            <p class="text-sm text-slate-500 mt-0.5">Track and resolve customer issues with SLA enforcement.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <a href="crm-ticket-new.html" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 transition-colors">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></svg>
+              New Ticket
+            </a>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+            <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Open</p>
+            <p id="stat-open" class="text-2xl font-bold text-amber-600 mt-1">—</p>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+            <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">In Progress</p>
+            <p id="stat-in-progress" class="text-2xl font-bold text-blue-600 mt-1">—</p>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+            <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Resolved</p>
+            <p id="stat-resolved" class="text-2xl font-bold text-green-600 mt-1">—</p>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+            <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">SLA Breached</p>
+            <p id="stat-breached" class="text-2xl font-bold text-red-600 mt-1">—</p>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-4">
+          <div class="flex flex-wrap items-end gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-500 mb-1">Search</label>
+              <input id="t-search" type="text" placeholder="Ticket no, subject…" class="w-52 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-500 mb-1">Status</label>
+              <select id="t-status" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400/40">
+                <option value="">All Statuses</option>
+                <option>Open</option>
+                <option>In Progress</option>
+                <option>Resolved</option>
+                <option>Closed</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-500 mb-1">Priority</label>
+              <select id="t-priority" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400/40">
+                <option value="">All Priorities</option>
+                <option>Critical</option>
+                <option>High</option>
+                <option>Normal</option>
+                <option>Low</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-500 mb-1">Category</label>
+              <select id="t-category" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400/40">
+                <option value="">All Categories</option>
+              </select>
+            </div>
+            <button id="btn-t-search" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">Search</button>
+            <button id="btn-t-clear" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Clear</button>
+            <button id="btn-my-team" class="toggle-btn ml-auto">My Team</button>
+          </div>
+
+          <!-- Status tabs quick filter -->
+          <div class="flex items-center gap-1 overflow-x-auto bg-slate-100 rounded-xl px-2 py-1.5">
+            <button class="tab-btn active" data-status-tab="">All</button>
+            <button class="tab-btn" data-status-tab="Open">Open</button>
+            <button class="tab-btn" data-status-tab="In Progress">In Progress</button>
+            <button class="tab-btn" data-status-tab="Resolved">Resolved</button>
+            <button class="tab-btn" data-status-tab="Closed">Closed</button>
+          </div>
+
+          <!-- Table -->
+          <div class="overflow-x-auto rounded-xl border border-slate-200">
+            <table class="w-full text-sm min-w-[960px]">
+              <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide border-b border-slate-200">
+                <tr>
+                  <th class="px-4 py-3 text-left">Ticket #</th>
+                  <th class="px-4 py-3 text-left">Customer</th>
+                  <th class="px-4 py-3 text-left">Subject</th>
+                  <th class="px-4 py-3 text-left">Category</th>
+                  <th class="px-4 py-3 text-left">Team</th>
+                  <th class="px-4 py-3 text-left">Priority</th>
+                  <th class="px-4 py-3 text-left">Status</th>
+                  <th class="px-4 py-3 text-left">Assignee</th>
+                  <th class="px-4 py-3 text-left">SLA Breach</th>
+                  <th class="px-4 py-3 text-left">Opened</th>
+                </tr>
+              </thead>
+              <tbody id="tickets-tbody" class="divide-y divide-slate-100 bg-white">
+                <tr><td colspan="10" class="py-10 text-center text-slate-400">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="flex items-center justify-between text-xs text-slate-500">
+            <span id="t-meta">—</span>
+            <div class="flex gap-2">
+              <button id="btn-t-prev" class="px-3 py-1 rounded border border-slate-200 hover:bg-slate-50 disabled:opacity-40" disabled>← Prev</button>
+              <button id="btn-t-next" class="px-3 py-1 rounded border border-slate-200 hover:bg-slate-50 disabled:opacity-40" disabled>Next →</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <div id="fm-footer"></div>
+
+    <script src="assets/contracts.js"></script>
+    <script src="assets/app.js?v=202607141000"></script>
+    <script src="assets/layout.js?v=202607141000"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => { window.FINEMARK_APP?.requirePageAccess?.(); init(); });
+
+      const APP = window.FINEMARK_APP;
+      async function apiFetch(path, opts = {}) {
+        const method = opts.method || "GET";
+        const body   = opts.body ? (typeof opts.body === "string" ? JSON.parse(opts.body) : opts.body) : undefined;
+        return APP.apiFetch(path, { method, body });
+      }
+      const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+      // ── Badge renderers ──────────────────────────────────────────────────────
+      const PRIORITY_BADGE = {
+        Critical: `<span class="badge pri-critical">Critical</span>`,
+        High:     `<span class="badge pri-high">High</span>`,
+        Normal:   `<span class="badge pri-normal">Normal</span>`,
+        Low:      `<span class="badge pri-low">Low</span>`,
+      };
+      const STATUS_BADGE = {
+        "Open":        `<span class="badge badge-open">Open</span>`,
+        "In Progress": `<span class="badge badge-inprogress">In Progress</span>`,
+        "Resolved":    `<span class="badge badge-resolved">Resolved</span>`,
+        "Closed":      `<span class="badge badge-closed">Closed</span>`,
+        "Merged":      `<span class="badge badge-merged">Merged</span>`,
+      };
+      const TEAM_BADGE = {
+        Technical: `<span class="badge team-technical">Technical</span>`,
+        Finance:   `<span class="badge team-finance">Finance</span>`,
+        Support:   `<span class="badge team-support">Support</span>`,
+      };
+
+      function priB(p)  { return PRIORITY_BADGE[p]  || `<span class="badge cat-generic">${escapeHtml(p)}</span>`; }
+      function statB(s) { return STATUS_BADGE[s]     || `<span class="badge cat-generic">${escapeHtml(s)}</span>`; }
+      function catB(c)  { return `<span class="badge cat-generic">${escapeHtml(c || "General")}</span>`; }
+      function teamB(t) { return t ? (TEAM_BADGE[t] || `<span class="badge cat-generic">${escapeHtml(t)}</span>`) : "—"; }
+
+      // ── Time helpers ─────────────────────────────────────────────────────────
+      function timeAgo(iso) {
+        if (!iso) return null;
+        const diffMs = new Date() - new Date(iso);
+        if (isNaN(diffMs)) return null;
+        const abs = Math.abs(diffMs);
+        const mins  = Math.floor(abs / 60000);
+        const hours = Math.floor(abs / 3600000);
+        const days  = Math.floor(abs / 86400000);
+        const weeks = Math.floor(days / 7);
+        const months= Math.floor(days / 30);
+        if (mins < 2)    return "just now";
+        if (mins < 60)   return `${mins}m ago`;
+        if (hours < 24)  return `${hours}h ago`;
+        if (days < 7)    return `${days}d ago`;
+        if (weeks < 5)   return `${weeks}w ago`;
+        return `${months}mo ago`;
+      }
+
+      // ── Category filter (config-driven) ──────────────────────────────────────
+      async function loadCategoryFilter() {
+        try {
+          const res = await apiFetch("/admin/ticket-categories");
+          const sel = document.getElementById("t-category");
+          (res.data || []).forEach((c) => {
+            const opt = document.createElement("option");
+            opt.value = c.name; opt.textContent = c.name;
+            sel.appendChild(opt);
+          });
+        } catch {}
+      }
+
+      // ── Pagination & state ───────────────────────────────────────────────────
+      let page = 1;
+      const pageSize = 25;
+      let myTeamActive = false;
+
+      // ── Stats ────────────────────────────────────────────────────────────────
+      async function loadStats() {
+        try {
+          const d = await apiFetch("/crm/tickets/stats/summary");
+          document.getElementById("stat-open").textContent        = d.open ?? "—";
+          document.getElementById("stat-in-progress").textContent = d.inProgress ?? "—";
+          document.getElementById("stat-resolved").textContent    = d.resolved ?? "—";
+          document.getElementById("stat-breached").textContent    = d.slaBreached ?? "—";
+        } catch {}
+      }
+
+      // ── Load tickets ─────────────────────────────────────────────────────────
+      async function loadTickets() {
+        const search   = document.getElementById("t-search").value.trim();
+        const status   = document.getElementById("t-status").value;
+        const priority = document.getElementById("t-priority").value;
+        const category = document.getElementById("t-category").value;
+        const params   = new URLSearchParams({ page, pageSize });
+        if (search)   params.set("search", search);
+        if (status)   params.set("status", status);
+        if (priority) params.set("priority", priority);
+        if (category) params.set("category", category);
+        if (myTeamActive) params.set("myTeam", "true");
+
+        const urlCustomerId = new URLSearchParams(location.search).get("customerId");
+        if (urlCustomerId) params.set("customerId", urlCustomerId);
+
+        const tbody = document.getElementById("tickets-tbody");
+        tbody.innerHTML = `<tr><td colspan="10" class="py-10 text-center text-slate-400">Loading…</td></tr>`;
+
+        try {
+          const res = await apiFetch(`/crm/tickets?${params}`);
+          const { data, meta } = res;
+          const now = new Date();
+
+          if (!data.length) {
+            tbody.innerHTML = `<tr><td colspan="10" class="py-10 text-center text-slate-400">No tickets found.</td></tr>`;
+          } else {
+            tbody.innerHTML = data.map(t => {
+              const slaBreached = t.slaBreachAt && new Date(t.slaBreachAt) < now && !["Resolved","Closed","Merged"].includes(t.status);
+              const ageCreation = timeAgo(t.openedAt);
+              return `<tr class="ticket-row${slaBreached ? " bg-red-50/30" : ""}" onclick="location.href='crm-ticket-detail.html?id=${t.id}'">
+                <td class="px-4 py-3 font-mono text-xs font-bold text-blue-700">${escapeHtml(t.ticketNo)}</td>
+                <td class="px-4 py-3 text-xs text-slate-700">${escapeHtml(t.customerName || "—")}</td>
+                <td class="px-4 py-3 max-w-[220px] truncate font-medium text-slate-900 text-xs">${escapeHtml(t.subject)}</td>
+                <td class="px-4 py-3">${catB(t.category)}</td>
+                <td class="px-4 py-3">${teamB(t.team)}</td>
+                <td class="px-4 py-3">${priB(t.priority)}</td>
+                <td class="px-4 py-3">${statB(t.status)}</td>
+                <td class="px-4 py-3 text-xs">
+                  <p class="text-slate-500">${escapeHtml(t.assigneeEmail) || '<span class="text-slate-300 italic">Unassigned</span>'}</p>
+                </td>
+                <td class="px-4 py-3 text-xs ${slaBreached ? "sla-breach" : "sla-ok"}">${t.slaBreachAt ? t.slaBreachAt.slice(0,16).replace("T"," ") : "—"}</td>
+                <td class="px-4 py-3 text-xs">
+                  <p class="text-slate-400">${t.openedAt ? t.openedAt.slice(0,10) : "—"}</p>
+                  ${ageCreation ? `<p class="text-slate-400 text-[10px] mt-0.5">${ageCreation}</p>` : ""}
+                </td>
+              </tr>`;
+            }).join("");
+          }
+
+          const total = meta?.total ?? 0;
+          document.getElementById("t-meta").textContent = `Showing ${data.length ? (page - 1) * pageSize + 1 : 0}–${Math.min(page * pageSize, total)} of ${total}`;
+          document.getElementById("btn-t-prev").disabled = page <= 1;
+          document.getElementById("btn-t-next").disabled = page * pageSize >= total;
+        } catch {
+          document.getElementById("tickets-tbody").innerHTML = `<tr><td colspan="10" class="py-10 text-center text-red-500">Failed to load tickets.</td></tr>`;
+        }
+      }
+
+      // ── Filters / Pagination ──────────────────────────────────────────────────
+      document.getElementById("btn-t-search").addEventListener("click", () => { page = 1; loadTickets(); });
+      document.getElementById("btn-t-clear").addEventListener("click", () => {
+        ["t-search","t-status","t-priority","t-category"].forEach(id => { document.getElementById(id).value = ""; });
+        document.querySelectorAll("[data-status-tab]").forEach(b => b.classList.remove("active"));
+        document.querySelector("[data-status-tab='']").classList.add("active");
+        page = 1; loadTickets();
+      });
+      document.getElementById("t-search").addEventListener("keydown", e => { if (e.key === "Enter") { page = 1; loadTickets(); } });
+      document.getElementById("btn-t-prev").addEventListener("click", () => { if (page > 1) { page--; loadTickets(); } });
+      document.getElementById("btn-t-next").addEventListener("click", () => { page++; loadTickets(); });
+
+      document.getElementById("btn-my-team").addEventListener("click", () => {
+        myTeamActive = !myTeamActive;
+        document.getElementById("btn-my-team").classList.toggle("active", myTeamActive);
+        page = 1; loadTickets();
+      });
+
+      // Status quick tabs
+      document.querySelectorAll("[data-status-tab]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll("[data-status-tab]").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          document.getElementById("t-status").value = btn.dataset.statusTab;
+          page = 1; loadTickets();
+        });
+      });
+
+      function init() {
+        loadCategoryFilter();
+        loadStats();
+        loadTickets();
+      }
+    </script>
+  </body>
+</html>

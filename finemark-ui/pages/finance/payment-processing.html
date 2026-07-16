@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Payment Processing - FineMark Tracking</title>
+    <link rel="icon" href="../../assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="../../assets/tailwind.css" />
+    <link rel="stylesheet" href="../../assets/font-awesome.min.css" />
+    <style>
+      .hover-lift {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      .hover-lift:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+      }
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 9999px;
+        padding: 2px 8px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .status-completed {
+        background: #dcfce7;
+        color: #166534;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+
+        <div class="max-w-6xl mx-auto space-y-6">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 class="text-2xl font-semibold text-slate-900">Payment Processing</h1>
+              <p class="text-sm text-slate-600">Record incoming client payments.</p>
+            </div>
+            <a href="finance-dashboard.html" class="text-sm text-blue-600 hover:underline">← Back to Finance Dashboard</a>
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <form id="payment-form" class="grid gap-4 md:grid-cols-2">
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1" for="client">Client</label>
+                <input
+                  id="client"
+                  type="text"
+                  required
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                  aria-label="Client name"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1" for="invoice-id">Invoice ID</label>
+                <input
+                  id="invoice-id"
+                  type="text"
+                  required
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                  aria-label="Invoice ID"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1" for="amount">Amount</label>
+                <input
+                  id="amount"
+                  type="number"
+                  required
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                  aria-label="Payment amount"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1" for="method">Method</label>
+                <select
+                  id="method"
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                  aria-label="Payment method"
+                >
+                  <option>Bank Transfer</option>
+                  <option>Card</option>
+                  <option>Mobile Money</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1" for="date">Date</label>
+                <input
+                  id="date"
+                  type="date"
+                  required
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                  aria-label="Payment date"
+                />
+              </div>
+              <div class="flex items-end">
+                <button id="submit-payment" type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                  Record Payment
+                </button>
+              </div>
+            </form>
+            <div id="payment-inline-error" class="hidden mt-3"></div>
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100">
+              <h2 class="text-sm font-semibold text-slate-900">Processed Payments</h2>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="text-xs text-slate-500 uppercase bg-slate-50">
+                  <tr>
+                    <th class="py-3 px-4 text-left font-semibold">Payment ID</th>
+                    <th class="py-3 px-4 text-left font-semibold">Client</th>
+                    <th class="py-3 px-4 text-left font-semibold">Invoice</th>
+                    <th class="py-3 px-4 text-left font-semibold">Amount</th>
+                    <th class="py-3 px-4 text-left font-semibold">Date</th>
+                    <th class="py-3 px-4 text-left font-semibold">Method</th>
+                    <th class="py-3 px-4 text-left font-semibold">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="payment-rows" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      
+  </main>
+</div>
+<div id="fm-footer"></div>
+
+    <div id="toast" class="fixed top-20 right-6 hidden">
+      <div class="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm shadow-lg">Payment recorded</div>
+    </div>
+<script src="../../assets/contracts.js"></script>
+<script src="../../assets/app.js"></script>
+<script src="../../assets/layout.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    window.FINEMARK_APP?.requirePageAccess?.();
+  });
+</script>
+<script>
+      const paymentRows = document.getElementById("payment-rows");
+      const paymentForm = document.getElementById("payment-form");
+      const toast = document.getElementById("toast");
+      const submitPayment = document.getElementById("submit-payment");
+      const paymentInlineError = document.getElementById("payment-inline-error");
+      const renderPayments = (payments) => {
+        const formatKES = (value) =>
+          window.FINEMARK_APP?.formatKES ? window.FINEMARK_APP.formatKES(value) : `KES ${Number(value || 0).toLocaleString("en-KE")}`;
+        paymentRows.innerHTML = payments
+          .map(
+            (payment) => `
+              <tr>
+                <td class="py-3 px-4 font-medium text-slate-900">${payment.paymentRef || payment.id}</td>
+                <td class="py-3 px-4">${payment.customer || "—"}</td>
+                <td class="py-3 px-4">${payment.invoiceId || "—"}</td>
+                <td class="py-3 px-4 font-medium">${formatKES(payment.amount)}</td>
+                <td class="py-3 px-4 text-slate-500">${payment.paidAt ? new Date(payment.paidAt).toLocaleDateString() : "—"}</td>
+                <td class="py-3 px-4">${payment.method}</td>
+                <td class="py-3 px-4"><span class="status-badge status-completed">Completed</span></td>
+              </tr>
+            `
+          )
+          .join("");
+      };
+
+      const showToast = () => {
+        window.FINEMARK_APP.showToast("Payment recorded", "success");
+      };
+
+      const loadPayments = async () => {
+        const response = await window.FINEMARK_APP.PaymentService.list();
+        renderPayments(response.data || []);
+      };
+      loadPayments();
+
+      paymentForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        paymentInlineError.classList.add("hidden");
+        const client = document.getElementById("client").value.trim();
+        const invoice = document.getElementById("invoice-id").value.trim();
+        const amount = document.getElementById("amount").value.trim();
+        const method = document.getElementById("method").value;
+        const date = document.getElementById("date").value;
+        const clientError = window.FINEMARK_APP.Validators.required(client);
+        const invoiceError = window.FINEMARK_APP.Validators.required(invoice);
+        if (clientError) window.FINEMARK_APP.setFieldError(document.getElementById("client"), clientError);
+        if (invoiceError) window.FINEMARK_APP.setFieldError(document.getElementById("invoice-id"), invoiceError);
+        if (clientError || invoiceError || !amount || !date) {
+          return;
+        }
+        window.FINEMARK_APP.setLoading(submitPayment, true, "Recording...");
+        try {
+          await window.FINEMARK_APP.PaymentService.create({
+            paymentRef: `PAY-${Date.now().toString().slice(-6)}`,
+            invoiceId: invoice,
+            customer: client,
+            amount: Number(amount),
+            currency: "KES",
+            method,
+            status: "Completed",
+            paidAt: new Date(date).toISOString(),
+          });
+          await loadPayments();
+          paymentForm.reset();
+          showToast();
+        } catch (error) {
+          window.FINEMARK_APP.showToast(error.message || "Failed to record payment", "error");
+          paymentInlineError.classList.remove("hidden");
+          window.FINEMARK_APP.showInlineError(paymentInlineError, error.message || "Failed to record payment", {
+            retryText: "Retry",
+            onRetry: () => paymentForm.requestSubmit(),
+          });
+        } finally {
+          window.FINEMARK_APP.setLoading(submitPayment, false);
+        }
+      });
+    </script>
+</body>
+</html>

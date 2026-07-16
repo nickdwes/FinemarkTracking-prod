@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Knowledge Base Editor</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    /* ── Article list ───────────────────────────────────────────────── */
+    .article-row { border-radius:.75rem; border:1px solid transparent; cursor:pointer; transition:background .12s,border-color .12s; padding:.625rem .75rem; }
+    .article-row:hover { background:#F8FAFC; border-color:#E2E8F0; }
+    .article-row.active { background:#EFF6FF; border-color:#93C5FD; }
+
+    /* ── Drop zone ──────────────────────────────────────────────────── */
+    .drop-zone { border:2px dashed #CBD5E1; border-radius:1rem; transition:border-color .2s,background .2s; }
+    .drop-zone:hover, .drop-zone.drag-over { border-color:#3B82F6; background:#EFF6FF; }
+
+    /* ── Media thumbnails ───────────────────────────────────────────── */
+    .media-thumb { position:relative; aspect-ratio:16/9; overflow:hidden; border-radius:.625rem; background:#F1F5F9; border:1px solid #E2E8F0; }
+    .media-thumb img, .media-thumb video { width:100%; height:100%; object-fit:cover; }
+    .media-thumb .del-btn { position:absolute; top:4px; right:4px; background:rgba(239,68,68,.9); color:#fff; border-radius:9999px; width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-size:13px; cursor:pointer; opacity:0; transition:opacity .15s; }
+    .media-thumb:hover .del-btn { opacity:1; }
+
+    /* ── Sections & bullets ─────────────────────────────────────────── */
+    .bullet-row { display:flex; gap:6px; align-items:center; }
+    .section-block { background:#F8FAFC; border:1px solid #E2E8F0; border-radius:.875rem; padding:1.125rem; }
+
+    /* ── Media tabs ─────────────────────────────────────────────────── */
+    .tab-pill { padding:.375rem 1rem; border-radius:9999px; font-size:.75rem; font-weight:600; cursor:pointer; border:1px solid transparent; transition:all .15s; }
+    .tab-pill.active { background:#2563EB; color:#fff; border-color:#2563EB; }
+    .tab-pill:not(.active) { background:#F1F5F9; color:#64748B; border-color:#E2E8F0; }
+    .tab-pill:not(.active):hover { background:#E2E8F0; }
+
+    /* ── Published toggle switch ────────────────────────────────────── */
+    .pub-toggle { position:relative; display:inline-flex; align-items:center; gap:.625rem; cursor:pointer; user-select:none; }
+    .pub-toggle input[type=checkbox] { position:absolute; opacity:0; width:0; }
+    .pub-track { width:2.5rem; height:1.375rem; border-radius:9999px; background:#E2E8F0; transition:background .2s; flex-shrink:0; position:relative; }
+    .pub-track::after { content:''; position:absolute; left:2px; top:50%; transform:translateY(-50%); width:1rem; height:1rem; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.2); transition:left .2s; }
+    .pub-toggle input:checked ~ .pub-track { background:#2563EB; }
+    .pub-toggle input:checked ~ .pub-track::after { left:calc(100% - 1.125rem); }
+
+    /* ── Field base ─────────────────────────────────────────────────── */
+    .field { width:100%; border:1px solid #E2E8F0; border-radius:.625rem; padding:.625rem .875rem; font-size:.875rem; background:#fff; transition:border-color .15s,box-shadow .15s; }
+    .field:focus { outline:none; border-color:#93C5FD; box-shadow:0 0 0 3px rgba(59,130,246,.1); }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+    <!-- ── Top bar ────────────────────────────────────────────────────── -->
+    <div class="sticky top-16 z-20 bg-white border-b border-slate-200 shadow-sm flex-shrink-0">
+      <div class="flex items-center gap-4 px-5 py-3">
+        <a href="technical.html#kb"
+           class="flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition flex-shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </a>
+        <div class="flex items-center gap-3 flex-1 min-w-0">
+          <div class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0 shadow-sm">
+            <svg class="w-4.5 h-4.5 text-white" style="width:1.125rem;height:1.125rem" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <h1 class="text-sm font-bold text-slate-900 truncate">Knowledge Base Editor</h1>
+            <p class="text-xs text-slate-400 hidden sm:block">Create and manage installation guides &amp; training media</p>
+          </div>
+        </div>
+        <button onclick="newArticle()"
+          class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 active:scale-95 transition shadow-sm flex-shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+          </svg>
+          <span class="hidden sm:inline">New Article</span>
+          <span class="sm:hidden">New</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Two-pane ──────────────────────────────────────────────────── -->
+    <div class="flex flex-1 overflow-hidden">
+
+      <!-- ── LEFT: Article list ─────────────────────────────────────── -->
+      <div class="w-72 sm:w-80 flex-shrink-0 border-r border-slate-200 bg-white flex flex-col overflow-hidden">
+
+        <!-- Search -->
+        <div class="p-3 border-b border-slate-100 bg-slate-50/70">
+          <div class="relative">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <input id="list-search" type="search" placeholder="Search articles…" oninput="renderList()"
+              class="w-full rounded-xl border border-slate-200 pl-9 pr-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 transition" />
+          </div>
+        </div>
+
+        <!-- List -->
+        <div id="article-list" class="flex-1 overflow-y-auto p-2 space-y-0.5"></div>
+
+      </div><!-- /LEFT -->
+
+      <!-- ── RIGHT: Editor ──────────────────────────────────────────── -->
+      <div class="flex-1 overflow-y-auto bg-slate-100/80">
+
+        <!-- Empty state -->
+        <div id="editor-empty" class="flex flex-col items-center justify-center h-full gap-5 p-8 text-center">
+          <div class="w-20 h-20 rounded-3xl bg-white border border-slate-200 shadow-sm flex items-center justify-center">
+            <svg class="w-9 h-9 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.25" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-base font-bold text-slate-600">No article selected</p>
+            <p class="text-sm text-slate-400 mt-1">Pick one from the list or start fresh</p>
+          </div>
+          <button onclick="newArticle()"
+            class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700 transition shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+            Create New Article
+          </button>
+        </div>
+
+        <!-- Editor form -->
+        <div id="editor-form" class="hidden">
+          <div class="max-w-3xl mx-auto p-5 sm:p-6 space-y-5">
+
+            <!-- Banner -->
+            <div id="ed-banner" class="hidden rounded-xl border px-4 py-3 text-sm font-medium"></div>
+
+            <!-- ── Article Details ──────────────────────────────────── -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                  </div>
+                  <h2 class="text-sm font-bold text-slate-900">Article Details</h2>
+                </div>
+                <!-- Published toggle -->
+                <label class="pub-toggle">
+                  <input id="ed-published" type="checkbox" />
+                  <div class="pub-track"></div>
+                  <span class="text-sm font-semibold text-slate-700">Published</span>
+                </label>
+              </div>
+              <div class="px-5 py-5 space-y-4">
+
+                <!-- Icon + Title -->
+                <div class="flex gap-4 items-start">
+                  <div class="flex-shrink-0">
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Icon</label>
+                    <input id="ed-icon" type="text" maxlength="4" placeholder="📄"
+                      class="w-16 h-16 text-3xl text-center rounded-2xl border-2 border-slate-200 hover:border-blue-300 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/20 transition bg-slate-50" />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                      Title <span class="text-red-400 font-normal normal-case tracking-normal">*required</span>
+                    </label>
+                    <input id="ed-title" type="text" placeholder="e.g. Vehicle Tracker Installation — Step-by-Step Guide"
+                      class="field text-base font-semibold" />
+                  </div>
+                </div>
+
+                <!-- Category + Sort -->
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Category</label>
+                    <input id="ed-category" type="text" list="cat-list" placeholder="e.g. Vehicle Tracking" class="field" />
+                    <datalist id="cat-list">
+                      <option value="Vehicle Tracking"/>
+                      <option value="Cargo Tracking"/>
+                      <option value="Fuel Management"/>
+                      <option value="Dash Cameras"/>
+                      <option value="Anti Theft"/>
+                      <option value="General"/>
+                    </datalist>
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Sort Order</label>
+                    <input id="ed-sort" type="number" min="0" placeholder="0" class="field" />
+                  </div>
+                </div>
+
+                <!-- Summary -->
+                <div>
+                  <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Summary</label>
+                  <textarea id="ed-summary" rows="3"
+                    placeholder="Brief overview displayed on the article card in the Knowledge Base tab…"
+                    class="field resize-none"></textarea>
+                </div>
+
+              </div>
+            </div><!-- /Article Details -->
+
+            <!-- ── Content Sections ─────────────────────────────────── -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 6h16M4 10h16M4 14h10"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 class="text-sm font-bold text-slate-900">Content Sections</h2>
+                    <p class="text-[10px] text-slate-400 mt-0.5">Procedure steps, tools, wiring, safety notes…</p>
+                  </div>
+                </div>
+                <button onclick="addSection()"
+                  class="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1.5 hover:bg-emerald-100 transition">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+                  </svg>
+                  Add Section
+                </button>
+              </div>
+              <div class="px-5 py-5">
+                <div id="sections-list" class="space-y-3"></div>
+              </div>
+            </div><!-- /Sections -->
+
+            <!-- ── Media ────────────────────────────────────────────── -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div class="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
+                <div class="w-8 h-8 rounded-xl bg-violet-50 flex items-center justify-center">
+                  <svg class="w-4 h-4 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                  </svg>
+                </div>
+                <h2 class="text-sm font-bold text-slate-900">Media &amp; Attachments</h2>
+              </div>
+              <div class="px-5 py-5 space-y-4">
+
+                <!-- Tabs -->
+                <div class="flex gap-2">
+                  <button class="tab-pill active" id="media-tab-upload" onclick="switchMediaTab('upload')">📤 Upload File</button>
+                  <button class="tab-pill" id="media-tab-url" onclick="switchMediaTab('url')">🔗 Embed URL</button>
+                </div>
+
+                <!-- Upload pane -->
+                <div id="media-pane-upload" class="space-y-3">
+                  <div id="drop-zone" class="drop-zone p-8 text-center cursor-pointer"
+                    onclick="$('file-input').click()"
+                    ondragover="event.preventDefault();this.classList.add('drag-over')"
+                    ondragleave="this.classList.remove('drag-over')"
+                    ondrop="handleDrop(event)">
+                    <div class="w-12 h-12 mx-auto mb-3 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center">
+                      <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                      </svg>
+                    </div>
+                    <p class="text-sm font-bold text-slate-700">Drop files here or click to browse</p>
+                    <p class="text-xs text-slate-400 mt-1.5">Images: JPG, PNG, WebP, GIF &nbsp;·&nbsp; Video: MP4, WebM, MOV &nbsp;·&nbsp; Max 150 MB</p>
+                    <input id="file-input" type="file" class="hidden" accept="image/*,video/*" multiple onchange="handleFileSelect(this.files)" />
+                  </div>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Caption <span class="normal-case font-normal tracking-normal">(optional)</span></label>
+                      <input id="upload-caption" type="text" placeholder="Describe this image or video…" class="field" />
+                    </div>
+                    <div class="flex items-end pb-1">
+                      <label class="flex items-center gap-2 cursor-pointer select-none">
+                        <input id="upload-is-cover" type="checkbox" class="w-4 h-4 accent-blue-600 rounded" />
+                        <span class="text-sm text-slate-700 font-medium">Set first upload as cover</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div id="upload-progress" class="hidden space-y-2 rounded-xl border border-slate-200 overflow-hidden"></div>
+                </div>
+
+                <!-- URL embed pane -->
+                <div id="media-pane-url" class="hidden space-y-3">
+                  <div class="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 text-xs text-blue-700 leading-relaxed">
+                    Paste a YouTube, Vimeo, or direct video URL. YouTube and Vimeo links will be auto-embedded as iframes.
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Video URL</label>
+                    <input id="url-embed" type="url" placeholder="https://www.youtube.com/watch?v=…" class="field" />
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Caption</label>
+                    <input id="url-caption" type="text" placeholder="e.g. Full installation walkthrough" class="field" />
+                  </div>
+                  <button onclick="addEmbedUrl()"
+                    class="inline-flex items-center gap-2 rounded-xl bg-slate-800 text-white px-4 py-2.5 text-sm font-bold hover:bg-slate-900 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Add Embed
+                  </button>
+                </div>
+
+                <!-- Gallery -->
+                <div>
+                  <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Attached Media</p>
+                  <div id="media-gallery" class="grid grid-cols-3 gap-2"></div>
+                  <div id="media-empty" class="rounded-xl border border-dashed border-slate-200 py-6 text-center">
+                    <p class="text-xs text-slate-400">No media attached yet</p>
+                  </div>
+                </div>
+
+              </div>
+            </div><!-- /Media -->
+
+            <!-- ── Actions ───────────────────────────────────────────── -->
+            <div class="flex items-center justify-between pb-8">
+              <button id="ed-btn-delete" onclick="deleteArticle()"
+                class="hidden inline-flex items-center gap-2 text-sm font-semibold text-red-500 hover:text-red-700 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+                Delete Article
+              </button>
+              <div class="flex gap-3 ml-auto">
+                <button onclick="cancelEdit()"
+                  class="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-white transition">
+                  Cancel
+                </button>
+                <button id="ed-btn-save" onclick="saveArticle()"
+                  class="inline-flex items-center gap-2 rounded-xl bg-blue-600 text-white px-6 py-2.5 text-sm font-bold hover:bg-blue-700 active:scale-95 transition shadow-sm disabled:opacity-50">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                  </svg>
+                  Save Article
+                </button>
+              </div>
+            </div><!-- /Actions -->
+
+          </div><!-- /max-w-3xl -->
+        </div><!-- /editor-form -->
+
+      </div><!-- /RIGHT -->
+    </div><!-- /two-pane -->
+  </main>
+</div>
+<div id="fm-footer"></div>
+
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+const APP = window.APP || {};
+
+function authHeaders() {
+  try {
+    const s = JSON.parse(localStorage.getItem('finemark_session') || '{}');
+    const t = s.accessToken || s.token || '';
+    return t ? { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+  } catch { return { 'Content-Type': 'application/json' }; }
+}
+function authToken() {
+  try { const s = JSON.parse(localStorage.getItem('finemark_session') || '{}'); return s.accessToken || s.token || ''; } catch { return ''; }
+}
+async function apiFetch(path, opts = {}) {
+  if (typeof APP.apiFetch === 'function') return APP.apiFetch(path, opts);
+  const res = await fetch('/api' + path, { headers: authHeaders(), ...opts, body: opts.body ? JSON.stringify(opts.body) : undefined });
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(d.error?.message || 'Request failed'), { status: res.status });
+  return d;
+}
+function $(id) { return document.getElementById(id); }
+
+function edBanner(msg, isErr = false) {
+  const el = $('ed-banner');
+  el.textContent = msg;
+  el.className = `rounded-xl border px-4 py-3 text-sm font-medium ${isErr ? 'border-red-200 bg-red-50 text-red-700' : 'border-green-200 bg-green-50 text-green-700'}`;
+  el.classList.remove('hidden');
+  if (!isErr) setTimeout(() => el.classList.add('hidden'), 4000);
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let _articles = [];
+let _activeId  = null;  // null = new article
+let _sections  = [];    // working copy of sections for current article
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+(async () => {
+  try {
+    const d = await apiFetch('/kb');
+    _articles = d.data || d || [];
+  } catch(e) {
+    edBanner('Failed to load articles: ' + (e?.message || ''), true);
+  }
+  renderList();
+
+  // Auto-open article from URL param
+  const params = new URLSearchParams(location.search);
+  const openId  = params.get('id');
+  if (openId) {
+    const a = _articles.find(x => x.id === openId);
+    if (a) openArticle(a.id);
+  }
+})();
+
+// ── Article list ──────────────────────────────────────────────────────────────
+function renderList() {
+  const q = ($('list-search')?.value || '').toLowerCase();
+  const list = q ? _articles.filter(a => (a.title + a.category).toLowerCase().includes(q)) : _articles;
+  $('article-list').innerHTML = list.length
+    ? list.map(a => `
+      <div class="article-row rounded-xl border px-3 py-2.5 cursor-pointer hover:bg-slate-50 transition ${a.id === _activeId ? 'active border-blue-300 bg-blue-50' : 'border-transparent'}"
+           onclick="openArticle('${a.id}')">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">${a.icon || '📄'}</span>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-semibold text-slate-800 truncate">${a.title}</p>
+            <p class="text-[11px] text-slate-400 truncate">${a.category}</p>
+          </div>
+          <span class="flex-shrink-0 w-2 h-2 rounded-full ${a.published ? 'bg-green-400' : 'bg-slate-300'}" title="${a.published ? 'Published' : 'Draft'}"></span>
+        </div>
+      </div>`).join('')
+    : `<p class="text-xs text-slate-400 text-center py-8">No articles found.</p>`;
+}
+
+// ── Open / new ────────────────────────────────────────────────────────────────
+function openArticle(id) {
+  const a = _articles.find(x => x.id === id);
+  if (!a) return;
+  _activeId = id;
+  _sections = JSON.parse(JSON.stringify(a.sections || []));
+
+  $('ed-title').value    = a.title || '';
+  $('ed-icon').value     = a.icon  || '📄';
+  $('ed-category').value = a.category || '';
+  $('ed-summary').value  = a.summary || '';
+  $('ed-sort').value     = a.sortOrder || 0;
+  $('ed-published').checked = !!a.published;
+  $('ed-btn-delete').classList.remove('hidden');
+  $('ed-banner').classList.add('hidden');
+
+  renderSections();
+  renderMediaGallery(a.media || []);
+  showEditor();
+  renderList();
+}
+
+function newArticle() {
+  _activeId = null;
+  _sections = [];
+  $('ed-title').value    = '';
+  $('ed-icon').value     = '📄';
+  $('ed-category').value = '';
+  $('ed-summary').value  = '';
+  $('ed-sort').value     = 0;
+  $('ed-published').checked = false;
+  $('ed-btn-delete').classList.add('hidden');
+  $('ed-banner').classList.add('hidden');
+  renderSections();
+  renderMediaGallery([]);
+  showEditor();
+}
+
+function showEditor() {
+  $('editor-empty').classList.add('hidden');
+  $('editor-form').classList.remove('hidden');
+}
+
+function cancelEdit() {
+  _activeId = null;
+  $('editor-form').classList.add('hidden');
+  $('editor-empty').classList.remove('hidden');
+  renderList();
+}
+
+// ── Sections ──────────────────────────────────────────────────────────────────
+function addSection(sec = null) {
+  _sections.push(sec || { name: '', icon: '', items: [] });
+  renderSections();
+}
+
+function removeSection(idx) {
+  _sections.splice(idx, 1);
+  renderSections();
+}
+
+function addBullet(idx) {
+  if (!_sections[idx].items) _sections[idx].items = [];
+  _sections[idx].items.push('');
+  renderSections();
+  // Focus the new bullet
+  setTimeout(() => {
+    const inputs = document.querySelectorAll(`[data-sec="${idx}"][data-bullet]`);
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  }, 50);
+}
+
+function removeBullet(secIdx, bIdx) {
+  _sections[secIdx].items.splice(bIdx, 1);
+  renderSections();
+}
+
+function renderSections() {
+  const cont = $('sections-list');
+  if (!_sections.length) {
+    cont.innerHTML = `<div class="text-xs text-slate-400 text-center py-4">No sections yet. Click "Add Section" to begin.</div>`;
+    return;
+  }
+  cont.innerHTML = _sections.map((sec, i) => `
+    <div class="section-block space-y-3">
+      <div class="flex items-center gap-2">
+        <input type="text" value="${esc(sec.icon || '')}" placeholder="🔧" maxlength="4"
+          class="w-10 text-center text-xl rounded-lg border border-slate-200 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400/40"
+          onchange="_sections[${i}].icon=this.value" />
+        <input type="text" value="${esc(sec.name || '')}" placeholder="Section name, e.g. Tools Required"
+          class="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400/40"
+          onchange="_sections[${i}].name=this.value" />
+        <button onclick="removeSection(${i})" class="text-red-400 hover:text-red-600 text-lg leading-none px-1" title="Remove section">×</button>
+      </div>
+      <div class="space-y-1.5" id="bullets-${i}">
+        ${(sec.items || []).map((bullet, bi) => `
+          <div class="bullet-row">
+            <span class="text-slate-300 text-sm flex-shrink-0">•</span>
+            <input type="text" value="${esc(bullet)}" placeholder="Step or bullet…"
+              data-sec="${i}" data-bullet="${bi}"
+              class="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40"
+              onchange="_sections[${i}].items[${bi}]=this.value"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();addBullet(${i});}" />
+            <button onclick="removeBullet(${i},${bi})" class="text-slate-300 hover:text-red-500 text-base leading-none px-1" title="Remove">×</button>
+          </div>`).join('')}
+      </div>
+      <button onclick="addBullet(${i})" class="text-xs text-blue-600 hover:underline font-semibold">+ Add bullet</button>
+    </div>`).join('');
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Save article ──────────────────────────────────────────────────────────────
+async function saveArticle() {
+  const title = $('ed-title').value.trim();
+  if (!title) { edBanner('Title is required.', true); $('ed-title').focus(); return; }
+
+  // Collect sections with current input values
+  const sectionEls = document.querySelectorAll('#sections-list [data-sec]');
+  sectionEls.forEach(inp => {
+    const si = Number(inp.dataset.sec);
+    const bi = inp.dataset.bullet;
+    if (bi !== undefined) _sections[si].items[Number(bi)] = inp.value;
+  });
+  // Also capture section name/icon inputs
+  document.querySelectorAll('#sections-list input:not([data-bullet])').forEach((inp, i) => {
+    // They come in pairs: icon, name
+    const secIdx = Math.floor(i / 2);
+    if (i % 2 === 0) { if (_sections[secIdx]) _sections[secIdx].icon = inp.value; }
+    else              { if (_sections[secIdx]) _sections[secIdx].name = inp.value; }
+  });
+
+  const body = {
+    title,
+    icon:      $('ed-icon').value || '📄',
+    category:  $('ed-category').value || 'General',
+    summary:   $('ed-summary').value,
+    sections:  _sections.filter(s => s.name || (s.items || []).some(Boolean)),
+    published: $('ed-published').checked,
+    sortOrder: parseInt($('ed-sort').value, 10) || 0,
+  };
+
+  const btn = $('ed-btn-save');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  try {
+    let resp;
+    if (_activeId) {
+      resp = await apiFetch(`/kb/${_activeId}`, { method: 'PUT', body });
+    } else {
+      resp = await apiFetch('/kb', { method: 'POST', body });
+      _activeId = resp.data?.id || resp.id;
+    }
+    // Refresh list
+    const d = await apiFetch('/kb');
+    _articles = d.data || d || [];
+    renderList();
+    edBanner('Article saved successfully.');
+  } catch(e) {
+    edBanner('Save failed: ' + (e?.message || ''), true);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save Article';
+  }
+}
+
+// ── Delete ────────────────────────────────────────────────────────────────────
+async function deleteArticle() {
+  if (!_activeId) return;
+  if (!confirm('Delete this article and all its media? This cannot be undone.')) return;
+  try {
+    await apiFetch(`/kb/${_activeId}`, { method: 'DELETE' });
+    _articles = _articles.filter(a => a.id !== _activeId);
+    cancelEdit();
+    renderList();
+  } catch(e) {
+    edBanner('Delete failed: ' + (e?.message || ''), true);
+  }
+}
+
+// ── Media ─────────────────────────────────────────────────────────────────────
+function switchMediaTab(tab) {
+  $('media-pane-upload').classList.toggle('hidden', tab !== 'upload');
+  $('media-pane-url').classList.toggle('hidden',    tab !== 'url');
+  $('media-tab-upload').classList.toggle('active', tab === 'upload');
+  $('media-tab-url').classList.toggle('active',    tab === 'url');
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  $('drop-zone').classList.remove('drag-over');
+  handleFileSelect(e.dataTransfer.files);
+}
+
+async function handleFileSelect(files) {
+  if (!_activeId) {
+    alert('Please save the article first before uploading media.');
+    return;
+  }
+  const progDiv = $('upload-progress');
+  progDiv.classList.remove('hidden');
+  progDiv.innerHTML = '';
+
+  const caption = $('upload-caption').value;
+  const isCover = $('upload-is-cover').checked;
+  let first = true;
+
+  for (const file of Array.from(files)) {
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-2 text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2';
+    row.innerHTML = `<span class="truncate flex-1">${file.name}</span><span class="uploading text-blue-500">Uploading…</span>`;
+    progDiv.appendChild(row);
+
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('caption', caption);
+      if (first && isCover) { fd.append('isCover', 'true'); first = false; }
+
+      const res = await fetch(`/api/kb/${_activeId}/media`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken()}` },
+        body: fd,
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message || 'Upload failed');
+      row.querySelector('.uploading').textContent = '✓ Done';
+      row.querySelector('.uploading').classList.replace('text-blue-500', 'text-green-500');
+    } catch(e) {
+      row.querySelector('.uploading').textContent = '✗ ' + e.message;
+      row.querySelector('.uploading').classList.replace('text-blue-500', 'text-red-500');
+    }
+  }
+
+  // Refresh media gallery
+  try {
+    const d = await apiFetch(`/kb/${_activeId}`);
+    const art = d.data || d;
+    // Update in _articles array
+    const idx = _articles.findIndex(a => a.id === _activeId);
+    if (idx >= 0) _articles[idx] = art;
+    renderMediaGallery(art.media || []);
+  } catch {}
+}
+
+async function addEmbedUrl() {
+  if (!_activeId) { alert('Save the article first.'); return; }
+  const url = $('url-embed').value.trim();
+  if (!url) return;
+  const caption = $('url-caption').value;
+  try {
+    await apiFetch(`/kb/${_activeId}/media/url`, { method: 'POST', body: { url, caption } });
+    $('url-embed').value = '';
+    $('url-caption').value = '';
+    const d = await apiFetch(`/kb/${_activeId}`);
+    const art = d.data || d;
+    const idx = _articles.findIndex(a => a.id === _activeId);
+    if (idx >= 0) _articles[idx] = art;
+    renderMediaGallery(art.media || []);
+  } catch(e) {
+    edBanner('Failed to add URL: ' + (e?.message || ''), true);
+  }
+}
+
+async function deleteMedia(mediaId) {
+  if (!confirm('Remove this media?')) return;
+  try {
+    await apiFetch(`/kb/${_activeId}/media/${mediaId}`, { method: 'DELETE' });
+    const d = await apiFetch(`/kb/${_activeId}`);
+    const art = d.data || d;
+    const idx = _articles.findIndex(a => a.id === _activeId);
+    if (idx >= 0) _articles[idx] = art;
+    renderMediaGallery(art.media || []);
+  } catch(e) {
+    edBanner('Delete media failed: ' + (e?.message || ''), true);
+  }
+}
+
+async function setCover(mediaId) {
+  try {
+    await apiFetch(`/kb/${_activeId}/media/${mediaId}`, { method: 'PATCH', body: { isCover: true } });
+    const d = await apiFetch(`/kb/${_activeId}`);
+    const art = d.data || d;
+    const idx = _articles.findIndex(a => a.id === _activeId);
+    if (idx >= 0) _articles[idx] = art;
+    renderMediaGallery(art.media || []);
+  } catch(e) {
+    edBanner('Could not set cover: ' + (e?.message || ''), true);
+  }
+}
+
+function renderMediaGallery(media) {
+  const gallery = $('media-gallery');
+  const empty   = $('media-empty');
+  if (!media.length) {
+    gallery.innerHTML = ''; empty.classList.remove('hidden'); return;
+  }
+  empty.classList.add('hidden');
+  gallery.innerHTML = media.map(m => {
+    let thumb = '';
+    if (m.type === 'image') {
+      thumb = `<img src="${m.url}" alt="${m.caption || ''}" loading="lazy" />`;
+    } else if (m.type === 'video') {
+      thumb = `<video src="${m.url}" class="w-full h-full object-cover" muted preload="metadata"></video>
+               <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.75rem;pointer-events:none">▶️</div>`;
+    } else {
+      const ytMatch = m.url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+      thumb = ytMatch
+        ? `<img src="https://img.youtube.com/vi/${ytMatch[1]}/mqdefault.jpg" alt="" class="w-full h-full object-cover" />`
+        : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:2rem">🎬</div>`;
+    }
+    return `<div class="media-thumb" style="position:relative">
+      ${thumb}
+      <div class="del-btn" onclick="deleteMedia('${m.id}')" title="Remove">×</div>
+      ${m.isCover
+        ? `<span style="position:absolute;bottom:4px;left:4px;background:rgba(37,99,235,.9);color:#fff;font-size:10px;padding:1px 6px;border-radius:999px;font-weight:600">Cover</span>`
+        : `<button onclick="setCover('${m.id}')" style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,.5);color:#fff;font-size:10px;padding:1px 6px;border-radius:999px;font-weight:600;border:none;cursor:pointer">Set cover</button>`}
+      ${m.caption ? `<p style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.6));padding:4px 6px;font-size:10px;color:#fff;border-radius:0 0 .5rem .5rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.caption}</p>` : ''}
+    </div>`;
+  }).join('');
+}
+</script>
+</body>
+</html>

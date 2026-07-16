@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Retail Lead</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-6">
+    <div class="max-w-4xl mx-auto space-y-6">
+
+      <!-- Page header -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <a href="retail-leads.html" class="text-slate-400 hover:text-slate-600 text-sm">← Retail Leads</a>
+          <span class="text-slate-300">/</span>
+          <h1 id="page-title" class="text-xl font-semibold text-slate-900">Loading…</h1>
+        </div>
+        <div id="header-actions" class="flex gap-2"></div>
+      </div>
+
+      <!-- Banner -->
+      <div id="banner" class="hidden rounded-xl px-4 py-3 text-sm font-medium"></div>
+
+      <!-- Skeleton -->
+      <div id="skeleton" class="space-y-4">
+        <div class="bg-white rounded-xl border border-slate-200/80 h-32 animate-pulse"></div>
+        <div class="bg-white rounded-xl border border-slate-200/80 h-64 animate-pulse"></div>
+      </div>
+
+      <!-- Content (shown after load) -->
+      <div id="content" class="hidden space-y-6">
+
+        <!-- Status / Summary card -->
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-3 flex-wrap">
+                <span id="lead-no" class="text-2xl font-bold text-slate-900 font-mono"></span>
+                <span id="status-badge" class="inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide"></span>
+              </div>
+              <p id="customer-name-heading" class="mt-1 text-base font-semibold text-slate-700 flex items-center gap-2"><a id="customer-name-link" href="#" class="hover:text-blue-600 hover:underline"></a><a id="btn-create-customer" href="#" class="hidden text-xs font-semibold text-emerald-600 border border-emerald-200 bg-emerald-50 rounded-full px-2.5 py-0.5 hover:bg-emerald-100 transition-colors">+ Create Customer</a></p>
+              <p id="customer-phone-heading" class="text-sm text-slate-400 font-medium"></p>
+            </div>
+            <div id="ticket-ref" class="text-right hidden">
+              <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide">Installation Ticket</p>
+              <a id="ticket-link" href="#" class="text-sm font-bold text-blue-600 hover:underline font-mono"></a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="border-b border-slate-200">
+          <nav class="-mb-px flex gap-1" id="tab-nav">
+            <button class="tab-btn active" data-tab="overview">Overview</button>
+            <button class="tab-btn" data-tab="vehicle">Vehicle</button>
+            <button class="tab-btn" data-tab="ticket">Installation Ticket</button>
+            <button class="tab-btn" data-tab="timeline">Timeline</button>
+          </nav>
+        </div>
+
+        <!-- Tab panels -->
+        <div id="tab-overview" class="tab-panel space-y-5">
+          <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-sm font-bold text-slate-700">Lead Details</h2>
+              <button id="btn-edit" class="rounded-lg bg-slate-100 border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200">Edit</button>
+            </div>
+            <dl id="overview-fields" class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm"></dl>
+          </div>
+
+          <!-- Status actions -->
+          <div id="status-actions" class="flex gap-3 flex-wrap"></div>
+        </div>
+
+        <div id="tab-vehicle" class="tab-panel hidden space-y-4">
+          <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6">
+            <h2 class="text-sm font-bold text-slate-700 mb-4">Vehicle Details</h2>
+            <dl id="vehicle-fields" class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm"></dl>
+          </div>
+        </div>
+
+        <div id="tab-ticket" class="tab-panel hidden space-y-4">
+          <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6">
+            <h2 class="text-sm font-bold text-slate-700 mb-4">Installation Ticket</h2>
+            <div id="ticket-panel-content">
+              <p class="text-sm text-slate-400">No installation ticket has been created yet.</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-timeline" class="tab-panel hidden space-y-4">
+          <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6">
+            <h2 class="text-sm font-bold text-slate-700 mb-4">Activity</h2>
+            <ul id="timeline-list" class="space-y-3 text-sm text-slate-500">
+              <li>Timeline will be available in a future update.</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+</div>
+<div id="fm-footer"></div>
+
+<!-- Edit modal -->
+<div id="edit-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+  <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+      <h3 class="text-base font-bold text-slate-900">Edit Retail Lead</h3>
+      <button id="modal-close" class="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+    </div>
+    <form id="edit-form" class="p-6 space-y-4" novalidate>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Customer Name <span class="text-red-500">*</span></label>
+        <input id="edit-customer-name" type="text" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Customer Phone</label>
+        <input id="edit-customer-phone" type="tel" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <p id="edit-customer-phone-err" class="text-xs text-red-500 mt-1 hidden">Invalid Kenyan phone number — expected e.g. 0712 345678 or +254712345678.</p>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Lead Source</label>
+        <select id="edit-lead-source" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">— Select —</option>
+          <option value="Customer Yard">Customer Yard</option>
+          <option value="Bank Partnership">Bank Partnership</option>
+          <option value="Insurance Partnership">Insurance Partnership</option>
+          <option value="Dealer Partnership">Dealer Partnership</option>
+          <option value="Field Sales">Field Sales</option>
+          <option value="Referral">Referral</option>
+          <option value="Social Media">Social Media</option>
+          <option value="Walk-In">Walk-In</option>
+          <option value="Direct">Direct</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Customer Notes</label>
+        <textarea id="edit-customer-notes" rows="3" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+      </div>
+      <div class="border-t border-slate-100 pt-4">
+        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wide mb-3">Vehicle</h4>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Registration</label>
+            <input id="edit-veh-reg" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                   oninput="this.value=this.value.toUpperCase()" />
+            <p id="edit-veh-reg-err" class="hidden text-xs text-red-500 mt-1">Invalid format — use e.g. KCA 123A, GK A001B, CD 123A</p>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Chassis No</label>
+            <input id="edit-veh-chassis" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Category</label>
+            <select id="edit-veh-category" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Make</label>
+            <input id="edit-veh-make" type="text" list="edit-veh-makes-list" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <datalist id="edit-veh-makes-list"></datalist>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Model</label>
+            <input id="edit-veh-model" type="text" list="edit-veh-models-list" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <datalist id="edit-veh-models-list"></datalist>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Year</label>
+            <input id="edit-veh-year" type="number" min="1900" max="2100" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Color</label>
+            <input id="edit-veh-color" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-3 pt-2">
+        <button type="button" id="modal-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+        <button type="submit" id="modal-save" class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-50">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+.tab-btn {
+  padding: 0.625rem 1.125rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #64748b;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  background: none;
+  border-top: none; border-left: none; border-right: none;
+}
+.tab-btn:hover { color: #1e293b; }
+.tab-btn.active { color: #2563eb; border-bottom-color: #2563eb; }
+</style>
+
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script src="assets/validation.js"></script>
+<script src="assets/vehicleCatalog.js"></script>
+<script>
+// ── Auth ──────────────────────────────────────────────────────────────────────
+const session = JSON.parse(localStorage.getItem("finemark_session") || "null");
+if (!session?.accessToken) { window.location.href = "login.html"; }
+function authHeaders() {
+  return { "Authorization": `Bearer ${session.accessToken}`, "Content-Type": "application/json" };
+}
+
+const leadId = new URLSearchParams(location.search).get("id");
+if (!leadId) { window.location.href = "retail-leads.html"; }
+
+function showBanner(msg, isError = false) {
+  const b = document.getElementById("banner");
+  b.textContent = msg;
+  b.className = `rounded-xl px-4 py-3 text-sm font-medium ${isError ? "bg-red-50 text-red-700 border border-red-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`;
+  b.classList.remove("hidden");
+  b.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+// ── Status helpers ──────────────────────────────────────────────────────────
+const STATUS_COLORS = {
+  new:        "bg-blue-100 text-blue-800",
+  submitted:  "bg-amber-100 text-amber-800",
+  in_progress:"bg-indigo-100 text-indigo-800",
+  completed:  "bg-emerald-100 text-emerald-800",
+  cancelled:  "bg-slate-100 text-slate-600",
+};
+const STATUS_LABELS = {
+  new: "Draft", submitted: "Submitted", in_progress: "In Progress", completed: "Completed", cancelled: "Cancelled",
+};
+function statusBadge(s) {
+  const cls = STATUS_COLORS[s] || "bg-slate-100 text-slate-600";
+  return `<span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${cls}">${STATUS_LABELS[s] || s}</span>`;
+}
+
+// ── Detail field renderer ─────────────────────────────────────────────────────
+function dfField(label, value) {
+  if (!value && value !== 0) value = "—";
+  return `<div><dt class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-0.5">${label}</dt><dd class="text-sm font-medium text-slate-800">${value}</dd></div>`;
+}
+
+let currentLead = null;
+
+// ── Load lead ─────────────────────────────────────────────────────────────────
+async function load() {
+  const r = await fetch(`/api/retail/leads/${leadId}`, { headers: authHeaders() });
+  if (!r.ok) { document.getElementById("skeleton").innerHTML = `<p class="text-red-500 text-sm">Failed to load lead.</p>`; return; }
+  const d = await r.json();
+  currentLead = d.lead;
+  render(currentLead);
+}
+
+function render(lead) {
+  document.getElementById("skeleton").classList.add("hidden");
+  document.getElementById("content").classList.remove("hidden");
+
+  // Header
+  document.getElementById("page-title").textContent = lead.leadNo || "Retail Lead";
+  document.getElementById("lead-no").textContent = lead.leadNo || "";
+  const custLink = document.getElementById("customer-name-link");
+  custLink.textContent = lead.customerName || "";
+  const createCustBtn = document.getElementById("btn-create-customer");
+  if (lead.customerId) {
+    custLink.href = `crm-customer-360.html?id=${lead.customerId}`;
+    createCustBtn.classList.add("hidden");
+  } else {
+    custLink.removeAttribute("href");
+    custLink.style.cursor = "default";
+    // Pre-fill crm-register with known lead data
+    const params = new URLSearchParams({
+      retailLeadId: lead.id,
+      returnTo: `retail-lead-detail.html?id=${lead.id}`,
+    });
+    createCustBtn.href = `crm-register.html?${params.toString()}`;
+    createCustBtn.classList.remove("hidden");
+  }
+  document.getElementById("customer-phone-heading").textContent = lead.customerPhone || "";
+
+  const statusBadgeEl = document.getElementById("status-badge");
+  statusBadgeEl.textContent = STATUS_LABELS[lead.status] || lead.status || "";
+  statusBadgeEl.className = `inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${STATUS_COLORS[lead.status] || "bg-slate-100 text-slate-600"}`;
+
+  // Ticket ref
+  if (lead.installationTicketNo) {
+    document.getElementById("ticket-ref").classList.remove("hidden");
+    const tLink = document.getElementById("ticket-link");
+    tLink.textContent = lead.installationTicketNo;
+    tLink.href = `installation-ticket.html?id=${lead.installationTicketId}&retailLeadId=${lead.id}`;
+  }
+
+  // Overview fields
+  const svcList = Array.isArray(lead.serviceInterest) ? lead.serviceInterest.join(", ") || "—" : (lead.serviceInterest || "—");
+  document.getElementById("overview-fields").innerHTML = [
+    dfField("Lead Source",      lead.leadSource),
+    dfField("Customer Type",    lead.customerType === "existing_customer" ? "Existing Customer" : "New Customer"),
+    dfField("Sales Rep",        lead.salesRepName),
+    dfField("BDM",              lead.bdmName),
+    dfField("Primary Partner",  lead.partnerName),
+    dfField("Secondary Partner",lead.secondaryPartnerName),
+    dfField("Referrer Name",    lead.referrerName),
+    dfField("Referrer Phone",   lead.referrerPhone),
+    dfField("Service / Product", svcList),
+    dfField("Specific Product", lead.productName),
+    dfField("Customer Notes",   lead.customerNotes),
+    dfField("Submitted At",     lead.submittedAt ? new Date(lead.submittedAt).toLocaleString() : null),
+    dfField("Created At",       lead.createdAt   ? new Date(lead.createdAt).toLocaleString()   : null),
+  ].join("");
+
+  // Vehicle fields
+  const v = lead.vehicle || {};
+  document.getElementById("vehicle-fields").innerHTML = [
+    dfField("Registration Status", v.registrationKnown === false ? "Not Registered" : "Registered"),
+    dfField("Registration",        v.registration),
+    dfField("Chassis No",          v.chassisNo),
+    dfField("Make",                v.make),
+    dfField("Model",               v.model),
+    dfField("Year",                v.year),
+    dfField("Color",               v.color),
+    dfField("Engine No",           v.engineNo),
+  ].join("");
+
+  // Ticket panel
+  if (lead.installationTicketNo) {
+    const tStatus = lead.installationTicketStatus;
+    const tBadgeCls = tStatus === "Completed" ? "bg-emerald-100 text-emerald-800"
+      : tStatus === "InProgress" ? "bg-indigo-100 text-indigo-800"
+      : tStatus === "Assigned" ? "bg-amber-100 text-amber-800"
+      : "bg-slate-100 text-slate-600";
+    document.getElementById("ticket-panel-content").innerHTML = `
+      <div class="space-y-3">
+        <div class="flex items-center gap-3 flex-wrap">
+          <span class="font-mono text-lg font-bold text-slate-900">${lead.installationTicketNo}</span>
+          ${tStatus ? `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide ${tBadgeCls}">${tStatus}</span>` : ""}
+        </div>
+        <a href="installation-ticket.html?id=${lead.installationTicketId}&retailLeadId=${lead.id}"
+           class="inline-flex items-center gap-1 rounded-lg bg-blue-50 border border-blue-200 px-4 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100">
+          View Installation Ticket →
+        </a>
+      </div>`;
+  }
+
+  // Edit pre-fill
+  document.getElementById("edit-customer-name").value  = lead.customerName  || "";
+  document.getElementById("edit-customer-phone").value = lead.customerPhone || "";
+  document.getElementById("edit-lead-source").value    = lead.leadSource    || "";
+  document.getElementById("edit-customer-notes").value = lead.customerNotes || "";
+  document.getElementById("edit-veh-reg").value        = v.registration || "";
+  document.getElementById("edit-veh-chassis").value    = v.chassisNo    || "";
+  document.getElementById("edit-veh-category").value   = v.vehicleCategory || "motor_vehicle";
+  document.getElementById("edit-veh-make").value       = v.make   || "";
+  document.getElementById("edit-veh-model").value      = v.model  || "";
+  document.getElementById("edit-veh-year").value       = v.year   || "";
+  document.getElementById("edit-veh-color").value      = v.color  || "";
+  refreshEditVehMakes(v.vehicleCategory || "motor_vehicle");
+  refreshEditVehModels(v.make || "");
+
+  // Header actions + status actions
+  renderActions(lead);
+}
+
+function renderActions(lead) {
+  const headerActions = document.getElementById("header-actions");
+  const statusActions = document.getElementById("status-actions");
+  headerActions.innerHTML = "";
+
+  // Build all buttons as a single HTML string, then set innerHTML once
+  let html = "";
+  if (lead.status === "new") {
+    html += `<button id="btn-submit-lead" class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700">Submit Lead &amp; Create Ticket</button>`;
+  }
+  // Close is only ever offered once the linked installation ticket is
+  // actually Completed — the server enforces this too (POST /:id/close),
+  // this is just the UI reflecting that same correlation up front.
+  if (lead.status !== "cancelled" && lead.status !== "completed" && lead.installationTicketId) {
+    const ticketDone = lead.installationTicketStatus === "Completed";
+    if (ticketDone) {
+      html += `<button id="btn-close-lead" class="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700">Close Lead</button>`;
+    } else {
+      html += `<span class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-500" title="The installation ticket must reach Completed status before this lead can be closed.">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Closes once install is Completed (currently ${lead.installationTicketStatus || "Pending"})
+      </span>`;
+    }
+  }
+  if (lead.status !== "cancelled" && lead.status !== "completed") {
+    html += `<button id="btn-cancel-lead" class="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100">Cancel Lead</button>`;
+  }
+  statusActions.innerHTML = html;
+
+  // Attach listeners after DOM is set
+  const submitBtn = document.getElementById("btn-submit-lead");
+  if (submitBtn) submitBtn.addEventListener("click", submitLead);
+  const closeBtn = document.getElementById("btn-close-lead");
+  if (closeBtn) closeBtn.addEventListener("click", closeLead);
+  const cancelBtn = document.getElementById("btn-cancel-lead");
+  if (cancelBtn) cancelBtn.addEventListener("click", cancelLead);
+}
+
+// ── Submit lead ────────────────────────────────────────────────────────────────
+async function submitLead() {
+  const btn = document.getElementById("btn-submit-lead");
+  btn.disabled = true; btn.textContent = "Submitting…";
+  const r = await fetch(`/api/retail/leads/${leadId}/submit`, { method: "POST", headers: authHeaders(), body: JSON.stringify({}) });
+  const d = await r.json();
+  btn.disabled = false; btn.textContent = "Submit Lead & Create Ticket";
+  if (!r.ok) { showBanner(d.error?.message || "Submission failed.", true); return; }
+  showBanner(`Lead submitted! Ticket ${d.ticketNo} created.`);
+  await load();
+}
+
+// ── Close lead (installation ticket already Completed) ─────────────────────────
+async function closeLead() {
+  if (!confirm("Close this lead? The installation is complete and this marks the lead as done.")) return;
+  const btn = document.getElementById("btn-close-lead");
+  btn.disabled = true; btn.textContent = "Closing…";
+  const r = await fetch(`/api/retail/leads/${leadId}/close`, { method: "POST", headers: authHeaders() });
+  const d = await r.json();
+  if (!r.ok) {
+    btn.disabled = false; btn.textContent = "Close Lead";
+    showBanner(d.error?.message || "Failed to close lead.", true);
+    return;
+  }
+  showBanner("Lead closed.");
+  await load();
+}
+
+// ── Cancel lead ───────────────────────────────────────────────────────────────
+async function cancelLead() {
+  if (!confirm("Cancel this lead? This action cannot be undone.")) return;
+  const btn = document.getElementById("btn-cancel-lead");
+  btn.disabled = true; btn.textContent = "Cancelling…";
+  const r = await fetch(`/api/retail/leads/${leadId}`, {
+    method: "PATCH", headers: authHeaders(), body: JSON.stringify({ status: "cancelled" }),
+  });
+  const d = await r.json();
+  btn.disabled = false;
+  if (!r.ok) { showBanner(d.error?.message || "Failed to cancel.", true); return; }
+  showBanner("Lead cancelled.");
+  await load();
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.add("hidden"));
+    btn.classList.add("active");
+    document.getElementById(`tab-${btn.dataset.tab}`).classList.remove("hidden");
+  });
+});
+
+// ── Edit modal ────────────────────────────────────────────────────────────────
+function openModal() { document.getElementById("edit-modal").classList.remove("hidden"); }
+function closeModal() { document.getElementById("edit-modal").classList.add("hidden"); }
+
+// Make/Model suggestions (datalist, still freely typable — this lead's saved
+// value may predate the catalog or be a hand-typed one-off) from the live
+// Vehicle Master catalog, scoped to whichever Category is selected. Listeners
+// registered once here (not inside render(), which re-runs on every reload)
+// so they never stack duplicates.
+document.getElementById("edit-veh-category").innerHTML =
+  window.VEHICLE_CATEGORIES.map(c => `<option value="${c.value}">${c.label}</option>`).join("");
+
+async function refreshEditVehMakes(category) {
+  const makes = await vehicleCatalogMakes(category || undefined);
+  document.getElementById("edit-veh-makes-list").innerHTML = makes.map(m => `<option value="${m}">`).join("");
+}
+refreshEditVehMakes("motor_vehicle");
+
+document.getElementById("edit-veh-category").addEventListener("change", (e) => {
+  refreshEditVehMakes(e.target.value);
+  document.getElementById("edit-veh-make").value = "";
+  document.getElementById("edit-veh-model").value = "";
+  document.getElementById("edit-veh-models-list").innerHTML = "";
+});
+
+async function refreshEditVehModels(make) {
+  const dl = document.getElementById("edit-veh-models-list");
+  dl.innerHTML = "";
+  if (!make) return;
+  const category = document.getElementById("edit-veh-category").value || undefined;
+  const models = await vehicleCatalogModels(make, category);
+  dl.innerHTML = models.map(({ model }) => `<option value="${model}">`).join("");
+}
+document.getElementById("edit-veh-make").addEventListener("change", (e) => refreshEditVehModels(e.target.value.trim()));
+
+document.getElementById("edit-customer-phone").addEventListener("blur", function() {
+  const err = document.getElementById("edit-customer-phone-err");
+  err.classList.toggle("hidden", !this.value.trim() || FinemarkValidation.isValidKePhone(this.value));
+});
+
+document.getElementById("btn-edit").addEventListener("click", openModal);
+document.getElementById("modal-close").addEventListener("click", closeModal);
+document.getElementById("modal-cancel").addEventListener("click", closeModal);
+document.getElementById("edit-modal").addEventListener("click", e => { if (e.target === document.getElementById("edit-modal")) closeModal(); });
+
+document.getElementById("edit-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const saveBtn = document.getElementById("modal-save");
+  saveBtn.disabled = true; saveBtn.textContent = "Saving…";
+
+  const body = {
+    customerName:  document.getElementById("edit-customer-name").value.trim(),
+    customerPhone: document.getElementById("edit-customer-phone").value.trim() || null,
+    leadSource:    document.getElementById("edit-lead-source").value || null,
+    customerNotes: document.getElementById("edit-customer-notes").value.trim() || null,
+    vehicle: {
+      registration: (document.getElementById("edit-veh-reg").value.trim().toUpperCase())     || null,
+      chassisNo:    (document.getElementById("edit-veh-chassis").value.trim().toUpperCase())  || null,
+      vehicleCategory: document.getElementById("edit-veh-category").value || "motor_vehicle",
+      make:         document.getElementById("edit-veh-make").value.trim()  || null,
+      model:        document.getElementById("edit-veh-model").value.trim() || null,
+      year:         document.getElementById("edit-veh-year").value  || null,
+      color:        document.getElementById("edit-veh-color").value.trim() || null,
+    },
+  };
+  if (!body.customerName) { showBanner("Customer name is required.", true); saveBtn.disabled = false; saveBtn.textContent = "Save Changes"; return; }
+  if (body.customerPhone && !FinemarkValidation.isValidKePhone(body.customerPhone)) {
+    showBanner("Customer phone number is invalid — expected e.g. 0712 345678 or +254712345678.", true);
+    document.getElementById("edit-customer-phone-err").classList.remove("hidden");
+    saveBtn.disabled = false; saveBtn.textContent = "Save Changes"; return;
+  }
+  if (body.vehicle.registration && !FinemarkValidation.isValidKeRegistration(body.vehicle.registration, body.vehicle.vehicleCategory)) {
+    showBanner("Vehicle registration format is invalid — expected e.g. KCA 123A.", true);
+    document.getElementById("edit-veh-reg-err").classList.remove("hidden");
+    saveBtn.disabled = false; saveBtn.textContent = "Save Changes"; return;
+  }
+
+  const r = await fetch(`/api/retail/leads/${leadId}`, { method: "PATCH", headers: authHeaders(), body: JSON.stringify(body) });
+  const d = await r.json();
+  saveBtn.disabled = false; saveBtn.textContent = "Save Changes";
+  if (!r.ok) { showBanner(d.error?.message || "Failed to save.", true); return; }
+  closeModal();
+  showBanner("Lead updated successfully.");
+  await load();
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+load();
+</script>
+  </body>
+</html>
