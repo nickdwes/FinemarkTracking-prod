@@ -10,6 +10,7 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { isNonStockProduct, NON_STOCK_MESSAGE } from "../services/nonStockProducts.js";
 
 const __filenameProc  = fileURLToPath(import.meta.url);
 const __dirnameProc   = path.dirname(__filenameProc);
@@ -153,6 +154,7 @@ router.post("/requisitions", requireAuth, requireRole(["Admin", "InventoryManage
     return errorResponse(res, 400, "MISSING_FIELD", "productId and quantity required.");
   const product = await pgGet("SELECT id FROM inv_product_catalog WHERE id = ? AND deleted_at IS NULL", [productId]);
   if (!product) return errorResponse(res, 404, "NOT_FOUND", "Product not found.");
+  if (await isNonStockProduct(productId)) return errorResponse(res, 400, "NON_STOCK_PRODUCT", NON_STOCK_MESSAGE);
 
   const now = new Date().toISOString();
   const id    = uuidv4();
@@ -220,6 +222,9 @@ router.post("/orders", requireAuth, requireRole(["Admin", "InventoryManager", "P
   const { supplierId, lines, deliveryDate, notes, requisitionIds } = req.body;
   if (!supplierId || !Array.isArray(lines) || !lines.length)
     return errorResponse(res, 400, "MISSING_FIELD", "supplierId and lines[] required.");
+  for (const l of lines) {
+    if (await isNonStockProduct(l?.productId)) return errorResponse(res, 400, "NON_STOCK_PRODUCT", NON_STOCK_MESSAGE);
+  }
 
   const now = new Date().toISOString();
   const id   = uuidv4();
@@ -425,6 +430,7 @@ router.post("/orders/:id/receive",
       try {
         const { productId, serialNumber, imei, purchasePrice, simPhone } = item;
         if (!productId) { errors.push({ item, error: "productId required" }); continue; }
+        if (await isNonStockProduct(productId)) { errors.push({ item, error: NON_STOCK_MESSAGE }); continue; }
 
         const product = await pgGet("SELECT warranty_months FROM inv_product_catalog WHERE id = ?", [productId]);
         const warrantyExpires = product?.warranty_months

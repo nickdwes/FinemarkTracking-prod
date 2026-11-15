@@ -96,7 +96,7 @@
       icon: "dashboard",
       items: [
         { label: "My Jobs",    href: "technician-jobs.html",    roles: RBAC_NAV.Technician, match: { path: "technician-jobs.html" } },
-        { label: "My Custody", href: "technician-custody.html", roles: RBAC_NAV.Technician, match: { path: "technician-custody.html" } },
+        { label: "My Custody", href: "technician-custody.html", roles: [...RBAC_NAV.Technician, ROLES.TECHNICAL, ROLES.INSTALL_OFFICE, "technical_manager"], match: { path: "technician-custody.html" } },
         { label: "Sales Dashboard", href: "sales.html", roles: RBAC_NAV.Sales, match: { path: "sales.html" } },
       ],
     },
@@ -120,6 +120,16 @@
       ],
     },
     {
+      key: "reports",
+      section: "Reports",
+      roles: [ROLES.ADMIN, ROLES.EXECUTIVE, ROLES.HR, ROLES.FINANCE, ROLES.TECHNICAL, ROLES.INSTALL_OFFICE, ROLES.CERT_ADMIN, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES, ROLES.KAM, ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, "Support", "Operations", "technical_manager"],
+      icon: "report",
+      items: [
+        { label: "Customer Vehicle Report", href: "customer-vehicle-report.html", match: { path: "customer-vehicle-report.html" } },
+        { label: "Customer Service Reports", href: "customer-service-reports.html", match: { path: "customer-service-reports.html" } },
+      ],
+    },
+    {
       key: "support",
       section: "Support",
       roles: [ROLES.ADMIN, ROLES.TECHNICAL, ROLES.FINANCE, "Support", "Operations"],
@@ -127,6 +137,7 @@
       items: [
         { label: "Support Dashboard", href: "support-dashboard.html", roles: [ROLES.ADMIN, ROLES.TECHNICAL, ROLES.FINANCE, "Support", "Operations"], match: { path: "support-dashboard.html" } },
         { label: "Support Tickets", href: "crm-tickets.html", roles: [...RBAC_NAV.Sales, ROLES.TECHNICAL, ROLES.INSTALL_OFFICE, ROLES.FINANCE, "Support", "Operations", "technical_manager"], match: { path: "crm-tickets.html" } },
+        { label: "Vehicle Certification Extension", href: "cert-extension.html", roles: [ROLES.ADMIN, ROLES.CERT_ADMIN, ROLES.SALES, ROLES.CORPORATE_SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.BDM, ROLES.BDM_CORPORATE], match: { path: "cert-extension.html" } },
       ],
     },
     {
@@ -152,6 +163,7 @@
         { label: "Register Vehicle",    href: "vehicle-register.html",    match: { path: "vehicle-register.html" } },
         { label: "Vehicle 360°",        href: "vehicle-360.html",         match: { path: "vehicle-360.html" } },
         { label: "Vehicle Data Sync",   href: "vehicle-data-sync.html",   match: { path: "vehicle-data-sync.html" }, roles: [ROLES.ADMIN, ROLES.INVENTORY_MGR] },
+        { label: "Vehicle Attribute Types", href: "vehicle-attribute-entries.html", match: { path: "vehicle-attribute-entries.html" }, roles: [ROLES.ADMIN, ROLES.INVENTORY_MGR] },
       ],
     },
     {
@@ -173,7 +185,7 @@
         { label: "Vehicle Installations", href: "vehicle-installation.html", match: { path: "vehicle-installation.html" } },
         { label: "Inventory Allocation", href: "crm-inventory-allocate.html", match: { path: "crm-inventory-allocate.html" }, roles: [ROLES.TECHNICAL, ROLES.ADMIN, ROLES.INSTALL_OFFICE] },
         { label: "Status Remarks", href: "status-remarks.html", match: { path: "status-remarks.html" } },
-        { label: "GPS Uninstall Queue", href: "gps-uninstall-queue.html", roles: [ROLES.ADMIN, ROLES.TECHNICAL, ROLES.TECHNICIAN, ROLES.INSTALL_OFFICE, ROLES.FINANCE], match: { path: "gps-uninstall-queue.html" } },
+        { label: "GPS Uninstall Queue", href: "gps-uninstall-queue.html", roles: [ROLES.ADMIN, ROLES.TECHNICAL, ROLES.TECHNICIAN, ROLES.INSTALL_OFFICE, ROLES.FINANCE, "technical_manager"], match: { path: "gps-uninstall-queue.html" } },
       ],
     },
 
@@ -187,9 +199,12 @@
         { label: "Quotes", href: "crm-quotes.html", match: { path: "crm-quotes.html" } },
         { label: "Proforma Invoices", href: "crm-proforma.html", match: { path: "crm-proforma.html" } },
         { label: "Invoice Dashboard", href: "finance-invoice-dashboard.html", finance: true, match: { path: "finance-invoice-dashboard.html" } },
+        { label: "Payment & Tax Reports", href: "finance-payment-reports.html", match: { path: "finance-payment-reports.html" }, roles: [ROLES.ADMIN, ROLES.FINANCE, ROLES.EXECUTIVE] },
+        { label: "Sales Commission", href: "sales-commission.html", match: { path: "sales-commission.html" }, roles: [ROLES.ADMIN, ROLES.FINANCE, ROLES.EXECUTIVE] },
         { subheader: "Setup", roles: [RBAC_NAV.Finance[0], RBAC_NAV.Finance[1]] },
         { label: "Bank Accounts", href: "bank-accounts.html", finance: true, match: { path: "bank-accounts.html" }, roles: [RBAC_NAV.Finance[0], RBAC_NAV.Finance[1]] },
         { label: "Bank Transactions Report", href: "bank-transactions-report.html", finance: true, match: { path: "bank-transactions-report.html" }, roles: [RBAC_NAV.Finance[0], RBAC_NAV.Finance[1]] },
+        { label: "Document Configuration", href: "doc-bank-settings.html", match: { path: "doc-bank-settings.html" }, roles: [ROLES.ADMIN, ROLES.FINANCE, ROLES.CERT_ADMIN] },
       ],
     },
     {
@@ -202,6 +217,8 @@
         { label: "Users", href: "admin-users.html", match: { path: "admin-users.html" } },
         { label: "Access Control", href: "admin-access-control.html", match: { path: "admin-access-control.html" } },
         { label: "Ticket Categories", href: "admin-ticket-categories.html", match: { path: "admin-ticket-categories.html" } },
+        { label: "Vehicle Change Approvals", href: "admin-vehicle-approvals.html", match: { path: "admin-vehicle-approvals.html" } },
+        { label: "Swap Job Devices", href: "admin-device-swap.html", match: { path: "admin-device-swap.html" } },
         { label: "Profile", href: "profile.html", match: { path: "profile.html" } },
         { label: "Audit logs", href: "admin-audit-logs.html", match: { path: "admin-audit-logs.html" } },
         { label: "Settings", href: "settings.html", match: { path: "settings.html" } },
@@ -213,11 +230,15 @@
       roles: RBAC_NAV.Certificates,
       icon: "certificate",
       items: [
+        { label: "Analytics Dashboard",    href: "certificate-metrics.html",      match: { path: "certificate-metrics.html" } },
         { label: "Dashboard",              href: "certificate-dashboard.html",    match: { path: "certificate-dashboard.html" } },
         { label: "Generate Manual Certificate", href: "create-certificate.html",  match: { path: "create-certificate.html" } },
+        { label: "Extension Requests", href: "cert-extension-requests.html", roles: [ROLES.ADMIN, ROLES.CERT_ADMIN], match: { path: "cert-extension-requests.html" } },
         { label: "Certificate Inventory", href: "certificate-inventory.html",    match: { path: "certificate-inventory.html" } },
         { label: "Certificate Validation",href: "certificate-validation.html",   match: { path: "certificate-validation.html" } },
         { label: "Certificate Detail Configuration", href: "certificate-bank-settings.html", match: { path: "certificate-bank-settings.html" } },
+        { label: "Recycle Bin", href: "certificate-recyclebin.html", roles: [ROLES.ADMIN, ROLES.CERT_ADMIN], match: { path: "certificate-recyclebin.html" } },
+        { label: "CRM Customers", href: "crm-customers.html", roles: [ROLES.CERT_ADMIN], match: { path: "crm-customers.html" } },
       ],
     },
     {
@@ -255,7 +276,7 @@
         { label: "Benefits",         href: "hr-benefits.html",       roles: [ROLES.ADMIN], match: { path: "hr-benefits.html" } },
         { label: "Reports",          href: "hr-reports.html",        roles: [ROLES.ADMIN], match: { path: "hr-reports.html" } },
         { label: "Leave Config",     href: "hr-leave-types.html",    roles: [ROLES.ADMIN], match: { path: "hr-leave-types.html" } },
-        { label: "Leave Approvals",  href: "hr-leave-approvals.html",roles: [ROLES.ADMIN, ROLES.TEAM_LEAD, ROLES.BDM, ROLES.BDM_CORPORATE], match: { path: "hr-leave-approvals.html" } },
+        { label: "Leave Approvals",  href: "hr-leave-approvals.html",roles: [ROLES.ADMIN, ROLES.TEAM_LEAD, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.TECHNICAL, "technical_manager"], match: { path: "hr-leave-approvals.html" } },
         { label: "Leave Balances",   href: "hr-leave-balances.html", roles: [ROLES.ADMIN], match: { path: "hr-leave-balances.html" } },
         { label: "Leave Reports",    href: "hr-leave-reports.html",  roles: [ROLES.ADMIN], match: { path: "hr-leave-reports.html" } },
         { label: "Employee Users",   href: "hr-employee-users.html", roles: [ROLES.ADMIN], match: { path: "hr-employee-users.html" } },

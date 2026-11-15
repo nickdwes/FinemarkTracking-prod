@@ -11,6 +11,7 @@ import { loginSchema, refreshSchema, forgotPasswordSchema, resetPasswordSchemaAu
 import { isGraphConfigured, sendEmailViaGraph } from "../services/graphMailService.js";
 import { resolveIdentity } from "../services/identityService.js";
 import { getIdleMinutes, isSessionIdleExpired, touchSessionActivity } from "../services/sessionTimeoutService.js";
+import { cacheDeleteByPrefix } from "../utils/cache.js";
 
 const router = Router();
 const refreshDays = Number(process.env.REFRESH_EXPIRES_DAYS || 7);
@@ -55,10 +56,27 @@ router.post("/login", loginLimiter, async (req, res) => {
     auditLog(req, "LOGIN_FAILED", `user:${user.id}`, "Warning", { email, reason: "account_disabled" }, { id: user.id, email, role: user.role }).catch(console.error);
     return errorResponse(res, 403, "FORBIDDEN", "User account is disabled.");
   }
+  // ── Account lockout: N failed password attempts locks the account for a cool-off
+  // window; an admin can also unlock it immediately via POST /users/:id/unlock. ──
+  const LOCK_THRESHOLD = 5;
+  const LOCK_MINUTES = 30;
+  if (user.locked_until && new Date(user.locked_until).getTime() > Date.now()) {
+    const mins = Math.max(1, Math.ceil((new Date(user.locked_until).getTime() - Date.now()) / 60000));
+    auditLog(req, "LOGIN_FAILED", `user:${user.id}`, "Warning", { email, reason: "account_locked" }, { id: user.id, email, role: user.role }).catch(console.error);
+    return errorResponse(res, 423, "ACCOUNT_LOCKED", `Account locked after too many failed attempts. Try again in ${mins} minute(s) or ask an administrator to unlock it.`);
+  }
   const passwordOk = await verifyPassword(password, user.password_hash);
   if (!passwordOk) {
-    auditLog(req, "LOGIN_FAILED", `user:${user.id}`, "Warning", { email, reason: "bad_password" }, { id: user.id, email, role: user.role }).catch(console.error);
-    return errorResponse(res, 401, "UNAUTHORIZED", "Invalid email or password.");
+    const attempts = Number(user.failed_login_attempts || 0) + 1;
+    const nowIso = new Date().toISOString();
+    const lockedUntil = attempts >= LOCK_THRESHOLD ? new Date(Date.now() + LOCK_MINUTES * 60000).toISOString() : null;
+    await pgRun("UPDATE users SET failed_login_attempts = ?, locked_until = ?, updated_at = ? WHERE id = ?", [attempts, lockedUntil, nowIso, user.id]);
+    auditLog(req, lockedUntil ? "ACCOUNT_LOCKED" : "LOGIN_FAILED", `user:${user.id}`, "Warning", { email, reason: "bad_password", attempts, locked: !!lockedUntil }, { id: user.id, email, role: user.role }).catch(console.error);
+    if (lockedUntil) {
+      cacheDeleteByPrefix("users:list:");
+      return errorResponse(res, 423, "ACCOUNT_LOCKED", `Too many failed attempts — this account has been locked for ${LOCK_MINUTES} minutes.`);
+    }
+    return errorResponse(res, 401, "UNAUTHORIZED", `Invalid email or password. ${LOCK_THRESHOLD - attempts} attempt(s) left before the account is locked.`);
   }
 
   const sessionId = uuidv4();
@@ -73,9 +91,10 @@ router.post("/login", loginLimiter, async (req, res) => {
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [sessionId, user.id, refreshHash, expiresAt, now.toISOString(), "password", now.toISOString()]
   );
-  await pgRun("UPDATE users SET last_login_at = ?, updated_at = ? WHERE id = ?", [
+  await pgRun("UPDATE users SET last_login_at = ?, updated_at = ?, failed_login_attempts = 0, locked_until = NULL WHERE id = ?", [
     now.toISOString(), now.toISOString(), user.id,
   ]);
+  if (user.failed_login_attempts || user.locked_until) cacheDeleteByPrefix("users:list:");
 
   auditLog(req, "LOGIN_SUCCESS", `user:${user.id}`, "Info", { email }, { id: user.id, email, role: user.role }).catch(console.error);
 

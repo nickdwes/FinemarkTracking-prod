@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Finemark — Opening report…</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #070B14; color: #EAF1FB;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .wrap { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px; text-align: center; }
+    .spinner { width: 40px; height: 40px; border-radius: 50%; border: 3px solid rgba(34,211,238,0.2);
+      border-top-color: #22D3EE; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .msg { font-size: 14px; color: #93A4C0; }
+    .err { color: #F87171; max-width: 320px; }
+    a { color: #22D3EE; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="spinner" id="spinner"></div>
+    <div class="msg" id="msg">Securely opening your report…</div>
+  </div>
+  <script>
+    (function () {
+      var API_BASE = "/api";
+
+      function fail(text) {
+        document.getElementById("spinner").style.display = "none";
+        var m = document.getElementById("msg");
+        m.className = "msg err";
+        m.textContent = text || "Could not open the report. Please sign in on the web portal.";
+      }
+
+      // Only allow same-origin relative *.html targets (no open redirect).
+      function safeTarget() {
+        try {
+          var to = new URLSearchParams(location.search).get("to") || "";
+          to = decodeURIComponent(to);
+          if (!/^[a-zA-Z0-9_\-]+\.html([?#].*)?$/.test(to)) return null;
+          return to;
+        } catch (e) { return null; }
+      }
+
+      // Refresh token comes via the URL fragment (never sent to the server / logs).
+      function readToken() {
+        var h = location.hash || "";
+        var m = h.match(/[#&]rt=([^&]+)/);
+        return m ? decodeURIComponent(m[1]) : null;
+      }
+
+      var target = safeTarget();
+      var rt = readToken();
+      // Clear the fragment immediately so the token isn't left in history.
+      try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+
+      if (!target) { fail("Invalid report link."); return; }
+      if (!rt) { location.replace("/" + target); return; }
+
+      fetch(API_BASE + "/auth/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include", // let the Set-Cookie (fm_rt) land in the browser's cookie jar
+        body: JSON.stringify({ refreshToken: rt }),
+      })
+        .then(function (r) { if (!r.ok) throw new Error("refresh failed"); return r.json(); })
+        .then(function (data) {
+          // Fetch the user profile so app.js client-side RBAC has session.user.
+          return fetch(API_BASE + "/me", {
+            headers: { Authorization: "Bearer " + data.accessToken },
+          })
+            .then(function (r) { return r.ok ? r.json() : {}; })
+            .then(function (me) {
+              var user = (me && (me.data || me.user || me)) || null;
+              var session = {
+                accessToken: data.accessToken,
+                refreshToken: data.refreshToken || rt,
+                idleTimeoutMinutes: data.idleTimeoutMinutes,
+                loginMethod: data.loginMethod || "mobile",
+                user: user,
+              };
+              try { localStorage.setItem("finemark_session", JSON.stringify(session)); } catch (e) {}
+              location.replace("/" + target);
+            });
+        })
+        .catch(function () { fail("Your session has expired. Please sign in again in the app."); });
+    })();
+  </script>
+</body>
+</html>

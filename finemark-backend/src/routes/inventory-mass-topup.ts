@@ -74,7 +74,7 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
   const params: any[] = [];
 
   if (search?.trim()) {
-    conditions.push("(phone LIKE ? OR organization LIKE ? OR network LIKE ?)");
+    conditions.push("(phone ILIKE ? OR organization ILIKE ? OR network ILIKE ?)");
     params.push(`%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`);
   }
   if (status?.trim()) { conditions.push("status = ?"); params.push(status.trim()); }
@@ -101,6 +101,82 @@ router.get("/export.csv", requireAuth, requireRole(WRITE_ROLES), async (req, res
   );
   auditLog(req, "MASS_TOPUP_EXPORTED", "inv_mass_topups", "Info", { count: rows.length }).catch(console.error);
   return sendCsv(res, "mass-topups.csv", csv);
+});
+
+// ── Installed-SIM airtime top-up report ──────────────────────────────────────
+// Pulls every successfully-installed SIM (by ICCID) with its captured MSISDN and
+// emits the exact 4-column CSV the legacy IDTS "Upload Mass Top Up" tool ingests
+// (MASS_TOP_UP_NEW: number, amount, organization, network) — one row per installed
+// SIM that has a number on file. SIMs missing an MSISDN are reported in the JSON
+// preview but excluded from the CSV (they can't be topped up without a number).
+function toTopupNumber(msisdn: any): string {
+  let d = String(msisdn || "").replace(/\D/g, "");
+  if (!d) return "";
+  if (d.startsWith("254") && d.length > 9) d = d.slice(3); // strip country code
+  d = d.replace(/^0+/, "");                                 // strip leading zero(s)
+  return d;
+}
+
+async function loadInstalledSims(status: string) {
+  const statuses = status === "both" ? ["installed", "issued"] : [status];
+  const placeholders = statuses.map(() => "?").join(",");
+  return pgAll(
+    `SELECT s.id, s.iccid, s.msisdn, s.operator, s.status, s.issued_to_name, s.batch_ref, s.installed_at
+     FROM inv_sims s
+     WHERE s.status IN (${placeholders}) AND s.deleted_at IS NULL
+     ORDER BY s.installed_at DESC NULLS LAST, s.iccid ASC
+     LIMIT 20000`,
+    statuses
+  );
+}
+
+router.get("/installed-report", requireAuth, requireRole(WRITE_ROLES), async (req: AuthRequest, res) => {
+  const status = String((req.query.status as string) || "installed").toLowerCase();
+  const rows = await loadInstalledSims(status);
+  const mapped = rows.map((r: any) => {
+    const number = toTopupNumber(r.msisdn);
+    return {
+      id: r.id, iccid: r.iccid, msisdn: r.msisdn || null, number: number || null,
+      network: ((r.operator || "").toLowerCase() || null), simStatus: r.status,
+      issuedTo: r.issued_to_name || null, batchRef: r.batch_ref || null,
+      installedAt: r.installed_at || null, ready: !!number,
+    };
+  });
+  const withNumber = mapped.filter((r) => r.ready).length;
+  return ok(res, {
+    summary: { installed: mapped.length, withMsisdn: withNumber, missingMsisdn: mapped.length - withNumber, status },
+    rows: mapped,
+  });
+});
+
+router.get("/installed-report.csv", requireAuth, requireRole(WRITE_ROLES), async (req: AuthRequest, res) => {
+  const status = String((req.query.status as string) || "installed").toLowerCase();
+  const amount = Number(req.query.amount) > 0 ? Number(req.query.amount) : 7;
+  const organization = String((req.query.organization as string) || "unique").trim() || "unique";
+  const defaultNetwork = String((req.query.network as string) || "safaricom").trim().toLowerCase() || "safaricom";
+  const rows = await loadInstalledSims(status);
+  const csvRows = rows
+    .map((r: any) => ({ number: toTopupNumber(r.msisdn), network: ((r.operator || "").toLowerCase() || defaultNetwork) }))
+    .filter((r: any) => r.number)
+    .map((r: any) => ({ number: r.number, amount: amount.toFixed(2), organization, network: r.network }));
+  const csv = buildCsv(["number", "amount", "organization", "network"], csvRows);
+  auditLog(req, "MASS_TOPUP_INSTALLED_REPORT_EXPORTED", "inv_sims", "Info", { status, count: csvRows.length, amount, organization }).catch(console.error);
+  return sendCsv(res, `installed-sim-topup_${status}_${new Date().toISOString().slice(0, 10)}.csv`, csv);
+});
+
+// ── Set/correct a SIM's MSISDN directly from the top-up report ────────────────
+// Accepts M2M / data-SIM numbers (e.g. 0300…), not just standard KE mobiles, so
+// ops can complete the airtime top-up list inline from the report.
+router.post("/installed-report/set-msisdn", requireAuth, requireRole(WRITE_ROLES), async (req: AuthRequest, res) => {
+  const { id, msisdn } = req.body || {};
+  if (!id) return errorResponse(res, 400, "VALIDATION_ERROR", "SIM id is required.");
+  const clean = String(msisdn || "").replace(/[^\d+]/g, "");
+  if (clean.replace(/\D/g, "").length < 6) return errorResponse(res, 400, "VALIDATION_ERROR", "Enter a valid SIM number / MSISDN.");
+  const sim = await pgGet(`SELECT id, iccid FROM inv_sims WHERE id = ? AND deleted_at IS NULL`, [id]);
+  if (!sim) return errorResponse(res, 404, "NOT_FOUND", "SIM not found.");
+  await pgRun(`UPDATE inv_sims SET msisdn = ?, updated_at = ? WHERE id = ?`, [clean, new Date().toISOString(), id]);
+  auditLog(req, "SIM_MSISDN_SET", `inv_sim:${id}`, "Info", { iccid: (sim as any).iccid, msisdn: clean }).catch(console.error);
+  return ok(res, { id, msisdn: clean, number: toTopupNumber(clean) });
 });
 
 // ── POST / — bulk manual add (paste-list of numbers, one amount/org/network) ─

@@ -54,6 +54,55 @@
       </div>
     </div>
 
+    <!-- Installed SIMs → Airtime Top-Up Report -->
+    <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Installed SIMs — Airtime Top-Up Report</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Every successfully-installed SIM (matched on ICCID &amp; MSISDN), exported as the airtime top-up CSV: <span class="font-mono">number, amount, organization, network</span>.</p>
+        </div>
+        <div class="flex flex-wrap items-end gap-2">
+          <div>
+            <label class="text-[0.7rem] font-semibold text-slate-600 block">SIMs</label>
+            <select id="ir-status" class="mt-1 rounded-lg border border-slate-200 px-2 py-1.5 text-sm">
+              <option value="installed">Installed</option>
+              <option value="issued">Issued</option>
+              <option value="both">Installed + Issued</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[0.7rem] font-semibold text-slate-600 block">Amount (KES)</label>
+            <input id="ir-amount" type="number" min="1" step="0.5" value="7" class="mt-1 w-24 rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
+          </div>
+          <div>
+            <label class="text-[0.7rem] font-semibold text-slate-600 block">Organization</label>
+            <input id="ir-org" type="text" value="unique" class="mt-1 w-32 rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
+          </div>
+          <button id="ir-download" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">⬇ Download Top-Up CSV</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-3 gap-3">
+        <div class="rounded-lg border border-slate-200 p-2.5">
+          <p class="text-[0.66rem] font-semibold text-slate-500 uppercase">Installed SIMs</p>
+          <p id="ir-total" class="text-xl font-bold text-slate-800 mt-0.5">—</p>
+        </div>
+        <div class="rounded-lg border border-emerald-200 bg-emerald-50/40 p-2.5">
+          <p class="text-[0.66rem] font-semibold text-emerald-700 uppercase">Ready (has MSISDN)</p>
+          <p id="ir-ready" class="text-xl font-bold text-emerald-700 mt-0.5">—</p>
+        </div>
+        <div class="rounded-lg border border-amber-200 bg-amber-50/40 p-2.5">
+          <p class="text-[0.66rem] font-semibold text-amber-700 uppercase">Missing MSISDN</p>
+          <p id="ir-missing" class="text-xl font-bold text-amber-700 mt-0.5">—</p>
+        </div>
+      </div>
+      <div class="overflow-x-auto max-h-72 overflow-y-auto border border-slate-100 rounded-lg">
+        <table class="tt min-w-full">
+          <thead><tr><th>ICCID</th><th>MSISDN</th><th>Top-Up No.</th><th>Network</th><th>Issued To</th><th>Installed</th><th>Status</th></tr></thead>
+          <tbody id="ir-body"><tr><td colspan="7" class="text-center py-8 text-slate-400">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Filters -->
     <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
       <div class="grid gap-3 sm:grid-cols-3">
@@ -528,6 +577,95 @@ function init() {
   loadStats();
   loadTable();
 }
+</script>
+
+<!-- Installed-SIM top-up report (self-contained) -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const APP = window.FINEMARK_APP;
+  if (!APP || !APP.apiFetch) return;
+  const g = (id) => document.getElementById(id);
+  const escR = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (m) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
+  const fmtR = (v) => v ? new Date(v).toLocaleDateString("en-KE", { year:"numeric", month:"short", day:"numeric" }) : "—";
+
+  const irStatus = () => (g("ir-status") && g("ir-status").value) || "installed";
+
+  async function loadInstalledReport() {
+    g("ir-body").innerHTML = '<tr><td colspan="7" class="text-center py-8 text-slate-400">Loading…</td></tr>';
+    try {
+      const r = await APP.apiFetch("/inventory/mass-topup/installed-report?status=" + encodeURIComponent(irStatus()));
+      const d = (r && r.data) || r || {};
+      const s = d.summary || {};
+      g("ir-total").textContent = Number(s.installed || 0).toLocaleString();
+      g("ir-ready").textContent = Number(s.withMsisdn || 0).toLocaleString();
+      g("ir-missing").textContent = Number(s.missingMsisdn || 0).toLocaleString();
+      const rows = d.rows || [];
+      if (!rows.length) { g("ir-body").innerHTML = '<tr><td colspan="7" class="text-center py-8 text-slate-400">No installed SIMs found.</td></tr>'; return; }
+      g("ir-body").innerHTML = rows.map((x) => `<tr>
+        <td class="font-mono text-xs">${escR(x.iccid || "—")}</td>
+        <td class="font-mono text-xs">${escR(x.msisdn || "—")}</td>
+        <td class="font-mono text-xs ${x.ready ? "text-slate-800" : "text-slate-300"}">${escR(x.number || "—")}</td>
+        <td>${escR(x.network || "—")}</td>
+        <td class="max-w-[160px] truncate">${escR(x.issuedTo || "—")}</td>
+        <td class="text-xs text-slate-500">${fmtR(x.installedAt)}</td>
+        <td>${x.ready
+          ? '<span class="inline-flex rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 px-2 py-0.5 text-[0.62rem] font-bold">Ready</span>'
+          : `<div class="flex items-center gap-1">
+               <input type="text" class="ir-fix-input w-28 rounded border border-slate-200 px-1.5 py-1 text-xs font-mono" placeholder="Add number" data-id="${escR(x.id)}" />
+               <button class="ir-fix-save text-emerald-600 hover:underline text-xs font-semibold" data-id="${escR(x.id)}">Save</button>
+             </div>`}</td>
+      </tr>`).join("");
+    } catch (e) {
+      g("ir-body").innerHTML = '<tr><td colspan="7" class="text-center py-8 text-red-500">Failed to load report.</td></tr>';
+    }
+  }
+
+  g("ir-download")?.addEventListener("click", async () => {
+    const amount = g("ir-amount").value || "7";
+    const org = (g("ir-org").value || "unique").trim() || "unique";
+    const token = APP.getSession?.()?.accessToken;
+    const btn = g("ir-download"); const orig = btn.textContent;
+    btn.disabled = true; btn.textContent = "Preparing…";
+    try {
+      const q = new URLSearchParams({ amount: String(amount), organization: org, status: irStatus() });
+      const res = await fetch(`${APP.API_BASE}/inventory/mass-topup/installed-report.csv?${q}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!res.ok) throw new Error("Export failed (" + res.status + ")");
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement("a"); a.href = url; a.download = "installed-sim-topup.csv"; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) { alert(e.message || "Failed to download CSV."); }
+    finally { btn.disabled = false; btn.textContent = orig; }
+  });
+
+  g("ir-status")?.addEventListener("change", loadInstalledReport);
+
+  // Inline "add MSISDN" on missing rows (event-delegated)
+  g("ir-body")?.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".ir-fix-save");
+    if (!btn) return;
+    const id = btn.getAttribute("data-id");
+    const input = btn.parentElement.querySelector(".ir-fix-input");
+    const msisdn = ((input && input.value) || "").trim();
+    if (!msisdn) { input && input.focus(); return; }
+    btn.disabled = true; btn.textContent = "…";
+    try {
+      await APP.apiFetch("/inventory/mass-topup/installed-report/set-msisdn", { method: "POST", body: { id, msisdn } });
+      await loadInstalledReport();
+    } catch (err) {
+      alert(err.message || "Failed to save number.");
+      btn.disabled = false; btn.textContent = "Save";
+    }
+  });
+  g("ir-body")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && e.target.classList && e.target.classList.contains("ir-fix-input")) {
+      e.preventDefault();
+      const save = e.target.parentElement.querySelector(".ir-fix-save");
+      if (save) save.click();
+    }
+  });
+
+  loadInstalledReport();
+});
 </script>
 </body>
 </html>

@@ -131,7 +131,8 @@ const REPORTS = {
       ["quoteNo", "Quotation"], ["quoteStatus", "Quote Status"], ["quoteAmount", "Quote Amount (KES)"], ["loanTermMonths", "Loan Term (Months)"],
       ["proformaNo", "Proforma"], ["proformaStatus", "Proforma Status"],
       ["invoiceNo", "Invoice"], ["invoiceStatus", "Invoice Status"], ["invoiceAmount", "Invoice Amount (KES)"], ["invoicePaid", "Invoice Paid"],
-      ["ticketNo", "Vehicle Ticket"], ["installationStatus", "Installation Status"], ["installationDate", "Installation Date"], ["vehicleRegistration", "Vehicle Reg"],
+      ["ticketNo", "Vehicle Ticket"], ["installationStatus", "Installation Status"], ["installationDate", "Installation Date"], ["vehicleRegistration", "Vehicle Reg"], ["vehicleChassis", "Chassis / VIN"],
+      ["certificateSerial", "Certificate"],
       ["technician", "Technician"], ["isoAssigned", "ISO"],
       ["salesRep", "Sales Rep"], ["assignedTo", "Assigned To"],
       ["leadDate", "Lead Date"], ["expectedCloseDate", "Expected Close"], ["createdAt", "Created"], ["convertedAt", "Converted"],
@@ -139,9 +140,18 @@ const REPORTS = {
     defaultCols: [
       "leadNo", "customerName", "phone", "status", "leadSource",
       "quoteNo", "loanTermMonths", "proformaNo", "invoiceNo", "invoiceStatus", "invoicePaid",
-      "ticketNo", "installationStatus", "installationDate", "technician", "isoAssigned", "region", "customerSegment", "salesRep", "leadDate",
+      "ticketNo", "installationStatus", "certificateSerial", "installationDate", "vehicleRegistration", "technician", "isoAssigned", "region", "customerSegment", "salesRep", "leadDate",
     ],
     money: ["quoteAmount", "invoiceAmount"],
+    // Row hyperlinks — same treatment as Retail Leads (certificate opens the authed PDF).
+    links: {
+      leadNo:              (r) => r.leadId     ? `crm-lead-detail.html?id=${encodeURIComponent(r.leadId)}` : null,
+      customerName:        (r) => r.customerId ? `crm-customer-360.html?id=${encodeURIComponent(r.customerId)}` : null,
+      vehicleRegistration: (r) => r.vehicleId  ? `vehicle-360.html?id=${encodeURIComponent(r.vehicleId)}` : null,
+      quoteNo:             (r) => r.quoteId    ? `crm-quote-detail.html?id=${encodeURIComponent(r.quoteId)}` : null,
+      invoiceNo:           (r) => r.invoiceId  ? `invoice-detail.html?id=${encodeURIComponent(r.invoiceId)}` : null,
+      ticketNo:            (r) => r.ticketId   ? `job-details.html?id=${encodeURIComponent(r.ticketId)}` : null,
+    },
   },
   "retail-leads": {
     label: "Retail Leads",
@@ -158,6 +168,7 @@ const REPORTS = {
       partnerName: { type: "text", placeholder: "Partner name" },
       bankPartnerName: { type: "text", placeholder: "Bank partner name" },
       productName: { type: "text", placeholder: "Product name" },
+      productCategory: { type: "text", placeholder: "e.g. Fuel Management" },
       installationFinancer: { type: "text", placeholder: "e.g. Bank, Self" },
       vehicleCategory: { type: "select", options: [["motor_vehicle", "Motor Vehicle"], ["motorcycle", "Motorcycle"], ["tractor", "Tractor"], ["tuktuk", "Tuktuk"], ["special_equipment", "Special Equipment"]] },
       quoteStatus: { type: "text", placeholder: "e.g. Draft, Sent, Accepted" },
@@ -173,24 +184,36 @@ const REPORTS = {
       ["status", "Status"], ["leadSource", "Source"],
       ["partnerName", "Partner"], ["secondaryPartnerName", "Secondary Partner"], ["bankPartnerName", "Bank Partner"],
       ["referrerName", "Referrer"], ["referrerPhone", "Referrer Phone"],
-      ["productName", "Product"], ["installationFinancer", "Financer"],
+      ["productName", "Product"], ["productCategory", "Product Category"], ["installationFinancer", "Financer"],
       ["installationContactName", "Install Contact"], ["installationContactPhone", "Install Contact Phone"], ["locationDescription", "Location"],
       ["loanTermMonths", "Loan Term (Months)"],
-      ["vehicleRegistration", "Vehicle Reg"], ["vehicleMake", "Make"], ["vehicleModel", "Model"], ["vehicleCategory", "Category"],
+      ["vehicleRegistration", "Vehicle Reg"], ["vehicleChassis", "Chassis / VIN"], ["vehicleMake", "Make"], ["vehicleModel", "Model"], ["vehicleCategory", "Category"],
       ["quoteNo", "Quotation"], ["quoteStatus", "Quote Status"], ["quoteAmount", "Quote Amount (KES)"],
       ["proformaNo", "Proforma"], ["proformaStatus", "Proforma Status"],
       ["invoiceNo", "Invoice"], ["invoiceStatus", "Invoice Status"], ["invoiceAmount", "Invoice Amount (KES)"], ["invoicePaid", "Invoice Paid"],
       ["ticketNo", "Vehicle Ticket"], ["installationStatus", "Installation Status"], ["installationDate", "Installation Date"],
+      ["certificateSerial", "Certificate"],
       ["technician", "Technician"], ["isoAssigned", "ISO"],
       ["salesRep", "Sales Rep"], ["bdmName", "BDM"],
       ["submittedAt", "Submitted"], ["createdAt", "Created"],
     ],
     defaultCols: [
-      "leadNo", "customerName", "phone", "status", "leadSource", "loanTermMonths",
+      "leadNo", "customerName", "phone", "status", "leadSource", "productCategory", "loanTermMonths",
+      "vehicleRegistration",
       "quoteNo", "invoiceNo", "invoiceStatus", "invoicePaid",
-      "ticketNo", "installationStatus", "installationDate", "technician", "isoAssigned", "salesRep", "createdAt",
+      "ticketNo", "installationStatus", "certificateSerial", "installationDate", "technician", "isoAssigned", "salesRep", "createdAt",
     ],
     money: ["quoteAmount", "invoiceAmount"],
+    // Row hyperlinks — each maps a column to a detail page, using the raw IDs the
+    // backend now returns. Certificate is handled separately (authed PDF blob).
+    links: {
+      leadNo:              (r) => r.leadId     ? `retail-lead-detail.html?id=${encodeURIComponent(r.leadId)}` : null,
+      customerName:        (r) => r.customerId ? `crm-customer-360.html?id=${encodeURIComponent(r.customerId)}` : null,
+      vehicleRegistration: (r) => r.vehicleId  ? `vehicle-360.html?id=${encodeURIComponent(r.vehicleId)}` : null,
+      quoteNo:             (r) => r.quoteId    ? `crm-quote-detail.html?id=${encodeURIComponent(r.quoteId)}` : null,
+      invoiceNo:           (r) => r.invoiceId  ? `invoice-detail.html?id=${encodeURIComponent(r.invoiceId)}` : null,
+      ticketNo:            (r) => r.ticketId   ? `job-details.html?id=${encodeURIComponent(r.ticketId)}` : null,
+    },
   },
   "quotes": {
     label: "Quotes",
@@ -413,19 +436,50 @@ function formatDateValue(v) {
   return d.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
+const LINK_CLASS = "text-blue-600 hover:underline";
 function renderTableBody(rows) {
   const cfg = REPORTS[_activeReport];
   const cols = activeColumns();
+  const links = cfg.links || {};
   $("table-body").innerHTML = rows.length
     ? rows.map((r) => `<tr class="hover:bg-slate-50/60">${cols.map(([key]) => {
         const v = r[key];
         const display = cfg.money?.includes(key)
           ? Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 0 })
           : formatDateValue(v);
-        return `<td>${escapeHtml(display ?? "—")}</td>`;
+        const text = escapeHtml(display ?? "—");
+        const hasValue = display != null && display !== "" && display !== "—";
+        // Certificate cell opens an authenticated PDF blob (a plain href would 401).
+        if (key === "certificateSerial" && r.certificateId && hasValue) {
+          return `<td><a href="#" data-cert-id="${escapeHtml(r.certificateId)}" class="${LINK_CLASS} cursor-pointer">${text}</a></td>`;
+        }
+        const href = links[key] ? links[key](r) : null;
+        if (href && hasValue) {
+          return `<td><a href="${escapeHtml(href)}" target="_blank" rel="noopener" class="${LINK_CLASS}">${text}</a></td>`;
+        }
+        return `<td>${text}</td>`;
       }).join("")}</tr>`).join("")
     : `<tr><td colspan="${cols.length}" class="text-center py-10 text-slate-400">No results for this filter.</td></tr>`;
 }
+
+// Certificate has no detail page — fetch its PDF with the auth header and open it.
+const _authHeaders = () => {
+  const s = APP.getSession?.();
+  return s?.accessToken ? { Authorization: `Bearer ${s.accessToken}` } : {};
+};
+async function openCertificatePdf(id) {
+  try {
+    const res = await fetch(`${APP.CONFIG.API_BASE_URL}/certificates/${id}/pdf`, { headers: _authHeaders() });
+    if (!res.ok) throw new Error();
+    window.open(URL.createObjectURL(await res.blob()), "_blank", "noopener");
+  } catch { APP.showToast?.("Failed to open certificate PDF.", "error"); }
+}
+document.getElementById("table-body").addEventListener("click", (e) => {
+  const a = e.target.closest("a[data-cert-id]");
+  if (!a) return;
+  e.preventDefault();
+  openCertificatePdf(a.getAttribute("data-cert-id"));
+});
 
 async function loadReport() {
   const cfg = REPORTS[_activeReport];
@@ -470,22 +524,69 @@ function renderPagination() {
   $("pg-next")?.addEventListener("click", () => { if (_page < totalPages) { _page++; loadReport(); } });
 }
 
+// CSV cell quoting — same convention used across the app's other CSV exports.
+function csvCell(v) {
+  const s = String(v ?? "");
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+// Same value rendering as the on-screen table (money formatting, date
+// formatting) so the export matches what the user is actually looking at —
+// just as plain text/numbers instead of links.
+function csvValueFor(cfg, key, row) {
+  const v = row[key];
+  if (cfg.money?.includes(key)) return v == null || v === "" ? "" : Number(v || 0);
+  const display = formatDateValue(v);
+  return display == null ? "" : display;
+}
+
+// Exports exactly what's on screen: the active report tab, the current
+// filters, and — the part the fixed server-side .csv endpoint couldn't know —
+// only the columns currently checked in the Columns picker, in that same
+// order, headed by their display labels. Pulls every matching row (not just
+// the current page) by walking the same JSON list endpoint the table uses.
 async function exportCsv() {
   const cfg = REPORTS[_activeReport];
-  const qs = toQueryString(currentFilterValues());
-  const csvUrl = `${cfg.endpoint}.csv?${qs}`;
+  const cols = activeColumns();
+  if (!cols.length) { APP.showToast?.("No columns selected to export.", "error"); return; }
+
+  const btn = $("btn-export");
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Exporting…";
   try {
-    const session = APP.getSession();
-    const resp = await fetch(`${APP.API_BASE}${csvUrl}`, { headers: { Authorization: `Bearer ${session?.accessToken || ""}` } });
-    if (!resp.ok) throw new Error("Export failed.");
-    const blob = await resp.blob();
+    const filters = currentFilterValues();
+    const pageSize = 500;
+    const MAX_ROWS = 20000; // generous safety cap; flagged to the user if actually hit
+    let rows = [];
+    let page = 1;
+    let total = Infinity;
+    while (rows.length < total && rows.length < MAX_ROWS) {
+      const qs = toQueryString(filters, { page, pageSize });
+      const res = await APP.apiFetch(`${cfg.endpoint}?${qs}`);
+      const batch = res?.data || [];
+      total = res?.meta?.total ?? batch.length;
+      rows = rows.concat(batch);
+      if (!batch.length) break;
+      page++;
+    }
+    if (total > rows.length) {
+      APP.showToast?.(`Exported the first ${rows.length.toLocaleString()} of ${total.toLocaleString()} matching rows.`, "warning");
+    }
+
+    const header = cols.map(([, label]) => csvCell(label)).join(",");
+    const lines = rows.map((r) => cols.map(([key]) => csvCell(csvValueFor(cfg, key, r))).join(","));
+    const blob = new Blob([[header, ...lines].join("\n")], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `${_activeReport}.csv`;
+    a.href = url; a.download = `${_activeReport}-${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   } catch (e) {
     APP.showToast?.(e?.message || "Export failed.", "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origText;
   }
 }
 

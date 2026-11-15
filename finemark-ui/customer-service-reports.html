@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Customer Service Reports</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    .badge{display:inline-flex;align-items:center;border-radius:9999px;padding:.15rem .6rem;font-size:.7rem;font-weight:600;border-width:1px;}
+    .badge-all{background:#eef2ff;color:#4338ca;border-color:#c7d2fe;}
+    .badge-team{background:#fff7ed;color:#c2410c;border-color:#fed7aa;}
+    .badge-own{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}
+    table.report-table th{position:sticky;top:0;background:#f8fafc;text-align:left;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:#64748b;padding:.55rem .75rem;border-bottom:1px solid #e2e8f0;white-space:nowrap;}
+    table.report-table td{padding:.55rem .75rem;font-size:.8rem;border-bottom:1px solid #f1f5f9;color:#334155;white-space:nowrap;}
+    .pill{display:inline-flex;align-items:center;border-radius:9999px;padding:.1rem .5rem;font-size:.68rem;font-weight:600;border-width:1px;}
+    .pill-yes{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}
+    .pill-no{background:#f8fafc;color:#64748b;border-color:#e2e8f0;}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-3 sm:p-6 min-w-0 space-y-5">
+
+    <div class="flex flex-wrap items-center gap-3 justify-between">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Customer Service Reports</h1>
+        <p class="text-sm text-slate-500 mt-0.5">Every customer's vehicle, installation and tracking login in one view.</p>
+      </div>
+      <span id="scope-badge" class="badge badge-own">Loading…</span>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+      <div id="filter-fields" class="grid gap-3 md:grid-cols-4"></div>
+      <div class="flex flex-wrap items-center gap-3">
+        <button id="btn-apply"  class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Apply</button>
+        <button id="btn-reset"  class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Reset</button>
+        <button id="btn-export" class="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100">Export CSV</button>
+        <div class="relative">
+          <button id="btn-columns" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/></svg>
+            Columns
+          </button>
+          <div id="columns-panel" class="hidden absolute right-0 z-20 mt-2 w-72 max-h-96 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg p-3 space-y-1">
+            <div class="flex items-center justify-between pb-2 mb-1 border-b border-slate-100">
+              <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Show columns</span>
+              <div class="flex gap-2">
+                <button id="cols-all"     class="text-xs font-medium text-blue-600 hover:text-blue-800">All</button>
+                <button id="cols-default" class="text-xs font-medium text-blue-600 hover:text-blue-800">Default</button>
+              </div>
+            </div>
+            <div id="columns-list" class="space-y-1"></div>
+          </div>
+        </div>
+        <button id="btn-share" class="hidden rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100">
+          Share logins on SMS (<span id="share-count">0</span>)
+        </button>
+        <span id="result-count" class="text-xs text-slate-500 ml-auto"></span>
+      </div>
+    </div>
+
+    <!-- Results table -->
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      <div class="overflow-x-auto max-h-[560px]">
+        <table class="report-table min-w-full">
+          <thead id="table-head"></thead>
+          <tbody id="table-body"><tr><td class="text-center py-10 text-slate-400">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div id="pagination" class="flex items-center justify-between gap-3 px-4 py-3 border-t border-slate-100 text-xs text-slate-500"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Share-logins confirmation modal -->
+<div id="share-modal" class="hidden fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+    <div class="px-5 py-4 border-b border-slate-100">
+      <h3 class="text-lg font-bold text-slate-900">Share tracking logins by SMS</h3>
+      <p class="text-xs text-slate-500 mt-0.5">This sends a real SMS to each customer below. It cannot be undone.</p>
+    </div>
+    <div id="share-body" class="px-5 py-4 overflow-y-auto text-sm space-y-3 flex-1"></div>
+    <div class="px-5 py-4 border-t border-slate-100 flex items-center justify-end gap-2">
+      <button id="share-cancel" class="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">Cancel</button>
+      <button id="share-confirm" class="px-4 py-2 text-sm rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 disabled:opacity-40">Send SMS</button>
+    </div>
+  </div>
+</div>
+
+<div id="fm-footer"></div>
+
+<script src="assets/app.js?v=202609071200"></script>
+<script src="assets/layout.js?v=202609071200"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  window.FINEMARK_APP?.requirePageAccess?.();
+  init();
+});
+
+const APP = window.FINEMARK_APP;
+const $ = (id) => document.getElementById(id);
+const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// ── Report definition ───────────────────────────────────────────────────────
+// Columns are the report's catalogue; `defaultCols` is only the initial view —
+// everything stays available in the Columns picker. Filter keys match column
+// keys so the filter bar is derived from whichever columns are visible.
+const REPORT = {
+  endpoint: "/customer-service/report",
+  searchPlaceholder: "Customer, lead no, phone, email, vehicle reg, ticket no",
+  columns: [
+    ["leadNo", "Lead No"],
+    ["customerName", "Customer"],
+    ["customerType", "Customer Type"],
+    ["entityType", "Entity Type"],
+    ["phone", "Phone"],
+    ["email", "Email"],
+    ["region", "Region"],
+    ["status", "Status"],
+    ["partner", "Partner"],
+    ["product", "Product"],
+    ["location", "Location"],
+    ["loanTermMonths", "Loan Term (Months)"],
+    ["vehicleReg", "Vehicle Reg"],
+    ["chassis", "Chassis / VIN"],
+    ["make", "Make"],
+    ["model", "Model"],
+    ["installationStatus", "Installation Status"],
+    ["installationDate", "Installation Date"],
+    ["technician", "Technician"],
+    ["iso", "ISO"],
+    ["salesRep", "Sales Rep"],
+    ["logins", "Logins"],
+    ["trackingPlatform", "Tracking Platform"],
+    ["loginSource", "Login Source"],
+    ["loginsShared", "Logins Shared"],
+    ["loginsSharedAt", "Logins Shared On"],
+  ],
+  defaultCols: [
+    "leadNo", "customerName", "phone", "region", "status", "partner",
+    "vehicleReg", "make", "model", "installationStatus", "installationDate",
+    "technician", "iso", "salesRep", "logins", "loginsShared", "loginsSharedAt",
+  ],
+  filterDefs: {
+    leadNo: { type: "text", placeholder: "e.g. RL-0042" },
+    customerName: { type: "text", placeholder: "Customer name" },
+    customerType: { type: "select", options: [["new_customer", "New Customer"], ["existing_customer", "Existing Customer"]] },
+    entityType: { type: "select", options: [["individual", "Individual"], ["corporate", "Corporate"]] },
+    phone: { type: "text", placeholder: "Phone" },
+    email: { type: "text", placeholder: "Email" },
+    region: { type: "text", placeholder: "County / region" },
+    status: { type: "text", placeholder: "Lead status" },
+    // Options are filled from /customer-service/partners on load (see loadPartnerOptions).
+    partner: { type: "select", options: [] },
+    product: { type: "text", placeholder: "Product" },
+    location: { type: "text", placeholder: "Location" },
+    vehicleReg: { type: "text", placeholder: "e.g. KDJ 484W" },
+    chassis: { type: "text", placeholder: "Chassis / VIN" },
+    make: { type: "text", placeholder: "Make" },
+    model: { type: "text", placeholder: "Model" },
+    installationStatus: { type: "select", options: ["Pending", "Assigned", "InProgress", "Completed", "OnHold", "Cancelled"] },
+    // NOTE: logins / loginSource / loginsShared are deliberately NOT filterable.
+    // They are resolved after the SQL query (from the separate archive database
+    // and from decrypted SMS bodies), so a server-side filter on them would
+    // silently match nothing rather than doing what the control implies.
+    technician: { type: "text", placeholder: "Technician email" },
+    iso: { type: "text", placeholder: "ISO email" },
+    salesRep: { type: "text", placeholder: "Sales rep" },
+  },
+  links: {
+    leadNo: (r) => (r.leadId ? `retail-lead-detail.html?id=${encodeURIComponent(r.leadId)}` : null),
+    customerName: (r) => (r.customerId ? `crm-customer-360.html?id=${encodeURIComponent(r.customerId)}` : null),
+    vehicleReg: (r) => (r.vehicleId ? `vehicle-360.html?id=${encodeURIComponent(r.vehicleId)}` : null),
+    // The credential is never rendered here. "View message" opens the actual
+    // SMS that was sent (deep-linked in the customer's communication
+    // timeline); "Archive record" opens the legacy install record for the
+    // plate. Either way the login is read deliberately, in a place that logs it.
+    logins: (r) => {
+      const cust = r.loginCustomerId || r.customerId;
+      if (r.loginMessageId && cust) {
+        return `crm-customer-360.html?id=${encodeURIComponent(cust)}&tab=comms&log=${encodeURIComponent(r.loginMessageId)}`;
+      }
+      if (r.hasArchiveLogin && r.vehicleReg && r.vehicleReg !== "—") {
+        return `archive-installations.html?reg=${encodeURIComponent(r.vehicleReg)}`;
+      }
+      return null;
+    },
+  },
+};
+
+let _page = 1, _pageSize = 50, _total = 0, _lastRows = [];
+const _selected = new Set();       // leadIds ticked for the SMS action
+let _canShare = false;             // role gate for the Share action (mirrors the server)
+
+// ── Configurable columns (persisted per browser) ────────────────────────────
+const COLS_STORAGE_KEY = "fm_cs_report_cols";
+const defaultCols = () => REPORT.defaultCols || REPORT.columns.map(([k]) => k);
+
+function visibleCols() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(COLS_STORAGE_KEY) || "null");
+    if (Array.isArray(saved) && saved.length) {
+      const valid = new Set(REPORT.columns.map(([k]) => k));
+      const filtered = saved.filter((k) => valid.has(k));   // drop stale keys after a schema change
+      if (filtered.length) return filtered;
+    }
+  } catch {}
+  return defaultCols();
+}
+const setVisibleCols = (cols) => localStorage.setItem(COLS_STORAGE_KEY, JSON.stringify(cols));
+
+function activeColumns() {
+  const visible = new Set(visibleCols());
+  return REPORT.columns.filter(([k]) => visible.has(k));    // catalogue order, not click order
+}
+
+function renderColumnsPanel() {
+  const visible = new Set(visibleCols());
+  $("columns-list").innerHTML = REPORT.columns.map(([key, label]) => `
+    <label class="flex items-center gap-2 px-1.5 py-1 rounded-lg hover:bg-slate-50 text-sm text-slate-700 cursor-pointer">
+      <input type="checkbox" data-col="${key}" ${visible.has(key) ? "checked" : ""}
+        class="rounded border-slate-300 text-slate-900 focus:ring-slate-400" />
+      ${escapeHtml(label)}
+    </label>`).join("");
+  $("columns-list").querySelectorAll("input[type=checkbox]").forEach((cb) => {
+    cb.addEventListener("change", (e) => {
+      const checkedBoxes = [...$("columns-list").querySelectorAll("input[type=checkbox]:checked")];
+      if (!checkedBoxes.length) { e.target.checked = true; return; }   // keep at least one column
+      const checked = checkedBoxes.map((c) => c.dataset.col);
+      setVisibleCols(REPORT.columns.map(([k]) => k).filter((k) => checked.includes(k)));
+      renderTableHead(); renderTableBody(_lastRows); renderFilterFields(true);
+    });
+  });
+}
+
+// ── Filters ─────────────────────────────────────────────────────────────────
+// Search and the date range are always available; every other filter appears
+// only when its matching column is currently visible.
+function activeFilterFields() {
+  const visible = new Set(visibleCols());
+  const fields = [{ id: "search", label: "Search", type: "text", placeholder: REPORT.searchPlaceholder, span: 2 }];
+  REPORT.columns.forEach(([key, label]) => {
+    const def = REPORT.filterDefs?.[key];
+    if (def && visible.has(key)) fields.push({ id: key, label, ...def });
+  });
+  fields.push({ id: "from", label: "Lead created from", type: "date" });
+  fields.push({ id: "to", label: "Lead created to", type: "date" });
+  return fields;
+}
+
+function currentFilterValues() {
+  const values = {};
+  activeFilterFields().forEach((f) => {
+    const el = $(`f-${f.id}`);
+    if (el && el.value && el.value.trim()) values[f.id] = el.value.trim();
+  });
+  return values;
+}
+function snapshotFilterValues() {
+  const values = {};
+  document.querySelectorAll('#filter-fields [id^="f-"]').forEach((el) => {
+    if (el.value && el.value.trim()) values[el.id.slice(2)] = el.value;
+  });
+  return values;
+}
+function toQueryString(values, extra) {
+  const params = new URLSearchParams();
+  Object.entries(values).forEach(([k, v]) => params.set(k, v));
+  if (extra) Object.entries(extra).forEach(([k, v]) => params.set(k, v));
+  return params.toString();
+}
+
+function renderFilterFields(preserve) {
+  const preserved = preserve ? snapshotFilterValues() : {};
+  $("filter-fields").innerHTML = activeFilterFields().map((f) => {
+    const input = f.type === "select"
+      ? `<select id="f-${f.id}" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white">
+           <option value="">All</option>
+           ${f.options.map((o) => {
+             const [val, optLabel] = Array.isArray(o) ? o : [o, o];
+             return `<option value="${escapeHtml(val)}">${escapeHtml(optLabel)}</option>`;
+           }).join("")}
+         </select>`
+      : `<input id="f-${f.id}" type="${f.type}" placeholder="${escapeHtml(f.placeholder || "")}"
+           class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />`;
+    return `<div class="${f.span === 2 ? "md:col-span-2" : ""}">
+      <label class="text-xs font-semibold text-slate-600">${escapeHtml(f.label)}</label>
+      ${input}
+    </div>`;
+  }).join("");
+  Object.entries(preserved).forEach(([k, v]) => { const el = $(`f-${k}`); if (el) el.value = v; });
+}
+
+// ── Table ───────────────────────────────────────────────────────────────────
+function renderTableHead() {
+  const cols = activeColumns();
+  const sel = _canShare ? `<th class="w-8"><input type="checkbox" id="sel-all" class="rounded border-slate-300" /></th>` : "";
+  $("table-head").innerHTML = `<tr>${sel}${cols.map(([, label]) => `<th>${escapeHtml(label)}</th>`).join("")}</tr>`;
+  $("sel-all")?.addEventListener("change", (e) => {
+    _lastRows.forEach((r) => {
+      if (!r.leadId) return;
+      if (e.target.checked) _selected.add(r.leadId); else _selected.delete(r.leadId);
+    });
+    renderTableBody(_lastRows); renderShareButton();
+  });
+}
+
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const DATETIME_RE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/;
+function formatDateValue(v) {
+  if (typeof v !== "string") return v;
+  if (!DATE_ONLY_RE.test(v) && !DATETIME_RE.test(v)) return v;
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return v;
+  if (DATE_ONLY_RE.test(v)) return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  return d.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+const LINK_CLASS = "text-blue-600 hover:underline";
+function renderTableBody(rows) {
+  const cols = activeColumns();
+  const links = REPORT.links || {};
+  const colspan = cols.length + (_canShare ? 1 : 0);
+  $("table-body").innerHTML = rows.length
+    ? rows.map((r) => {
+        const sel = _canShare
+          ? `<td><input type="checkbox" data-lead="${escapeHtml(r.leadId || "")}" ${_selected.has(r.leadId) ? "checked" : ""} ${r.leadId ? "" : "disabled"} class="rounded border-slate-300" /></td>`
+          : "";
+        return `<tr class="hover:bg-slate-50/60">${sel}${cols.map(([key]) => {
+          const v = r[key];
+          const display = formatDateValue(v);
+          const text = escapeHtml(display ?? "—");
+          const hasValue = display != null && display !== "" && display !== "—";
+          if (key === "loginsShared") {
+            const yes = String(v).toLowerCase() === "yes";
+            return `<td><span class="pill ${yes ? "pill-yes" : "pill-no"}">${escapeHtml(v || "No")}</span></td>`;
+          }
+          const href = links[key] ? links[key](r) : null;
+          if (href && hasValue) return `<td><a href="${escapeHtml(href)}" target="_blank" rel="noopener" class="${LINK_CLASS}">${text}</a></td>`;
+          return `<td>${text}</td>`;
+        }).join("")}</tr>`;
+      }).join("")
+    : `<tr><td colspan="${colspan}" class="text-center py-10 text-slate-400">No results for this filter.</td></tr>`;
+
+  $("table-body").querySelectorAll("input[data-lead]").forEach((cb) => {
+    cb.addEventListener("change", (e) => {
+      const id = e.target.dataset.lead;
+      if (e.target.checked) _selected.add(id); else _selected.delete(id);
+      renderShareButton();
+    });
+  });
+}
+
+function renderShareButton() {
+  const btn = $("btn-share");
+  if (!_canShare) { btn.classList.add("hidden"); return; }
+  $("share-count").textContent = _selected.size;
+  btn.classList.toggle("hidden", _selected.size === 0);
+}
+
+async function loadReport() {
+  renderTableHead(); renderColumnsPanel();
+  const colspan = activeColumns().length + (_canShare ? 1 : 0);
+  $("table-body").innerHTML = `<tr><td colspan="${colspan}" class="text-center py-10 text-slate-400">Loading…</td></tr>`;
+  try {
+    const qs = toQueryString(currentFilterValues(), { page: _page, pageSize: _pageSize });
+    const res = await APP.apiFetch(`${REPORT.endpoint}?${qs}`);
+    renderScope(res.scope);
+    _lastRows = res?.data || [];
+    _total = res?.meta?.total || 0;
+    renderTableBody(_lastRows);
+    renderPagination();
+    renderShareButton();
+  } catch (e) {
+    $("table-body").innerHTML = `<tr><td colspan="${colspan}" class="text-center py-10 text-red-500">${escapeHtml(e?.message || "Failed to load report.")}</td></tr>`;
+  }
+}
+
+function renderScope(scope) {
+  const map = { all: { label: "All Customers", cls: "badge-all" }, team: { label: "My Team", cls: "badge-team" }, own: { label: "My Records", cls: "badge-own" } };
+  const s = map[scope] || map.own;
+  const el = $("scope-badge");
+  el.textContent = s.label;
+  el.className = `badge ${s.cls}`;
+}
+
+function renderPagination() {
+  const totalPages = Math.max(1, Math.ceil(_total / _pageSize));
+  $("result-count").textContent = `${_total} result${_total === 1 ? "" : "s"}`;
+  $("pagination").innerHTML = `
+    <span>Page ${_page} of ${totalPages}</span>
+    <div class="flex gap-2">
+      <button id="pg-prev" class="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40" ${_page <= 1 ? "disabled" : ""}>Prev</button>
+      <button id="pg-next" class="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40" ${_page >= totalPages ? "disabled" : ""}>Next</button>
+    </div>`;
+  $("pg-prev")?.addEventListener("click", () => { if (_page > 1) { _page--; loadReport(); } });
+  $("pg-next")?.addEventListener("click", () => { if (_page < totalPages) { _page++; loadReport(); } });
+}
+
+// ── CSV export — exactly the visible columns, all matching rows ─────────────
+function csvCell(v) {
+  const s = String(v ?? "");
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+async function exportCsv() {
+  const cols = activeColumns();
+  if (!cols.length) { APP.showToast?.("No columns selected to export.", "error"); return; }
+  const btn = $("btn-export"); const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = "Exporting…";
+  try {
+    const filters = currentFilterValues();
+    const pageSize = 500, MAX_ROWS = 20000;
+    let rows = [], page = 1, total = Infinity;
+    while (rows.length < total && rows.length < MAX_ROWS) {
+      const res = await APP.apiFetch(`${REPORT.endpoint}?${toQueryString(filters, { page, pageSize })}`);
+      const batch = res?.data || [];
+      total = res?.meta?.total ?? batch.length;
+      rows = rows.concat(batch);
+      if (!batch.length) break;
+      page++;
+    }
+    if (total > rows.length) APP.showToast?.(`Exported the first ${rows.length.toLocaleString()} of ${total.toLocaleString()} matching rows.`, "warning");
+    const header = cols.map(([, label]) => csvCell(label)).join(",");
+    const lines = rows.map((r) => cols.map(([key]) => csvCell(formatDateValue(r[key]) ?? "")).join(","));
+    const blob = new Blob(["﻿" + [header, ...lines].join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `customer-service-report-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } catch (e) {
+    APP.showToast?.(e?.message || "Export failed.", "error");
+  } finally { btn.disabled = false; btn.textContent = orig; }
+}
+
+// ── Share logins on SMS ─────────────────────────────────────────────────────
+// Two-step: preview (server dry-run, shows exactly who would be texted and who
+// would be skipped and why), then an explicit confirm that actually sends.
+async function openShareModal() {
+  const leadIds = [..._selected];
+  if (!leadIds.length) return;
+  $("share-modal").classList.remove("hidden");
+  $("share-body").innerHTML = `<p class="text-slate-500">Checking who can be sent to…</p>`;
+  $("share-confirm").disabled = true;
+  try {
+    const res = await APP.apiFetch("/customer-service/share-logins", { method: "POST", body: { leadIds, dryRun: true } });
+    const d = res?.data || res;
+    const recips = d.recipients || [];
+    const skipped = d.skipped || [];
+    $("share-body").innerHTML = `
+      <p class="text-sm"><strong>${recips.length}</strong> customer${recips.length === 1 ? "" : "s"} will receive an SMS with their tracking login.</p>
+      ${recips.length ? `<div class="border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-56 overflow-y-auto">
+        ${recips.map((r) => `<div class="px-3 py-2 flex justify-between gap-3">
+          <span>${escapeHtml(r.customer || "—")} <span class="text-slate-400">· ${escapeHtml(r.vehicleReg || "—")}</span></span>
+          <span class="text-slate-500">${escapeHtml(r.phone || "")} → <span class="font-mono">${escapeHtml(r.username || "")}</span></span>
+        </div>`).join("")}
+      </div>` : ""}
+      ${skipped.length ? `<details class="text-xs text-slate-500">
+        <summary class="cursor-pointer font-medium">${skipped.length} skipped</summary>
+        <div class="mt-1 space-y-0.5">${skipped.map((s) => `<div>${escapeHtml(s.customer || s.leadNo || "—")} — ${escapeHtml(s.skipReason || "")}</div>`).join("")}</div>
+      </details>` : ""}`;
+    $("share-confirm").disabled = recips.length === 0;
+  } catch (e) {
+    $("share-body").innerHTML = `<p class="text-rose-600">${escapeHtml(e?.message || "Could not prepare the send.")}</p>`;
+  }
+}
+
+async function confirmShare() {
+  const leadIds = [..._selected];
+  const btn = $("share-confirm");
+  btn.disabled = true; btn.textContent = "Sending…";
+  try {
+    const res = await APP.apiFetch("/customer-service/share-logins", { method: "POST", body: { leadIds, confirm: true } });
+    const d = res?.data || res;
+    APP.showToast?.(`Sent ${d.sent} of ${d.sent + d.failed} SMS.`, d.failed ? "warning" : "success");
+    $("share-modal").classList.add("hidden");
+    _selected.clear();
+    loadReport();
+  } catch (e) {
+    APP.showToast?.(e?.message || "Send failed.", "error");
+  } finally { btn.disabled = false; btn.textContent = "Send SMS"; }
+}
+
+// ── Init ────────────────────────────────────────────────────────────────────
+const SHARE_ROLES = ["Admin", "Support", "Operations", "Technical", "technical_manager", "InstallOffice", "CertAdmin"];
+
+// Partner names come from the data (22 distinct today) rather than a
+// hard-coded list, so the dropdown only offers values the filter can match.
+async function loadPartnerOptions() {
+  try {
+    const res = await APP.apiFetch("/customer-service/partners");
+    const partners = res?.partners || res?.data?.partners || [];
+    REPORT.filterDefs.partner.options = partners;
+    renderFilterFields(true);
+  } catch (e) {
+    console.warn("Partner options failed to load:", e?.message || e);
+  }
+}
+
+function init() {
+  const role = APP.getSession?.()?.user?.role;
+  _canShare = SHARE_ROLES.includes(role);
+
+  renderFilterFields();
+  $("btn-apply").addEventListener("click", () => { _page = 1; loadReport(); });
+  $("btn-reset").addEventListener("click", () => { renderFilterFields(); _page = 1; loadReport(); });
+  $("btn-export").addEventListener("click", exportCsv);
+
+  $("btn-columns").addEventListener("click", (e) => { e.stopPropagation(); $("columns-panel").classList.toggle("hidden"); });
+  $("columns-panel").addEventListener("click", (e) => e.stopPropagation());
+  document.addEventListener("click", () => $("columns-panel").classList.add("hidden"));
+  $("cols-all").addEventListener("click", () => {
+    setVisibleCols(REPORT.columns.map(([k]) => k));
+    renderColumnsPanel(); renderTableHead(); renderTableBody(_lastRows); renderFilterFields(true);
+  });
+  $("cols-default").addEventListener("click", () => {
+    setVisibleCols(defaultCols());
+    renderColumnsPanel(); renderTableHead(); renderTableBody(_lastRows); renderFilterFields(true);
+  });
+
+  $("btn-share").addEventListener("click", openShareModal);
+  $("share-cancel").addEventListener("click", () => $("share-modal").classList.add("hidden"));
+  $("share-confirm").addEventListener("click", confirmShare);
+
+  loadReport();
+  loadPartnerOptions();
+}
+</script>
+</body>
+</html>

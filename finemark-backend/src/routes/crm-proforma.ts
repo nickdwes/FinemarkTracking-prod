@@ -12,8 +12,12 @@ import { sendMail } from "../utils/mailer.js";
 import { createNotification } from "./notifications.js";
 import { buildProformaEmail } from "../utils/emailTemplates.js";
 import { renderQuotePdf } from "../utils/quoteTemplate.js";
+import { inclusiveBreakdown } from "../utils/vat.js";
+import { buildPaymentDetails } from "../utils/paymentDetails.js";
+import { resolveDocBrand } from "../utils/docBrand.js";
 import { createInvoice } from "../services/invoiceService.js";
 import { IdGenerator } from "../utils/idGenerator.js";
+import { markServiceOnlyIfApplicable } from "../services/nonStockProducts.js";
 
 const router = Router();
 
@@ -97,35 +101,6 @@ pgRun(`CREATE INDEX IF NOT EXISTS idx_pf_tokens_hash ON crm_proforma_approval_to
 
 const PORTAL_BASE = (process.env.FRONTEND_URL || "https://portal.finemarktracking.co.ke").replace(/\/$/, "");
 
-async function buildPaymentOptions(
-  partnerName: string | null,
-  vehicleReg: string | null,
-): Promise<Array<{ label: string; value: string }>> {
-  const reg = (vehicleReg || "").trim() || "(Vehicle Reg.)";
-  const opts: Array<{ label: string; value: string }> = [
-    { label: "MPESA PAYBILL",     value: `Paybill: 4048569 | Account: ${reg}` },
-    { label: "MPESA TILL NUMBER", value: "Till: 5620852" },
-  ];
-  if (partnerName) {
-    const key = partnerName.trim().split(/\s+/)[0];
-    if (key) {
-      const bankRow = await pgGet(
-        `SELECT account_name, bank_name, account_number FROM bank_accounts
-         WHERE is_active = true AND LOWER(bank_name) LIKE LOWER(?) ORDER BY created_at LIMIT 1`,
-        [`%${key}%`]
-      ).catch(() => null);
-      if (bankRow) {
-        opts.push({
-          label: bankRow.bank_name
-            ? `${bankRow.bank_name} — ${bankRow.account_name}`
-            : bankRow.account_name,
-          value: String(bankRow.account_number),
-        });
-      }
-    }
-  }
-  return opts;
-}
 
 function nextPfNo(): string {
   return IdGenerator.generateId("proforma");
@@ -202,6 +177,31 @@ async function buildProformaPdf(pfId: string): Promise<{ pf: any; items: any[]; 
     ? (decryptField(pf.ind_address_enc) || null)
     : (pf.corp_address || null);
 
+  // Bill-to-bank — inherit from the linked quote: when it bills the bank partner,
+  // invoice the partner's name + postal address (partners.postal_address, falling
+  // back to bank_financed_pricing.bank_address) instead of the customer's details.
+  let billToName = pf.customer_name || pf.customer_id;
+  let billToAddress = customerAddress;
+  let billToKraPin: string | null = customerKraPin;
+  let billToPhone: string | null = customerPhone;
+  let billToEmail: string | null = customerEmail;
+  if (pf.quote_id) {
+    const linkedQuote = await pgGet(
+      `SELECT q.bill_to_bank, p.name AS partner_name,
+              COALESCE(p.postal_address, bfp.bank_address) AS bank_address
+       FROM crm_quotes q
+       LEFT JOIN partners p ON p.id::text = q.partner_id
+       LEFT JOIN bank_financed_pricing bfp ON bfp.partner_id::text = q.partner_id
+       WHERE q.id = ?`,
+      [pf.quote_id],
+    ).catch(() => null);
+    if (linkedQuote?.bill_to_bank && linkedQuote.partner_name) {
+      billToName = linkedQuote.partner_name;
+      billToAddress = linkedQuote.bank_address || customerAddress;
+      billToKraPin = null; billToPhone = null; billToEmail = null;
+    }
+  }
+
   // ── Fetch installation ticket data for detail rows ───────────────────────
   let salesRepName: string | null = null;
   let technicianName: string | null = null;
@@ -266,10 +266,15 @@ async function buildProformaPdf(pfId: string): Promise<{ pf: any; items: any[]; 
         lineTotal: Number(pf.installation_cost || 0),
       }];
 
-  const subtotal = Number(pf.installation_cost || 0) + Number(pf.subscription_fee || 0) - Number(pf.discount_amount || 0);
-  const vatTotal = Number(pf.total_amount || 0) - subtotal;
+  const incPf = pf.vat_inclusive ? inclusiveBreakdown(Number(pf.total_amount || 0)) : null;
+  const subtotal = incPf ? incPf.subtotal : Number(pf.installation_cost || 0) + Number(pf.subscription_fee || 0) - Number(pf.discount_amount || 0);
+  const vatTotal = incPf ? incPf.vatTotal : Number(pf.total_amount || 0) - subtotal;
+  const effTaxRate = incPf ? incPf.taxRate : taxRate;
   const vehicleReg = pf.vehicle_registration || pf.vehicle_reg_from_db || null;
-  const paymentOptions = await buildPaymentOptions(pf.affiliate_partner_name || null, vehicleReg);
+  const partnerQ = pf.quote_id ? await pgGet<any>("SELECT partner_id, template_override FROM crm_quotes WHERE id = ?", [pf.quote_id]).catch(() => null) : null;
+  const paymentOptions = await buildPaymentDetails({ partnerId: partnerQ?.partner_id || null, partnerName: pf.affiliate_partner_name || null, vehicleReg });
+  // Override: proforma's own, else inherit from the linked quote.
+  const docBrand = await resolveDocBrand(partnerQ?.partner_id || null, pf.template_override || partnerQ?.template_override || null);
 
   const pdfBytes = await renderQuotePdf({
     documentTitle:    "PROFORMA INVOICE",
@@ -277,11 +282,11 @@ async function buildProformaPdf(pfId: string): Promise<{ pf: any; items: any[]; 
     documentNo:       pf.proforma_no,
     issueDate:        pf.created_at,
     expiryDate:       pf.quote_expiry_date || null,
-    customerName:     pf.customer_name || pf.customer_id,
-    customerKraPin,
-    customerPhone,
-    customerEmail,
-    customerAddress,
+    customerName:     billToName,
+    customerKraPin:   billToKraPin,
+    customerPhone:    billToPhone,
+    customerEmail:    billToEmail,
+    customerAddress:  billToAddress,
     salesRep:         salesRepName || pf.sales_rep_name || pf.sales_rep_email || "",
     technicianName:   technicianName || null,
     jobCardNo:        jobCardNo || null,
@@ -292,7 +297,10 @@ async function buildProformaPdf(pfId: string): Promise<{ pf: any; items: any[]; 
     subtotal,
     vatTotal,
     grandTotal:       Number(pf.total_amount || 0),
-    taxRate,
+    taxRate:          effTaxRate,
+    vatInclusive:     !!pf.vat_inclusive,
+    brand:            docBrand.brand,
+    vatDisplay:       docBrand.vatDisplay,
     vehicle:          vehicleReg ? { registration: vehicleReg, make: pf.vehicle_make || undefined, model: pf.vehicle_model || undefined } : null,
     paymentOptions,
     lineItems,
@@ -316,12 +324,14 @@ function mapPF(row: any, items: any[] = []) {
     status: row.status, installationCost: row.installation_cost,
     subscriptionFee: row.subscription_fee, taxRate: row.tax_rate,
     discountAmount: row.discount_amount, totalAmount: row.total_amount,
+    vatInclusive: !!row.vat_inclusive,
     notes: row.notes, approvedBy: row.approved_by, approvedAt: row.approved_at,
     approvalMethod: row.approval_method,
     customerApprovedAt: row.customer_approved_at,
     customerApprovalMethod: row.customer_approval_method,
     rejectedBy: row.rejected_by, rejectedAt: row.rejected_at, rejectedReason: row.rejected_reason,
     convertedToInstallationId: row.converted_to_installation_id,
+    invoiceId: row.invoice_id || null,
     vehicleId: row.vehicle_id || null, vehicleRegistration: row.vehicle_registration || null,
     createdByUserId: row.created_by_user_id, createdAt: row.created_at, updatedAt: row.updated_at,
     items: items.map(mapItem),
@@ -412,36 +422,108 @@ router.get("/customer-approve", async (req, res) => {
   });
 });
 
-// ── GET / ─────────────────────────────────────────────────────────────────────
-router.get("/", requireAuth, requireRole(["Admin","Finance","BDM", "BDMCorporate","Sales","Telesales","FieldSales","Technical"]), async (req: AuthRequest, res) => {
-  const { customerId, quoteId, status, page = "1", pageSize = "50" } = req.query as any;
-  const pageNum = Math.max(parseInt(page, 10) || 1, 1);
-  const sizeNum = Math.min(parseInt(pageSize, 10) || 50, 200);
-  const offset  = (pageNum - 1) * sizeNum;
+// Shared FROM/JOIN for the list and the stats endpoint, so a filter means the
+// same thing in the table as it does in the status count cards.
+const PF_FROM = `
+  FROM crm_proforma_invoices p
+  JOIN crm_customers c ON c.id = p.customer_id
+  LEFT JOIN crm_individual_profiles i ON i.customer_id = c.id
+  LEFT JOIN crm_corporate_profiles corp ON corp.customer_id = c.id
+  LEFT JOIN users u ON u.id = p.sales_rep_id`;
 
+/**
+ * Builds the WHERE clause shared by GET / and GET /stats.
+ *
+ * `search` matches the proforma number or the customer's name. Customer names
+ * live in two different profile tables (individual vs corporate) and are only
+ * reachable through the joins above — which is why search has to be applied
+ * here rather than client-side. `from`/`to` filter on created_at, a TEXT ISO
+ * timestamp, so `to` is extended to a T-separated end-of-day; a plain date
+ * would sort before every timestamp on that day and silently drop it.
+ */
+function pfFilters(req: AuthRequest) {
+  const { customerId, quoteId, status, search, from, to, salesRepId } = req.query as any;
   const filters: string[] = ["p.deleted_at IS NULL"];
-  const params: any[]     = [];
+  const params: any[] = [];
 
   if (!hasCrmFullVisibility(req.user!.role)) { filters.push("p.sales_rep_id = ?"); params.push(req.user!.id); }
   if (customerId) { filters.push("p.customer_id = ?"); params.push(customerId); }
   if (quoteId)    { filters.push("p.quote_id = ?");    params.push(quoteId); }
   if (status)     { filters.push("p.status = ?");      params.push(status); }
+  if (salesRepId) { filters.push("p.sales_rep_id = ?"); params.push(salesRepId); }
+  if (search && String(search).trim()) {
+    const term = `%${String(search).trim()}%`;
+    filters.push("(p.proforma_no ILIKE ? OR COALESCE(i.full_name, corp.company_name) ILIKE ?)");
+    params.push(term, term);
+  }
+  if (from) { filters.push("p.created_at >= ?"); params.push(String(from)); }
+  if (to)   { filters.push("p.created_at <= ?"); params.push(`${String(to)}T23:59:59.999Z`); }
 
-  const where = `WHERE ${filters.join(" AND ")}`;
+  return { where: `WHERE ${filters.join(" AND ")}`, params };
+}
+
+// ── GET /stats ─ status counts across ALL matching rows ───────────────────────
+// Must stay above GET /:id, or "stats" is parsed as an id.
+// The page previously derived its cards by counting the rows it had already
+// fetched, which was capped at one page — so with 1,930 proformas it reported
+// 9 pending instead of 424. These counts are computed in SQL over everything
+// the filters match, independent of pagination.
+router.get("/stats", requireAuth, requireRole(["Admin","CertAdmin","Finance","BDM", "BDMCorporate","Sales","Telesales","FieldSales","Technical"]), async (req: AuthRequest, res) => {
+  const { where, params } = pfFilters(req);
+  const rows = await pgAll<{ status: string; c: string }>(
+    `SELECT p.status, COUNT(*) AS c ${PF_FROM} ${where} GROUP BY p.status`,
+    params
+  );
+  const byStatus: Record<string, number> = {};
+  let total = 0;
+  for (const r of rows) { byStatus[r.status] = Number(r.c); total += Number(r.c); }
+  return ok(res, { byStatus, total });
+});
+
+// ── GET / ─────────────────────────────────────────────────────────────────────
+router.get("/", requireAuth, requireRole(["Admin","CertAdmin","Finance","BDM", "BDMCorporate","Sales","Telesales","FieldSales","Technical"]), async (req: AuthRequest, res) => {
+  const { page = "1", pageSize = "50" } = req.query as any;
+  const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+  const sizeNum = Math.min(parseInt(pageSize, 10) || 50, 200);
+  const offset  = (pageNum - 1) * sizeNum;
+
+  const { where, params } = pfFilters(req);
+  // The invoice join lives here, not in PF_FROM: it's one-to-one on the
+  // invoice PK so it can't inflate counts, but COUNT/stats have no use for it.
+  // Without it the table gave no sign an approved proforma had been invoiced.
   const rows = await pgAll(
     `SELECT p.*, COALESCE(i.full_name, corp.company_name) as customer_name,
-            u.name AS sales_rep_name, u.email AS sales_rep_email
-     FROM crm_proforma_invoices p
-     JOIN crm_customers c ON c.id = p.customer_id
-     LEFT JOIN crm_individual_profiles i ON i.customer_id = c.id
-     LEFT JOIN crm_corporate_profiles corp ON corp.customer_id = c.id
-     LEFT JOIN users u ON u.id = p.sales_rep_id
-     ${where} ORDER BY p.created_at DESC LIMIT ? OFFSET ?`,
+            u.name AS sales_rep_name, u.email AS sales_rep_email,
+            inv.invoice_number, inv.status AS invoice_status
+     ${PF_FROM}
+     LEFT JOIN invoices inv ON inv.id = p.invoice_id
+     ${where} ORDER BY p.created_at DESC, p.id DESC LIMIT ? OFFSET ?`,
     [...params, sizeNum, offset]
   );
-  const totalRow = await pgGet(`SELECT COUNT(*) as total FROM crm_proforma_invoices p ${where}`, params);
-  const data = rows.map(r => ({ ...mapPF(r), customerName: r.customer_name, salesRepName: r.sales_rep_name || null, salesRepEmail: r.sales_rep_email || null }));
-  return ok(res, { data, meta: { total: Number(totalRow?.total ?? 0) } });
+  // The COUNT must use the same FROM/JOIN as the query: search reaches into
+  // the profile tables, so counting from crm_proforma_invoices alone would
+  // 500 with "missing FROM-clause entry" the moment search is used.
+  const totalRow = await pgGet(`SELECT COUNT(*) as total ${PF_FROM} ${where}`, params);
+  const data = rows.map(r => ({
+    ...mapPF(r), customerName: r.customer_name, salesRepName: r.sales_rep_name || null, salesRepEmail: r.sales_rep_email || null,
+    invoiceNumber: r.invoice_number || null, invoiceStatus: r.invoice_status || null,
+  }));
+  return ok(res, { data, meta: { total: Number(totalRow?.total ?? 0), page: pageNum, pageSize: sizeNum } });
+});
+
+// ── GET /sales-reps ─ distinct reps, for the filter dropdown ──────────────────
+router.get("/sales-reps", requireAuth, requireRole(["Admin","CertAdmin","Finance","BDM", "BDMCorporate","Sales","Telesales","FieldSales","Technical"]), async (req: AuthRequest, res) => {
+  const scoped = hasCrmFullVisibility(req.user!.role) ? "" : " AND p.sales_rep_id = ?";
+  const params = hasCrmFullVisibility(req.user!.role) ? [] : [req.user!.id];
+  const rows = await pgAll<{ id: string; name: string }>(
+    `SELECT DISTINCT p.sales_rep_id AS id, COALESCE(u.name, u.email) AS name
+       FROM crm_proforma_invoices p
+       LEFT JOIN users u ON u.id = p.sales_rep_id
+      WHERE p.deleted_at IS NULL AND p.sales_rep_id IS NOT NULL${scoped}
+      ORDER BY name`,
+    params
+  );
+  return ok(res, { data: rows.filter(r => r.name) });
 });
 
 // ── POST / ─ create standalone proforma ───────────────────────────────────────
@@ -596,6 +678,14 @@ router.post(
       return errorResponse(res, 409, "INVALID_STATE", "Only Pending Approval proformas can be approved.");
     if (pf.created_by_user_id === req.user!.id)
       return errorResponse(res, 403, "FORBIDDEN", "You cannot approve a proforma you created.");
+    // Last-line guard before invoice creation: an unpriced (KES 0) proforma must
+    // never fulfil into a real invoice. Checks both the explicit flag (set by
+    // retailQuoteAutomation for partner/device pricing that couldn't be resolved)
+    // and the amount itself, since pricing_missing isn't populated on every
+    // creation path (e.g. the partner auto-fulfil insert) — this closes both.
+    if (pf.pricing_missing || Number(pf.total_amount || 0) === 0) {
+      return errorResponse(res, 409, "PRICING_MISSING", "This proforma has no price set (KES 0) — it must be priced before it can be approved and invoiced.");
+    }
 
     const now = new Date().toISOString();
     const { etrReceiptNo } = req.body as { etrReceiptNo?: string };
@@ -679,7 +769,9 @@ router.post(
     );
     const customerName = custRow?.name || "Customer";
 
-    const VAT_RATE = Number(pf.tax_rate) / 100;
+    // Partner (vat_inclusive) proformas carry tax_rate=0 but ARE 16% VAT-inclusive; use
+    // the standard rate to back the embedded VAT out of the gross total.
+    const VAT_RATE = (pf.vat_inclusive ? 16 : Number(pf.tax_rate)) / 100;
     const grossTotal = Number(pf.total_amount);
     // Reconstruct subtotal/vat from total (tax inclusive)
     const subtotal = VAT_RATE > 0 ? grossTotal / (1 + VAT_RATE) : grossTotal;
@@ -698,7 +790,9 @@ router.post(
       qty: it.quantity,
       rate: Number(it.unit_price),
       amount: Number(it.total_price),
-      vat: VAT_RATE > 0 ? Number(it.total_price) * VAT_RATE : 0,
+      vat: VAT_RATE > 0
+        ? (pf.vat_inclusive ? Number(it.total_price) - Number(it.total_price) / (1 + VAT_RATE) : Number(it.total_price) * VAT_RATE)
+        : 0,
     }));
 
     let invoiceId: string | null = null;
@@ -753,28 +847,69 @@ router.post(
       console.error("[proforma/approve] invoice creation failed:", e?.message);
     }
 
-    // ── 5. Auto-create vi_installation for Technical Dashboard ────────────────
-    const instId = uuidv4();
-    await pgRun(
-      `INSERT INTO vi_installations
-         (id, vehicle_id, customer_id, ticket_ref, status, stage, created_by_user_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'Pending', 0, ?, ?, ?)`,
-      [instId, pf.vehicle_id || null, pf.customer_id, pf.proforma_no, req.user!.id, now, now]
-    );
+    // ── 5. vi_installation for Technical Dashboard ────────────────────────────
+    // For retail leads the installation already exists (created with the RTL ticket and
+    // completed by the technician) — reuse it instead of inserting a duplicate stub and
+    // repointing the RTL ticket onto an empty Pending row (the orphaned-stub drift).
+    // Corporate proformas start a fresh installation here, so they still insert.
+    let instId: string | null = null;
+    if (isRetailLead) {
+      // Reuse the RTL ticket's existing (vehicle-bearing) vi_installation — created at
+      // lead submit and progressed by the technician — instead of spinning up a fresh
+      // empty stub and repointing the ticket onto it. Resolve the vehicle from the
+      // proforma, else from the RTL ticket itself (the proforma may carry no vehicle_id).
+      // This closes the "orphaned-stub drift" that left completed installs invisible to
+      // the certificate side (completion synced onto a vehicle-less stub).
+      const rtlTicket = await pgGet<any>(
+        `SELECT id, vehicle_id, vi_installation_id FROM installation_tickets WHERE ticket_no = ? AND deleted_at IS NULL LIMIT 1`,
+        [ticketNo]
+      ).catch(() => null);
+      // The ticket's OWN record wins. Only then a record for the same vehicle,
+      // and only one no other ticket already owns — reusing a claimed record is
+      // how two tickets came to share one installation, leaving the second
+      // stuck on a finished job that never offers device selection.
+      instId = rtlTicket?.vi_installation_id || null;
+      const reuseVehicleId = pf.vehicle_id || rtlTicket?.vehicle_id || null;
+      if (!instId && reuseVehicleId) {
+        const existingInst = await pgGet(
+          `SELECT v.id FROM vi_installations v
+            WHERE v.vehicle_id = ? AND v.deleted_at IS NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM installation_tickets t
+                 WHERE t.vi_installation_id = v.id AND t.deleted_at IS NULL
+                   AND (?::text IS NULL OR t.id <> ?::text))
+            ORDER BY (v.completed_at IS NOT NULL) DESC, v.completed_at DESC NULLS LAST, v.created_at DESC
+            LIMIT 1`,
+          [reuseVehicleId, rtlTicket?.id ?? null, rtlTicket?.id ?? null]
+        ).catch(() => null);
+        instId = existingInst?.id || null;
+      }
+    }
+    if (!instId) {
+      instId = uuidv4();
+      await pgRun(
+        `INSERT INTO vi_installations
+           (id, vehicle_id, customer_id, ticket_ref, status, stage, created_by_user_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, 'Pending', 0, ?, ?, ?)`,
+        [instId, pf.vehicle_id || null, pf.customer_id, pf.proforma_no, req.user!.id, now, now]
+      );
+    }
 
     // ── 5b. Auto-create installation_tickets record (normal leads only) ─────────
     // Retail leads already have an RTL- installation ticket — don't create a duplicate.
     if (!isRetailLead) {
+      const newItId = uuidv4();
       await pgRun(
         `INSERT INTO installation_tickets
            (id, ticket_no, invoice_id, proforma_id, customer_id, customer_name,
             devices_json, status, stage, vi_installation_id, crm_ticket_id,
             created_by_user_id, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', 0, ?, ?, ?, ?, ?)`,
-        [uuidv4(), ticketNo, invoiceId || null, req.params.id, pf.customer_id, customerName,
+        [newItId, ticketNo, invoiceId || null, req.params.id, pf.customer_id, customerName,
          JSON.stringify(pfItems.map((it: any) => ({ deviceModel: it.device_model, deviceType: it.device_type, quantity: it.quantity }))),
          instId, ticketId, req.user!.id, now, now]
       ).catch((e: any) => console.error("[proforma/approve] installation_ticket creation failed:", e?.message));
+      await markServiceOnlyIfApplicable(newItId);   // service-only proforma → no gadget required
     } else {
       // For retail leads, link the vi_installation back to the existing RTL installation_ticket if found
       const existingItRow = await pgGet(
@@ -783,7 +918,7 @@ router.post(
       ).catch(() => null);
       if (existingItRow?.id) {
         await pgRun(
-          `UPDATE installation_tickets SET vi_installation_id=?, invoice_id=?, updated_at=? WHERE id=?`,
+          `UPDATE installation_tickets SET vi_installation_id=?, invoice_id=COALESCE(?, invoice_id), updated_at=? WHERE id=?`,
           [instId, invoiceId || null, now, existingItRow.id]
         ).catch((e: any) => console.error("[proforma/approve] RTL ticket link failed:", e?.message));
       }

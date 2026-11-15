@@ -73,13 +73,41 @@
             <button class="tab-btn rounded-md px-3 py-1.5 text-slate-600 hover:bg-white" data-status="Cancelled">Cancelled</button>
           </div>
         </div>
-        <div class="flex flex-wrap gap-3 items-end">
-          <input id="search" type="search" placeholder="Search name, phone, lead #…"
-                 class="flex-1 min-w-[200px] rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <select id="rep-filter" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bdm-only hidden">
+        <div class="flex flex-wrap gap-3 items-center">
+          <div class="relative flex-1 min-w-[260px]">
+            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
+            </span>
+            <input id="search" type="text" autocomplete="off" spellcheck="false"
+                   placeholder="Search name, phone, lead #, or car registration…"
+                   class="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-9 py-2.5 text-sm shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition" />
+            <button id="search-clear" type="button" aria-label="Clear search"
+                    class="absolute inset-y-0 right-0 hidden items-center pr-3 text-slate-400 hover:text-slate-600">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <select id="rep-filter" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 bdm-only hidden">
             <option value="">All Sales Reps</option>
           </select>
+          <div class="relative">
+            <button id="btn-columns" type="button" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 flex items-center gap-1.5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+              Columns
+            </button>
+            <div id="columns-panel" class="hidden absolute right-0 z-30 mt-2 w-72 max-h-96 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg p-3 space-y-1">
+              <div class="flex items-center justify-between pb-1 mb-1 border-b border-slate-100">
+                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Show columns</span>
+                <div class="flex gap-2">
+                  <button id="cols-all" type="button" class="text-xs text-blue-600 hover:underline">All</button>
+                  <button id="cols-default" type="button" class="text-xs text-slate-500 hover:underline">Default</button>
+                </div>
+              </div>
+              <div id="columns-list" class="space-y-0.5"></div>
+            </div>
+          </div>
+          <button id="btn-export" type="button" class="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-sm font-semibold text-emerald-800 shadow-sm hover:bg-emerald-100">Export CSV</button>
         </div>
+        <p id="search-hint" class="mt-2 text-xs text-slate-400 hidden"></p>
       </div>
 
       <!-- Table -->
@@ -91,6 +119,9 @@
                 <th class="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap">Lead #</th>
                 <th class="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap">Customer</th>
                 <th class="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap">Vehicle</th>
+                <th class="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap">Partner</th>
+                <th class="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap">Loan Term</th>
+                <th class="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap">Quotation</th>
                 <th class="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap">Lead Source</th>
                 <th class="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap bdm-only hidden">Sales Rep</th>
                 <th class="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap">Status</th>
@@ -100,7 +131,7 @@
               </tr>
             </thead>
             <tbody id="leads-tbody" class="divide-y divide-slate-100">
-              <tr><td colspan="9" class="px-4 py-8 text-center text-slate-400 text-sm">Loading…</td></tr>
+              <tr><td colspan="12" class="px-4 py-8 text-center text-slate-400 text-sm">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -159,7 +190,7 @@ async function loadStats() {
 // ── Load leads ────────────────────────────────────────────────────────────────
 async function loadLeads() {
   const tbody = document.getElementById("leads-tbody");
-  tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">Loading…</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="12" class="px-4 py-8 text-center text-slate-400">Loading…</td></tr>`;
 
   const params = new URLSearchParams({
     page: String(currentPage),
@@ -171,17 +202,30 @@ async function loadLeads() {
 
   const r = await fetch(`/api/retail/leads?${params}`, { headers: authHeaders() });
   const d = await r.json();
-  if (!r.ok) { tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-center text-red-500">${d.error?.message || "Failed to load leads."}</td></tr>`; return; }
+  if (!r.ok) { tbody.innerHTML = `<tr><td colspan="12" class="px-4 py-8 text-center text-red-500">${d.error?.message || "Failed to load leads."}</td></tr>`; return; }
 
   totalLeads = d.total || 0;
   const leads = d.leads || [];
   document.getElementById("pagination-info").textContent =
     totalLeads ? `Showing ${(currentPage-1)*PAGE_SIZE+1}–${Math.min(currentPage*PAGE_SIZE, totalLeads)} of ${totalLeads}` : "No leads found";
+  // Search-context hint under the search bar
+  const hintEl = document.getElementById("search-hint");
+  if (hintEl) {
+    if (currentSearch) {
+      hintEl.textContent = `${totalLeads} ${totalLeads === 1 ? "result" : "results"} for “${currentSearch}”`;
+      hintEl.classList.remove("hidden");
+    } else {
+      hintEl.classList.add("hidden");
+    }
+  }
   document.getElementById("btn-prev").disabled = currentPage <= 1;
   document.getElementById("btn-next").disabled = currentPage * PAGE_SIZE >= totalLeads;
 
   if (!leads.length) {
-    tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">No retail leads found.</td></tr>`;
+    const msg = currentSearch
+      ? `No leads match “${currentSearch}”. Try a name, phone, lead #, or car registration.`
+      : "No retail leads found.";
+    tbody.innerHTML = `<tr><td colspan="12" class="px-4 py-10 text-center text-slate-400">${msg}</td></tr>`;
     return;
   }
 
@@ -203,6 +247,15 @@ async function loadLeads() {
       : "—";
 
     const src = l.leadSource + (l.partnerName ? ` — ${l.partnerName}` : "");
+    // Financing: a lead is "Private" (self-funded) unless it's actually bank-financed —
+    // i.e. it has a financing partner (vehicle/bank/lead) or is marked Bank Financed.
+    // Show "Private" in the Partner column instead of leaving non-bank leads blank.
+    const finPartner = (l.vehicle && l.vehicle.vehiclePartnerName) || l.bankPartnerName || l.partnerName || "";
+    const finType = (l.installationFinancer || "").trim();
+    const isPrivateFin = finType === "Private" || (!finPartner && finType !== "Bank Financed");
+    const partnerCell = isPrivateFin
+      ? `<span class="text-slate-500 italic">Private</span>`
+      : (finPartner ? `<span class="text-slate-700">${escHtml(finPartner)}</span>` : `<span class="text-slate-300">—</span>`);
     const date = l.createdAt ? new Date(l.createdAt).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" }) : "—";
 
     const custHref = l.customerId
@@ -222,17 +275,20 @@ async function loadLeads() {
     }[l.installationTicketStatus] || "bg-slate-100 text-slate-600";
 
     let actionsHtml = `<a href="retail-lead-detail.html?id=${l.id}" class="text-xs text-blue-600 hover:text-blue-800 font-medium">View →</a>`;
-    // Quote/invoice actions key off the ticket's own completion, not
-    // l.status — a lead can be quote-eligible before anyone has clicked
-    // "Close Lead" on it (that button is a separate, explicit bookkeeping step).
-    if (l.installationTicketStatus === "Completed") {
-      if (l.invoiceId) {
-        actionsHtml = `<a href="invoice-detail.html?id=${l.invoiceId}" class="text-xs text-teal-600 hover:text-teal-800 font-semibold">View Invoice →</a><br/>` + actionsHtml;
-      } else if (l.quoteId) {
-        actionsHtml = `<a href="crm-quote-detail.html?id=${l.quoteId}" class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold">View Quote →</a><br/>` + actionsHtml;
-      } else {
-        actionsHtml = `<button onclick="raiseQuote('${l.id}')" class="text-xs text-emerald-600 hover:text-emerald-800 font-semibold">Raise Quote</button><br/>` + actionsHtml;
-      }
+    if (l.invoiceId) {
+      actionsHtml = `<a href="invoice-detail.html?id=${l.invoiceId}" class="text-xs text-teal-600 hover:text-teal-800 font-semibold">View Invoice →</a><br/>` + actionsHtml;
+    }
+
+    // Quotation cell (own column): partner-priced leads are auto-quoted → link to
+    // it; private / not-yet-quoted leads → Raise & Edit Quote (decoupled from
+    // install completion — the quote can be raised and priced any time after submit).
+    let quoteCell;
+    if (l.quoteId) {
+      quoteCell = `<a href="crm-quote-detail.html?id=${l.quoteId}" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800">View Quote →</a>`;
+    } else if (l.installationTicketId && l.status !== "cancelled") {
+      quoteCell = `<button onclick="raiseQuoteAndEdit('${l.id}', this)" class="text-xs font-semibold text-emerald-600 hover:text-emerald-800 whitespace-nowrap">Raise &amp; Edit Quote</button>`;
+    } else {
+      quoteCell = `<span class="text-slate-300" title="Submit the lead and create its ticket first">—</span>`;
     }
 
     return `<tr class="hover:bg-slate-50 transition-colors">
@@ -246,6 +302,9 @@ async function loadLeads() {
           ? `<a href="${vehicleHref}" class="text-blue-600 hover:underline">${escHtml(vehicleDisplay)}</a>`
           : `<span class="text-slate-600">${escHtml(vehicleDisplay)}</span>`}
       </td>
+      <td class="px-4 py-3 text-xs whitespace-nowrap">${partnerCell}</td>
+      <td class="px-4 py-3 text-xs whitespace-nowrap">${l.vehicle?.loanTermMonths != null ? `<span class="text-slate-700 font-medium">${l.vehicle.loanTermMonths} mo</span>` : `<span class="text-slate-300">—</span>`}</td>
+      <td class="px-4 py-3 text-xs whitespace-nowrap">${quoteCell}</td>
       <td class="px-4 py-3 text-xs text-slate-600">${escHtml(src)}</td>
       ${isBDM ? `<td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap bdm-only">${escHtml(l.salesRepName||"—")}</td>` : ""}
       <td class="px-4 py-3 whitespace-nowrap">
@@ -267,19 +326,23 @@ async function loadLeads() {
   }).join("");
 }
 
-// ── Raise a quotation for a closed (installation-complete) lead ────────────────
-async function raiseQuote(leadId) {
+// ── Raise a quotation, then jump straight to the editor to set pricing ─────────
+// Decoupled from install completion — mirrors the retail-lead-detail flow.
+async function raiseQuoteAndEdit(leadId, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = "Raising…"; }
   try {
     const r = await fetch(`/api/retail/leads/${leadId}/raise-quote`, { method: "POST", headers: authHeaders() });
-    const d = await r.json();
+    const d = await r.json().catch(() => ({}));
     if (!r.ok) {
+      if (btn) { btn.disabled = false; btn.textContent = "Raise & Edit Quote"; }
       window.FINEMARK_APP?.showToast?.(d.error?.message || "Failed to raise quotation.", "error");
       return;
     }
-    window.FINEMARK_APP?.showToast?.(`Quotation ${d.data?.quoteNo || ""} raised.`, "success");
-    loadLeads();
-    loadStats();
+    const q = d.data || d;
+    window.FINEMARK_APP?.showToast?.(q.pricingMissing ? "Quotation raised — set the pricing." : `Quotation ${q.quoteNo || ""} raised.`, "success");
+    window.location.href = `crm-quote-edit.html?id=${encodeURIComponent(q.quoteId)}`;
   } catch {
+    if (btn) { btn.disabled = false; btn.textContent = "Raise & Edit Quote"; }
     window.FINEMARK_APP?.showToast?.("Failed to raise quotation.", "error");
   }
 }
@@ -302,9 +365,26 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
 
 // ── Search ────────────────────────────────────────────────────────────────────
 let searchTimer;
-document.getElementById("search").addEventListener("input", e => {
+const searchEl = document.getElementById("search");
+const searchClearEl = document.getElementById("search-clear");
+function runSearch() { currentSearch = searchEl.value.trim(); currentPage = 1; loadLeads(); }
+function toggleClear() { searchClearEl.classList.toggle("hidden", !searchEl.value); searchClearEl.classList.toggle("flex", !!searchEl.value); }
+searchEl.addEventListener("input", () => {
+  toggleClear();
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => { currentSearch = e.target.value.trim(); currentPage=1; loadLeads(); }, 400);
+  searchTimer = setTimeout(runSearch, 300);
+});
+// Enter searches immediately; Escape clears.
+searchEl.addEventListener("keydown", e => {
+  if (e.key === "Enter") { clearTimeout(searchTimer); runSearch(); }
+  else if (e.key === "Escape" && searchEl.value) { searchEl.value = ""; toggleClear(); clearTimeout(searchTimer); runSearch(); }
+});
+searchClearEl.addEventListener("click", () => { searchEl.value = ""; toggleClear(); searchEl.focus(); clearTimeout(searchTimer); runSearch(); });
+// "/" focuses the search from anywhere on the page.
+document.addEventListener("keydown", e => {
+  if (e.key === "/" && document.activeElement !== searchEl && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "")) {
+    e.preventDefault(); searchEl.focus();
+  }
 });
 
 // ── Rep filter (BDM only) ─────────────────────────────────────────────────────
@@ -322,6 +402,95 @@ if (isBDM) {
 // ── Pagination ────────────────────────────────────────────────────────────────
 document.getElementById("btn-prev").addEventListener("click", () => { currentPage--; loadLeads(); });
 document.getElementById("btn-next").addEventListener("click", () => { currentPage++; loadLeads(); });
+
+// ── CSV export with an on-screen column picker ─────────────────────────────
+// Choose which columns to include, then export ALL leads matching the current
+// tab/search/rep filters (not just the visible page) as a clean UTF-8 CSV.
+const LEAD_COLUMNS = [
+  ["leadNo", "Lead #"], ["customerName", "Customer"], ["customerEntityType", "Customer Type"],
+  ["customerPhone", "Phone"], ["customerEmail", "Email"], ["customerLocation", "Location"],
+  ["vehicle.registration", "Vehicle Reg"], ["vehicle.make", "Make"], ["vehicle.model", "Model"],
+  ["vehicle.loanTermMonths", "Loan Term (Months)"], ["vehicle.vehicleCategory", "Vehicle Category"],
+  ["productName", "Product"], ["productCategoryName", "Product Category"], ["leadSource", "Lead Source"],
+  ["partnerName", "Partner"], ["secondaryPartnerName", "Secondary Partner"], ["bankPartnerName", "Bank Partner"],
+  ["bankPartnerBranch", "Bank Branch"], ["referrerName", "Referrer"], ["referrerPhone", "Referrer Phone"],
+  ["referrerCommission", "Referrer Commission"], ["salesRepName", "Sales Rep"], ["bdmName", "BDM"],
+  ["status", "Status"], ["installationFinancer", "Financer"], ["installationCounty", "County"],
+  ["installationTicketNo", "Ticket"], ["installationTicketStatus", "Ticket Status"],
+  ["invoiceNumber", "Invoice"], ["invoiceStatus", "Invoice Status"],
+  ["submittedAt", "Submitted"], ["createdAt", "Created"],
+];
+const LEAD_DEFAULT_COLS = ["leadNo","customerName","customerPhone","vehicle.registration","partnerName","vehicle.loanTermMonths","leadSource","salesRepName","status","installationTicketNo","invoiceStatus","createdAt"];
+const LEAD_COLS_LS = "fm_retail_leads_export_cols";
+function exportVisibleCols() {
+  try { const s = JSON.parse(localStorage.getItem(LEAD_COLS_LS) || "null");
+    if (Array.isArray(s) && s.length) { const valid = new Set(LEAD_COLUMNS.map(([k]) => k)); const f = s.filter((k) => valid.has(k)); if (f.length) return f; }
+  } catch {}
+  return LEAD_DEFAULT_COLS;
+}
+const setExportCols = (cols) => { try { localStorage.setItem(LEAD_COLS_LS, JSON.stringify(cols)); } catch {} };
+const getField = (obj, path) => path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), obj);
+function fmtCell(v) {
+  if (v == null) return "";
+  if (Array.isArray(v)) return v.join("; ");
+  if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(v)) { const d = new Date(v); if (!isNaN(d.getTime())) return d.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }); }
+  if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) { const d = new Date(v); if (!isNaN(d.getTime())) return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }); }
+  return String(v);
+}
+function renderColumnsPanel() {
+  const vis = new Set(exportVisibleCols());
+  const list = document.getElementById("columns-list");
+  list.innerHTML = LEAD_COLUMNS.map(([key, label]) =>
+    `<label class="flex items-center gap-2 text-sm text-slate-700 py-0.5 cursor-pointer"><input type="checkbox" data-col="${key}" ${vis.has(key) ? "checked" : ""} class="rounded border-slate-300 text-blue-600" /> ${label}</label>`
+  ).join("");
+  list.querySelectorAll("input[type=checkbox]").forEach((cb) => cb.addEventListener("change", () => {
+    const checked = [...list.querySelectorAll("input:checked")].map((c) => c.dataset.col);
+    setExportCols(LEAD_COLUMNS.map(([k]) => k).filter((k) => checked.includes(k)));
+  }));
+}
+async function exportLeadsCsv() {
+  const btn = document.getElementById("btn-export");
+  const orig = btn.textContent; btn.disabled = true; btn.textContent = "Exporting…";
+  try {
+    const vis = new Set(exportVisibleCols());
+    const cols = LEAD_COLUMNS.filter(([k]) => vis.has(k));
+    if (!cols.length) { alert("Pick at least one column to export (Columns button)."); return; }
+    const all = []; const big = 500;
+    for (let p = 1; p <= 60; p++) {
+      const params = new URLSearchParams({ page: String(p), pageSize: String(big) });
+      if (currentStatus) params.set("status", currentStatus);
+      if (currentSearch) params.set("search", currentSearch);
+      if (currentRep)    params.set("salesRepId", currentRep);
+      const r = await fetch(`/api/retail/leads?${params}`, { headers: authHeaders() });
+      const d = await r.json();
+      const batch = d.leads || [];
+      all.push(...batch);
+      if (batch.length < big || all.length >= (d.total || 0)) break;
+    }
+    if (!all.length) { alert("No leads to export for the current filter."); return; }
+    const esc = (v) => `"${String(v).replace(/"/g, '""')}"`;
+    const lines = [cols.map(([, label]) => esc(label)).join(",")];
+    for (const lead of all) lines.push(cols.map(([key]) => esc(fmtCell(getField(lead, key)))).join(","));
+    const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `retail-leads-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } catch (e) { alert("Export failed: " + (e?.message || e)); }
+  finally { btn.disabled = false; btn.textContent = orig; }
+}
+document.getElementById("btn-export").addEventListener("click", exportLeadsCsv);
+document.getElementById("btn-columns").addEventListener("click", (e) => {
+  e.stopPropagation();
+  const panel = document.getElementById("columns-panel");
+  panel.classList.toggle("hidden");
+  if (!panel.classList.contains("hidden")) renderColumnsPanel();
+});
+document.getElementById("columns-panel").addEventListener("click", (e) => e.stopPropagation());
+document.addEventListener("click", () => document.getElementById("columns-panel").classList.add("hidden"));
+document.getElementById("cols-all").addEventListener("click", () => { setExportCols(LEAD_COLUMNS.map(([k]) => k)); renderColumnsPanel(); });
+document.getElementById("cols-default").addEventListener("click", () => { setExportCols(LEAD_DEFAULT_COLS); renderColumnsPanel(); });
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 loadStats();

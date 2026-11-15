@@ -38,7 +38,7 @@ function mapLog(row: any, masked = false) {
 router.get(
   "/customer/:customerId",
   requireAuth,
-  requireRole(["Admin", "Sales", "BDM", "BDMCorporate", "CorporateSales", "Telesales", "Support", "Operations"]),
+  requireRole(["Admin", "CertAdmin", "Sales", "BDM", "BDMCorporate", "CorporateSales", "Telesales", "Support", "Operations"]),
   async (req: AuthRequest, res) => {
     const { channel, direction, from, to, page = "1", pageSize = "50" } = req.query as any;
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);

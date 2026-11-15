@@ -92,6 +92,23 @@
         </div>
       </div>
 
+      <!-- Payment & Commission Summary + Transaction Timeline -->
+      <div id="pay-comm-panel" class="hidden bg-white rounded-xl border border-slate-200/80 p-5 shadow-sm space-y-4">
+        <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Payment &amp; Commission</h2>
+        <div>
+          <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Invoice Payment</p>
+          <div id="pc-payment-tiles" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2"></div>
+        </div>
+        <div>
+          <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Commission</p>
+          <div id="pc-commission-tiles" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2"></div>
+        </div>
+        <div>
+          <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Transaction Timeline</p>
+          <div id="pc-timeline" class="rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-1"></div>
+        </div>
+      </div>
+
       <!-- eTIMS Panel -->
       <div class="bg-white rounded-xl border border-slate-200/80 p-5 shadow-sm" id="etims-panel">
         <div class="flex items-center justify-between flex-wrap gap-3">
@@ -224,7 +241,98 @@
   </div>
 </div>
 
-<script src="assets/app.js?v=202607011016"></script>
+<!-- Process Payment Modal (Finance / Admin) -->
+<div id="modal-payment" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 my-6 p-6 space-y-4">
+    <h3 id="pmt-title" class="text-lg font-semibold text-slate-800">Process Payment</h3>
+    <div id="pmt-err" class="hidden rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"></div>
+
+    <!-- Action selector: invoice payment and commission are separate financial events -->
+    <div class="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm">
+      <button type="button" data-mode="invoice"    class="pmt-mode-btn flex-1 rounded-md px-3 py-1.5 font-medium text-slate-600">Record Invoice Payment</button>
+      <button type="button" data-mode="commission" class="pmt-mode-btn flex-1 rounded-md px-3 py-1.5 font-medium text-slate-600">Process Commission</button>
+      <button type="button" data-mode="both"       class="pmt-mode-btn flex-1 rounded-md px-3 py-1.5 font-medium text-slate-600">Invoice + Commission</button>
+    </div>
+
+    <!-- Invoice Payment section -->
+    <div id="pmt-invoice-section" class="space-y-2">
+      <p class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Invoice Payment</p>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Amount Paid (banked)</label>
+          <input id="pmt-amount" type="number" min="1" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Invoice Payment Date <span class="text-red-500">*</span></label>
+          <input id="pmt-date" type="date" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Payment Mode</label>
+          <select id="pmt-method" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <option value="Mobile Money">M-Pesa / Mobile Money</option>
+            <option value="Bank Transfer">Bank Transfer</option>
+            <option value="Cash">Cash</option>
+            <option value="Card">Card</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Bank (optional)</label>
+          <input id="pmt-bank" type="text" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-700 mb-1">Transaction / Reference Code</label>
+          <input id="pmt-ref" type="text" placeholder="M-Pesa code / cheque no. / slip" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        </div>
+      </div>
+    </div>
+
+    <input id="pmt-commission-toggle" type="checkbox" class="hidden" />
+    <div id="pmt-commission-wrap" class="hidden space-y-2 pt-2 border-t border-slate-100">
+      <p class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Commission</p>
+      <p class="text-xs text-slate-500">Recorded as a <strong>separate</strong> transaction with its own payout date. The full invoice amount is still banked.</p>
+      <!-- Advanced Commission banner (invoice not fully paid) -->
+      <div id="pmt-advance-banner" class="hidden rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-800 space-y-1.5">
+        <p class="font-semibold">⚠ Advanced Commission — this invoice is not fully paid</p>
+        <div id="pmt-advance-ctx" class="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px]"></div>
+        <div>
+          <label class="block font-medium mb-0.5">Advanced Commission Reason <span class="text-red-500">*</span></label>
+          <select id="pmt-advance-reason" class="w-full border border-amber-300 rounded-lg px-2 py-1.5 text-xs bg-white">
+            <option value="">Select reason…</option>
+            <option>Management approval</option>
+            <option>Special sales arrangement</option>
+            <option>Commission policy exception</option>
+            <option>Sales incentive</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <input id="pmt-advance-note" type="text" placeholder="Notes (optional)" class="w-full border border-amber-300 rounded-lg px-2 py-1.5 text-xs" />
+      </div>
+      <div class="rounded-lg border border-blue-100 bg-blue-50/50 p-2 space-y-1.5">
+        <label class="block text-[11px] font-semibold text-slate-600">Paste M-PESA message to auto-fill</label>
+        <textarea id="pmt-mpesa" rows="2" placeholder="e.g. UHIPG2Z382 Confirmed. Ksh195.00 sent to ROSE MAINA 0721768050 on 18/8/26…" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+        <div class="flex items-center gap-2">
+          <button type="button" id="pmt-mpesa-extract" class="rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700">Extract</button>
+          <span id="pmt-mpesa-msg" class="text-[11px] text-slate-500"></span>
+        </div>
+      </div>
+      <div id="pmt-referrers" class="space-y-2"></div>
+      <button type="button" id="pmt-add-referrer" class="text-xs font-semibold text-blue-600 hover:underline">+ Add referrer</button>
+      <div class="flex items-center justify-between rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs">
+        <span class="text-slate-600">Total commission: <span id="pmt-comm-total" class="font-semibold text-amber-700">KES 0.00</span></span>
+        <span class="text-slate-600">Net revenue: <span id="pmt-net" class="font-semibold text-emerald-700">KES 0.00</span></span>
+      </div>
+    </div>
+
+    <div class="flex gap-2 justify-end pt-2">
+      <button id="btn-pmt-cancel" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+      <button id="btn-pmt-save" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">Record Payment</button>
+    </div>
+  </div>
+</div>
+
+<div id="fm-footer"></div>
+<script src="assets/app.js?v=20260819mpesa"></script>
+<script src="assets/layout.js?v=202607011016"></script>
 <script>
 (async () => {
   const { apiFetch, requirePageAccess, showToast, formatKES } = window.FINEMARK_APP;
@@ -259,10 +367,56 @@
         inv = payload;
       }
       renderInvoice();
+      loadLedger();
     } catch(e) {
       document.getElementById("inv-skeleton").textContent = "Failed to load invoice.";
       console.error(e);
     }
+  }
+
+  const COMM_STATUS_BADGE = {
+    "Pending":"bg-slate-100 text-slate-600", "Eligible":"bg-blue-50 text-blue-700",
+    "Advanced":"bg-amber-100 text-amber-800", "Partially Paid":"bg-yellow-100 text-yellow-700",
+    "Paid":"bg-green-100 text-green-700", "Reversed":"bg-rose-100 text-rose-700", "None":"bg-slate-100 text-slate-500",
+  };
+  const TL_ICON = { invoice_created:"🧾", invoice_payment:"💵", commission_payment:"🎯", advance_commission:"⚠️", commission_reconciled:"✅", commission_reversed:"↩️", commission_reversed_evt:"↩️" };
+
+  async function loadLedger() {
+    try {
+      const res = await apiFetch(`/invoices/${invoiceId}/ledger`);
+      _ledger = res.data || res;
+      renderLedger();
+    } catch (e) { /* summary panel is best-effort */ }
+  }
+
+  function renderLedger() {
+    if (!_ledger) return;
+    const p = _ledger.payment, c = _ledger.commission;
+    const tile = (label, val, cls) => `<div class="rounded-lg border border-slate-200 bg-white p-3"><p class="text-[11px] text-slate-500 font-medium uppercase tracking-wide">${label}</p><p class="text-sm font-semibold mt-0.5 ${cls||"text-slate-800"}">${val}</p></div>`;
+    document.getElementById("pay-comm-panel").classList.remove("hidden");
+    document.getElementById("pc-payment-tiles").innerHTML = [
+      tile("Invoice Amount", kes(p.invoiceAmount)),
+      tile("Total Paid", kes(p.totalPaid), "text-emerald-700"),
+      tile("Outstanding", kes(p.outstanding), p.outstanding > 0 ? "text-red-600" : "text-slate-800"),
+      tile("Payment Status", p.status || "—"),
+      tile("Last Payment", p.lastPaymentDate ? fmt(p.lastPaymentDate) : "—"),
+    ].join("");
+    document.getElementById("pc-commission-tiles").innerHTML = [
+      tile("Commission (pledged)", kes(c.pledged)),
+      tile("Commission Paid", kes(c.paid), "text-amber-700"),
+      tile("Commission Outstanding", kes(c.outstanding)),
+      tile("Commission Status", `<span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${COMM_STATUS_BADGE[c.status]||"bg-slate-100 text-slate-600"}">${c.status}</span>${c.isAdvance ? ` <span class="text-[10px] text-amber-700">(${c.reconciliationStatus})</span>` : ""}`),
+      tile("Beneficiary", c.beneficiary ? String(c.beneficiary).replace(/</g,"&lt;") : "—"),
+    ].join("") + (c.isAdvance && c.advanceReason ? `<div class="col-span-full rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800"><b>Advanced commission reason:</b> ${String(c.advanceReason).replace(/</g,"&lt;")}</div>` : "");
+    const tl = _ledger.timeline || [];
+    document.getElementById("pc-timeline").innerHTML = tl.length ? tl.map((e) =>
+      `<div class="flex items-start gap-3 py-1.5 border-b border-slate-50 last:border-0">
+         <span class="text-base leading-none mt-0.5">${TL_ICON[e.type]||"•"}</span>
+         <div class="flex-1 min-w-0">
+           <p class="text-sm text-slate-700">${String(e.label||"").replace(/</g,"&lt;")}${e.amount ? ` <span class="font-semibold ${e.amount<0?"text-rose-600":"text-slate-800"}">${e.amount<0?"−":""}${kes(Math.abs(e.amount))}</span>`:""}</p>
+           <p class="text-[11px] text-slate-400">${fmt(e.date)}${e.mode?` · ${e.mode}`:""}${e.ref?` · ${String(e.ref).replace(/</g,"&lt;")}`:""}${e.user?` · ${String(e.user).replace(/</g,"&lt;")}`:""}</p>
+         </div>
+       </div>`).join("") : `<p class="text-xs text-slate-400 italic">No transactions yet.</p>`;
   }
 
   function renderInvoice() {
@@ -437,6 +591,8 @@
       buttons.push(`<button id="btn-raise-ticket" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 shadow-sm">🔧 Raise Install Ticket</button>`);
     }
     if (["Finance","Admin"].includes(userRole)) {
+      buttons.push(`<button id="btn-open-payment" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 shadow-sm">💵 Record Invoice Payment</button>`);
+      buttons.push(`<button id="btn-open-commission" class="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 shadow-sm">🎯 Process Commission</button>`);
       buttons.push(`<button id="btn-open-status" class="rounded-lg bg-slate-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 shadow-sm">Update Status</button>`);
     }
     container.innerHTML = buttons.join("");
@@ -445,6 +601,8 @@
     document.getElementById("btn-open-wa")?.addEventListener("click", openWaModal);
     document.getElementById("btn-raise-ticket")?.addEventListener("click", raiseTicket);
     document.getElementById("btn-open-status")?.addEventListener("click", openStatusModal);
+    document.getElementById("btn-open-payment")?.addEventListener("click", () => openPaymentModal("invoice"));
+    document.getElementById("btn-open-commission")?.addEventListener("click", () => openCommissionModal());
   }
 
   // ── Email modal ──────────────────────────────────────────────────────────────
@@ -580,6 +738,221 @@
       });
     } catch(e) { /* panel stays hidden on error */ }
   }
+
+  // ── Process Payment / Commission (invoice payment and commission are separate) ──
+  let _pmtMode = "invoice";   // 'invoice' | 'commission' | 'both'
+  let _ledger = null;          // /invoices/:id/ledger — payment + commission summary + timeline
+
+  function setPmtMode(mode) {
+    _pmtMode = mode;
+    document.querySelectorAll(".pmt-mode-btn").forEach((b) => {
+      const on = b.dataset.mode === mode;
+      b.classList.toggle("bg-white", on); b.classList.toggle("shadow-sm", on);
+      b.classList.toggle("text-slate-900", on); b.classList.toggle("text-slate-600", !on);
+    });
+    const showInvoice = mode === "invoice" || mode === "both";
+    const showCommission = mode === "commission" || mode === "both";
+    document.getElementById("pmt-invoice-section").classList.toggle("hidden", !showInvoice);
+    document.getElementById("pmt-commission-wrap").classList.toggle("hidden", !showCommission);
+    document.getElementById("pmt-commission-toggle").checked = showCommission;
+    document.getElementById("pmt-title").textContent = mode === "commission" ? "Process Commission" : (mode === "both" ? "Invoice Payment + Commission" : "Record Invoice Payment");
+    document.getElementById("btn-pmt-save").textContent = mode === "commission" ? "Record Commission" : (mode === "both" ? "Record Payment + Commission" : "Record Payment");
+    if (showCommission && !document.querySelector(".pmt-ref-row")) {
+      pmtAddReferrer(inv && inv.referrerName ? { name: inv.referrerName, phone: inv.referrerPhone, proposed: inv.referrerProposedCommission } : undefined);
+    }
+    updateAdvanceBanner();
+  }
+
+  function openPaymentModal(mode) {
+    const total = Math.round(Number(inv?.total ?? inv?.amount ?? 0));
+    const outstanding = _ledger ? Math.round(Number(_ledger.payment.outstanding || 0)) : total;
+    document.getElementById("pmt-amount").value = (outstanding || total) || "";
+    document.getElementById("pmt-date").value = new Date().toISOString().slice(0, 10);
+    document.getElementById("pmt-method").value = "Mobile Money";
+    document.getElementById("pmt-bank").value = inv?.bankName || inv?.bank_name || "";
+    document.getElementById("pmt-ref").value = "";
+    document.getElementById("pmt-referrers").innerHTML = "";
+    document.getElementById("pmt-advance-reason").value = "";
+    document.getElementById("pmt-advance-note").value = "";
+    document.getElementById("pmt-err").classList.add("hidden");
+    setPmtMode(mode || "invoice");
+    pmtRecalcNet();
+    document.getElementById("modal-payment").classList.remove("hidden");
+  }
+  function openCommissionModal() { openPaymentModal("commission"); }
+  function closePaymentModal() { document.getElementById("modal-payment").classList.add("hidden"); }
+
+  // Show the Advanced Commission banner + reason when commission is being paid before
+  // the invoice is fully settled (in "both" mode, factor in the amount being entered now).
+  function updateAdvanceBanner() {
+    const banner = document.getElementById("pmt-advance-banner");
+    if ((_pmtMode !== "commission" && _pmtMode !== "both") || !_ledger) { banner.classList.add("hidden"); return; }
+    const invAmt = Number(_ledger.payment.amount || _ledger.payment.invoiceAmount || 0);
+    const projPaid = Number(_ledger.payment.totalPaid || 0) + (_pmtMode === "both" ? (Number(document.getElementById("pmt-amount").value) || 0) : 0);
+    const isAdvance = invAmt > 0 && projPaid < invAmt;
+    banner.classList.toggle("hidden", !isAdvance);
+    if (isAdvance) {
+      let commTotal = 0; document.querySelectorAll(".pmt-ref-amount").forEach((i) => { commTotal += Number(i.value) || 0; });
+      const c = _ledger.commission || {};
+      document.getElementById("pmt-advance-ctx").innerHTML =
+        `<div>Invoice: <b>${kes(invAmt)}</b></div><div>Paid: <b>${kes(projPaid)}</b></div>` +
+        `<div>Outstanding: <b>${kes(Math.max(0, invAmt - projPaid))}</b></div><div>Commission now: <b>${kes(commTotal)}</b></div>` +
+        (c.beneficiary ? `<div>Beneficiary: <b>${String(c.beneficiary).replace(/</g,"&lt;")}</b></div>` : "") +
+        (c.rate != null ? `<div>Rate: <b>${c.rate}%</b></div>` : "");
+    }
+  }
+
+  function pmtAddReferrer(prefill) {
+    prefill = prefill || {};
+    const esc = (s) => String(s == null ? "" : s).replace(/"/g, "&quot;");
+    const proposed = (prefill.proposed != null && prefill.proposed !== "" && !isNaN(Number(prefill.proposed))) ? Number(prefill.proposed) : "";
+    // Default the commission payout date to the invoice's date received.
+    const defDate = document.getElementById("pmt-date").value || new Date().toISOString().slice(0, 10);
+    const INP = "border border-slate-300 rounded-lg px-2 py-1.5 text-sm w-full";
+    const fld = (label, input) => '<div><label class="block text-[11px] font-medium text-slate-500 mb-0.5">' + label + '</label>' + input + '</div>';
+    const row = document.createElement("div");
+    row.className = "pmt-ref-row rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2";
+    row.innerHTML =
+      '<div class="flex items-center justify-between">' +
+        '<span class="text-xs font-semibold text-slate-600">Commission payout</span>' +
+        '<button type="button" class="pmt-ref-del text-red-500 text-xs px-1 hover:underline" title="Remove">&#10005; Remove</button>' +
+      '</div>' +
+      '<div class="grid grid-cols-2 gap-2">' +
+        fld('Referrer / dealer name', '<input type="text" placeholder="Name" value="' + esc(prefill.name) + '" class="pmt-ref-name ' + INP + '" />') +
+        fld('Phone paid to', '<input type="text" placeholder="Phone" value="' + esc(prefill.phone) + '" class="pmt-ref-phone ' + INP + '" />') +
+        fld('Proposed', '<input type="number" min="0" placeholder="Proposed" value="' + esc(proposed) + '" title="Proposed commission (carried from the lead)" class="pmt-ref-proposed ' + INP + ' bg-slate-100 text-slate-600" />') +
+        fld('Commission paid', '<input type="number" min="0" placeholder="Paid" value="' + esc(proposed) + '" title="Amount actually paid to the referrer" class="pmt-ref-amount ' + INP + '" />') +
+        fld('Commission payout date', '<input type="date" value="' + esc(defDate) + '" title="When the commission was actually paid — independent of the invoice date" class="pmt-ref-date ' + INP + '" />') +
+        fld('Commission payment mode', '<select class="pmt-ref-mode ' + INP + '"><option value="Mobile Money">M-Pesa / Mobile Money</option><option value="Bank Transfer">Bank Transfer</option><option value="Cash">Cash</option><option value="Card">Card</option></select>') +
+        fld('Commission txn / ref', '<input type="text" placeholder="Code" class="pmt-ref-txn ' + INP + '" />') +
+      '</div>';
+    document.getElementById("pmt-referrers").appendChild(row);
+    row.querySelector(".pmt-ref-amount").addEventListener("input", pmtRecalcNet);
+    row.querySelector(".pmt-ref-del").addEventListener("click", () => { row.remove(); pmtRecalcNet(); });
+    return row;
+  }
+
+  // Paste an M-PESA SMS → auto-fill a referrer row (payee, phone, amount, txn code, paid date).
+  function pmtExtractMpesa() {
+    const box = document.getElementById("pmt-mpesa");
+    const msg = document.getElementById("pmt-mpesa-msg");
+    const parsed = window.FINEMARK_APP.parseMpesa(box.value);
+    if (!parsed) { msg.className = "text-[11px] text-red-500"; msg.textContent = "Couldn't read that — paste the full M-PESA SMS."; return; }
+    const toggle = document.getElementById("pmt-commission-toggle");
+    if (!toggle.checked) { toggle.checked = true; document.getElementById("pmt-commission-wrap").classList.remove("hidden"); }
+    let target = null;
+    document.querySelectorAll(".pmt-ref-row").forEach((r) => { if (!target && !r.querySelector(".pmt-ref-name").value.trim()) target = r; });
+    if (!target) target = pmtAddReferrer({});
+    if (parsed.payee != null) target.querySelector(".pmt-ref-name").value = parsed.payee;
+    if (parsed.phone != null) target.querySelector(".pmt-ref-phone").value = parsed.phone;
+    if (parsed.amount != null) target.querySelector(".pmt-ref-amount").value = parsed.amount;
+    if (parsed.code != null) target.querySelector(".pmt-ref-txn").value = parsed.code;
+    if (parsed.date) target.querySelector(".pmt-ref-date").value = parsed.date;
+    pmtRecalcNet();
+    const bits = [parsed.payee, parsed.amount != null ? kes(parsed.amount) : null, parsed.code, parsed.date].filter(Boolean);
+    msg.className = "text-[11px] text-emerald-600";
+    msg.textContent = "✓ " + bits.join(" · ");
+    box.value = "";
+  }
+
+  function pmtRecalcNet() {
+    const amount = Number(document.getElementById("pmt-amount").value) || 0;
+    let comm = 0;
+    document.querySelectorAll(".pmt-ref-amount").forEach((i) => { comm += Number(i.value) || 0; });
+    document.getElementById("pmt-comm-total").textContent = kes(comm);
+    document.getElementById("pmt-net").textContent = kes(amount - comm);
+    updateAdvanceBanner();
+  }
+
+  // Collect the commission rows from the modal (validated). Returns null on a validation error.
+  function collectCommissions(err) {
+    const commissions = [];
+    const advanceVisible = !document.getElementById("pmt-advance-banner").classList.contains("hidden");
+    let advanceReason;
+    if (advanceVisible) {
+      const rsn = document.getElementById("pmt-advance-reason").value;
+      const note = document.getElementById("pmt-advance-note").value.trim();
+      if (!rsn) { err.textContent = "This is an Advanced Commission (invoice not fully paid) — select an Advanced Commission Reason."; err.classList.remove("hidden"); return null; }
+      advanceReason = note ? `${rsn} — ${note}` : rsn;
+    }
+    for (const r of document.querySelectorAll(".pmt-ref-row")) {
+      const name = r.querySelector(".pmt-ref-name").value.trim();
+      const phone = r.querySelector(".pmt-ref-phone").value.trim();
+      const amt = Number(r.querySelector(".pmt-ref-amount").value) || 0;
+      const proposed = Number(r.querySelector(".pmt-ref-proposed")?.value) || 0;
+      const txn = r.querySelector(".pmt-ref-txn").value.trim();
+      const paidDate = (r.querySelector(".pmt-ref-date")?.value || "").trim();
+      const mode = r.querySelector(".pmt-ref-mode")?.value || undefined;
+      if (!name && !amt) continue;
+      if (!name) { err.textContent = "Each beneficiary needs a name."; err.classList.remove("hidden"); return null; }
+      if (amt <= 0) { err.textContent = `Enter a commission amount for ${name}.`; err.classList.remove("hidden"); return null; }
+      commissions.push({ name, phone: phone || undefined, amount: amt, proposedCommission: proposed > 0 ? proposed : undefined, transactionCode: txn || undefined, paidDate: paidDate || undefined, commissionMode: mode, advanceReason });
+    }
+    return commissions;
+  }
+
+  async function submitPayment() {
+    const err = document.getElementById("pmt-err");
+    err.classList.add("hidden");
+    const btn = document.getElementById("btn-pmt-save");
+    const origLabel = btn.textContent;
+
+    try {
+      btn.disabled = true; btn.textContent = "Saving…";
+
+      // ── Commission only ──
+      if (_pmtMode === "commission") {
+        const commissions = collectCommissions(err);
+        if (commissions === null) return;
+        if (!commissions.length) { err.textContent = "Add at least one commission beneficiary."; err.classList.remove("hidden"); return; }
+        let done = 0;
+        for (const c of commissions) {
+          await apiFetch("/referrers/payments", { method: "POST", body: {
+            referrerName: c.name, referrerPhone: c.phone, invoiceId, feeAmount: c.amount,
+            transactionCode: c.transactionCode, paymentDate: c.paidDate, commissionMode: c.commissionMode, advanceReason: c.advanceReason,
+          }});
+          done++;
+        }
+        showToast(`Commission recorded for ${done} beneficiary(ies).`, "success");
+        closePaymentModal(); await loadInvoice(); return;
+      }
+
+      // ── Invoice payment (± commission) ──
+      const amount = Math.round(Number(document.getElementById("pmt-amount").value) || 0);
+      if (!amount || amount <= 0) { err.textContent = "Enter a valid amount paid."; err.classList.remove("hidden"); return; }
+      let commissions = [];
+      if (_pmtMode === "both") {
+        commissions = collectCommissions(err);
+        if (commissions === null) return;
+        const commTotal = commissions.reduce((s, c) => s + c.amount, 0);
+        if (commTotal > amount) { err.textContent = "Total commission cannot exceed the amount paid."; err.classList.remove("hidden"); return; }
+      }
+      const body = {
+        invoiceId, amount,
+        method: document.getElementById("pmt-method").value,
+        bank: document.getElementById("pmt-bank").value.trim() || undefined,
+        paymentRef: document.getElementById("pmt-ref").value.trim() || undefined,
+        paidAt: (document.getElementById("pmt-date").value || new Date().toISOString().slice(0, 10)) + "T00:00:00.000Z",
+        status: "Completed",
+        referrerCommissions: commissions.length ? commissions : undefined,
+      };
+      const res = await apiFetch("/payments", { method: "POST", body });
+      showToast(res.message || "Payment recorded", "success");
+      closePaymentModal(); await loadInvoice();
+    } catch (e) {
+      err.textContent = e.message || "Failed to save.";
+      err.classList.remove("hidden");
+    } finally {
+      btn.disabled = false; btn.textContent = origLabel;
+    }
+  }
+
+  document.getElementById("btn-pmt-cancel")?.addEventListener("click", closePaymentModal);
+  document.getElementById("btn-pmt-save")?.addEventListener("click", submitPayment);
+  document.querySelectorAll(".pmt-mode-btn").forEach((b) => b.addEventListener("click", () => setPmtMode(b.dataset.mode)));
+  document.getElementById("pmt-add-referrer")?.addEventListener("click", () => pmtAddReferrer());
+  document.getElementById("pmt-mpesa-extract")?.addEventListener("click", pmtExtractMpesa);
+  document.getElementById("pmt-amount")?.addEventListener("input", pmtRecalcNet);
 
   await loadInvoice();
 })();

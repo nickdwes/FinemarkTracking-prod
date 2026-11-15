@@ -217,7 +217,7 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
   if (expiry_from) { conditions.push("s.expiry_date >= ?");          params.push(expiry_from); }
   if (expiry_to)   { conditions.push("s.expiry_date <= ?");          params.push(expiry_to); }
   if (q) {
-    conditions.push("(s.iccid LIKE ? OR s.imsi LIKE ? OR s.msisdn LIKE ? OR s.operator LIKE ? OR s.batch_ref LIKE ?)");
+    conditions.push("(s.iccid ILIKE ? OR s.imsi ILIKE ? OR s.msisdn ILIKE ? OR s.operator ILIKE ? OR s.batch_ref ILIKE ?)");
     const like = `%${q}%`;
     params.push(like, like, like, like, like);
   }
@@ -248,7 +248,7 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
      ) t ON true
      LEFT JOIN inv_items di ON di.id = s.device_item_id
      LEFT JOIN inv_product_catalog dp ON dp.id = di.product_id
-     WHERE ${where} ORDER BY s.created_at DESC LIMIT ? OFFSET ?`,
+     WHERE ${where} ORDER BY s.created_at DESC, s.id DESC LIMIT ? OFFSET ?`,
     [...params, limit, offset]
   );
 
@@ -283,21 +283,44 @@ router.post("/",
     );
     if (existing) return errorResponse(res, 409, "CONFLICT", "A SIM with this ICCID, IMSI, or MSISDN already exists");
 
-    const id       = uuidv4();
     const now      = new Date().toISOString();
     const batchRef = await nextDatedBatchNumber("SIM", [{ table: "inv_sims", column: "batch_ref", distinct: true }]);
-    await pgRun(
-      `INSERT INTO inv_sims (id,iccid,imsi,msisdn,operator,plan,status,pin_enc,puk_enc,
-         activation_date,expiry_date,notes,batch_ref,created_by,created_at,updated_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [id, iccid, imsi, msisdnVal, operator||null, plan||null, "available",
-       pin ? encryptField(pin) : null,
-       puk ? encryptField(puk) : null,
-       activation_date||null, expiry_date||null, notes||null,
-       batchRef, req.user!.id, now, now]
-    );
 
-    await writeLedger(id, "registered", null, "available", req.user!.id, req.user!.email||"", "SIM registered");
+    // The ICCID unique constraint also covers soft-deleted rows, so registering a
+    // previously-archived SIM would collide. Revive that record instead of erroring.
+    const archived = await pgGet(`SELECT id FROM inv_sims WHERE iccid=? AND deleted_at IS NOT NULL`, [iccid]);
+    const id = archived?.id || uuidv4();
+    try {
+      if (archived) {
+        await pgRun(
+          `UPDATE inv_sims
+           SET deleted_at=NULL, status='available', imsi=?, msisdn=COALESCE(?,msisdn),
+               operator=COALESCE(?,operator), plan=COALESCE(?,plan),
+               pin_enc=COALESCE(?,pin_enc), puk_enc=COALESCE(?,puk_enc),
+               activation_date=COALESCE(?,activation_date), expiry_date=COALESCE(?,expiry_date),
+               notes=COALESCE(?,notes), batch_ref=?, updated_at=?
+           WHERE id=?`,
+          [imsi, msisdnVal, operator||null, plan||null,
+           pin ? encryptField(pin) : null, puk ? encryptField(puk) : null,
+           activation_date||null, expiry_date||null, notes||null, batchRef, now, id]
+        );
+        await writeLedger(id, "received", null, "available", req.user!.id, req.user!.email||"", `Re-registered (restored from archive) in batch ${batchRef}`);
+      } else {
+        await pgRun(
+          `INSERT INTO inv_sims (id,iccid,imsi,msisdn,operator,plan,status,pin_enc,puk_enc,
+             activation_date,expiry_date,notes,batch_ref,created_by,created_at,updated_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          [id, iccid, imsi, msisdnVal, operator||null, plan||null, "available",
+           pin ? encryptField(pin) : null,
+           puk ? encryptField(puk) : null,
+           activation_date||null, expiry_date||null, notes||null,
+           batchRef, req.user!.id, now, now]
+        );
+        await writeLedger(id, "registered", null, "available", req.user!.id, req.user!.email||"", "SIM registered");
+      }
+    } catch (e: any) {
+      return errorResponse(res, 409, "CONFLICT", "This ICCID / IMSI / MSISDN conflicts with an existing (possibly archived) SIM.");
+    }
     await auditLog(req as any, "SIM_REGISTERED", "inv_sims", "Info", { iccid, batchRef });
 
     const sim = await pgGet(`SELECT id,iccid,imsi,msisdn,operator,plan,status,batch_ref,activation_date,expiry_date,notes,created_at,updated_at FROM inv_sims WHERE id=?`, [id]);
@@ -368,6 +391,7 @@ router.post("/bulk",
         if (seenMsisdn.has(msisdnVal)) { errors.push({ item, error: "Duplicate MSISDN within this batch" }); continue; }
       }
 
+      // Active duplicate (a live row) → reject.
       const bulkDupClauses = ["iccid = ?", "(imsi IS NOT NULL AND imsi = ?)"];
       const bulkDupParams: string[] = [iccid, imsi || ""];
       if (msisdnVal) { bulkDupClauses.push("msisdn = ?"); bulkDupParams.push(msisdnVal); }
@@ -380,15 +404,43 @@ router.post("/bulk",
       seenIccid.add(iccid);
       if (msisdnVal) seenMsisdn.add(msisdnVal);
 
-      const id = uuidv4();
-      await pgRun(
-        `INSERT INTO inv_sims (id,iccid,imsi,msisdn,operator,plan,sim_type,status,batch_ref,created_by,created_at,updated_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-        [id, iccid, imsi, msisdnVal, operator || null, plan || null, simType || null,
-          "available", batchRef, req.user!.id, now, now]
-      );
-      await writeLedger(id, "received", null, "available", req.user!.id, req.user!.email || "", `Bulk-received in batch ${batchRef}`);
-      received.push({ id, iccid, imsi });
+      try {
+        // The ICCID unique constraint also covers soft-deleted rows, so a plain INSERT of a
+        // previously-archived SIM fails even though it isn't in active inventory. Receiving
+        // the same physical SIM again REVIVES that record (one ICCID = one physical SIM)
+        // instead of erroring with a raw constraint message.
+        const archived = await pgGet(
+          `SELECT id FROM inv_sims WHERE iccid = ? AND deleted_at IS NOT NULL`,
+          [iccid]
+        );
+        if (archived) {
+          await pgRun(
+            `UPDATE inv_sims
+             SET deleted_at = NULL, status = 'available',
+                 imsi = COALESCE(?, imsi), msisdn = COALESCE(?, msisdn),
+                 operator = COALESCE(?, operator), plan = COALESCE(?, plan), sim_type = COALESCE(?, sim_type),
+                 batch_ref = ?, updated_at = ?
+             WHERE id = ?`,
+            [imsi, msisdnVal, operator || null, plan || null, simType || null, batchRef, now, archived.id]
+          );
+          await writeLedger(archived.id, "received", null, "available", req.user!.id, req.user!.email || "", `Re-received (restored from archive) in batch ${batchRef}`);
+          received.push({ id: archived.id, iccid, imsi, restored: true });
+        } else {
+          const id = uuidv4();
+          await pgRun(
+            `INSERT INTO inv_sims (id,iccid,imsi,msisdn,operator,plan,sim_type,status,batch_ref,created_by,created_at,updated_at)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+            [id, iccid, imsi, msisdnVal, operator || null, plan || null, simType || null,
+              "available", batchRef, req.user!.id, now, now]
+          );
+          await writeLedger(id, "received", null, "available", req.user!.id, req.user!.email || "", `Bulk-received in batch ${batchRef}`);
+          received.push({ id, iccid, imsi });
+        }
+      } catch (e: any) {
+        // Residual constraint hit (e.g. an archived IMSI/MSISDN collision) → clean per-item
+        // error instead of a raw Postgres message bubbling up to the modal.
+        errors.push({ item, error: "Could not save — this ICCID/IMSI/MSISDN conflicts with an existing (possibly archived) SIM." });
+      }
     }
 
     if (received.length) {

@@ -51,6 +51,16 @@ export async function fetchTechnicalTeam(opts: {
        r.current_location,
        r.checked_in_at,
        r.added_at,
+       -- Approved HR leave covering today. duty_status is a manually-toggled
+       -- flag; this makes the roster reflect the leave module automatically
+       -- (dates are ISO 'YYYY-MM-DD' text, so the comparison is lexical).
+       EXISTS (
+         SELECT 1 FROM hr_leave_applications la
+         WHERE la.employee_id = r.hr_employee_id
+           AND la.status = 'Approved'
+           AND la.start_date <= to_char(CURRENT_DATE, 'YYYY-MM-DD')
+           AND la.end_date   >= to_char(CURRENT_DATE, 'YYYY-MM-DD')
+       ) AS on_approved_leave,
        -- HR enrichment
        e.full_name      AS hr_full_name,
        e.work_email     AS hr_work_email,
@@ -89,8 +99,11 @@ export async function fetchTechnicalTeam(opts: {
       hrEmployeeId:  r.hr_employee_id || null,
       userRole:      r.user_role      || null,
       employeeNo:    r.employee_no    || "",
-      status:        r.duty_status,
-      dutyStatus:    r.duty_status,
+      // Approved HR leave covering today overrides the manual flag, so the
+      // roster (technical.html keys off "leave" in dutyStatus) reflects it.
+      status:        r.on_approved_leave ? "On Leave" : r.duty_status,
+      dutyStatus:    r.on_approved_leave ? "On Leave" : r.duty_status,
+      onApprovedLeave: !!r.on_approved_leave,
       notes:         r.notes          || "",
       currentLocation: r.current_location || null,
       checkedInAt:   r.checked_in_at  || null,

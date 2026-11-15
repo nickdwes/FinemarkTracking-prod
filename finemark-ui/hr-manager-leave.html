@@ -193,7 +193,12 @@
 
     // ── Pending approvals ────────────────────────────────────────────────────
     async function loadPending() {
-      const params = new URLSearchParams({ status: 'Pending', limit: '100', managerId: myEmployeeId });
+      // Omit managerId entirely when there's no linked employee record (e.g. an Admin
+      // account with no HR profile) — URLSearchParams would otherwise stringify a JS
+      // null into the literal text "null", matching zero rows instead of falling back
+      // to that role's normal (e.g. company-wide) view.
+      const params = new URLSearchParams({ status: 'Pending', limit: '100' });
+      if (myEmployeeId) params.set('managerId', myEmployeeId);
       const res = await window.FINEMARK_APP.apiFetch(`/hr/leave/applications?${params}`);
       const items = res?.applications || [];
       document.getElementById('pending-count').textContent = items.length;
@@ -248,7 +253,8 @@
       const from = `${calYear}-${pad(calMonth + 1)}-01`;
       const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
       const to = `${calYear}-${pad(calMonth + 1)}-${pad(daysInMonth)}`;
-      const params = new URLSearchParams({ from, to, managerId: myEmployeeId });
+      const params = new URLSearchParams({ from, to });
+      if (myEmployeeId) params.set('managerId', myEmployeeId);
       const res = await window.FINEMARK_APP.apiFetch(`/hr/leave/calendar?${params}`);
       calData = res?.data || [];
       renderCalGrid(from, daysInMonth);

@@ -655,7 +655,9 @@ async function apiFetch(path,opts={}) {
 function currentUser(){try{return JSON.parse(localStorage.getItem("finemark_session")||"{}");}catch{return {};}}
 
 function userRole(){return (currentUser().user?.role||currentUser().role||"").toLowerCase();}
-function isBDM(){const r=userRole();return r==="businessdevelopment"||r==="bdm"||r==="admin"||r==="manager"||r==="salesmanager";}
+// BDMCorporate is a BDM role too — leaving it out hid the lead-assignment tool
+// (and the team pipeline) from corporate BDMs entirely.
+function isBDM(){const r=userRole();return r==="businessdevelopment"||r==="bdm"||r==="bdmcorporate"||r==="admin"||r==="manager"||r==="salesmanager";}
 
 // ── State ─────────────────────────────────────────────────────
 let _leads=[], _customers=[], _quotes=[], _invoices=[], _campaigns=[], _salesReps=[];
@@ -1482,7 +1484,7 @@ async function doAssignLead(){
   const rep=_salesReps.find(r=>r.id===repId);
   try{
     await apiFetch(`/crm/leads/${leadId}`,{method:"PATCH",body:JSON.stringify({salesRepId:repId,salesRepEmail:rep?.email||""})});
-    toast("Lead reassigned","success");
+    toast(`Lead assigned to ${rep?.name||rep?.email||"the selected rep"}`,"success");
     const lr=await apiFetch("/crm/leads?pageSize=500");
     _leads=lr?.data||_leads;
     buildRepFilter();renderAll();

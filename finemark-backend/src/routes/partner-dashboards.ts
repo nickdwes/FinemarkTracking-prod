@@ -146,7 +146,7 @@ router.get(
         [since]
       ),
       pgGet(`SELECT count(*) AS n FROM installation_tickets WHERE created_at >= ?`, [since]),
-      pgGet(`SELECT count(*) AS n FROM certificates WHERE created_at >= ?`, [since]),
+      pgGet(`SELECT count(*) AS n FROM certificates WHERE created_at >= ? AND deleted_at IS NULL`, [since]),
       pgAll(
         `SELECT it.id, it.ticket_no, it.status, it.created_at,
                 c.account_no, cp.full_name AS customer_name, corp.company_name

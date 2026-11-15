@@ -276,6 +276,30 @@
           Active: "Active", NearingExpiry: "Expiring Soon", Expired: "Expired", Unknown: "Unknown",
         }[s] || s);
 
+        // Group into coverage chains: original → its extensions. The original
+        // stays for reference; the latest extension is the current validity.
+        const chainNewest = {}, chainMax = {};
+        certs.forEach(c => {
+          const k = c.rootCertId || c.id, t = c.createdAt || '', n = c.extensionNo || 0;
+          if (!chainNewest[k] || t > chainNewest[k]) chainNewest[k] = t;
+          if (chainMax[k] == null || n > chainMax[k]) chainMax[k] = n;
+        });
+        const rows = [...certs].sort((a, b) => {
+          const ka = a.rootCertId || a.id, kb = b.rootCertId || b.id;
+          if (ka !== kb) return (chainNewest[kb] || '').localeCompare(chainNewest[ka] || '');
+          return (a.extensionNo || 0) - (b.extensionNo || 0);
+        });
+        const rowMeta = (c) => {
+          const k = c.rootCertId || c.id;
+          const isExt = !!c.isExtension;
+          const isTip = (chainMax[k] || 0) > 0 && (c.extensionNo || 0) === chainMax[k];
+          const badge = isExt
+            ? `<span class="ml-1 inline-flex rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold px-1.5 py-0.5">EXT ${c.extensionNo}</span>`
+            : ((chainMax[k] || 0) > 0 ? `<span class="ml-1 inline-flex rounded-full bg-slate-100 text-slate-500 text-[10px] font-semibold px-1.5 py-0.5">Original</span>` : '');
+          const current = isTip ? `<span class="ml-1 inline-flex rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold px-1.5 py-0.5">Current</span>` : '';
+          return { isExt, badge, current };
+        };
+
         panel.innerHTML = `
           <div class="flex items-center justify-between mb-4">
             <h2 class="font-semibold text-slate-800">Certificates (${certs.length})</h2>
@@ -298,9 +322,9 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-50">
-                ${certs.map(c => `
-                <tr class="hover:bg-slate-50/50">
-                  <td class="py-2.5 pr-4 font-mono font-semibold text-xs text-indigo-700">${c.serialNo}</td>
+                ${rows.map(c => { const m = rowMeta(c); return `
+                <tr class="hover:bg-slate-50/50 ${m.isExt ? 'bg-indigo-50/20' : ''}">
+                  <td class="py-2.5 pr-4 font-mono font-semibold text-xs text-indigo-700">${m.isExt ? '<span class="text-slate-300 mr-1">↳</span>' : ''}${c.serialNo}${m.badge}${m.current}</td>
                   <td class="py-2.5 pr-4 font-mono font-bold text-xs text-blue-700">${c.carRegistration}</td>
                   <td class="py-2.5 pr-4 text-xs text-slate-700">${c.systemType}</td>
                   <td class="py-2.5 pr-4 text-xs text-slate-600">${c.model || '—'}</td>
@@ -312,9 +336,9 @@
                   </td>
                   <td class="py-2.5 pr-4 text-xs text-slate-500">${c.loanDurationYears || '—'}</td>
                   <td class="py-2.5 pr-4">
-                    <a href="certificate-generator.html?certId=${c.id}" class="text-xs text-indigo-600 hover:underline font-medium whitespace-nowrap">View →</a>
+                    <a href="create-certificate.html?certId=${c.id}" class="text-xs text-indigo-600 hover:underline font-medium whitespace-nowrap">View →</a>
                   </td>
-                </tr>`).join('')}
+                </tr>`; }).join('')}
               </tbody>
             </table>
           </div>`;
@@ -447,7 +471,7 @@
             panel.innerHTML = `
               <div class="flex items-center justify-between mb-4">
                 <h2 class="font-semibold text-slate-800">Installations (0)</h2>
-              <a href="vehicle-installation.html?customerId=${custId}" class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">+ New Installation</a>
+              <button onclick="openInstallTicketModal()" class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">+ New Installation</button>
               </div>
               <p class="text-slate-400 text-sm">No installation records found for this customer.</p>`;
             return;
@@ -462,7 +486,7 @@
           panel.innerHTML = `
             <div class="flex items-center justify-between mb-4">
               <h2 class="font-semibold text-slate-800">Installations (${items.length})</h2>
-              <a href="vehicle-installation.html?customerId=${custId}" class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">+ New Installation</a>
+              <button onclick="openInstallTicketModal()" class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">+ New Installation</button>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm">
@@ -538,7 +562,7 @@
                     : "");
               return `
               <tr class="hover:bg-slate-50/40 group">
-                <td class="py-2 pr-4 font-mono font-semibold text-blue-700 text-xs">${v.registration}</td>
+                <td class="py-2 pr-4 font-mono font-semibold text-blue-700 text-xs">${v.registration || (v.registrationKnown === false ? '<span class="text-slate-400 font-sans font-normal italic">Not registered</span>' : "—")}</td>
                 <td class="py-2 pr-4 font-medium text-slate-800">${[v.make, v.model].filter(Boolean).join(" ") || "—"}</td>
                 <td class="py-2 pr-4 text-slate-500 text-xs">${v.bodyType || "—"}</td>
                 <td class="py-2 pr-4 text-slate-500 text-xs">${v.color || "—"}</td>
@@ -568,10 +592,23 @@
         panel.innerHTML = `
           <div class="flex items-center justify-between mb-5">
             <h2 class="font-semibold text-slate-800">Vehicles (${vehicles.length})</h2>
-            <button id="btn-add-vehicle"
-              class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 transition-colors">
-              + Add Vehicle
-            </button>
+            <div class="flex items-center gap-2">
+              <!-- Bulk registration: a fleet is not practical one form at a time. -->
+              <button id="btn-veh-template"
+                class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                title="Download the CSV template, fill it in, then upload it to register several vehicles at once">
+                Download CSV template
+              </button>
+              <button id="btn-veh-import"
+                class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors">
+                Upload filled CSV
+              </button>
+              <input id="veh-import-file" type="file" accept=".csv,text/csv" class="hidden" />
+              <button id="btn-add-vehicle"
+                class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 transition-colors">
+                + Add Vehicle
+              </button>
+            </div>
           </div>
 
           <!-- Add Vehicle Form (hidden by default) -->
@@ -579,10 +616,20 @@
             <p id="vf-form-title" class="text-sm font-semibold text-slate-700 mb-4">Register Vehicle</p>
             <div id="vehicle-form-error" class="hidden mb-3 rounded-lg bg-red-50 border border-red-200 p-3 text-xs text-red-700"></div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div class="sm:col-span-2 lg:col-span-3">
+                <label class="text-xs font-medium text-slate-600 mb-1 block">Registration status</label>
+                <div class="inline-flex rounded-lg border border-slate-200 overflow-hidden">
+                  <button type="button" id="vf-reg-registered"
+                    class="px-4 py-2 text-xs font-semibold bg-blue-600 text-white">Registered</button>
+                  <button type="button" id="vf-reg-unregistered"
+                    class="px-4 py-2 text-xs font-semibold border-l border-slate-200 bg-white text-slate-600">Not registered</button>
+                </div>
+                <p class="text-xs text-slate-400 mt-1">Registered vehicles are identified by number plate; unregistered by chassis (VIN).</p>
+              </div>
               <div>
-                <label class="text-xs font-medium text-slate-600 mb-1 block">Registration *</label>
+                <label id="vf-registration-label" class="text-xs font-medium text-slate-600 mb-1 block">Registration <span class="text-red-500">*</span></label>
                 <input id="vf-registration" type="text" placeholder="e.g. KDG 123A"
-                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm uppercase focus:outline-none focus:border-blue-400" />
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm uppercase focus:outline-none focus:border-blue-400 disabled:bg-slate-100 disabled:text-slate-400" />
               </div>
               <div>
                 <label class="text-xs font-medium text-slate-600 mb-1 block">Category</label>
@@ -599,6 +646,7 @@
                 <select id="vf-model" disabled class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-400 disabled:bg-slate-100">
                   <option value="">— Select make first</option>
                 </select>
+                <p id="vf-model-years" class="hidden text-[11px] text-slate-500 mt-1"></p>
               </div>
               <div>
                 <label class="text-xs font-medium text-slate-600 mb-1 block">Model Number</label>
@@ -622,7 +670,7 @@
                   class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
               </div>
               <div>
-                <label class="text-xs font-medium text-slate-600 mb-1 block">Chassis Number</label>
+                <label id="vf-chassis-label" class="text-xs font-medium text-slate-600 mb-1 block">Chassis Number</label>
                 <input id="vf-chassis" type="text" placeholder="VIN / Chassis No"
                   class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm uppercase focus:outline-none focus:border-blue-400" />
               </div>
@@ -686,9 +734,94 @@
               </thead>
               <tbody class="divide-y divide-slate-50">${vehicleRows}</tbody>
             </table>
-          </div>`;
+          </div>
+          <div id="vehicle-docs-section"></div>`;
+
+        // Load this customer's documents and render the per-vehicle documents panels.
+        reloadDocs();
 
         // Wire up form toggle
+        // ── Bulk vehicle registration ───────────────────────────────────────
+        // The template carries its own instructions (and two example rows), so
+        // the person filling it in doesn't need a separate briefing.
+        document.getElementById("btn-veh-template")?.addEventListener("click", async () => {
+          try {
+            const token = window.FINEMARK_APP?.getSession?.()?.accessToken;
+            const base = window.FINEMARK_APP?.API_BASE ?? "/api";
+            const res = await fetch(`${base}/crm/customers/vehicles/template.csv`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+            if (!res.ok) throw new Error(String(res.status));
+            const url = URL.createObjectURL(await res.blob());
+            const a = document.createElement("a");
+            a.href = url; a.download = "vehicle-registration-template.csv"; a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+          } catch {
+            window.FINEMARK_APP?.showToast?.("Couldn't download the template — please re-login and try again.", "error");
+          }
+        });
+
+        document.getElementById("btn-veh-import")?.addEventListener("click", () => {
+          document.getElementById("veh-import-file").click();
+        });
+
+        document.getElementById("veh-import-file")?.addEventListener("change", async (e) => {
+          const file = e.target.files && e.target.files[0];
+          e.target.value = "";                       // allow re-picking the same file
+          if (!file) return;
+          const btn = document.getElementById("btn-veh-import");
+          const label = btn.textContent;
+          btn.disabled = true; btn.textContent = "Checking…";
+          try {
+            const csv = await file.text();
+            const r = await window.FINEMARK_APP.apiFetch(`/crm/customers/${customerId}/vehicles/import`, { method: "POST", body: { csv } });
+            const d = r?.data || r || {};
+            showVehicleImportResult(d, file.name);
+            if (d.added) {                            // refresh the list behind the summary
+              const v = await window.FINEMARK_APP.apiFetch(`/crm/customers/${customerId}/360`);
+              view360 = v;
+              renderVehiclesTab(v.vehicles || []);
+            }
+          } catch (err) {
+            window.FINEMARK_APP?.showToast?.(err?.message || "Could not read that file.", "error");
+          } finally { btn.disabled = false; btn.textContent = label; }
+        });
+
+        // Per-row outcome, so a part-successful upload is honest about what
+        // went in and what didn't, and why.
+        function showVehicleImportResult(d, fileName) {
+          const escapeHtml = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+          const rows = (d.results || []).map((x) => `
+            <tr class="border-t border-slate-100">
+              <td class="py-1.5 pr-3 text-slate-400 text-xs">${x.line}</td>
+              <td class="py-1.5 pr-3 font-mono text-xs">${escapeHtml(String(x.vehicle || "—"))}</td>
+              <td class="py-1.5 pr-3 text-xs font-semibold ${x.status === "Registered" ? "text-emerald-700" : "text-amber-700"}">${x.status}</td>
+              <td class="py-1.5 text-xs text-slate-600">${escapeHtml(String(x.reason || (x.vehicleNo ? x.vehicleNo : "")))}</td>
+            </tr>`).join("");
+          const wrap = document.createElement("div");
+          wrap.className = "fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 p-4";
+          wrap.innerHTML = `
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+              <div class="px-6 py-4 border-b border-slate-200">
+                <h3 class="font-semibold text-slate-900">Vehicle upload — ${escapeHtml(fileName)}</h3>
+                <p class="mt-1 text-sm text-slate-600">
+                  <span class="font-semibold text-emerald-700">${d.added || 0} registered</span>
+                  ${d.skipped ? ` · <span class="font-semibold text-amber-700">${d.skipped} skipped</span>` : ""}
+                  · ${d.total || 0} row(s) read
+                </p>
+              </div>
+              <div class="overflow-auto px-6 py-3">
+                <table class="w-full text-left"><thead><tr class="text-[11px] uppercase tracking-wide text-slate-500">
+                  <th class="pb-2 pr-3">Row</th><th class="pb-2 pr-3">Vehicle</th><th class="pb-2 pr-3">Outcome</th><th class="pb-2">Detail</th>
+                </tr></thead><tbody>${rows}</tbody></table>
+              </div>
+              <div class="px-6 py-4 border-t border-slate-200 flex justify-end">
+                <button class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Close</button>
+              </div>
+            </div>`;
+          wrap.querySelector("button").onclick = () => wrap.remove();
+          wrap.onclick = (ev) => { if (ev.target === wrap) wrap.remove(); };
+          document.body.appendChild(wrap);
+        }
+
         document.getElementById("btn-add-vehicle").addEventListener("click", () => {
           _editVehicleId = null;
           document.getElementById("vehicle-form-wrap").classList.remove("hidden");
@@ -703,6 +836,7 @@
           if (catEl) catEl.value = "motor_vehicle";
           const tenureEl = document.getElementById("vf-loan-tenure");
           if (tenureEl) { tenureEl.value = "0"; tenureEl.dispatchEvent(new Event("input")); }
+          setRegistrationKnown(true);
           initVehicleForm();
         });
         document.getElementById("btn-vehicle-cancel").addEventListener("click", () => {
@@ -711,6 +845,34 @@
           document.getElementById("btn-add-vehicle").classList.remove("hidden");
         });
         document.getElementById("btn-vehicle-save").addEventListener("click", saveVehicle);
+        const bReg = document.getElementById("vf-reg-registered");
+        const bUn = document.getElementById("vf-reg-unregistered");
+        if (bReg) bReg.addEventListener("click", () => setRegistrationKnown(true));
+        if (bUn) bUn.addEventListener("click", () => setRegistrationKnown(false));
+      }
+
+      // Registered vs Not-registered toggle: a registered vehicle is keyed on its
+      // number plate (registration mandatory); an unregistered one on its chassis/VIN
+      // (chassis mandatory, registration disabled). Mirrors registration_known server-side.
+      let vfRegistrationKnown = true;
+      function setRegistrationKnown(known) {
+        vfRegistrationKnown = known !== false;
+        const regInput = document.getElementById("vf-registration");
+        const regLabel = document.getElementById("vf-registration-label");
+        const chassisLabel = document.getElementById("vf-chassis-label");
+        const bReg = document.getElementById("vf-reg-registered");
+        const bUn = document.getElementById("vf-reg-unregistered");
+        if (bReg) bReg.className = `px-4 py-2 text-xs font-semibold ${vfRegistrationKnown ? "bg-blue-600 text-white" : "bg-white text-slate-600"}`;
+        if (bUn) bUn.className = `px-4 py-2 text-xs font-semibold border-l border-slate-200 ${!vfRegistrationKnown ? "bg-blue-600 text-white" : "bg-white text-slate-600"}`;
+        if (vfRegistrationKnown) {
+          if (regLabel) regLabel.innerHTML = 'Registration <span class="text-red-500">*</span>';
+          if (regInput) { regInput.disabled = false; regInput.placeholder = "e.g. KDG 123A"; }
+          if (chassisLabel) chassisLabel.textContent = "Chassis Number";
+        } else {
+          if (regLabel) regLabel.textContent = "Registration";
+          if (regInput) { regInput.disabled = true; regInput.value = ""; regInput.placeholder = "Not registered"; }
+          if (chassisLabel) chassisLabel.innerHTML = 'Chassis Number <span class="text-red-500">*</span>';
+        }
       }
 
       let _editVehicleId = null;
@@ -754,6 +916,13 @@
         const bodyTypeEl = document.getElementById("vf-body-type");
         modelNumEl.innerHTML = '<option value="">— None / N/A</option>';
         bodyTypeEl.value = await vehicleCatalogBodyType(make, model, category);
+        // Show the model line's production years (free-source enrichment), if known.
+        const yrEl = document.getElementById("vf-model-years");
+        if (yrEl) {
+          const yrs = (make && model && typeof vehicleCatalogYears === "function") ? await vehicleCatalogYears(make, model, category) : null;
+          if (yrs) { yrEl.textContent = "🛈 Model line produced: " + yrs.label; yrEl.classList.remove("hidden"); }
+          else { yrEl.textContent = ""; yrEl.classList.add("hidden"); }
+        }
         if (!make || !model) { modelNumEl.disabled = true; return; }
         const nums = await vehicleCatalogModelNumbers(make, model, category);
         if (!nums.length) { modelNumEl.disabled = true; return; }
@@ -779,6 +948,7 @@
         document.getElementById("vf-color").value = v.color || "";
         document.getElementById("vf-year").value = v.yearOfManufacture || "";
         document.getElementById("vf-chassis").value = v.chassisNumber || "";
+        setRegistrationKnown(v.registrationKnown !== false);
         document.getElementById("vf-engine").value = v.engineNumber || "";
         document.getElementById("vf-notes").value = v.notes || "";
         // Category first — the make list below is scoped to whatever category
@@ -885,12 +1055,18 @@
         const btn = document.getElementById("btn-vehicle-save");
         const errEl = document.getElementById("vehicle-form-error");
         const registration = document.getElementById("vf-registration").value.trim().toUpperCase();
-        if (!registration) { errEl.textContent = "Registration is required."; errEl.classList.remove("hidden"); return; }
+        const chassisVal = document.getElementById("vf-chassis").value.trim().toUpperCase();
+        if (vfRegistrationKnown) {
+          if (!registration) { errEl.textContent = "Registration is required for a registered vehicle."; errEl.classList.remove("hidden"); return; }
+        } else {
+          if (!chassisVal) { errEl.textContent = "Chassis number is required for an unregistered vehicle."; errEl.classList.remove("hidden"); return; }
+        }
         errEl.classList.add("hidden");
         const isEdit = !!_editVehicleId;
         btn.disabled = true; btn.textContent = isEdit ? "Updating…" : "Saving…";
         const body = {
-          registration,
+          registration: vfRegistrationKnown ? registration : undefined,
+          registrationKnown: vfRegistrationKnown,
           vehicleCategory: document.getElementById("vf-category").value || "motor_vehicle",
           make: document.getElementById("vf-make").value || undefined,
           model: document.getElementById("vf-model").value || undefined,
@@ -943,12 +1119,18 @@
       }
 
       // ── Supporting Documents (Profile tab) ─────────────────────────────────
-      const DOC_TYPES = [
+      // Customer-level supporting documents (identity / customer-wide).
+      const CUSTOMER_DOC_TYPES = [
         { type: "loan_approval_form", label: "Loan Approval Form",  desc: "Official bank letter confirming loan approval",                           iconColor: "text-blue-500",   iconPath: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" },
-        { type: "log_book",           label: "Log Book",            desc: "Vehicle registration certificate — original or certified copy",            iconColor: "text-emerald-500", iconPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
-        { type: "loan_offer_letter",  label: "Loan Offer Letter",   desc: "Formal offer letter from the financing institution",                       iconColor: "text-violet-500", iconPath: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" },
         { type: "kra_pin",            label: "KRA PIN",             desc: "Kenya Revenue Authority PIN certificate for the customer",                  iconColor: "text-amber-500",  iconPath: "M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z" },
         { type: "id_form_a",          label: "ID / Form A",         desc: "National ID (individual) or Form A / CR12 (company)",                      iconColor: "text-rose-500",   iconPath: "M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" },
+      ];
+      // Vehicle-specific documents — captured PER VEHICLE (Log Book, Loan Offer Letter,
+      // NTSA Form) in the Vehicles tab, since they pertain to a specific vehicle.
+      const VEHICLE_DOC_TYPES = [
+        { type: "log_book",          label: "Log Book",          desc: "Vehicle registration certificate — original or certified copy", iconColor: "text-emerald-500", iconPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
+        { type: "loan_offer_letter", label: "Loan Offer Letter", desc: "Formal offer letter from the financing institution",           iconColor: "text-violet-500", iconPath: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" },
+        { type: "ntsa_form",         label: "NTSA Form",         desc: "NTSA transfer / registration form for the vehicle",            iconColor: "text-teal-500",   iconPath: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
       ];
 
       function docBadgeHtml(status) {
@@ -957,116 +1139,160 @@
         return `<span class="text-xs px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-500">Pending</span>`;
       }
 
-      async function loadCustomerDocuments() {
-        const section = document.getElementById("profile-docs-section");
-        if (!section) return;
-        let existing = [];
+      // Shared document store (customer-level + all vehicle-level), loaded once.
+      let _allDocs = [];
+      const docKey = (docType, vehicleId) => docType + "|" + (vehicleId || "");
+
+      // Render one document card. vehicleId falsy → customer-level; else vehicle-scoped.
+      // Open an auth-gated /uploads file. A plain <a href="/uploads/…"> navigates with
+      // no token and 401s ("Missing or invalid authorization header"), so fetch it WITH
+      // the auth header and open the resulting blob.
+      async function openAttachment(url, name) {
         try {
-          const r = await window.FINEMARK_APP.apiFetch(`/crm/customers/${customerId}/documents`);
-          existing = r.data || [];
-        } catch { /* non-critical */ }
+          const token = window.FINEMARK_APP?.getSession?.()?.accessToken;
+          const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+          if (!res.ok) throw new Error(String(res.status));
+          const blobUrl = URL.createObjectURL(await res.blob());
+          const w = window.open(blobUrl, "_blank");
+          if (!w) { const a = document.createElement("a"); a.href = blobUrl; a.download = name || "file"; a.click(); }
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+        } catch {
+          window.FINEMARK_APP?.showToast?.("Couldn't open the file — please re-login and try again.", "error");
+        }
+      }
 
-        // Build a map: docType → record
-        const byType = {};
-        existing.forEach(d => { byType[d.docType] = d; });
-
-        const cards = DOC_TYPES.map(dt => {
-          const saved = byType[dt.type];
-          const badge = docBadgeHtml(saved?.status || "pending");
-          const fileLink = saved?.filePath
-            ? `<a href="${saved.filePath}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline font-medium">
-                 <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                 ${saved.fileName || "View file"}
-               </a>` : "";
-          const notesHtml = saved?.notes
-            ? `<p class="text-xs text-slate-400 italic mt-1">${saved.notes}</p>` : "";
-          const uploadedBy = saved?.uploadedBy
-            ? `<p class="text-xs text-slate-400 mt-0.5">By ${saved.uploadedBy} · ${(saved.createdAt||"").slice(0,10)}</p>` : "";
-          const deleteBtn = saved
-            ? `<button onclick="deleteCustomerDoc('${saved.id}','${dt.type}')" class="text-xs text-red-400 hover:text-red-600 transition-colors ml-2" title="Remove">✕</button>` : "";
-
-          return `<div class="doc-view-card rounded-lg border ${saved ? (saved.status === 'attached' ? 'border-blue-100 bg-blue-50/30' : 'border-emerald-100 bg-emerald-50/30') : 'border-slate-100 bg-slate-50/60'} p-4" data-doc-type="${dt.type}">
-            <div class="flex items-start gap-3">
-              <div class="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 ${dt.iconColor}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${dt.iconPath}"/></svg>
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between gap-2 mb-0.5">
-                  <p class="text-sm font-semibold text-slate-800">${dt.label}</p>
-                  <div class="flex items-center gap-1">${badge}${deleteBtn}</div>
-                </div>
-                <p class="text-xs text-slate-400 mb-2">${dt.desc}</p>
-                ${fileLink}${notesHtml}${uploadedBy}
-                ${!saved ? `
-                <div class="mt-3 flex flex-wrap items-center gap-2">
-                  <label class="inline-flex items-center gap-1.5 cursor-pointer rounded-md bg-white border border-blue-200 px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                    Attach file
-                    <input type="file" class="doc-upload-input hidden" data-doc-type="${dt.type}" data-doc-label="${dt.label}" accept="image/jpeg,image/png,image/webp,application/pdf,.doc,.docx" />
-                  </label>
-                  <button onclick="markDocCollected('${dt.type}','${dt.label}')" class="rounded-md bg-white border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">✓ Mark collected</button>
-                  <input type="text" class="doc-notes-input flex-1 min-w-[140px] rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs placeholder-slate-400 focus:outline-none focus:border-blue-400" placeholder="Add notes…" data-doc-type="${dt.type}" />
-                </div>` : ``}
-              </div>
+      function docCardHtml(dt, saved, vehicleId) {
+        const vid = vehicleId || "";
+        const badge = docBadgeHtml(saved?.status || "pending");
+        const fileLink = saved?.filePath
+          ? `<a href="#" onclick="openAttachment('${String(saved.filePath).replace(/'/g,"\\'")}','${String(saved.fileName||'file').replace(/'/g,"\\'")}');return false;" class="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline font-medium">
+               <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+               ${saved.fileName || "View file"}
+             </a>` : "";
+        const notesHtml  = saved?.notes ? `<p class="text-xs text-slate-400 italic mt-1">${saved.notes}</p>` : "";
+        const uploadedBy = saved?.uploadedBy ? `<p class="text-xs text-slate-400 mt-0.5">By ${saved.uploadedBy} · ${(saved.createdAt||"").slice(0,10)}</p>` : "";
+        const deleteBtn  = saved ? `<button onclick="deleteCustomerDoc('${saved.id}')" class="text-xs text-red-400 hover:text-red-600 transition-colors ml-2" title="Remove">✕</button>` : "";
+        return `<div class="doc-view-card rounded-lg border ${saved ? (saved.status === 'attached' ? 'border-blue-100 bg-blue-50/30' : 'border-emerald-100 bg-emerald-50/30') : 'border-slate-100 bg-slate-50/60'} p-4" data-doc-type="${dt.type}">
+          <div class="flex items-start gap-3">
+            <div class="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 ${dt.iconColor}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${dt.iconPath}"/></svg>
             </div>
-          </div>`;
-        }).join("");
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between gap-2 mb-0.5">
+                <p class="text-sm font-semibold text-slate-800">${dt.label}</p>
+                <div class="flex items-center gap-1">${badge}${deleteBtn}</div>
+              </div>
+              <p class="text-xs text-slate-400 mb-2">${dt.desc}</p>
+              ${fileLink}${notesHtml}${uploadedBy}
+              ${!saved ? `
+              <div class="mt-3 flex flex-wrap items-center gap-2">
+                <label class="inline-flex items-center gap-1.5 cursor-pointer rounded-md bg-white border border-blue-200 px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                  Attach file
+                  <input type="file" class="doc-upload-input hidden" data-doc-type="${dt.type}" data-doc-label="${dt.label}" data-vehicle-id="${vid}" accept="image/jpeg,image/png,image/webp,application/pdf,.doc,.docx" />
+                </label>
+                <button onclick="markDocCollected('${dt.type}','${dt.label}','${vid}')" class="rounded-md bg-white border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">✓ Mark collected</button>
+                <input type="text" class="doc-notes-input flex-1 min-w-[140px] rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs placeholder-slate-400 focus:outline-none focus:border-blue-400" placeholder="Add notes…" data-doc-type="${dt.type}" data-vehicle-id="${vid}" />
+              </div>` : ``}
+            </div>
+          </div>
+        </div>`;
+      }
 
-        section.innerHTML = `
-          <div class="border-t border-slate-100 pt-6 mt-2">
-            <h3 class="text-sm font-bold text-slate-800 mb-3">Supporting Documents</h3>
-            <div class="space-y-3">${cards}</div>
-          </div>`;
+      async function postDoc(fd) {
+        const token = window.FINEMARK_APP.getSession()?.accessToken;
+        const r = await fetch(`/api/crm/customers/${customerId}/documents`, { method: "POST", headers: { "Authorization": `Bearer ${token}` }, body: fd });
+        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e?.error?.message || "Upload failed."); }
+      }
 
-        // Wire up file inputs
-        section.querySelectorAll(".doc-upload-input").forEach(inp => {
+      function wireDocInputs(rootEl) {
+        rootEl.querySelectorAll(".doc-upload-input").forEach(inp => {
           inp.addEventListener("change", async function() {
             if (!this.files || !this.files.length) return;
-            const docType  = this.dataset.docType;
-            const docLabel = this.dataset.docLabel;
-            const notesEl  = section.querySelector(`.doc-notes-input[data-doc-type="${docType}"]`);
-            const notes    = notesEl ? notesEl.value.trim() : "";
+            const docType = this.dataset.docType, docLabel = this.dataset.docLabel, vid = this.dataset.vehicleId || "";
+            const notesEl = rootEl.querySelector(`.doc-notes-input[data-doc-type="${docType}"][data-vehicle-id="${vid}"]`);
+            const notes = notesEl ? notesEl.value.trim() : "";
             const fd = new FormData();
-            fd.append("docType", docType);
-            fd.append("label",   docLabel);
-            fd.append("status",  "attached");
+            fd.append("docType", docType); fd.append("label", docLabel); fd.append("status", "attached");
+            if (vid) fd.append("vehicleId", vid);
             if (notes) fd.append("notes", notes);
             fd.append("file", this.files[0]);
-            try {
-              const token = window.FINEMARK_APP.getSession()?.accessToken;
-              const r = await fetch(`/api/crm/customers/${customerId}/documents`, {
-                method: "POST", headers: { "Authorization": `Bearer ${token}` }, body: fd
-              });
-              if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e?.error?.message || "Upload failed."); }
-              loadCustomerDocuments();
-            } catch(e) { alert(e?.message || "Upload failed."); }
+            try { await postDoc(fd); reloadDocs(); } catch(e) { alert(e?.message || "Upload failed."); }
           });
         });
       }
 
-      async function markDocCollected(docType, docLabel) {
-        const notesEl = document.querySelector(`.doc-notes-input[data-doc-type="${docType}"]`);
-        const notes   = notesEl ? notesEl.value.trim() : "";
+      // Fetch all documents once, then re-render whichever sections are on screen.
+      async function reloadDocs() {
+        try { const r = await window.FINEMARK_APP.apiFetch(`/crm/customers/${customerId}/documents`); _allDocs = r.data || []; }
+        catch { _allDocs = []; }
+        renderCustomerDocs();
+        renderVehicleDocsSection();
+      }
+      function loadCustomerDocuments() { return reloadDocs(); }  // legacy alias
+
+      function renderCustomerDocs() {
+        const section = document.getElementById("profile-docs-section");
+        if (!section) return;
+        const byKey = {}; _allDocs.forEach(d => { byKey[docKey(d.docType, d.vehicleId)] = d; });
+        const cards = CUSTOMER_DOC_TYPES.map(dt => docCardHtml(dt, byKey[docKey(dt.type, null)], null)).join("");
+        section.innerHTML = `
+          <div class="border-t border-slate-100 pt-6 mt-2">
+            <h3 class="text-sm font-bold text-slate-800 mb-1">Supporting Documents</h3>
+            <p class="text-xs text-slate-400 mb-3">Customer-level documents. Vehicle-specific documents (Log Book, Loan Offer Letter, NTSA Form) are captured under each vehicle in the <strong>Vehicles</strong> tab.</p>
+            <div class="space-y-3">${cards}</div>
+          </div>`;
+        wireDocInputs(section);
+      }
+
+      // Per-vehicle documents — a collapsible panel per vehicle under the Vehicles tab.
+      function renderVehicleDocsSection() {
+        const wrap = document.getElementById("vehicle-docs-section");
+        if (!wrap) return;
+        const vehicles = Object.values(_vehicleMap || {});
+        if (!vehicles.length) { wrap.innerHTML = ""; return; }
+        const byKey = {}; _allDocs.forEach(d => { byKey[docKey(d.docType, d.vehicleId)] = d; });
+        wrap.innerHTML = `
+          <div class="mt-8 border-t border-slate-100 pt-6">
+            <h3 class="text-sm font-bold text-slate-800 mb-1">Vehicle Documents</h3>
+            <p class="text-xs text-slate-400 mb-4">Log Book, Loan Offer Letter and NTSA Form — captured per vehicle.</p>
+            <div class="space-y-3">
+              ${vehicles.map(v => {
+                const done = VEHICLE_DOC_TYPES.filter(dt => byKey[docKey(dt.type, v.id)]).length;
+                const cards = VEHICLE_DOC_TYPES.map(dt => docCardHtml(dt, byKey[docKey(dt.type, v.id)], v.id)).join("");
+                const plate = v.registration || (v.registrationKnown === false ? "Unregistered" : "Vehicle");
+                return `<details class="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                  <summary class="cursor-pointer select-none flex items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50">
+                    <span class="flex items-center gap-2 min-w-0">
+                      <span class="font-mono font-semibold text-blue-700 text-sm">${plate}</span>
+                      <span class="text-xs text-slate-400 truncate">${[v.make, v.model].filter(Boolean).join(" ")}</span>
+                    </span>
+                    <span class="text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${done === VEHICLE_DOC_TYPES.length ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}">${done}/${VEHICLE_DOC_TYPES.length} docs</span>
+                  </summary>
+                  <div class="px-4 pb-4 pt-1 space-y-3 border-t border-slate-100">${cards}</div>
+                </details>`;
+              }).join("")}
+            </div>
+          </div>`;
+        wireDocInputs(wrap);
+      }
+
+      async function markDocCollected(docType, docLabel, vehicleId) {
+        const vid = vehicleId || "";
+        const notesEl = document.querySelector(`.doc-notes-input[data-doc-type="${docType}"][data-vehicle-id="${vid}"]`);
+        const notes = notesEl ? notesEl.value.trim() : "";
         const fd = new FormData();
-        fd.append("docType", docType);
-        fd.append("label",   docLabel);
-        fd.append("status",  "collected");
+        fd.append("docType", docType); fd.append("label", docLabel); fd.append("status", "collected");
+        if (vid) fd.append("vehicleId", vid);
         if (notes) fd.append("notes", notes);
-        try {
-          const token = window.FINEMARK_APP.getSession()?.accessToken;
-          const r = await fetch(`/api/crm/customers/${customerId}/documents`, {
-            method: "POST", headers: { "Authorization": `Bearer ${token}` }, body: fd
-          });
-          if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e?.error?.message || "Failed."); }
-          loadCustomerDocuments();
-        } catch(e) { alert(e?.message || "Failed to mark document."); }
+        try { await postDoc(fd); reloadDocs(); } catch(e) { alert(e?.message || "Failed to mark document."); }
       }
 
       async function deleteCustomerDoc(docId) {
         if (!confirm("Remove this document record?")) return;
         try {
           await window.FINEMARK_APP.apiFetch(`/crm/customers/${customerId}/documents/${docId}`, { method: "DELETE" });
-          loadCustomerDocuments();
+          reloadDocs();
         } catch(e) { alert(e?.message || "Failed to delete document."); }
       }
 
@@ -1102,7 +1328,10 @@
             secondaryWrap.classList.add("hidden");
           }
           const userRole = window.FINEMARK_APP?.getSession?.()?.user?.role;
-          if (["Admin", "Sales"].includes(userRole)) {
+          // Match the roles the backend PATCH /crm/customers/:id already accepts —
+          // BDM/BDMCorporate/Telesales/FieldSales/CorporateSales were being hidden here
+          // even though they're permitted to change the customer's partner.
+          if (["Admin", "CertAdmin", "Sales", "CorporateSales", "Telesales", "FieldSales", "BDM", "BDMCorporate"].includes(userRole)) {
             editPartnerBtn.classList.remove("hidden");
             editPartnerBtn.onclick = () => openPartnerEditModal(c.affiliatePartnerId || "", c.affiliatePartnerName || "", c.secondaryPartnerId || "", c.secondaryPartnerName || "");
           }
@@ -1111,6 +1340,16 @@
           document.getElementById("btn-edit").href = `crm-register.html?edit=${customerId}`;
           document.getElementById("btn-new-quote").addEventListener("click", () => openQuoteModal());
           document.getElementById("btn-new-ticket").href = `crm-tickets.html?new=1&customerId=${customerId}`;
+
+          // Corporate customers raise INSTALLATION tickets (CRPT-…) straight into the
+          // technical installation pipeline instead of a generic support ticket.
+          const isCorp = String(c.type || "").toLowerCase() === "corporate" || String(c.segment || "").toLowerCase() === "corporate";
+          if (isCorp) {
+            const bt = document.getElementById("btn-new-ticket");
+            bt.textContent = "+ New Installation Ticket";
+            bt.href = "javascript:void(0)";
+            bt.onclick = (e) => { e.preventDefault(); openInstallTicketModal(); };
+          }
 
           const typeBadgeMap = {
             individual: `<span class="inline-flex rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700 border border-indigo-100">Individual</span>`,
@@ -1157,6 +1396,15 @@
       }
 
       // Tab switching
+      // Deep link: ?tab=comms opens that tab on load (used by the Customer
+      // Service report's Logins column, which links straight to a message).
+      const _deepTab = new URLSearchParams(location.search).get("tab");
+      if (_deepTab) {
+        document.addEventListener("DOMContentLoaded", () => {
+          setTimeout(() => document.querySelector(`.tab-btn[data-tab="${_deepTab}"]`)?.click(), 0);
+        });
+      }
+
       document.querySelectorAll(".tab-btn").forEach(btn => {
         btn.addEventListener("click", () => {
           document.querySelectorAll(".tab-btn").forEach(b => {
@@ -1173,20 +1421,45 @@
 
       // ── Leads Tab ────────────────────────────────────────────────────────────
       let _leadsLoaded = false;
+      function _leadStatusCls(s) {
+        const m = { new:'bg-sky-50 text-sky-700', submitted:'bg-sky-50 text-sky-700', qualified:'bg-green-50 text-green-700',
+          converted:'bg-blue-50 text-blue-700', completed:'bg-blue-50 text-blue-700', disqualified:'bg-red-50 text-red-700',
+          rejected:'bg-red-50 text-red-700', cancelled:'bg-slate-100 text-slate-500' };
+        return m[(s||'').toLowerCase()] || 'bg-slate-100 text-slate-600';
+      }
       async function loadLeadsTab(custId) {
         if (_leadsLoaded) return; _leadsLoaded = true;
         const panel = document.getElementById('tab-leads');
         panel.innerHTML = '<p class="text-slate-400 text-sm animate-pulse">Loading leads…</p>';
         try {
-          const r = await window.FINEMARK_APP.apiFetch(`/crm/leads?customerId=${custId}&pageSize=100`);
-          const data = r?.data;
-          if (!data?.length) { panel.innerHTML = `<h2 class="font-semibold text-slate-800 mb-2">Leads</h2><p class="text-slate-400 text-sm">No leads found.</p><a href="crm-leads.html" class="mt-2 inline-block text-xs text-blue-600 hover:underline">Go to Leads</a>`; return; }
-          const sc = { New:'bg-sky-50 text-sky-700', Qualified:'bg-green-50 text-green-700', Converted:'bg-blue-50 text-blue-700', Disqualified:'bg-red-50 text-red-700' };
-          panel.innerHTML = `<div class="flex justify-between mb-3"><h2 class="font-semibold text-slate-800">Leads (${data.length})</h2><a href="crm-leads.html" class="text-xs text-blue-600 hover:underline">View All</a></div>
-            <div class="space-y-2">${data.map(l => `<div class="rounded-lg border border-slate-100 px-4 py-2.5 flex justify-between items-center">
-              <div><p class="text-sm font-medium text-slate-800">${l.leadNo}</p><p class="text-xs text-slate-400">${l.leadSource} · ${l.leadDate ? l.leadDate.slice(0,10) : '—'}</p></div>
-              <span class="inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${sc[l.status] || 'bg-slate-100 text-slate-600'}">${l.status}</span>
-            </div>`).join('')}</div>`;
+          // A customer can have both corporate (crm_leads) and retail (retail_leads)
+          // leads — pull both and merge, newest first.
+          const [corpR, retR] = await Promise.all([
+            window.FINEMARK_APP.apiFetch(`/crm/leads?customerId=${custId}&pageSize=100`).catch(() => ({ data: [] })),
+            window.FINEMARK_APP.apiFetch(`/retail/leads?customerId=${custId}&pageSize=100`).catch(() => ({ data: [] })),
+          ]);
+          const corp = (corpR?.data || []).map(l => ({
+            type: 'Corporate', leadNo: l.leadNo, source: l.leadSource,
+            date: (l.leadDate || l.createdAt || '').slice(0, 10), status: l.status,
+            href: `crm-lead-detail.html?id=${l.id}`,
+          }));
+          const ret = (retR?.leads || retR?.data || []).map(l => ({
+            type: 'Retail', leadNo: l.leadNo, source: l.leadSource,
+            date: (l.submittedAt || l.createdAt || '').slice(0, 10), status: l.status,
+            href: `retail-lead-detail.html?id=${l.id}`,
+          }));
+          const all = [...ret, ...corp].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+          if (!all.length) { panel.innerHTML = `<h2 class="font-semibold text-slate-800 mb-2">Leads</h2><p class="text-slate-400 text-sm">No leads found.</p><a href="crm-leads.html" class="mt-2 inline-block text-xs text-blue-600 hover:underline">Go to Leads</a>`; return; }
+          panel.innerHTML = `<div class="flex justify-between mb-3"><h2 class="font-semibold text-slate-800">Leads (${all.length})</h2><a href="crm-leads.html" class="text-xs text-blue-600 hover:underline">View All</a></div>
+            <div class="space-y-2">${all.map(l => `<a href="${l.href}" class="block rounded-lg border border-slate-100 px-4 py-2.5 flex justify-between items-center hover:bg-slate-50 transition">
+              <div>
+                <p class="text-sm font-medium text-slate-800">${l.leadNo}
+                  <span class="ml-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${l.type === 'Retail' ? 'bg-indigo-50 text-indigo-700' : 'bg-purple-50 text-purple-700'}">${l.type}</span>
+                </p>
+                <p class="text-xs text-slate-400">${l.source || '—'} · ${l.date || '—'}</p>
+              </div>
+              <span class="inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${_leadStatusCls(l.status)}">${l.status}</span>
+            </a>`).join('')}</div>`;
         } catch(e) { panel.innerHTML = `<p class="text-red-500 text-sm">${e.message}</p>`; }
       }
 
@@ -1333,15 +1606,39 @@
                <button onclick="openBookMeetingModal()" class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors">📅 Book Meeting</button>
              </div>
            </div>`;
+        const escCommHtml = (v) => String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+        // The message body is hidden behind a per-entry toggle rather than
+        // printed inline: these logs include platform-credentials messages, so
+        // the body is revealed deliberately rather than displayed in bulk.
+        // ?log=<id> (from the Customer Service report's Logins column) scrolls
+        // to that entry and opens it.
+        const deepLogId = new URLSearchParams(location.search).get("log");
         panel.innerHTML = logs.length
           ? `${header}
-             <div class="space-y-3">${logs.map(l => `
-               <div class="border-l-2 ${l.direction === 'Inbound' ? 'border-teal-400' : 'border-blue-400'} pl-4 py-1">
+             <div class="space-y-3">${logs.map(l => {
+               const isTarget = deepLogId && l.id === deepLogId;
+               return `
+               <div id="comm-${l.id}" class="border-l-2 ${isTarget ? 'border-amber-400 bg-amber-50/60 rounded-r-lg' : (l.direction === 'Inbound' ? 'border-teal-400' : 'border-blue-400')} pl-4 py-1">
                  <p class="text-xs font-semibold text-slate-600 uppercase tracking-wide">${l.channel} · ${l.direction}</p>
                  <p class="text-sm font-medium text-slate-800 mt-0.5">${l.subject || "(no subject)"}</p>
                  <p class="text-xs text-slate-400 mt-0.5">${l.byEmail} · ${l.contactedAt ? l.contactedAt.slice(0, 16).replace("T", " ") : "—"}</p>
-               </div>`).join("")}</div>`
+                 ${l.body ? `<button type="button" data-comm-toggle="${l.id}" class="mt-1 text-xs font-medium text-blue-600 hover:underline">${isTarget ? 'Hide message' : 'Show message'}</button>
+                 <pre id="comm-body-${l.id}" class="${isTarget ? '' : 'hidden'} mt-1 whitespace-pre-wrap break-words rounded-lg bg-slate-50 border border-slate-200 p-2 text-xs text-slate-700 font-sans">${escCommHtml(l.body)}</pre>` : ""}
+               </div>`;
+             }).join("")}</div>`
           : `${header}<p class="text-slate-400 text-sm">No communication logs.</p>`;
+
+        panel.querySelectorAll("[data-comm-toggle]").forEach(btn => {
+          btn.addEventListener("click", () => {
+            const body = document.getElementById(`comm-body-${btn.dataset.commToggle}`);
+            if (!body) return;
+            const nowHidden = body.classList.toggle("hidden");
+            btn.textContent = nowHidden ? "Show message" : "Hide message";
+          });
+        });
+        if (deepLogId) {
+          document.getElementById(`comm-${deepLogId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
       }
 
       function renderContactsTab(contacts) {
@@ -2153,7 +2450,7 @@
           if (!sel) return;
           sel.innerHTML = '<option value="">— No specific vehicle —</option>' +
             vArr.map(v => {
-              const label = [v.registration, v.make && v.model ? `${v.make} ${v.model}` : (v.make || ''), v.yearOfManufacture ? `(${v.yearOfManufacture})` : ''].filter(Boolean).join(' — ');
+              const label = window.FINEMARK_APP.vehicleLabel(v);
               return `<option value="${v.id}" data-partner-id="${v.partnerId || ''}" data-partner-name="${(v.partnerName || '').replace(/"/g, '&quot;')}" data-loan-term="${v.loanTenureMonths || ''}">${label}</option>`;
             }).join('');
           if (!vArr.length) sel.innerHTML = '<option value="">— No vehicles registered —</option>';
@@ -2962,6 +3259,168 @@
           btn.disabled = false; btn.textContent = 'Send SMS';
         }
       }
+
+      // ── Corporate: raise a CRPT installation ticket into the technical pipeline ──
+      let _itkCategoriesLoaded = false;
+      async function openInstallTicketModal() {
+        const m = document.getElementById('itk-modal');
+        const sel = document.getElementById('itk-vehicle');
+        const vehicles = (view360 && view360.vehicles) || [];
+        if (vehicles.length) {
+          sel.innerHTML = vehicles.map(v => {
+            return `<option value="${v.id}">${window.FINEMARK_APP.vehicleLabel(v)}</option>`;
+          }).join('');
+          sel.disabled = false;
+        } else {
+          sel.innerHTML = '<option value="">No vehicles on file — raised without a vehicle</option>';
+          sel.disabled = true;
+        }
+        const c = view360 && view360.customer;
+        const prof = view360 && view360.profile;
+        document.getElementById('itk-location').value =
+          (prof && (prof.physicalAddress || prof.physical_address || prof.address)) || (c && c.region) || '';
+        document.getElementById('itk-contact').value = '';
+        document.getElementById('itk-phone').value = '';
+        document.getElementById('itk-notes').value = '';
+        document.getElementById('itk-referrer-name').value = '';
+        document.getElementById('itk-referrer-phone').value = '';
+        document.getElementById('itk-commission').value = '';
+        document.getElementById('itk-err').classList.add('hidden');
+        m.classList.remove('hidden'); m.classList.add('flex');
+
+        // Product category dropdown (from the catalogue) — cached across opens.
+        const catSel = document.getElementById('itk-category');
+        catSel.value = '';
+        if (!_itkCategoriesLoaded) {
+          try {
+            const cats = await window.FINEMARK_APP.apiFetch('/inventory/catalog/categories');
+            const list = cats?.data || [];
+            catSel.innerHTML = '<option value="">— Select category —</option>' +
+              list.map(ct => `<option value="${String(ct.name || '').replace(/"/g, '&quot;')}">${ct.name || ''}${ct.tracks_inventory === false ? ' (service job, no gadget)' : ''}</option>`).join('');
+            _itkCategoriesLoaded = true;
+          } catch { /* keep default option */ }
+        }
+        // Quote dropdown — the customer's open (non-rejected) quotes.
+        const qSel = document.getElementById('itk-quote');
+        qSel.innerHTML = '<option value="">— No quote —</option>';
+        try {
+          const qr = await window.FINEMARK_APP.apiFetch(`/crm/quotes?customerId=${encodeURIComponent(customerId)}&pageSize=100`);
+          const quotes = (qr?.data || []).filter(q => !['Rejected', 'Cancelled'].includes(q.status));
+          qSel.innerHTML += quotes.map(q => `<option value="${q.id}">${q.quoteNo || q.id}${q.status ? ' — ' + q.status : ''}</option>`).join('');
+        } catch { /* keep default option */ }
+      }
+      function closeInstallTicketModal() {
+        const m = document.getElementById('itk-modal');
+        m.classList.add('hidden'); m.classList.remove('flex');
+      }
+      async function submitInstallTicket() {
+        const btn = document.getElementById('itk-submit');
+        const err = document.getElementById('itk-err');
+        err.classList.add('hidden');
+        const category = document.getElementById('itk-category').value;
+        if (!category) {
+          err.textContent = 'Please select a product category.';
+          err.classList.remove('hidden');
+          return;
+        }
+        const body = {
+          customerId,
+          vehicleId: document.getElementById('itk-vehicle').value || undefined,
+          productCategory: category,
+          quoteId: document.getElementById('itk-quote').value || undefined,
+          installationLocation: document.getElementById('itk-location').value.trim() || undefined,
+          contactName: document.getElementById('itk-contact').value.trim() || undefined,
+          contactPhone: document.getElementById('itk-phone').value.trim() || undefined,
+          notes: document.getElementById('itk-notes').value.trim() || undefined,
+          referrerName: document.getElementById('itk-referrer-name').value.trim() || undefined,
+          referrerPhone: document.getElementById('itk-referrer-phone').value.trim() || undefined,
+          commissionAmount: document.getElementById('itk-commission').value !== '' ? Number(document.getElementById('itk-commission').value) : undefined,
+        };
+        btn.disabled = true; btn.textContent = 'Raising…';
+        try {
+          const r = await window.FINEMARK_APP.apiFetch('/installation-tickets/corporate', { method: 'POST', body });
+          const tno = (r && r.data && (r.data.ticketNo || r.data.ticket_no)) || '';
+          window.FINEMARK_APP.showToast?.(`Installation ticket ${tno} raised into the Technical pipeline.`, 'success');
+          closeInstallTicketModal();
+          const itBtn = document.querySelector('[data-tab="install-tickets"]');
+          if (itBtn) itBtn.click();
+          if (typeof loadInstallTicketsTab === 'function') loadInstallTicketsTab(customerId);
+        } catch (e) {
+          err.textContent = (e && e.message) || 'Failed to raise installation ticket.';
+          err.classList.remove('hidden');
+        } finally {
+          btn.disabled = false; btn.textContent = 'Raise Ticket';
+        }
+      }
     </script>
+
+    <!-- Corporate: New Installation Ticket modal -->
+    <div id="itk-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 px-4">
+      <div class="w-full max-w-lg rounded-xl bg-white shadow-lg">
+        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+          <div>
+            <p class="text-sm font-semibold text-slate-900">New Installation Ticket</p>
+            <p class="text-xs text-slate-500">Raises a CRPT ticket into the Technical installation pipeline</p>
+          </div>
+          <button onclick="closeInstallTicketModal()" class="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-700 hover:bg-slate-50">Close</button>
+        </div>
+        <div class="p-5 space-y-3">
+          <div id="itk-err" class="hidden rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"></div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Vehicle</label>
+            <select id="itk-vehicle" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"></select>
+            <p class="text-[0.7rem] text-slate-400 mt-1">The selected vehicle's details are carried onto the technician's job card.</p>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Product Category <span class="text-red-500">*</span></label>
+            <select id="itk-category" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"><option value="">— Select category —</option></select>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Associate a Quote <span class="text-slate-400 font-normal">(if not yet invoiced)</span></label>
+            <select id="itk-quote" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"><option value="">— No quote —</option></select>
+            <p class="text-[0.7rem] text-slate-400 mt-1">Links this installation to a quote so it can be invoiced later.</p>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Installation location</label>
+            <input id="itk-location" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Site / branch / physical address" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-semibold text-slate-600">Site contact name</label>
+              <input id="itk-contact" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-slate-600">Site contact phone</label>
+              <input id="itk-phone" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Notes (optional)</label>
+            <textarea id="itk-notes" rows="2" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"></textarea>
+          </div>
+          <div class="pt-2 border-t border-slate-100">
+            <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-wide mb-2">Referral <span class="font-normal normal-case">— not shown on the ticket; carried to the invoice &amp; finance reports</span></p>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs font-semibold text-slate-600">Referrer name</label>
+                <input id="itk-referrer-name" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="text-xs font-semibold text-slate-600">Referrer contact</label>
+                <input id="itk-referrer-phone" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              </div>
+            </div>
+            <div class="mt-3">
+              <label class="text-xs font-semibold text-slate-600">Commission amount (KES)</label>
+              <input id="itk-commission" type="number" min="0" step="0.01" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="0.00" />
+            </div>
+          </div>
+          <div class="flex items-center justify-end gap-2 pt-1">
+            <button onclick="closeInstallTicketModal()" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
+            <button id="itk-submit" onclick="submitInstallTicket()" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Raise Ticket</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </body>
 </html>

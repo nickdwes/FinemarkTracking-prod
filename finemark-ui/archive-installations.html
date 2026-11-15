@@ -331,6 +331,13 @@
 
       function init() {
         loadMeta();
+        // Deep link from the Customer Service report's Logins column:
+        // ?reg=KDW577W prefills the plate and runs the search immediately.
+        const deepReg = new URLSearchParams(location.search).get("reg");
+        if (deepReg) {
+          $("f-vehicle").value = deepReg;
+          search(true);
+        }
         $("btn-search").addEventListener("click", () => search(true));
         $("btn-reset").addEventListener("click", resetFilters);
         $("btn-export").addEventListener("click", exportCsv);

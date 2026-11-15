@@ -199,8 +199,19 @@ export const listSpeedGovernorsQuerySchema = z.object({
   pageSize: z.string().optional(),
 });
 
+// A GPS-tracker IMEI, when provided, must be a full 15-digit number. IMEIs are
+// optional on a certificate (how many appear varies by bank), but a partial/
+// last-digits entry is rejected — that data-entry habit is what left ~300 certs
+// with truncated IMEIs. Empty/omitted is allowed; whitespace is tolerated.
+const imeiField = z
+  .string()
+  .optional()
+  .refine((v) => v == null || v.trim() === "" || /^\d{15}$/.test(v.trim()), {
+    message: "IMEI must be a full 15-digit number.",
+  });
+
 const certificateAdditionalDeviceSchema = z.object({
-  imei: z.string().optional(),
+  imei: imeiField,
   trackerNo: z.string().optional(),
 });
 
@@ -212,7 +223,10 @@ export const createCertificateSchema = z.object({
   // when template is the default "finemark".
   template: z.enum(["finemark", "unique"]).optional().default("finemark"),
   systemType: z.string().optional(),
-  carRegistration: z.string().min(1),
+  // Optional at the field level: an unregistered vehicle carries no plate and is
+  // certified on its chassis instead. The "registration OR chassis" rule is enforced
+  // in the superRefine below (applies to both templates).
+  carRegistration: z.string().optional().default(""),
   model: z.string().optional(),
   date: z.string().optional(),
   name: z.string().optional(),
@@ -221,8 +235,8 @@ export const createCertificateSchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   loanDurationYears: z.number().optional(),
-  imei1: z.string().optional(),
-  imei2: z.string().optional(),
+  imei1: imeiField,
+  imei2: imeiField,
   trackerNo1: z.string().optional(),
   trackerNo2: z.string().optional(),
   additionalDevices: z.array(certificateAdditionalDeviceSchema).optional(),
@@ -237,6 +251,13 @@ export const createCertificateSchema = z.object({
   authorizedBySignatureUrl: z.string().optional(),
   pdfBase64: z.string().min(1),
 }).superRefine((data, ctx) => {
+  // Every certificate needs at least one vehicle identifier: a number plate OR a
+  // chassis/VIN (unregistered vehicles awaiting plates are certified on the chassis).
+  const hasReg = !!(data.carRegistration && data.carRegistration.trim());
+  const hasChassis = !!(data.chassisNumber && data.chassisNumber.trim());
+  if (!hasReg && !hasChassis) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["carRegistration"], message: "A registration or chassis number is required" });
+  }
   if (data.template === "unique") return;
   // IMEI/Tracker counts vary bank-to-bank (Sidian issues 2 trackers, SMEP 1,
   // DTB 1, the rest 2 — see create-certificate.html's CERT_CATEGORY_POLICY),
@@ -266,8 +287,8 @@ export const updateCertificateSchema = z.object({
   startDate: z.string().min(1).optional(),
   endDate: z.string().min(1).optional(),
   loanDurationYears: z.number().optional(),
-  imei1: z.string().min(1).optional(),
-  imei2: z.string().optional(),
+  imei1: imeiField,
+  imei2: imeiField,
   trackerNo1: z.string().min(1).optional(),
   trackerNo2: z.string().optional(),
   chassisNumber: z.string().optional(),
@@ -293,12 +314,47 @@ export const certBankConfigSchema = z.object({
   showTracker: z.boolean(),
   maxImei: z.number().int().min(0).max(10),
   maxTracker: z.number().int().min(0).max(10),
+  partnerId: z.string().optional().nullable(),
   sortOrder: z.number().int().optional(),
 });
 
 export const updateCertBankConfigSchema = certBankConfigSchema.partial().extend({
   bankName: z.string().min(1).optional(),
 });
+
+// ── Per-partner-bank document (quote/proforma/invoice) configuration ──────────
+export const docBankConfigSchema = z.object({
+  partnerId: z.string().min(1),
+  displayName: z.string().min(1),
+  template: z.enum(["finemark", "unique"]),
+  vatDisplay: z.enum(["auto", "inclusive", "inclusive_hidden", "exclusive", "zero_rated", "none"]),
+  billToAddress: z.string().optional().nullable(),
+  payToBankName: z.string().optional().nullable(),
+  payToBranch: z.string().optional().nullable(),
+  payToAccountNo: z.string().optional().nullable(),
+  payToPayee: z.string().optional().nullable(),
+  sortOrder: z.number().int().optional(),
+});
+
+export const updateDocBankConfigSchema = docBankConfigSchema.partial();
+
+// The two editable company brand profiles (letterhead + payment identity)
+export const brandProfileSchema = z.object({
+  companyName: z.string().min(1),
+  tagline: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
+  website: z.string().optional().nullable(),
+  pin: z.string().optional().nullable(),
+  logoFilename: z.string().optional().nullable(),
+  till: z.string().optional().nullable(),
+  paybill: z.string().optional().nullable(),
+  bankName: z.string().optional().nullable(),
+  bankBranch: z.string().optional().nullable(),
+  bankAccountNo: z.string().optional().nullable(),
+  payee: z.string().optional().nullable(),
+}).partial();
 
 export const listCertificatesQuerySchema = z.object({
   search: z.string().optional(),

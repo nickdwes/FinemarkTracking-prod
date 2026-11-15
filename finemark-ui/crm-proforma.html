@@ -64,6 +64,26 @@
             <label class="block text-xs font-medium text-slate-500 mb-1">Search</label>
             <input id="search-input" type="text" placeholder="Proforma no, customer…" class="w-56 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
           </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Sales Rep</label>
+            <select id="f-rep" class="w-48 rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-500">
+              <option value="">All reps</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Created from</label>
+            <input id="f-from" type="date" class="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Created to</label>
+            <input id="f-to" type="date" class="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+          <div class="flex items-end gap-2">
+            <button id="btn-reset" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Reset</button>
+          </div>
+          <div class="flex items-end ml-auto">
+            <span id="result-count" class="text-xs text-slate-500"></span>
+          </div>
         </div>
 
         <div id="pf-skeleton" class="space-y-2">
@@ -81,6 +101,7 @@
                 <th class="py-2 pr-4 text-left font-semibold">Customer</th>
                 <th class="py-2 pr-4 text-left font-semibold">Total (KES)</th>
                 <th class="py-2 pr-4 text-left font-semibold">Status</th>
+                <th class="py-2 pr-4 text-left font-semibold">Invoice</th>
                 <th class="py-2 pr-4 text-left font-semibold">Sales Rep</th>
                 <th class="py-2 pr-4 text-left font-semibold">Created</th>
                 <th class="py-2 text-left font-semibold">Actions</th>
@@ -89,6 +110,8 @@
             <tbody id="pf-tbody" class="divide-y divide-slate-100"></tbody>
           </table>
         </div>
+        <div id="pf-pagination" class="hidden items-center justify-between gap-3 pt-3 text-xs text-slate-500"></div>
+
       </div>
     </div>
   </main>
@@ -167,6 +190,67 @@ const canApproveProforma = ["admin", "finance", "bdm"].includes(_userRole);
 let activeStatus = "";
 let debounceTimer, pendingAction = null, pendingId = null;
 let _pfMap = {};
+let _pfPage = 1;
+const PF_PAGE_SIZE = 50;
+
+// Every filter the list and the stats endpoints share. Status is added by the
+// caller because the tabs own it and /stats needs the unfiltered-by-status view.
+function currentFilterParams() {
+  const p = new URLSearchParams();
+  const q = $("search-input").value.trim();
+  const rep = $("f-rep").value;
+  const from = $("f-from").value;
+  const to = $("f-to").value;
+  if (q) p.set("search", q);        // NB: the param is "search" — the page used
+  if (rep) p.set("salesRepId", rep); // to send "q", which the API ignored, so
+  if (from) p.set("from", from);     // the search box did nothing at all.
+  if (to) p.set("to", to);
+  return p;
+}
+
+async function loadStats() {
+  try {
+    const r = await api(`/crm/proforma/stats?${currentFilterParams().toString()}`);
+    const by = r?.byStatus || {};
+    const map = {
+      Draft: "Draft", "Pending Approval": "PendingApproval",
+      Approved: "Approved", Rejected: "Rejected", Converted: "Converted",
+    };
+    Object.entries(map).forEach(([status, key]) => {
+      const el = $("s-" + key);
+      if (el) el.textContent = (by[status] || 0).toLocaleString();
+    });
+    const pending = by["Pending Approval"] || 0;
+    $("pending-count").textContent = pending.toLocaleString();
+    $("pending-banner").classList.toggle("hidden", pending === 0);
+  } catch { /* cards keep their last value rather than showing a wrong 0 */ }
+}
+
+async function loadRepOptions() {
+  try {
+    const r = await api("/crm/proforma/sales-reps");
+    const reps = r?.data || [];
+    const sel = $("f-rep");
+    sel.innerHTML = `<option value="">All reps</option>` +
+      reps.map(x => `<option value="${x.id}">${String(x.name).replace(/[<>&"]/g, "")}</option>`).join("");
+  } catch { /* leave the "All reps" default in place */ }
+}
+
+function renderPfPagination(total) {
+  const el = $("pf-pagination");
+  const pages = Math.max(1, Math.ceil(total / PF_PAGE_SIZE));
+  if (total <= PF_PAGE_SIZE) { el.classList.add("hidden"); return; }
+  el.classList.remove("hidden");
+  el.classList.add("flex");
+  el.innerHTML = `
+    <span>Page ${_pfPage} of ${pages}</span>
+    <div class="flex gap-2">
+      <button id="pf-prev" class="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40" ${_pfPage <= 1 ? "disabled" : ""}>Prev</button>
+      <button id="pf-next" class="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40" ${_pfPage >= pages ? "disabled" : ""}>Next</button>
+    </div>`;
+  $("pf-prev")?.addEventListener("click", () => { if (_pfPage > 1) { _pfPage--; loadProformas(); } });
+  $("pf-next")?.addEventListener("click", () => { if (_pfPage < pages) { _pfPage++; loadProformas(); } });
+}
 
 const STATUS_COLORS = {
   Draft: "bg-slate-100 text-slate-600 border-slate-200",
@@ -188,30 +272,28 @@ async function loadProformas() {
   $("pf-empty").classList.add("hidden");
   $("pf-error").classList.add("hidden");
 
-  const p = new URLSearchParams({ pageSize: "100" });
+  const p = currentFilterParams();
+  p.set("page", String(_pfPage));
+  p.set("pageSize", String(PF_PAGE_SIZE));
   if (activeStatus) p.set("status", activeStatus);
-  const q = $("search-input").value.trim();
-  if (q) p.set("q", q);
 
   try {
     const r = await api(`/crm/proforma?${p.toString()}`);
     const data = r?.data || [];
+    const total = r?.meta?.total ?? data.length;
     _pfMap = {}; data.forEach(pf => { _pfMap[pf.id] = pf; });
     $("pf-skeleton").classList.add("hidden");
 
-    if (!activeStatus && !q) {
-      const stats = {};
-      data.forEach(d => {
-        const key = d.status.replace(" ", "");
-        stats[key] = (stats[key] || 0) + 1;
-      });
-      ["Draft","PendingApproval","Approved","Rejected","Converted"].forEach(s => {
-        const el = $("s-" + s); if (el) el.textContent = stats[s] || 0;
-      });
-      const pendingCount = stats["PendingApproval"] || 0;
-      $("pending-count").textContent = pendingCount;
-      $("pending-banner").classList.toggle("hidden", pendingCount === 0);
-    }
+    // Status cards + the pending banner come from /stats, which counts in SQL
+    // across every matching row. They used to be tallied from whatever rows
+    // this page happened to have fetched, which was one page — so with 1,930
+    // proformas the banner claimed 9 pending when there were 424.
+    loadStats();
+
+    $("result-count").textContent = total
+      ? `${total.toLocaleString()} result${total === 1 ? "" : "s"}`
+      : "";
+    renderPfPagination(total);
 
     if (!data.length) { $("pf-empty").classList.remove("hidden"); return; }
 
@@ -223,12 +305,20 @@ async function loadProformas() {
       const custBadge = custApproved
         ? `<span title="Customer approved via link on ${new Date(pf.customerApprovedAt).toLocaleDateString()}" class="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 text-xs font-semibold text-emerald-700">✓ Cust.</span>`
         : "";
+      // Approval raises the tax invoice; its number is INV- + the PFI- suffix.
+      // An approved proforma with no invoice is a real fault, so flag it.
+      const invCell = pf.invoiceId
+        ? `<a href="invoice-detail.html?id=${pf.invoiceId}" class="font-mono text-xs text-blue-600 hover:underline">${pf.invoiceNumber || "View invoice"}</a>${pf.invoiceStatus ? `<div class="text-[11px] text-slate-400">${pf.invoiceStatus}</div>` : ""}`
+        : isApproved
+          ? `<span class="text-xs font-semibold text-red-600">Missing</span>`
+          : `<span class="text-slate-300">—</span>`;
       return `
         <tr class="${rowCls}">
           <td class="py-2 pr-4 font-mono text-xs"><a href="crm-proforma.html?id=${pf.id}" class="text-blue-600 hover:underline">${pf.proformaNo}</a></td>
           <td class="py-2 pr-4">${pf.customerName || pf.customerId || "—"}</td>
           <td class="py-2 pr-4 font-semibold">${pf.totalAmount ? Number(pf.totalAmount).toLocaleString() : "—"}</td>
           <td class="py-2 pr-4">${badge(pf.status)} ${custBadge}</td>
+          <td class="py-2 pr-4">${invCell}</td>
           <td class="py-2 pr-4 text-slate-500">${pf.salesRepName || pf.salesRepEmail || "—"}</td>
           <td class="py-2 pr-4 text-slate-400 text-xs">${new Date(pf.createdAt).toLocaleDateString()}</td>
           <td class="py-2 flex gap-1 flex-wrap">
@@ -267,10 +357,21 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
     });
     btn.classList.add("bg-white","shadow-sm","text-slate-900"); btn.classList.remove("text-slate-600");
     activeStatus = btn.dataset.status;
+    _pfPage = 1;
     loadProformas();
   });
 });
-$("search-input").addEventListener("input", () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(loadProformas, 350); });
+// Any filter change restarts at page 1 — otherwise a narrower result set can
+// leave you stranded on a page that no longer exists, showing an empty table.
+const reloadFromFirstPage = () => { _pfPage = 1; loadProformas(); };
+$("search-input").addEventListener("input", () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(reloadFromFirstPage, 350); });
+$("f-rep").addEventListener("change", reloadFromFirstPage);
+$("f-from").addEventListener("change", reloadFromFirstPage);
+$("f-to").addEventListener("change", reloadFromFirstPage);
+$("btn-reset").addEventListener("click", () => {
+  $("search-input").value = ""; $("f-rep").value = ""; $("f-from").value = ""; $("f-to").value = "";
+  reloadFromFirstPage();
+});
 
 const modal = $("modal-action");
 $("ma-cancel").addEventListener("click", () => modal.classList.add("hidden"));
@@ -433,6 +534,7 @@ $("send-pf-confirm").addEventListener("click", async () => {
   }
 });
 
+loadRepOptions();
 loadProformas();
 </script>
 </body>

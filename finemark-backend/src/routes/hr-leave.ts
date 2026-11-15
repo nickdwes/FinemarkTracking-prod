@@ -2,8 +2,10 @@ import { Router } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { pgGet, pgAll, pgRun } from "../db.js";
 import { requireAuth, AuthRequest } from "../middleware/auth.js";
-import { requireRole, ROLE_GROUPS, ROLES } from "../middleware/rbac.js";
+import { requireRole, ROLE_GROUPS, ROLES, LEGACY_ROLE_MAP } from "../middleware/rbac.js";
+import { ensureBalance, computeEntitlement } from "../services/hrLeaveBalanceService.js";
 import { auditLog } from "../services/auditService.js";
+import { createNotification } from "./notifications.js";
 import { created, errorResponse, ok } from "../utils/responses.js";
 import {
   createLeaveTypeSchema, updateLeaveTypeSchema,
@@ -15,10 +17,55 @@ import {
 } from "../utils/hrLeaveValidators.js";
 
 const router = Router();
-const APPROVER_ROLES = [ROLES.ADMIN, ROLES.EXECUTIVE, ROLES.BDM, ROLES.BDM_CORPORATE, "TeamLead"];
-// Previously redeclared 4x (function-scoped, 2 different names) across this file
-// for the same exact set — hoisted once here.
-const HR_LEAVE_FULL_ACCESS = [ROLES.ADMIN, ROLES.EXECUTIVE, ROLES.BDM, ROLES.BDM_CORPORATE] as string[];
+// Unrestricted, org-wide leave access. BDM/BDMCorporate deliberately excluded —
+// they used to be full-access here too ("any BDM sees every team"), which broke
+// once retail split into multiple regional BDMs each managing their own reps.
+// Everyone else's rights come from the org chart via leaveActor() below.
+const HR_LEAVE_FULL_ACCESS = [ROLES.ADMIN, ROLES.EXECUTIVE, ROLES.HR] as string[];
+// Local override for this module only — NOT ROLE_GROUPS.ADMIN_ONLY, which is a
+// shared cross-module constant ([Admin] only); broadening that globally would
+// grant the HR role admin rights everywhere, not just over leave configuration.
+const HR_LEAVE_ADMIN_ROLES = [ROLES.ADMIN, ROLES.HR] as string[];
+// requireRole() already resolves a legacy role (e.g. "Management") to its
+// canonical equivalent ("Executive") when checking route access, via
+// LEGACY_ROLE_MAP. This module's own scoping logic below reads req.user.role
+// directly for finer-grained decisions (full-access vs manager-scoped vs
+// self), so it needs the same resolution or a legacy-role caller passes the
+// route guard but then falls through to the wrong scoping branch.
+function canonicalRole(role: string | undefined | null): string {
+  return (role && LEGACY_ROLE_MAP[role]) || role || "";
+}
+
+// Who the caller is in leave terms. Manager rights (approve at L1, see the
+// team's applications/balances/calendar) are granted by having direct reports
+// in the HR org chart (hr_employees.manager_id) — NOT by role. See the
+// canApproveLeave() design note in middleware/rbac.ts. The previous role-based
+// gate (Admin/Executive/HR/BDM/BDMCorporate/TeamLead) silently locked out any
+// manager whose account role happened to be something else — in practice the
+// Technical Manager (27 direct reports) and the Recovery manager (4), i.e. a
+// third of the company could not get their leave approved.
+type LeaveActor = {
+  role: string;
+  fullAccess: boolean;          // HR / Admin / Executive — org-wide
+  emp: { id: string; full_name: string; user_account_id: string } | null;
+  isManager: boolean;           // has ≥1 active direct report
+};
+async function leaveActor(user: { id: string; role: string }): Promise<LeaveActor> {
+  const role = canonicalRole(user.role);
+  const fullAccess = HR_LEAVE_FULL_ACCESS.includes(role);
+  const emp = await pgGet<any>("SELECT id, full_name, user_account_id FROM hr_employees WHERE user_account_id=?", [user.id]);
+  const isManager = emp
+    ? !!(await pgGet("SELECT 1 AS x FROM hr_employees WHERE manager_id=? AND status='Active' LIMIT 1", [emp.id]))
+    : false;
+  return { role, fullAccess, emp: emp ?? null, isManager };
+}
+
+// In-app notifications (bell in the header, assets/layout.js) — the same
+// app_notifications mechanism tickets/proforma/custody already use. Fire-and-
+// forget: a notification failure must never fail the leave action itself.
+function notify(opts: Parameters<typeof createNotification>[0]) {
+  createNotification(opts).catch(e => console.error("[hr-leave notify]", e?.message || e));
+}
 
 // ── WORKING DAYS helper (Mon–Fri, no weekend counting) ───────────────────────
 function countWorkingDays(start: string, end: string): number {
@@ -41,11 +88,11 @@ router.get("/types", requireAuth, async (_req, res) => {
   return ok(res, { data: rows });
 });
 
-router.post("/types", requireAuth, requireRole(ROLE_GROUPS.ADMIN_ONLY), async (req: AuthRequest, res) => {
+router.post("/types", requireAuth, requireRole(HR_LEAVE_ADMIN_ROLES), async (req: AuthRequest, res) => {
   const parsed = createLeaveTypeSchema.safeParse(req.body);
   if (!parsed.success) return errorResponse(res, 400, "VALIDATION_ERROR", "Invalid input", parsed.error.flatten());
   const d = parsed.data;
-  const exists = await pgGet("SELECT id FROM hr_leave_types WHERE name = ?", [d.name]);
+  const exists = await pgGet("SELECT id FROM hr_leave_types WHERE LOWER(name) = LOWER(?)", [d.name]);
   if (exists) return errorResponse(res, 409, "CONFLICT", "Leave type with this name already exists.");
   const id = uuidv4();
   const now = new Date().toISOString();
@@ -61,12 +108,16 @@ router.post("/types", requireAuth, requireRole(ROLE_GROUPS.ADMIN_ONLY), async (r
   return created(res, { id, name: d.name }, "Leave type created");
 });
 
-router.patch("/types/:id", requireAuth, requireRole(ROLE_GROUPS.ADMIN_ONLY), async (req: AuthRequest, res) => {
+router.patch("/types/:id", requireAuth, requireRole(HR_LEAVE_ADMIN_ROLES), async (req: AuthRequest, res) => {
   const row = await pgGet("SELECT * FROM hr_leave_types WHERE id = ?", [req.params.id]);
   if (!row) return errorResponse(res, 404, "NOT_FOUND", "Leave type not found.");
   const parsed = updateLeaveTypeSchema.safeParse(req.body);
   if (!parsed.success) return errorResponse(res, 400, "VALIDATION_ERROR", "Invalid input", parsed.error.flatten());
   const d = parsed.data;
+  if (d.name) {
+    const dup = await pgGet("SELECT id FROM hr_leave_types WHERE LOWER(name)=LOWER(?) AND id<>?", [d.name, req.params.id]);
+    if (dup) return errorResponse(res, 409, "CONFLICT", "Leave type with this name already exists.");
+  }
   const now = new Date().toISOString();
   await pgRun(
     `UPDATE hr_leave_types SET
@@ -84,11 +135,18 @@ router.patch("/types/:id", requireAuth, requireRole(ROLE_GROUPS.ADMIN_ONLY), asy
   return ok(res, await pgGet("SELECT * FROM hr_leave_types WHERE id = ?", [req.params.id]), "Updated");
 });
 
-router.delete("/types/:id", requireAuth, requireRole(ROLE_GROUPS.ADMIN_ONLY), async (req: AuthRequest, res) => {
+router.delete("/types/:id", requireAuth, requireRole(HR_LEAVE_ADMIN_ROLES), async (req: AuthRequest, res) => {
   const row = await pgGet("SELECT id FROM hr_leave_types WHERE id = ?", [req.params.id]);
   if (!row) return errorResponse(res, 404, "NOT_FOUND", "Leave type not found.");
   const hasApps = await pgGet("SELECT id FROM hr_leave_applications WHERE leave_type_id = ?", [req.params.id]);
   if (hasApps) return errorResponse(res, 409, "CONFLICT", "Leave applications exist for this type. Deactivate instead.");
+  const entCount = (await pgGet("SELECT COUNT(*) c FROM hr_leave_entitlements WHERE leave_type_id = ?", [req.params.id]))?.c ?? 0;
+  const balCount = (await pgGet("SELECT COUNT(*) c FROM hr_leave_balances WHERE leave_type_id = ?", [req.params.id]))?.c ?? 0;
+  if ((entCount > 0 || balCount > 0) && req.query.confirm !== "true") {
+    return errorResponse(res, 409, "CONFIRM_REQUIRED",
+      `This will delete ${entCount} entitlement rule(s) and ${balCount} balance record(s).`,
+      { entitlements: Number(entCount), balances: Number(balCount) });
+  }
   await pgRun("DELETE FROM hr_leave_entitlements WHERE leave_type_id = ?", [req.params.id]);
   await pgRun("DELETE FROM hr_leave_balances WHERE leave_type_id = ?", [req.params.id]);
   await pgRun("DELETE FROM hr_leave_types WHERE id = ?", [req.params.id]);
@@ -109,7 +167,7 @@ router.get("/entitlements", requireAuth, async (_req, res) => {
   return ok(res, { data: rows });
 });
 
-router.post("/entitlements", requireAuth, requireRole(ROLE_GROUPS.ADMIN_ONLY), async (req: AuthRequest, res) => {
+router.post("/entitlements", requireAuth, requireRole(HR_LEAVE_ADMIN_ROLES), async (req: AuthRequest, res) => {
   const parsed = createLeaveEntitlementSchema.safeParse(req.body);
   if (!parsed.success) return errorResponse(res, 400, "VALIDATION_ERROR", "Invalid input", parsed.error.flatten());
   const d = parsed.data;
@@ -130,7 +188,7 @@ router.post("/entitlements", requireAuth, requireRole(ROLE_GROUPS.ADMIN_ONLY), a
   return created(res, { id }, "Entitlement rule created");
 });
 
-router.patch("/entitlements/:id", requireAuth, requireRole(ROLE_GROUPS.ADMIN_ONLY), async (req: AuthRequest, res) => {
+router.patch("/entitlements/:id", requireAuth, requireRole(HR_LEAVE_ADMIN_ROLES), async (req: AuthRequest, res) => {
   const row = await pgGet("SELECT * FROM hr_leave_entitlements WHERE id = ?", [req.params.id]);
   if (!row) return errorResponse(res, 404, "NOT_FOUND", "Entitlement not found.");
   const parsed = updateLeaveEntitlementSchema.safeParse(req.body);
@@ -147,7 +205,7 @@ router.patch("/entitlements/:id", requireAuth, requireRole(ROLE_GROUPS.ADMIN_ONL
   return ok(res, await pgGet("SELECT * FROM hr_leave_entitlements WHERE id = ?", [req.params.id]), "Updated");
 });
 
-router.delete("/entitlements/:id", requireAuth, requireRole(ROLE_GROUPS.ADMIN_ONLY), async (req: AuthRequest, res) => {
+router.delete("/entitlements/:id", requireAuth, requireRole(HR_LEAVE_ADMIN_ROLES), async (req: AuthRequest, res) => {
   const row = await pgGet("SELECT id FROM hr_leave_entitlements WHERE id = ?", [req.params.id]);
   if (!row) return errorResponse(res, 404, "NOT_FOUND", "Entitlement not found.");
   await pgRun("DELETE FROM hr_leave_entitlements WHERE id = ?", [req.params.id]);
@@ -159,69 +217,34 @@ router.delete("/entitlements/:id", requireAuth, requireRole(ROLE_GROUPS.ADMIN_ON
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Helper: look up or create a balance row
-async function ensureBalance(employeeId: string, leaveTypeId: string, year: number): Promise<any> {
-  let bal = await pgGet(
-    "SELECT * FROM hr_leave_balances WHERE employee_id=? AND leave_type_id=? AND balance_year=?",
-    [employeeId, leaveTypeId, year]
-  );
-  if (!bal) {
-    const id = uuidv4();
-    const now = new Date().toISOString();
-    await pgRun(
-      `INSERT INTO hr_leave_balances (id, employee_id, leave_type_id, balance_year,
-        entitled_days, accrued_days, used_days, pending_days, carried_forward, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 0, 0, 0, 0, 0, ?, ?)`,
-      [id, employeeId, leaveTypeId, year, now, now]
-    );
-    bal = await pgGet("SELECT * FROM hr_leave_balances WHERE id=?", [id]);
-  }
-  return bal;
-}
-
-// Helper: compute entitled days for employee based on cadre and leave type
-async function computeEntitlement(employeeId: string, leaveTypeId: string): Promise<number> {
-  const emp = await pgGet("SELECT start_date, cadre_id FROM hr_employees WHERE id=?", [employeeId]);
-  if (!emp) return 0;
-  // Entitlement: cadre-specific first, then fallback to any-cadre (cadre_id IS NULL)
-  let ent: any = null;
-  if (emp.cadre_id) {
-    ent = await pgGet(
-      "SELECT * FROM hr_leave_entitlements WHERE leave_type_id=? AND cadre_id=?",
-      [leaveTypeId, emp.cadre_id]
-    );
-  }
-  if (!ent) {
-    ent = await pgGet(
-      "SELECT * FROM hr_leave_entitlements WHERE leave_type_id=? AND cadre_id IS NULL",
-      [leaveTypeId]
-    );
-  }
-  if (!ent) return 0;
-  // Pro-rate for mid-year hires
-  const startDate = new Date(emp.start_date);
-  const currentYear = new Date().getFullYear();
-  if (startDate.getFullYear() === currentYear) {
-    // months remaining including start month
-    const monthsRemaining = 12 - startDate.getMonth();
-    return Math.round((ent.days_per_year / 12) * monthsRemaining * 10) / 10;
-  }
-  return ent.days_per_year;
-}
+// ensureBalance/computeEntitlement moved to services/hrLeaveBalanceService.ts —
+// the accrual cron (jobs/leaveAccrualCron.ts) needs the same logic.
 
 router.get("/balances", requireAuth, async (req: AuthRequest, res) => {
   const year = parseInt((req.query.year as string) || String(new Date().getFullYear()), 10);
-  const user = req.user;
+  const actor = await leaveActor(req.user!);
   let empFilter = "";
   const args: any[] = [year];
-  if (!HR_LEAVE_FULL_ACCESS.includes(user?.role || "")) {
-    // Non-admin: always scope to own employee record
-    const emp = await pgGet("SELECT id FROM hr_employees WHERE user_account_id=?", [user!.id]);
-    if (!emp) return ok(res, { data: [] });
+  if (actor.fullAccess) {
+    if (req.query.employeeId) {
+      empFilter = " AND b.employee_id = ?";
+      args.push(req.query.employeeId as string);
+    }
+  } else if (actor.isManager) {
+    // Manager: scope to real direct reports, not the whole company —
+    // optionally narrowed further to one of those reports.
+    if (req.query.employeeId) {
+      empFilter = " AND b.employee_id = ? AND b.employee_id IN (SELECT id FROM hr_employees WHERE manager_id=?)";
+      args.push(req.query.employeeId as string, actor.emp!.id);
+    } else {
+      empFilter = " AND b.employee_id IN (SELECT id FROM hr_employees WHERE manager_id=?)";
+      args.push(actor.emp!.id);
+    }
+  } else {
+    // Everyone else: always scope to own employee record
+    if (!actor.emp) return ok(res, { data: [] });
     empFilter = " AND b.employee_id = ?";
-    args.push(emp.id);
-  } else if (req.query.employeeId) {
-    empFilter = " AND b.employee_id = ?";
-    args.push(req.query.employeeId as string);
+    args.push(actor.emp.id);
   }
   const rows = await pgAll(
     `SELECT b.*, e.full_name, e.employee_no, lt.name AS leave_type_name,
@@ -238,11 +261,14 @@ router.get("/balances", requireAuth, async (req: AuthRequest, res) => {
 
 router.get("/balances/:employeeId", requireAuth, async (req: AuthRequest, res) => {
   const year = parseInt((req.query.year as string) || String(new Date().getFullYear()), 10);
-  const user = req.user;
-  // Access control: self or admin/management
-  if (user?.role === "Employee") {
-    const emp = await pgGet("SELECT id FROM hr_employees WHERE user_account_id=?", [user.id]);
-    if (!emp || emp.id !== req.params.employeeId) {
+  // Access control: self, own direct report, or HR/Admin/Executive.
+  const actor = await leaveActor(req.user!);
+  if (!actor.fullAccess) {
+    const isSelf = actor.emp?.id === req.params.employeeId;
+    const isReport = actor.emp
+      ? !!(await pgGet("SELECT 1 AS x FROM hr_employees WHERE id=? AND manager_id=?", [req.params.employeeId, actor.emp.id]))
+      : false;
+    if (!isSelf && !isReport) {
       return errorResponse(res, 403, "FORBIDDEN", "Cannot view other employees' leave balances.");
     }
   }
@@ -259,7 +285,7 @@ router.get("/balances/:employeeId", requireAuth, async (req: AuthRequest, res) =
 });
 
 // POST /balances/initialise — allocate balances for an employee (called on onboarding or year-change)
-router.post("/balances/initialise", requireAuth, requireRole(ROLE_GROUPS.ADMIN_ONLY), async (req: AuthRequest, res) => {
+router.post("/balances/initialise", requireAuth, requireRole(HR_LEAVE_ADMIN_ROLES), async (req: AuthRequest, res) => {
   const parsed = recalculateBalanceSchema.safeParse(req.body);
   if (!parsed.success) return errorResponse(res, 400, "VALIDATION_ERROR", "Invalid input", parsed.error.flatten());
   const { employeeId, year: reqYear } = parsed.data;
@@ -269,7 +295,7 @@ router.post("/balances/initialise", requireAuth, requireRole(ROLE_GROUPS.ADMIN_O
   const leaveTypes = await pgAll("SELECT id FROM hr_leave_types WHERE is_active=1");
   const results: any[] = [];
   for (const lt of leaveTypes) {
-    const entitled = await computeEntitlement(employeeId, lt.id);
+    const entitled = await computeEntitlement(employeeId, lt.id, year);
     if (entitled <= 0) continue;
     const bal = await ensureBalance(employeeId, lt.id, year);
     const now = new Date().toISOString();
@@ -287,10 +313,30 @@ router.post("/balances/initialise", requireAuth, requireRole(ROLE_GROUPS.ADMIN_O
         carriedForward = Math.max(0, Math.round(carriedForward * 10) / 10);
       }
     }
-    await pgRun(
-      `UPDATE hr_leave_balances SET entitled_days=?, carried_forward=?, accrued_days=?, updated_at=? WHERE id=?`,
-      [entitled, carriedForward, lt_row?.entitlement_model === "accrual" ? 0 : entitled, now, bal.id]
-    );
+    if (lt_row?.entitlement_model === "accrual") {
+      if (bal.created) {
+        // Fresh balance row — nothing accrued yet; entitled_days/accrued_days
+        // both start at 0 and the monthly accrual cron grows them from here.
+        // (Do NOT grant the full computeEntitlement() value up front — that
+        // would defeat the point of "accrual".)
+        await pgRun(
+          `UPDATE hr_leave_balances SET entitled_days=0, accrued_days=0, carried_forward=?, updated_at=? WHERE id=?`,
+          [carriedForward, now, bal.id]
+        );
+      } else {
+        // Existing row — re-running initialise (e.g. a cadre change mid-year)
+        // must not wipe out days the cron has already banked; only carry-forward changes.
+        await pgRun(
+          `UPDATE hr_leave_balances SET carried_forward=?, updated_at=? WHERE id=?`,
+          [carriedForward, now, bal.id]
+        );
+      }
+    } else {
+      await pgRun(
+        `UPDATE hr_leave_balances SET entitled_days=?, carried_forward=?, accrued_days=?, updated_at=? WHERE id=?`,
+        [entitled, carriedForward, entitled, now, bal.id]
+      );
+    }
     results.push({ leaveTypeId: lt.id, entitled, carriedForward });
   }
   auditLog(req, "HR_LEAVE_BALANCE_INIT", `hr_employee:${employeeId}`, "Info", { year, results }).catch(console.error);
@@ -302,8 +348,8 @@ router.post("/balances/initialise", requireAuth, requireRole(ROLE_GROUPS.ADMIN_O
 // ─────────────────────────────────────────────────────────────────────────────
 const APP_SELECT = `
   SELECT a.*,
-    e.full_name AS employee_name, e.employee_no, e.manager_id,
-    m.full_name AS manager_name,
+    e.full_name AS employee_name, e.employee_no, e.manager_id, e.user_account_id AS employee_user_id,
+    m.full_name AS manager_name, m.user_account_id AS manager_user_id,
     ou.name AS org_unit_name,
     lt.name AS leave_type_name, lt.gender_restricted, lt.max_days_per_year
   FROM hr_leave_applications a
@@ -317,37 +363,42 @@ router.get("/applications", requireAuth, async (req: AuthRequest, res) => {
   const parsed = listApplicationsQuerySchema.safeParse(req.query);
   if (!parsed.success) return errorResponse(res, 400, "VALIDATION_ERROR", "Invalid query", parsed.error.flatten());
   const q = parsed.data;
-  const user = req.user;
+  const actor = await leaveActor(req.user!);
   const clauses: string[] = [];
   const args: any[] = [];
   const managerId = req.query.managerId as string | undefined;
 
-  if (HR_LEAVE_FULL_ACCESS.includes(user?.role || "")) {
-    // Admin/Management: see all, optional filter by employee or manager
+  if (actor.fullAccess) {
+    // HR/Admin/Executive: see all, optional filter by employee or manager
     if (q.employeeId) { clauses.push("a.employee_id=?"); args.push(q.employeeId); }
     if (managerId) { clauses.push("e.manager_id=?"); args.push(managerId); }
-  } else if (user?.role === "TeamLead" && !managerId) {
-    // TeamLead auto-scope to direct reports (backward compatibility)
-    const me = await pgGet("SELECT id FROM hr_employees WHERE user_account_id=?", [user!.id]);
-    if (me) { clauses.push("e.manager_id=?"); args.push(me.id); }
+  } else if (q.employeeId && actor.emp && q.employeeId === actor.emp.id) {
+    // Own applications (the self-service page asks for its own employeeId —
+    // a manager must still see *their* history here, not their team's)
+    clauses.push("a.employee_id=?"); args.push(actor.emp.id);
   } else if (managerId) {
-    // Any-role manager viewing their team — verify ownership
-    const emp = await pgGet("SELECT id FROM hr_employees WHERE user_account_id=?", [user!.id]);
-    if (!emp || emp.id !== managerId) {
+    // Viewing a team by managerId — must be your own team
+    if (!actor.emp || actor.emp.id !== managerId) {
       return errorResponse(res, 403, "FORBIDDEN", "Cannot view applications for this manager.");
     }
     clauses.push("e.manager_id=?"); args.push(managerId);
+    if (q.employeeId) { clauses.push("a.employee_id=?"); args.push(q.employeeId); }
+  } else if (actor.isManager) {
+    // Manager with no explicit filter: their direct reports
+    clauses.push("e.manager_id=?"); args.push(actor.emp!.id);
+    if (q.employeeId) { clauses.push("a.employee_id=?"); args.push(q.employeeId); }
   } else {
     // All other employees: scope to own record
-    const emp = await pgGet("SELECT id FROM hr_employees WHERE user_account_id=?", [user!.id]);
-    if (!emp) return ok(res, { applications: [], total: 0 });
-    clauses.push("a.employee_id=?"); args.push(emp.id);
+    if (!actor.emp) return ok(res, { applications: [], total: 0 });
+    clauses.push("a.employee_id=?"); args.push(actor.emp.id);
   }
   if (q.status) { clauses.push("a.status=?"); args.push(q.status); }
   if (q.leaveTypeId) { clauses.push("a.leave_type_id=?"); args.push(q.leaveTypeId); }
   if (q.from) { clauses.push("a.start_date>=?"); args.push(q.from); }
   if (q.to) { clauses.push("a.end_date<=?"); args.push(q.to); }
-  if (q.year) { clauses.push("strftime('%Y', a.start_date)=?"); args.push(q.year); }
+  // start_date is stored as an ISO "YYYY-MM-DD" string, so its first 4 characters
+  // are the year — avoids strftime(), which is SQLite-only and 500s on Postgres.
+  if (q.year) { clauses.push("LEFT(a.start_date, 4)=?"); args.push(String(q.year)); }
 
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const total = (await pgGet(`SELECT COUNT(*) as c FROM hr_leave_applications a JOIN hr_employees e ON e.id=a.employee_id ${where}`, args))?.c ?? 0;
@@ -361,6 +412,13 @@ router.get("/applications", requireAuth, async (req: AuthRequest, res) => {
 router.get("/applications/:id", requireAuth, async (req: AuthRequest, res) => {
   const app = await pgGet(`${APP_SELECT} WHERE a.id=?`, [req.params.id]);
   if (!app) return errorResponse(res, 404, "NOT_FOUND", "Application not found.");
+  // Own application, own direct report, or HR/Admin/Executive.
+  const actor = await leaveActor(req.user!);
+  if (!actor.fullAccess) {
+    const own = !!actor.emp && actor.emp.id === app.employee_id;
+    const report = !!actor.emp && app.manager_id === actor.emp.id;
+    if (!own && !report) return errorResponse(res, 403, "FORBIDDEN", "Not your leave application.");
+  }
   const logs = await pgAll(
     "SELECT * FROM hr_leave_approval_log WHERE application_id=? ORDER BY created_at",
     [req.params.id]
@@ -374,13 +432,21 @@ router.post("/applications", requireAuth, async (req: AuthRequest, res) => {
   const parsed = createLeaveApplicationSchema.safeParse(req.body);
   if (!parsed.success) return errorResponse(res, 400, "VALIDATION_ERROR", "Invalid input", parsed.error.flatten());
   const d = parsed.data;
-  const user = req.user;
-  // Resolve employee
-  const empId = (req.body as any).employeeId;
-  const emp = (user?.role === "Employee")
-    ? await pgGet("SELECT * FROM hr_employees WHERE user_account_id=?", [user.id])
-    : empId ? await pgGet("SELECT * FROM hr_employees WHERE id=?", [empId]) : null;
-  if (!emp) return errorResponse(res, 404, "NOT_FOUND", "Employee record not found.");
+  const actor = await leaveActor(req.user!);
+  // Resolve employee: everyone applies as themselves via their linked HR
+  // record; only HR/Admin/Executive may file on someone else's behalf by
+  // passing employeeId. (This used to key off a literal "Employee" role that
+  // no account actually has, so every self-service submission 404'd.)
+  const requestedEmpId = (req.body as any).employeeId as string | undefined;
+  let emp: any = null;
+  if (requestedEmpId && actor.fullAccess) {
+    emp = await pgGet("SELECT * FROM hr_employees WHERE id=?", [requestedEmpId]);
+  } else if (requestedEmpId && actor.emp && requestedEmpId !== actor.emp.id) {
+    return errorResponse(res, 403, "FORBIDDEN", "You can only apply for leave on your own behalf.");
+  } else if (actor.emp) {
+    emp = await pgGet("SELECT * FROM hr_employees WHERE id=?", [actor.emp.id]);
+  }
+  if (!emp) return errorResponse(res, 404, "NOT_FOUND", "No HR employee record is linked to your account — ask HR to link it.");
   const lt = await pgGet("SELECT * FROM hr_leave_types WHERE id=? AND is_active=1", [d.leaveTypeId]);
   if (!lt) return errorResponse(res, 404, "NOT_FOUND", "Leave type not found or inactive.");
   if (lt.gender_restricted && emp.gender && lt.gender_restricted !== emp.gender) {
@@ -454,19 +520,31 @@ router.post("/applications", requireAuth, async (req: AuthRequest, res) => {
     );
   }
   auditLog(req, "HR_LEAVE_APPLIED", `hr_leave_app:${id}`, "Info", { employeeId: emp.id, leaveTypeId: d.leaveTypeId, totalDays, segments: rawSegments.length }).catch(console.error);
+  // Notify the line manager — or HR/Admin when there is none (CEO/COO).
+  const mgr = emp.manager_id
+    ? await pgGet<any>("SELECT user_account_id FROM hr_employees WHERE id=?", [emp.manager_id])
+    : null;
+  const summary = `${emp.full_name} — ${lt.name}, ${startDate} → ${endDate} (${totalDays} day${totalDays === 1 ? "" : "s"})`;
+  if (mgr?.user_account_id) {
+    notify({ targetUserId: mgr.user_account_id, type: "action", title: "Leave request awaiting your approval", body: summary, link: "hr-manager-leave.html" });
+  } else {
+    notify({ targetRole: "HR",    type: "action", title: "Leave request awaiting approval (no line manager)", body: summary, link: "hr-leave-approvals.html" });
+    notify({ targetRole: "Admin", type: "action", title: "Leave request awaiting approval (no line manager)", body: summary, link: "hr-leave-approvals.html" });
+  }
   return created(res, { id, totalDays, segments: rawSegments, status: "Pending" }, "Leave application submitted");
 });
 
 router.patch("/applications/:id/cancel", requireAuth, async (req: AuthRequest, res) => {
   const app = await pgGet(`${APP_SELECT} WHERE a.id=?`, [req.params.id]);
   if (!app) return errorResponse(res, 404, "NOT_FOUND", "Application not found.");
-  const user = req.user;
-  // Only the employee or admin can cancel
-  if (user?.role === "Employee") {
-    const emp = await pgGet("SELECT id FROM hr_employees WHERE user_account_id=?", [user.id]);
-    if (!emp || emp.id !== app.employee_id) return errorResponse(res, 403, "FORBIDDEN", "Not your leave application.");
+  // Only the employee themselves or HR/Admin/Executive can cancel. (This used
+  // to key off a literal "Employee" role no account has, so the ownership
+  // check never ran and any signed-in user could cancel anyone's leave.)
+  const actor = await leaveActor(req.user!);
+  if (!actor.fullAccess && (!actor.emp || actor.emp.id !== app.employee_id)) {
+    return errorResponse(res, 403, "FORBIDDEN", "Not your leave application.");
   }
-  if (!["Pending", "Approved"].includes(app.status)) {
+  if (!["Pending", "PendingL2", "Approved"].includes(app.status)) {
     return errorResponse(res, 400, "INVALID_STATUS", `Cannot cancel a ${app.status} application.`);
   }
   const now = new Date().toISOString();
@@ -478,55 +556,77 @@ router.patch("/applications/:id/cancel", requireAuth, async (req: AuthRequest, r
     [app.employee_id, app.leave_type_id, year]
   );
   if (bal) {
-    if (app.status === "Pending") {
-      await pgRun("UPDATE hr_leave_balances SET pending_days=MAX(0,pending_days-?), updated_at=? WHERE id=?",
+    if (app.status === "Pending" || app.status === "PendingL2") {
+      await pgRun("UPDATE hr_leave_balances SET pending_days=GREATEST(0,pending_days-?), updated_at=? WHERE id=?",
         [app.total_days, now, bal.id]);
     } else {
       // was approved — decrement used days
-      await pgRun("UPDATE hr_leave_balances SET used_days=MAX(0,used_days-?), updated_at=? WHERE id=?",
+      await pgRun("UPDATE hr_leave_balances SET used_days=GREATEST(0,used_days-?), updated_at=? WHERE id=?",
         [app.total_days, now, bal.id]);
     }
   }
   auditLog(req, "HR_LEAVE_CANCELLED", `hr_leave_app:${req.params.id}`, "Info", {}).catch(console.error);
+  // A withdrawn request that was sitting in someone's queue should leave it.
+  if (app.manager_user_id && (app.status === "Pending" || app.status === "PendingL2")) {
+    notify({ targetUserId: app.manager_user_id, type: "info", title: "Leave request withdrawn",
+      body: `${app.employee_name} — ${app.leave_type_name}, ${app.start_date} → ${app.end_date}`, link: "hr-manager-leave.html" });
+  }
   return ok(res, null, "Leave application cancelled");
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // APPROVAL WORKFLOW
 // ─────────────────────────────────────────────────────────────────────────────
-router.post("/applications/:id/approve", requireAuth, requireRole(APPROVER_ROLES), async (req: AuthRequest, res) => {
+router.post("/applications/:id/approve", requireAuth, async (req: AuthRequest, res) => {
   const app = await pgGet(`${APP_SELECT} WHERE a.id=?`, [req.params.id]);
   if (!app) return errorResponse(res, 404, "NOT_FOUND", "Application not found.");
-  if (app.status !== "Pending") return errorResponse(res, 400, "INVALID_STATUS", `Application is already ${app.status}.`);
+  // Two-level workflow: 'Pending' = awaiting manager (L1); 'PendingL2' = manager
+  // approved, awaiting HR/Admin countersign (L2). Any other status is terminal.
+  if (app.status !== "Pending" && app.status !== "PendingL2") {
+    return errorResponse(res, 400, "INVALID_STATUS", `Application is already ${app.status}.`);
+  }
   const parsed = approveLeaveSchema.safeParse(req.body);
   if (!parsed.success) return errorResponse(res, 400, "VALIDATION_ERROR", "Invalid input", parsed.error.flatten());
   const { action, notes, rejectionReason } = parsed.data;
   const user = req.user!;
+  const actor = await leaveActor(user);
+  const role = actor.role;
+  const actorEmp = actor.emp;
+  // Approval rights come from the org chart (see leaveActor), not the role.
+  if (!actor.fullAccess && !actor.isManager) {
+    return errorResponse(res, 403, "FORBIDDEN", "Only line managers or HR can act on leave applications.");
+  }
   // Prevent self-approval
-  const actorEmp = await pgGet("SELECT id FROM hr_employees WHERE user_account_id=?", [user.id]);
   if (actorEmp && actorEmp.id === app.employee_id) {
     return errorResponse(res, 403, "FORBIDDEN", "Cannot approve your own leave application.");
   }
-  // TeamLead can only approve direct reports
-  if (user.role === "TeamLead") {
-    if (!actorEmp || app.manager_id !== actorEmp.id) {
-      return errorResponse(res, 403, "FORBIDDEN", "You can only approve leave for your direct reports.");
+  const level = app.status === "Pending" ? 1 : 2;
+  if (level === 1) {
+    // A line manager can only approve their own direct reports;
+    // HR/Admin/Executive bypass ownership (covers employees with no manager).
+    if (!actor.fullAccess) {
+      if (!actorEmp || app.manager_id !== actorEmp.id) {
+        return errorResponse(res, 403, "FORBIDDEN", "You can only approve leave for your direct reports.");
+      }
+    }
+  } else {
+    // L2 is a dedicated HR/Admin countersign step — line managers cannot act here.
+    if (!HR_LEAVE_ADMIN_ROLES.includes(role)) {
+      return errorResponse(res, 403, "FORBIDDEN", "This application is awaiting HR countersign.");
     }
   }
   const now = new Date().toISOString();
   const year = parseInt(app.start_date.split("-")[0], 10);
-  let newStatus = action;
-  // Determine approval level: first L1 if not yet approved, else L2
-  const level = !app.level1_action ? 1 : 2;
+  let newStatus: string;
   if (level === 1) {
     await pgRun(
       `UPDATE hr_leave_applications SET level1_approver_id=?, level1_action=?, level1_date=?,
        rejection_reason=COALESCE(?,rejection_reason), notes=COALESCE(?,notes), updated_at=? WHERE id=?`,
       [user.id, action, now, rejectionReason ?? null, notes ?? null, now, req.params.id]
     );
-    // If rejected at L1, finalise
-    if (action === "Rejected") newStatus = "Rejected";
-    else newStatus = "Approved"; // single-level approve is complete
+    // Rejected at L1 finalises immediately; approved moves to the L2 HR
+    // countersign step — the leave isn't granted (balance untouched) yet.
+    newStatus = action === "Rejected" ? "Rejected" : "PendingL2";
   } else {
     await pgRun(
       `UPDATE hr_leave_applications SET level2_approver_id=?, level2_action=?, level2_date=?,
@@ -545,12 +645,12 @@ router.post("/applications/:id/approve", requireAuth, requireRole(APPROVER_ROLES
   if (bal) {
     if (newStatus === "Approved") {
       await pgRun(
-        "UPDATE hr_leave_balances SET pending_days=MAX(0,pending_days-?), used_days=used_days+?, updated_at=? WHERE id=?",
+        "UPDATE hr_leave_balances SET pending_days=GREATEST(0,pending_days-?), used_days=used_days+?, updated_at=? WHERE id=?",
         [app.total_days, app.total_days, now, bal.id]
       );
     } else if (newStatus === "Rejected") {
       await pgRun(
-        "UPDATE hr_leave_balances SET pending_days=MAX(0,pending_days-?), updated_at=? WHERE id=?",
+        "UPDATE hr_leave_balances SET pending_days=GREATEST(0,pending_days-?), updated_at=? WHERE id=?",
         [app.total_days, now, bal.id]
       );
     }
@@ -562,17 +662,42 @@ router.post("/applications/:id/approve", requireAuth, requireRole(APPROVER_ROLES
     [uuidv4(), req.params.id, action, user.id, user.email, level, notes ?? null, now]
   );
   auditLog(req, `HR_LEAVE_${action.toUpperCase()}`, `hr_leave_app:${req.params.id}`, "Info", { level, action }).catch(console.error);
+  // Notifications: the employee always hears the outcome; HR/Admin hear when
+  // an L1 approval lands in their countersign queue.
+  const summary = `${app.employee_name} — ${app.leave_type_name}, ${app.start_date} → ${app.end_date} (${app.total_days} days)`;
+  if (newStatus === "PendingL2") {
+    if (app.employee_user_id) {
+      notify({ targetUserId: app.employee_user_id, type: "info", title: "Leave approved by your manager — awaiting HR countersign", body: summary, link: "hr-leave-apply.html" });
+    }
+    notify({ targetRole: "HR",    type: "action", title: "Leave awaiting HR countersign", body: summary, link: "hr-leave-approvals.html" });
+    notify({ targetRole: "Admin", type: "action", title: "Leave awaiting HR countersign", body: summary, link: "hr-leave-approvals.html" });
+  } else if (app.employee_user_id) {
+    notify({
+      targetUserId: app.employee_user_id,
+      type: newStatus === "Approved" ? "success" : "info",
+      title: newStatus === "Approved" ? "Leave approved" : "Leave rejected",
+      body: summary + (rejectionReason ? ` — ${rejectionReason}` : ""),
+      link: "hr-leave-apply.html",
+    });
+  }
   return ok(res, { status: newStatus }, `Leave application ${action.toLowerCase()}`);
 });
 
 // Admin / HR override
-router.post("/applications/:id/override", requireAuth, requireRole(ROLE_GROUPS.ADMIN_ONLY), async (req: AuthRequest, res) => {
+router.post("/applications/:id/override", requireAuth, requireRole(HR_LEAVE_ADMIN_ROLES), async (req: AuthRequest, res) => {
   const app = await pgGet("SELECT * FROM hr_leave_applications WHERE id=?", [req.params.id]);
   if (!app) return errorResponse(res, 404, "NOT_FOUND", "Application not found.");
   const parsed = hrOverrideLeaveSchema.safeParse(req.body);
   if (!parsed.success) return errorResponse(res, 400, "VALIDATION_ERROR", "Invalid input", parsed.error.flatten());
   const { action, notes } = parsed.data;
   const user = req.user!;
+  // Mirror the same guard the normal approve path already has — override can
+  // force any status at any time, so without this an Admin could approve their
+  // own leave simply by using override instead of the regular approve action.
+  const actorEmp = await pgGet("SELECT id FROM hr_employees WHERE user_account_id=?", [user.id]);
+  if (actorEmp && actorEmp.id === app.employee_id) {
+    return errorResponse(res, 403, "FORBIDDEN", "Cannot override your own leave application.");
+  }
   const now = new Date().toISOString();
   const previousStatus = app.status;
   await pgRun(
@@ -586,14 +711,15 @@ router.post("/applications/:id/override", requireAuth, requireRole(ROLE_GROUPS.A
     [app.employee_id, app.leave_type_id, year]
   );
   if (bal) {
-    if (previousStatus === "Pending" && action === "Approved") {
-      await pgRun("UPDATE hr_leave_balances SET pending_days=MAX(0,pending_days-?), used_days=used_days+?, updated_at=? WHERE id=?",
+    const wasPending = previousStatus === "Pending" || previousStatus === "PendingL2";
+    if (wasPending && action === "Approved") {
+      await pgRun("UPDATE hr_leave_balances SET pending_days=GREATEST(0,pending_days-?), used_days=used_days+?, updated_at=? WHERE id=?",
         [app.total_days, app.total_days, now, bal.id]);
-    } else if (previousStatus === "Pending" && action === "Rejected") {
-      await pgRun("UPDATE hr_leave_balances SET pending_days=MAX(0,pending_days-?), updated_at=? WHERE id=?",
+    } else if (wasPending && action === "Rejected") {
+      await pgRun("UPDATE hr_leave_balances SET pending_days=GREATEST(0,pending_days-?), updated_at=? WHERE id=?",
         [app.total_days, now, bal.id]);
     } else if (previousStatus === "Approved" && action === "Cancelled") {
-      await pgRun("UPDATE hr_leave_balances SET used_days=MAX(0,used_days-?), updated_at=? WHERE id=?",
+      await pgRun("UPDATE hr_leave_balances SET used_days=GREATEST(0,used_days-?), updated_at=? WHERE id=?",
         [app.total_days, now, bal.id]);
     }
   }
@@ -603,6 +729,12 @@ router.post("/applications/:id/override", requireAuth, requireRole(ROLE_GROUPS.A
     [uuidv4(), req.params.id, `HR_OVERRIDE:${action}`, user.id, user.email, notes ?? null, now]
   );
   auditLog(req, "HR_LEAVE_OVERRIDE", `hr_leave_app:${req.params.id}`, "Warning", { action, previousStatus }).catch(console.error);
+  const empRow = await pgGet<any>("SELECT user_account_id, full_name FROM hr_employees WHERE id=?", [app.employee_id]);
+  if (empRow?.user_account_id) {
+    notify({ targetUserId: empRow.user_account_id, type: action === "Approved" ? "success" : "info",
+      title: `Leave ${action.toLowerCase()} by HR`,
+      body: `${empRow.full_name} — ${app.start_date} → ${app.end_date} (${app.total_days} days)`, link: "hr-leave-apply.html" });
+  }
   return ok(res, { status: action }, "HR override applied");
 });
 
@@ -611,6 +743,7 @@ router.post("/applications/:id/override", requireAuth, requireRole(ROLE_GROUPS.A
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/my-team", requireAuth, async (req: AuthRequest, res) => {
   const user = req.user;
+  const role = canonicalRole(user?.role);
   const emp = await pgGet(
     "SELECT id, full_name, employee_no FROM hr_employees WHERE user_account_id=?",
     [user!.id]
@@ -625,7 +758,7 @@ router.get("/my-team", requireAuth, async (req: AuthRequest, res) => {
   // below, so "my team" always means this specific manager's real HR direct
   // reports — verified this doesn't change BDMCorporate's own result today
   // (its 3 reps already have manager_id pointing at the one real BDMCorporate).
-  if ([ROLES.ADMIN, ROLES.EXECUTIVE].includes((user?.role || "") as any)) {
+  if (HR_LEAVE_FULL_ACCESS.includes(role)) {
     const teamReports = await pgAll(
       `SELECT e.id, e.full_name, e.employee_no, jr.title AS job_title
        FROM hr_employees e
@@ -653,7 +786,8 @@ router.get("/my-team", requireAuth, async (req: AuthRequest, res) => {
     isManager: reports.length > 0,
     employeeId: emp.id,
     directReports: reports,
-    canApprove: [ROLES.ADMIN, ROLES.EXECUTIVE, "TeamLead", ROLES.BDM, ROLES.BDM_CORPORATE].includes(user?.role || ""),
+    // Approval right = has direct reports (see leaveActor), not a role list.
+    canApprove: reports.length > 0,
   });
 });
 
@@ -672,7 +806,7 @@ router.get("/calendar", requireAuth, async (req: AuthRequest, res) => {
   if (orgUnitId) { clauses.push("e.org_unit_id=?"); args.push(orgUnitId); }
   if (managerId) {
     // Verify the managerId belongs to the current user (or user is admin/management)
-      if (!HR_LEAVE_FULL_ACCESS.includes(req.user?.role || "")) {
+      if (!HR_LEAVE_FULL_ACCESS.includes(canonicalRole(req.user?.role))) {
       const emp = await pgGet("SELECT id FROM hr_employees WHERE user_account_id=?", [req.user!.id]);
       if (!emp || emp.id !== managerId) {
         return errorResponse(res, 403, "FORBIDDEN", "Cannot view calendar for this manager.");
@@ -698,7 +832,7 @@ router.get("/calendar", requireAuth, async (req: AuthRequest, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // REPORTS
 // ─────────────────────────────────────────────────────────────────────────────
-router.get("/reports/balances", requireAuth, requireRole(ROLE_GROUPS.MANAGEMENT), async (req: AuthRequest, res) => {
+router.get("/reports/balances", requireAuth, requireRole([...ROLE_GROUPS.MANAGEMENT, ROLES.HR]), async (req: AuthRequest, res) => {
   const year = parseInt((req.query.year as string) || String(new Date().getFullYear()), 10);
   const rows = await pgAll(
     `SELECT b.*, e.full_name, e.employee_no, lt.name AS leave_type_name,
@@ -713,25 +847,26 @@ router.get("/reports/balances", requireAuth, requireRole(ROLE_GROUPS.MANAGEMENT)
   return ok(res, { data: rows });
 });
 
-router.get("/reports/utilization", requireAuth, requireRole(ROLE_GROUPS.MANAGEMENT), async (req: AuthRequest, res) => {
+router.get("/reports/utilization", requireAuth, requireRole([...ROLE_GROUPS.MANAGEMENT, ROLES.HR]), async (req: AuthRequest, res) => {
   const year = req.query.year || String(new Date().getFullYear());
   const rows = await pgAll(
-    `SELECT ou.name AS unit_name, lt.name AS leave_type,
+    `SELECT ou.name AS org_unit_name, lt.name AS leave_type_name,
+       COUNT(DISTINCT e.id) AS employee_count,
        SUM(b.used_days) AS total_used, SUM(b.entitled_days) AS total_entitled,
-       ROUND(CAST(SUM(b.used_days) AS REAL) / NULLIF(SUM(b.entitled_days),0) * 100, 1) AS utilization_pct
+       ROUND(CAST(SUM(b.used_days) AS NUMERIC) / NULLIF(CAST(SUM(b.entitled_days) AS NUMERIC),0) * 100, 1) AS utilization_pct
      FROM hr_leave_balances b
      JOIN hr_employees e ON e.id = b.employee_id
      JOIN hr_org_units ou ON ou.id = e.org_unit_id
      JOIN hr_leave_types lt ON lt.id = b.leave_type_id
      WHERE b.balance_year=?
-     GROUP BY ou.id, lt.id
+     GROUP BY ou.id, ou.name, lt.id, lt.name
      ORDER BY ou.name, lt.name`,
     [year]
   );
   return ok(res, { data: rows });
 });
 
-router.get("/reports/excess-balances", requireAuth, requireRole(ROLE_GROUPS.MANAGEMENT), async (req: AuthRequest, res) => {
+router.get("/reports/excess-balances", requireAuth, requireRole([...ROLE_GROUPS.MANAGEMENT, ROLES.HR]), async (req: AuthRequest, res) => {
   const year = req.query.year || String(new Date().getFullYear());
   const threshold = parseFloat((req.query.threshold as string) || "10");
   const rows = await pgAll(
@@ -749,14 +884,16 @@ router.get("/reports/excess-balances", requireAuth, requireRole(ROLE_GROUPS.MANA
   return ok(res, { data: rows });
 });
 
-router.get("/reports/pending-approvals", requireAuth, requireRole(APPROVER_ROLES), async (req: AuthRequest, res) => {
-  const user = req.user;
-  let clause = "a.status='Pending'";
-  const args: any[] = [];
-  if (user?.role === "TeamLead") {
-    const me = await pgGet("SELECT id FROM hr_employees WHERE user_account_id=?", [user.id]);
-    if (me) { clause += " AND e.manager_id=?"; args.push(me.id); }
+router.get("/reports/pending-approvals", requireAuth, async (req: AuthRequest, res) => {
+  const actor = await leaveActor(req.user!);
+  if (!actor.fullAccess && !actor.isManager) {
+    return errorResponse(res, 403, "FORBIDDEN", "Only line managers or HR can view the approval queue.");
   }
+  // Managers act at L1 only — their queue is their own reports' 'Pending'
+  // items. HR/Admin/Executive see the full queue including 'PendingL2'
+  // (awaiting their own countersign).
+  const clause = actor.fullAccess ? "a.status IN ('Pending','PendingL2')" : "a.status='Pending' AND e.manager_id=?";
+  const args: any[] = actor.fullAccess ? [] : [actor.emp!.id];
   const rows = await pgAll(
     `${APP_SELECT} WHERE ${clause} ORDER BY a.applied_date ASC`,
     args

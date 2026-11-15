@@ -7,8 +7,29 @@ import { ok, created, errorResponse } from "../utils/responses.js";
 import { auditLog } from "../services/auditService.js";
 import { createNotification } from "./notifications.js";
 import { nextDatedBatchNumber } from "../utils/batchNumber.js";
+import { isNonStockProduct, NON_STOCK_MESSAGE, PRODUCT_TRACKS_INVENTORY } from "../services/nonStockProducts.js";
 
 const router = Router();
+
+// Statuses a device may be (re-)issued or checked out from. "Returned" is a
+// good-condition check-in (the checkin flow marks defective units "Defective"
+// instead), so a returned device is fine to re-issue to another technician.
+const ISSUABLE_STATUSES = ["In Stock", "Reserved", "Returned"];
+
+/**
+ * Close any still-open checkout record(s) for an item. A device must never carry
+ * more than one open custody record — call this whenever custody ends (install,
+ * defect, return) and immediately before opening a fresh checkout on (re-)issue,
+ * so re-issuing or installing never leaves a stale open record behind.
+ */
+export async function closeOpenCheckouts(itemId: string, reason: string, now: string): Promise<void> {
+  await pgRun(
+    `UPDATE inv_checkout_records
+       SET checkin_at = ?, return_reason = COALESCE(return_reason, ?), updated_at = ?
+     WHERE item_id = ? AND checkin_at IS NULL`,
+    [now, reason, now, itemId]
+  ).catch(() => {});
+}
 
 // ── Tables ────────────────────────────────────────────────────────────────────
 pgRun(`
@@ -114,6 +135,9 @@ pgRun(`CREATE INDEX IF NOT EXISTS idx_inv_items_product ON inv_items(product_id)
 pgRun(`CREATE INDEX IF NOT EXISTS idx_inv_items_imei ON inv_items(imei)`, []).catch(() => {});
 pgRun(`CREATE INDEX IF NOT EXISTS idx_inv_items_serial ON inv_items(serial_number)`, []).catch(() => {});
 pgRun(`CREATE INDEX IF NOT EXISTS idx_inv_items_status ON inv_items(status)`, []).catch(() => {});
+// Speeds the per-ticket "installed device category" lookup used by the technical
+// pipeline's installation-tickets list (was a seq scan per row → ~440ms/page).
+pgRun(`CREATE INDEX IF NOT EXISTS idx_inv_items_installation ON inv_items(installation_id) WHERE deleted_at IS NULL`, []).catch(() => {});
 pgRun(`CREATE INDEX IF NOT EXISTS idx_inv_movements_item ON inv_movements(item_id)`, []).catch(() => {});
 
 // ── Migrate: reservation + issuance columns ────────────────────────────────
@@ -205,7 +229,7 @@ router.get("/stats", requireAuth, async (_req, res) => {
             COUNT(CASE WHEN ${effectiveStockExpr} THEN 1 END) as in_stock
      FROM inv_product_catalog p
      LEFT JOIN inv_items i ON i.product_id = p.id AND i.deleted_at IS NULL
-     WHERE p.deleted_at IS NULL AND p.active = 1
+     WHERE p.deleted_at IS NULL AND p.active = 1 AND ${PRODUCT_TRACKS_INVENTORY("p")}
      GROUP BY p.id, p.product_code, p.product_name, p.device_model, p.reorder_level
      HAVING COUNT(CASE WHEN ${effectiveStockExpr} THEN 1 END) <= p.reorder_level
      ORDER BY COUNT(CASE WHEN ${effectiveStockExpr} THEN 1 END) ASC LIMIT 10`, []
@@ -341,7 +365,7 @@ router.get("/dashboard-detail", requireAuth, async (req, res) => {
      FROM inv_product_catalog p
      JOIN inv_product_categories c ON c.id = p.category_id
      LEFT JOIN inv_items i ON i.product_id = p.id AND i.deleted_at IS NULL
-     WHERE p.deleted_at IS NULL AND p.active = 1
+     WHERE p.deleted_at IS NULL AND p.active = 1 AND COALESCE(c.tracks_inventory, true) = true
      GROUP BY c.id, c.name, p.id, p.product_code, p.product_name, p.device_model, p.reorder_level
      ORDER BY c.name ASC, p.product_code ASC`, []
   );
@@ -420,6 +444,7 @@ router.get("/dashboard-detail", requireAuth, async (req, res) => {
      JOIN installation_tickets t ON REPLACE(UPPER(t.vehicle_registration),' ','') = REPLACE(UPPER(c.car_registration),' ','')
      JOIN inv_items i ON i.installation_id = t.id AND i.deleted_at IS NULL
      LEFT JOIN inv_product_catalog p ON p.id = i.product_id
+     WHERE c.deleted_at IS NULL
      ORDER BY c.created_at DESC
      LIMIT 50`, []
   );
@@ -427,7 +452,8 @@ router.get("/dashboard-detail", requireAuth, async (req, res) => {
     `SELECT COUNT(DISTINCT c.id) AS cnt
      FROM certificates c
      JOIN installation_tickets t ON REPLACE(UPPER(t.vehicle_registration),' ','') = REPLACE(UPPER(c.car_registration),' ','')
-     JOIN inv_items i ON i.installation_id = t.id AND i.deleted_at IS NULL`, []
+     JOIN inv_items i ON i.installation_id = t.id AND i.deleted_at IS NULL
+     WHERE c.deleted_at IS NULL`, []
   );
 
   return ok(res, {
@@ -457,7 +483,7 @@ router.get("/movements", requireAuth, requireRole(["Admin", "InventoryManager", 
   if (dateFrom) { filters.push("m.created_at >= ?");   params.push(dateFrom); }
   if (dateTo)   { filters.push("m.created_at <= ?");   params.push(dateTo + "T23:59:59.999Z"); }
   if (q) {
-    filters.push("(i.imei LIKE ? OR i.serial_number LIKE ? OR p.product_code LIKE ? OR p.product_name LIKE ? OR p.device_model LIKE ? OR m.performed_by_email LIKE ?)");
+    filters.push("(i.imei ILIKE ? OR i.serial_number ILIKE ? OR p.product_code ILIKE ? OR p.product_name ILIKE ? OR p.device_model ILIKE ? OR m.performed_by_email ILIKE ?)");
     const like = `%${q}%`; params.push(like, like, like, like, like, like);
   }
   const where = `WHERE ${filters.join(" AND ")}`;
@@ -469,7 +495,7 @@ router.get("/movements", requireAuth, requireRole(["Admin", "InventoryManager", 
             m.performed_by_email, m.notes, m.created_at,
             i.imei, i.serial_number,
             p.product_code, p.product_name, p.device_model
-     ${fromJoin} ${where} ORDER BY m.created_at DESC LIMIT ? OFFSET ?`,
+     ${fromJoin} ${where} ORDER BY m.created_at DESC, m.id DESC LIMIT ? OFFSET ?`,
     [...params, sizeNum, offset]
   );
   const totalRow = await pgGet<{ total: string }>(`SELECT COUNT(*) AS total ${fromJoin} ${where}`, params);
@@ -520,7 +546,7 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
     params.push(issuedToId, issuedToId, issuedToId);
   }
   if (q) {
-    filters.push("(i.serial_number LIKE ? OR i.imei LIKE ? OR i.sim_phone LIKE ? OR p.device_model LIKE ? OR p.product_code LIKE ?)");
+    filters.push("(i.serial_number ILIKE ? OR i.imei ILIKE ? OR i.sim_phone ILIKE ? OR p.device_model ILIKE ? OR p.product_code ILIKE ?)");
     params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
   }
 
@@ -530,19 +556,36 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
             c.name as category_name, s.supplier_name,
             COALESCE(b.batch_number, i.batch_ref, CASE WHEN i.notes LIKE 'Batch: %' THEN SUBSTR(i.notes, 8) END) as batch_number,
             t.ticket_no, t.customer_name AS job_customer_name,
-            t.vehicle_registration AS job_vehicle_reg, t.status AS job_status,
+            -- Registration/make/model/type come from the CENTRAL vehicle registry
+            -- (crm_customer_vehicles via t.vehicle_id, joined as cv below), falling back
+            -- to the installation-ticket snapshot only when the registry value is blank —
+            -- so a plate/make/model corrected in Customer 360 shows here live.
+            COALESCE(NULLIF(TRIM(cv.registration),''), t.vehicle_registration) AS job_vehicle_reg, t.status AS job_status,
+            cv.make AS vehicle_make, cv.model AS vehicle_model, cv.body_type AS vehicle_body_type, cv.vehicle_category AS vehicle_category,
             COALESCE(tu.name, t.assigned_to_email) AS technician_name, t.assigned_to_email AS technician_email,
             t.iso_name, t.iso_email,
             COALESCE(t.engineer_signed_off_at, t.technician_signed_off_at) AS installation_date,
             COALESCE(su.name, rl.sales_rep_name, cu.name) AS sales_rep_name,
             -- Deal/finance context, resolved via the retail lead → quote →
             -- proforma → invoice chain (same path the sales reports use).
-            rl.bank_partner_name AS partner_bank,
+            -- Partner bank: the denormalized rl.bank_partner_name text is blank on
+            -- many leads, so fall back to the linked partner record via the lead's
+            -- then the quote's partner_id (recovers ~300 installs that were showing "—").
+            -- Financing bank when there is one; otherwise the install is self-funded →
+            -- "Private" (never left blank, for any install). The "Financed but no bank"
+            -- filter now keys off the "Private" label + a loan term to still surface
+            -- financed-but-unbanked rows.
+            CASE
+              WHEN COALESCE(NULLIF(TRIM(rl.bank_partner_name), ''), prl.name, pqt.name) IS NOT NULL
+                THEN COALESCE(NULLIF(TRIM(rl.bank_partner_name), ''), prl.name, pqt.name)
+              ELSE 'Private'
+            END AS partner_bank,
             q.loan_term_months  AS loan_term_months,
             q.total_amount      AS quote_amount,
             inv.invoice_number  AS invoice_no,
             inv.status          AS invoice_status,
             sim.iccid AS paired_sim_iccid, sim.msisdn AS paired_sim_msisdn,
+            cv.chassis_number AS vehicle_chassis,
             u.email as received_by_email
      FROM inv_items i
      JOIN inv_product_catalog p ON p.id = i.product_id
@@ -566,15 +609,30 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
      LEFT JOIN users su ON su.id = rl.sales_rep_id
      LEFT JOIN users cu ON cu.id = t.created_by_user_id
      LEFT JOIN crm_quotes q ON q.id = rl.quote_id AND q.deleted_at IS NULL
+     -- Partner records for the bank-name fallback (lead's partner, then quote's partner)
+     LEFT JOIN partners prl ON prl.id::text = rl.partner_id
+     LEFT JOIN partners pqt ON pqt.id::text = q.partner_id
      LEFT JOIN LATERAL (
        SELECT * FROM crm_proforma_invoices pf2
        WHERE pf2.quote_id = q.id AND pf2.deleted_at IS NULL
        ORDER BY pf2.created_at DESC LIMIT 1
      ) pf ON true
      LEFT JOIN invoices inv ON inv.id = pf.invoice_id
-     LEFT JOIN inv_sims sim ON sim.device_item_id = i.id AND sim.deleted_at IS NULL
+     -- One SIM per device. A plain join returned one row PER paired SIM, so a
+     -- device wrongly paired to two SIMs appeared twice in the ledger and made
+     -- the row count disagree with the COUNT query (which doesn't join SIMs).
+     -- Takes the most recently paired SIM; idx_inv_sims_device_item keeps it fast.
+     LEFT JOIN LATERAL (
+       SELECT s2.iccid, s2.msisdn FROM inv_sims s2
+       WHERE s2.device_item_id = i.id AND s2.deleted_at IS NULL
+       ORDER BY s2.created_at DESC, s2.id DESC LIMIT 1
+     ) sim ON true
+     -- VIN / chassis: installation_tickets.vehicle_id is a required FK straight
+     -- to the CRM vehicle record, so it's populated even when the ticket's own
+     -- vehicle_registration snapshot is blank — that's the case this recovers.
+     LEFT JOIN crm_customer_vehicles cv ON cv.id = t.vehicle_id
      LEFT JOIN users u ON u.id = i.received_by_user_id
-     ${where} ORDER BY i.created_at DESC LIMIT ? OFFSET ?`,
+     ${where} ORDER BY i.created_at DESC, i.id DESC LIMIT ? OFFSET ?`,
     [...params, sizeNum, offset]
   );
   const totalRow = await pgGet(
@@ -605,6 +663,7 @@ router.post("/",
       "SELECT id, warranty_months FROM inv_product_catalog WHERE id = ? AND deleted_at IS NULL", [productId]
     );
     if (!product) return errorResponse(res, 404, "NOT_FOUND", "Product not found.");
+    if (await isNonStockProduct(productId)) return errorResponse(res, 400, "NON_STOCK_PRODUCT", NON_STOCK_MESSAGE);
 
     // Check uniqueness of IMEI / serial
     if (imei) {
@@ -693,6 +752,7 @@ router.post("/bulk",
       try {
         const { productId, serialNumber, imei, batchId, purchaseDate, purchasePrice, warehouseLocation, notes } = item;
         if (!productId) { errors.push({ item, error: "productId required" }); continue; }
+        if (await isNonStockProduct(productId)) { errors.push({ item, error: NON_STOCK_MESSAGE }); continue; }
         const product = await pgGet("SELECT warranty_months, identifier_type FROM inv_product_catalog WHERE id = ?", [productId]);
         const idType: string = product?.identifier_type || "both";
         // Enforce IMEI format for products that require it
@@ -810,13 +870,15 @@ router.post("/issue-batch",
     for (const itemId of itemIds) {
       const item = await pgGet("SELECT * FROM inv_items WHERE id = ? AND deleted_at IS NULL", [itemId]);
       if (!item) { errors.push(`${itemId}: not found`); continue; }
-      if (!["In Stock", "Reserved"].includes(item.status)) {
-        errors.push(`${item.serial_number || itemId}: status is '${item.status}' — must be In Stock`);
+      if (!ISSUABLE_STATUSES.includes(item.status)) {
+        errors.push(`${item.serial_number || itemId}: status is '${item.status}' — must be In Stock, Reserved or Returned`);
         continue;
       }
       await pgRun(
+        // acknowledged_at is reset so a re-issue starts unacknowledged — otherwise a
+        // previous holder's acknowledgement lingers and appears to predate this issuance.
         `UPDATE inv_items SET status='Issued for Installation',
-           issued_to_id=?, issued_to_name=?, issued_at=?, issuance_batch_id=?, updated_at=? WHERE id=?`,
+           issued_to_id=?, issued_to_name=?, issued_at=?, issuance_batch_id=?, acknowledged_at=NULL, updated_at=? WHERE id=?`,
         [canonicalTechId, technicianName, now, batchId, now, itemId]
       );
       await logMovement(
@@ -824,6 +886,9 @@ router.post("/issue-batch",
         item.warehouse_location, "Field", req.user!.id, req.user!.email || "",
         `Issued to ${technicianName}`
       );
+      // Close any prior open checkout before opening a fresh one, so a re-issue
+      // leaves exactly one open custody record instead of accumulating them.
+      await closeOpenCheckouts(itemId, "system: superseded by re-issue", now);
       await pgRun(
         `INSERT INTO inv_checkout_records
            (id,item_id,technician_id,checkout_by_user_id,checkout_at,created_at,updated_at)
@@ -1166,7 +1231,7 @@ router.get("/deleted",
     const filters = ["i.deleted_at IS NOT NULL"];
     const params: any[] = [];
     if (q) {
-      filters.push("(i.serial_number LIKE ? OR i.imei LIKE ? OR p.product_code LIKE ? OR p.product_name LIKE ?)");
+      filters.push("(i.serial_number ILIKE ? OR i.imei ILIKE ? OR p.product_code ILIKE ? OR p.product_name ILIKE ?)");
       params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
     }
     const where = `WHERE ${filters.join(" AND ")}`;
@@ -1183,7 +1248,7 @@ router.get("/deleted",
        LEFT JOIN users u ON u.id = i.created_by_user_id
        LEFT JOIN inv_movements m ON m.item_id = i.id AND m.action = 'DELETED'
        ${where}
-       ORDER BY i.deleted_at DESC LIMIT ? OFFSET ?`,
+       ORDER BY i.deleted_at DESC, i.id DESC LIMIT ? OFFSET ?`,
       [...params, sizeNum, offset]
     );
     const totalRow = await pgGet(
@@ -1204,7 +1269,8 @@ router.get("/:id", requireAuth, async (req, res) => {
             c.name as category_name, s.supplier_name,
             COALESCE(b.batch_number, i.batch_ref, CASE WHEN i.notes LIKE 'Batch: %' THEN SUBSTR(i.notes, 8) END) as batch_number,
             t.ticket_no, t.customer_id AS job_customer_id, t.customer_name AS job_customer_name,
-            t.vehicle_registration AS job_vehicle_reg, t.status AS job_status,
+            COALESCE(NULLIF(TRIM(cv.registration),''), t.vehicle_registration) AS job_vehicle_reg, t.status AS job_status,
+            cv.chassis_number AS vehicle_chassis, cv.make AS vehicle_make, cv.model AS vehicle_model,
             t.invoice_id AS job_invoice_id, inv.invoice_number AS job_invoice_number
      FROM inv_items i
      JOIN inv_product_catalog p ON p.id = i.product_id
@@ -1212,6 +1278,8 @@ router.get("/:id", requireAuth, async (req, res) => {
      LEFT JOIN inv_suppliers s ON s.id = i.supplier_id
      LEFT JOIN inv_procurement_batches b ON b.id = i.batch_id
      LEFT JOIN installation_tickets t ON t.assigned_device_id = i.id OR (t.id = i.installation_id AND i.installation_id IS NOT NULL)
+     -- Central vehicle registry for live reg/chassis/make/model (see list query above)
+     LEFT JOIN crm_customer_vehicles cv ON cv.id = t.vehicle_id
      LEFT JOIN invoices inv ON inv.id = t.invoice_id
      WHERE i.id = ? AND i.deleted_at IS NULL`, [req.params.id]
   );
@@ -1232,7 +1300,7 @@ router.post("/:id/checkout",
   async (req: AuthRequest, res) => {
     const item = await pgGet("SELECT * FROM inv_items WHERE id = ? AND deleted_at IS NULL", [req.params.id]);
     if (!item) return errorResponse(res, 404, "NOT_FOUND", "Item not found.");
-    if (!["In Stock", "Reserved"].includes(item.status))
+    if (!ISSUABLE_STATUSES.includes(item.status))
       return errorResponse(res, 400, "INVALID_STATUS", `Cannot check out item with status '${item.status}'.`);
 
     const { installationTicketId, technicianId, technicianEmail, simPhone, notes } = req.body;
@@ -1248,6 +1316,8 @@ router.post("/:id/checkout",
       item.warehouse_location, "Field", req.user!.id, req.user!.email||"",
       notes, installationTicketId
     );
+    // Close any prior open checkout before opening a fresh one (see closeOpenCheckouts).
+    await closeOpenCheckouts(item.id, "system: superseded by checkout", now);
     await pgRun(
       `INSERT INTO inv_checkout_records
          (id,item_id,installation_ticket_id,technician_id,technician_email,sim_phone,checkout_by_user_id,checkout_at,created_at,updated_at)
@@ -1277,8 +1347,10 @@ router.post("/:id/checkin",
     const newStatus = returnReason === "Defective" ? "Defective" : "Returned";
 
     await pgRun(
+      // Clear acknowledged_at on return so a returned/re-issuable device carries no
+      // stale acknowledgement from its previous issuance cycle.
       `UPDATE inv_items SET status=?, warehouse_location=COALESCE(?,warehouse_location),
-       installation_id=NULL, updated_at=? WHERE id=?`,
+       installation_id=NULL, acknowledged_at=NULL, updated_at=? WHERE id=?`,
       [newStatus, warehouseLocation||null, now, item.id]
     );
     await logMovement(
@@ -1323,6 +1395,8 @@ router.post("/:id/install", requireAuth, requireRole(["Admin", "InventoryManager
      activated_at=COALESCE(?,activated_at), deployed_at=?, updated_at=? WHERE id=?`,
     [customerId||null, activatedAt||null, now, now, item.id]
   );
+  // Custody ends at install — the device is on the vehicle, not with the technician.
+  await closeOpenCheckouts(item.id, "system: closed on install", now);
   await logMovement(item.id, item.product_id, "INSTALLED", "Issued for Installation", "Installed", "Field", "Customer Site", req.user!.id, req.user!.email||"");
   auditLog(req, "INV_ITEM_INSTALLED", "inv_items", "Info", { id: item.id, customerId }).catch(console.error);
   return ok(res, null, "Device marked as installed.");
@@ -1338,6 +1412,8 @@ router.post("/:id/mark-defective", requireAuth, requireRole(["Admin", "Inventory
     "UPDATE inv_items SET status='Defective', defect_ticket_id=COALESCE(?,defect_ticket_id), updated_at=? WHERE id=?",
     [defectTicketId||null, now, item.id]
   );
+  // Custody ends — a defective device is no longer in the technician's hands.
+  await closeOpenCheckouts(item.id, "system: closed on defect", now);
   await logMovement(item.id, item.product_id, "MARKED_DEFECTIVE", item.status, "Defective", null, null, req.user!.id, req.user!.email||"", notes);
   auditLog(req, "INV_ITEM_DEFECTIVE", "inv_items", "Warning", { id: item.id }).catch(console.error);
   return ok(res, null, "Device marked as defective.");

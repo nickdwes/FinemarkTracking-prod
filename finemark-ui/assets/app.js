@@ -69,11 +69,13 @@
     "sales.html": [ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.ADMIN, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES],
     "create-request.html": [ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.TECHNICAL, ROLES.TECHNICIAN, ROLES.ADMIN, ROLES.FINANCE, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES, ROLES.INSTALL_OFFICE],
     "create-invoice.html": [ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.ADMIN, ROLES.FINANCE, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES],
+    "finance-payment-reports.html": [ROLES.ADMIN, ROLES.FINANCE, ROLES.EXECUTIVE],
+    "sales-commission.html": [ROLES.ADMIN, ROLES.FINANCE, ROLES.EXECUTIVE],
     "invoice-inventory.html": [ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.ADMIN, ROLES.FINANCE, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES],
     "crm-records.html": [ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.ADMIN, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES],
-    "crm-customers.html": [ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.ADMIN, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES],
-    "crm-register.html": [ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.ADMIN, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES],
-    "crm-customer-360.html": [ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.ADMIN, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES],
+    "crm-customers.html": [ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.ADMIN, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES, ROLES.CERT_ADMIN],
+    "crm-register.html": [ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.ADMIN, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES, ROLES.CERT_ADMIN],
+    "crm-customer-360.html": [ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.ADMIN, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES, ROLES.CERT_ADMIN],
     "crm-campaigns.html": [ROLES.ADMIN, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.TELESALES],
     "crm-communications.html": [ROLES.ADMIN, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.TELESALES],
     "campaigns-mass-sms.html": [ROLES.ADMIN, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.TELESALES],
@@ -89,12 +91,14 @@
     "crm-inventory-allocate.html": [ROLES.TECHNICAL, ROLES.ADMIN],
     "technical.html": [ROLES.TECHNICAL, ROLES.TECHNICIAN, ROLES.ADMIN, ROLES.INSTALL_OFFICE],
     "installation-ticket.html": [ROLES.TECHNICAL, ROLES.ADMIN, ROLES.INSTALL_OFFICE],
-    "crm-tickets.html": [ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.TECHNICAL, ROLES.TECHNICIAN, ROLES.INSTALL_OFFICE, ROLES.ADMIN, ROLES.FINANCE, "Support", "Operations", "technical_manager"],
-    "crm-ticket-new.html": [ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.TECHNICAL, ROLES.TECHNICIAN, ROLES.INSTALL_OFFICE, ROLES.ADMIN, ROLES.FINANCE, "Support", "Operations", "technical_manager"],
-    "crm-ticket-detail.html": [ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.TECHNICAL, ROLES.TECHNICIAN, ROLES.INSTALL_OFFICE, ROLES.ADMIN, ROLES.FINANCE, "Support", "Operations", "technical_manager"],
-    "gps-uninstall-queue.html": [ROLES.ADMIN, ROLES.TECHNICAL, ROLES.TECHNICIAN, ROLES.INSTALL_OFFICE, ROLES.FINANCE],
+    "crm-tickets.html": [ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.BDM_CORPORATE, ROLES.TECHNICAL, ROLES.TECHNICIAN, ROLES.INSTALL_OFFICE, ROLES.ADMIN, ROLES.FINANCE, "Support", "Operations", "technical_manager"],
+    "crm-ticket-new.html": [ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.BDM_CORPORATE, ROLES.TECHNICAL, ROLES.TECHNICIAN, ROLES.INSTALL_OFFICE, ROLES.ADMIN, ROLES.FINANCE, "Support", "Operations", "technical_manager"],
+    "crm-ticket-detail.html": [ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.BDM_CORPORATE, ROLES.TECHNICAL, ROLES.TECHNICIAN, ROLES.INSTALL_OFFICE, ROLES.ADMIN, ROLES.FINANCE, "Support", "Operations", "technical_manager"],
+    "gps-uninstall-queue.html": [ROLES.ADMIN, ROLES.TECHNICAL, ROLES.TECHNICIAN, ROLES.INSTALL_OFFICE, ROLES.FINANCE, "technical_manager"],
     "support-dashboard.html": [ROLES.ADMIN, ROLES.TECHNICAL, ROLES.FINANCE, "Support", "Operations"],
     "admin-ticket-categories.html": [ROLES.ADMIN],
+    "admin-vehicle-approvals.html": [ROLES.ADMIN],
+    "admin-device-swap.html": [ROLES.ADMIN],
     "technician-jobs.html": [ROLES.TECHNICIAN, ROLES.ADMIN],
     "job-details.html": [ROLES.TECHNICIAN, ROLES.TECHNICAL, ROLES.ADMIN, ROLES.INSTALL_OFFICE, ROLES.CERT_ADMIN],
     "job-card.html": [ROLES.TECHNICIAN, ROLES.TECHNICAL, ROLES.ADMIN, ROLES.INSTALL_OFFICE],
@@ -104,6 +108,8 @@
     "admin.html": [ROLES.ADMIN],
     "admin-users.html": [ROLES.ADMIN],
     "certificate-dashboard.html": [ROLES.ADMIN, ROLES.CERT_ADMIN],
+    "certificate-metrics.html": [ROLES.ADMIN, ROLES.CERT_ADMIN],
+    "certificate-recyclebin.html": [ROLES.ADMIN, ROLES.CERT_ADMIN],
     "create-certificate.html": [ROLES.ADMIN, ROLES.CERT_ADMIN],
     "certificate-inventory.html": [ROLES.ADMIN, ROLES.CERT_ADMIN],
     "certificate-queue.html": [ROLES.ADMIN, ROLES.CERT_ADMIN],
@@ -121,6 +127,10 @@
     "sales-performance.html": [ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.ADMIN, ROLES.CORPORATE_SALES],
     "sales-dashboard.html": [ROLES.ADMIN, ROLES.EXECUTIVE, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES, ROLES.KAM, ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES],
     "sales-reports.html": [ROLES.ADMIN, ROLES.EXECUTIVE, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES, ROLES.KAM, ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES],
+    // Customer-service view of the post-sale journey — wider audience than the
+    // sales reports (support + technical/installation need it too).
+    "customer-service-reports.html": [ROLES.ADMIN, ROLES.EXECUTIVE, ROLES.HR, ROLES.FINANCE, ROLES.TECHNICAL, ROLES.INSTALL_OFFICE, ROLES.CERT_ADMIN, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES, ROLES.KAM, ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, "Support", "Operations", "technical_manager"],
+    "customer-vehicle-report.html": [ROLES.ADMIN, ROLES.EXECUTIVE, ROLES.HR, ROLES.FINANCE, ROLES.TECHNICAL, ROLES.INSTALL_OFFICE, ROLES.CERT_ADMIN, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES, ROLES.KAM, ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, "Support", "Operations", "technical_manager"],
     "sales-report-by-bank.html": [ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.ADMIN, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES],
     "report-gadget-batches.html": [ROLES.ADMIN],
     "admin-add-gadgets.html": [ROLES.ADMIN],
@@ -141,18 +151,22 @@
     "inventory-procurement.html": [ROLES.ADMIN, ROLES.INVENTORY_MGR, ROLES.PROCUREMENT],
     "inventory-warranty.html": [ROLES.ADMIN, ROLES.INVENTORY_MGR, ROLES.WAREHOUSE, ROLES.TECHNICAL],
     "vehicle-data-sync.html": [ROLES.ADMIN, ROLES.INVENTORY_MGR],
-    "technician-custody.html": [ROLES.TECHNICIAN, ROLES.TECHNICAL, ROLES.ADMIN, ROLES.INSTALL_OFFICE],
+    "vehicle-attribute-entries.html": [ROLES.ADMIN, ROLES.INVENTORY_MGR],
+    "technician-custody.html": [ROLES.TECHNICIAN, ROLES.TECHNICAL, ROLES.ADMIN, ROLES.INSTALL_OFFICE, "technical_manager"],
     "executive-dashboard.html": [ROLES.CEO, ROLES.DIRECTOR, ROLES.EXEC_MGT, ROLES.ADMIN],
     "invoice-detail.html": [ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.ADMIN, ROLES.FINANCE, ROLES.TECHNICAL, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES],
     "vehicle-installation.html": [ROLES.TECHNICAL, ROLES.ADMIN, ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.INSTALL_OFFICE],
     "technical-dashboard.html": [ROLES.TECHNICAL, ROLES.ADMIN, ROLES.INSTALL_OFFICE],
     "hr-employee-users.html": [ROLES.ADMIN],
-    "hr-leave-apply.html": [ROLES.ADMIN, ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.TECHNICAL, ROLES.TECHNICIAN, ROLES.FINANCE, ROLES.INVENTORY_MGR, ROLES.PROCUREMENT, ROLES.WAREHOUSE, ROLES.CEO, ROLES.DIRECTOR, ROLES.EXEC_MGT, ROLES.TEAM_LEAD, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES, ROLES.INSTALL_OFFICE],
-    "hr-leave-calendar.html": [ROLES.ADMIN, ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.TECHNICAL, ROLES.TECHNICIAN, ROLES.FINANCE, ROLES.INVENTORY_MGR, ROLES.PROCUREMENT, ROLES.WAREHOUSE, ROLES.CEO, ROLES.DIRECTOR, ROLES.EXEC_MGT, ROLES.TEAM_LEAD, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES, ROLES.INSTALL_OFFICE],
-    "hr-manager-leave.html": [ROLES.ADMIN, ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.TECHNICAL, ROLES.TECHNICIAN, ROLES.FINANCE, ROLES.INVENTORY_MGR, ROLES.PROCUREMENT, ROLES.WAREHOUSE, ROLES.CEO, ROLES.DIRECTOR, ROLES.EXEC_MGT, ROLES.TEAM_LEAD, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES, ROLES.INSTALL_OFFICE],
-    "hr-leave-approvals.html": [ROLES.ADMIN, ROLES.TEAM_LEAD, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CEO, ROLES.DIRECTOR, ROLES.EXEC_MGT],
+    "hr-leave-apply.html": [ROLES.ADMIN, ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.TECHNICAL, ROLES.TECHNICIAN, ROLES.FINANCE, ROLES.INVENTORY_MGR, ROLES.PROCUREMENT, ROLES.WAREHOUSE, ROLES.CEO, ROLES.DIRECTOR, ROLES.EXEC_MGT, ROLES.TEAM_LEAD, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES, ROLES.INSTALL_OFFICE, ROLES.HR, ROLES.CERT_ADMIN, "Management", "technical_manager"],
+    "hr-leave-calendar.html": [ROLES.ADMIN, ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.TECHNICAL, ROLES.TECHNICIAN, ROLES.FINANCE, ROLES.INVENTORY_MGR, ROLES.PROCUREMENT, ROLES.WAREHOUSE, ROLES.CEO, ROLES.DIRECTOR, ROLES.EXEC_MGT, ROLES.TEAM_LEAD, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES, ROLES.INSTALL_OFFICE, ROLES.HR, ROLES.CERT_ADMIN, "Management", "technical_manager"],
+    "hr-manager-leave.html": [ROLES.ADMIN, ROLES.SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.TECHNICAL, ROLES.TECHNICIAN, ROLES.FINANCE, ROLES.INVENTORY_MGR, ROLES.PROCUREMENT, ROLES.WAREHOUSE, ROLES.CEO, ROLES.DIRECTOR, ROLES.EXEC_MGT, ROLES.TEAM_LEAD, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CORPORATE_SALES, ROLES.INSTALL_OFFICE, ROLES.HR, ROLES.CERT_ADMIN, "Management", "technical_manager"],
+    "hr-leave-approvals.html": [ROLES.ADMIN, ROLES.TEAM_LEAD, ROLES.BDM, ROLES.BDM_CORPORATE, ROLES.CEO, ROLES.DIRECTOR, ROLES.EXEC_MGT, ROLES.HR, ROLES.TECHNICAL, "technical_manager"],
     "certificate-validation.html": [ROLES.ADMIN, ROLES.CERT_ADMIN],
     "certificate-bank-settings.html": [ROLES.ADMIN, ROLES.CERT_ADMIN],
+    "cert-extension.html": [ROLES.ADMIN, ROLES.CERT_ADMIN, ROLES.SALES, ROLES.CORPORATE_SALES, ROLES.TELESALES, ROLES.FIELD_SALES, ROLES.BDM, ROLES.BDM_CORPORATE],
+    "cert-extension-requests.html": [ROLES.ADMIN, ROLES.CERT_ADMIN],
+    "doc-bank-settings.html": [ROLES.ADMIN, ROLES.FINANCE, ROLES.CERT_ADMIN],
     "status-remarks.html": [ROLES.TECHNICAL, ROLES.ADMIN, ROLES.INSTALL_OFFICE],
     "partners.html": [ROLES.SALES, ROLES.ADMIN, ROLES.BDM, ROLES.BDM_CORPORATE],
     "partner-detail.html": [ROLES.SALES, ROLES.ADMIN, ROLES.FINANCE, ROLES.TECHNICAL, ROLES.BDM, ROLES.BDM_CORPORATE],
@@ -292,6 +306,45 @@
     const value = Number(amount);
     const safeValue = Number.isFinite(value) ? value : 0;
     return `KES ${safeValue.toLocaleString("en-KE")}`;
+  };
+
+  // Label for a vehicle in a picker/dropdown. Registration is the natural
+  // identifier, but ~16% of vehicles are recorded before they are registered
+  // (registration_known = false) — for those the plate is blank and a label
+  // built from make/model alone is ambiguous: a customer with two unregistered
+  // FAWs got two identical "FAW" options, so a rep could quote against the
+  // wrong vehicle. Fall back to the chassis number, which is what actually
+  // distinguishes them. Accepts either the API's camelCase or a raw DB row.
+  const vehicleLabel = (v) => {
+    if (!v) return "";
+    const reg = String(v.registration || "").trim();
+    const chassis = String(v.chassisNumber ?? v.chassis_number ?? "").trim();
+    const identity = reg || (chassis ? `Chassis ${chassis}` : "Unregistered");
+    const makeModel = [v.make, v.model].filter(Boolean).join(" ");
+    const year = v.yearOfManufacture ?? v.year_of_manufacture;
+    return [identity, makeModel, year ? `(${year})` : ""].filter(Boolean).join(" — ");
+  };
+
+  // Shared across hr-leave-approvals.html / hr-manager-leave.html / hr-leave-apply.html
+  // so the badge stays consistent everywhere a leave application status is shown.
+  const HR_LEAVE_STATUS_LABEL = {
+    Pending: "Pending",
+    PendingL2: "Awaiting HR Countersign",
+    Approved: "Approved",
+    Rejected: "Rejected",
+    Cancelled: "Cancelled",
+  };
+  const HR_LEAVE_STATUS_COLOR = {
+    Pending: "bg-amber-50 text-amber-700 border-amber-200",
+    PendingL2: "bg-sky-50 text-sky-700 border-sky-200",
+    Approved: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    Rejected: "bg-rose-50 text-rose-700 border-rose-200",
+    Cancelled: "bg-slate-100 text-slate-500 border-slate-200",
+  };
+  const renderLeaveStatusBadge = (status) => {
+    const cls = HR_LEAVE_STATUS_COLOR[status] || "";
+    const label = HR_LEAVE_STATUS_LABEL[status] || status;
+    return `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${cls}">${label}</span>`;
   };
 
   const Validators = {
@@ -573,8 +626,16 @@
     const pageName = getCurrentPageName();
     if (isPublicPage(pageName)) return true;
     const session = getSession();
+    // Require an actual token, not just a {user} shim: the legacy `finemarkUser`
+    // fallback in getSession() can return a token-less session that looks logged-in
+    // but authenticates nothing — treat that as unauthenticated and re-login.
     if (!session || !session.user) {
       window.location.href = `login.html?reason=unauthorized&page=${encodeURIComponent(pageName)}`;
+      return false;
+    }
+    if (!session.accessToken && !session.refreshToken) {
+      clearSession();
+      window.location.href = `login.html?reason=session_expired&page=${encodeURIComponent(pageName)}`;
       return false;
     }
     if (CONFIG.AUTH_LIVE) {
@@ -682,627 +743,11 @@
 
   const nowIso = () => new Date().toISOString();
 
-  const seedStores = () => {
-    if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
-      saveStore(STORAGE_KEYS.USERS, [
-        {
-          id: "USR-1",
-          name: "Admin User",
-          email: "adonijahjuma@gmail.com",
-          role: ROLES.ADMIN,
-          status: "Active",
-          forcePasswordReset: false,
-          password: "password123",
-          lastLoginAt: nowIso(),
-          createdAt: nowIso(),
-          updatedAt: nowIso(),
-        },
-        {
-          id: "USR-2",
-          name: "Sales User",
-          email: "sales@finemark.com",
-          role: ROLES.SALES,
-          status: "Active",
-          forcePasswordReset: false,
-          password: "password123",
-          lastLoginAt: nowIso(),
-          createdAt: nowIso(),
-          updatedAt: nowIso(),
-        },
-        {
-          id: "USR-3",
-          name: "Technical User",
-          email: "tech@finemark.com",
-          role: ROLES.TECHNICAL,
-          status: "Active",
-          forcePasswordReset: false,
-          password: "password123",
-          lastLoginAt: nowIso(),
-          createdAt: nowIso(),
-          updatedAt: nowIso(),
-        },
-        {
-          id: "USR-4",
-          name: "Finance User",
-          email: "finance@finemark.com",
-          role: ROLES.FINANCE,
-          status: "Active",
-          forcePasswordReset: false,
-          password: "password123",
-          lastLoginAt: nowIso(),
-          createdAt: nowIso(),
-          updatedAt: nowIso(),
-        },
-      ]);
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.INSTALLATIONS)) {
-      saveStore(STORAGE_KEYS.INSTALLATIONS, [
-        {
-          id: "JOB-1001",
-          requestId: "REQ-1001",
-          customerName: "Atlas Corp",
-          customerPhone: "+254700111222",
-          location: "Nairobi, KE",
-          scheduledDate: new Date(Date.now() + 86400000).toISOString(),
-          assignedTechnician: "Mike Johnson",
-          status: "Assigned",
-          jobDetails: { products: ["FM-GPS-Tracker V3"], notes: "Install on unit 12" },
-          jobCard: { checklist: [], photos: [] },
-          confirmation: { method: "", verified: false },
-          createdAt: nowIso(),
-          updatedAt: nowIso(),
-        },
-        {
-          id: "JOB-1002",
-          requestId: "REQ-1002",
-          customerName: "Ridgeway Logistics",
-          customerPhone: "+254700333444",
-          location: "Mombasa, KE",
-          scheduledDate: new Date(Date.now() + 2 * 86400000).toISOString(),
-          assignedTechnician: "Sarah Williams",
-          status: "In Progress",
-          jobDetails: { products: ["FM-GPS-Tracker V2"], notes: "Fleet rollout" },
-          jobCard: { checklist: [], photos: [] },
-          confirmation: { method: "", verified: false },
-          createdAt: nowIso(),
-          updatedAt: nowIso(),
-        },
-      ]);
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.CRM_RECORDS)) {
-      saveStore(STORAGE_KEYS.CRM_RECORDS, [
-        {
-          id: "REQ-1001",
-          type: "installation",
-          customer: "Atlas Corp",
-          location: "Nairobi, KE",
-          status: "Submitted",
-          owner: "sales@finemark.com",
-          createdAt: new Date(Date.now() - 3 * 86400000).toISOString(),
-          updatedAt: new Date(Date.now() - 2 * 86400000).toISOString(),
-          details: { notes: "Priority install" },
-        },
-        {
-          id: "REQ-1002",
-          type: "quotation",
-          customer: "Ridgeway Logistics",
-          location: "Mombasa, KE",
-          status: "Approved",
-          owner: "sales@finemark.com",
-          createdAt: new Date(Date.now() - 6 * 86400000).toISOString(),
-          updatedAt: new Date(Date.now() - 4 * 86400000).toISOString(),
-          details: { notes: "Fleet expansion" },
-        },
-        {
-          id: "REQ-1003",
-          type: "invoice",
-          customer: "Northstar Freight",
-          location: "Kisumu, KE",
-          status: "Paid",
-          owner: "sales@finemark.com",
-          createdAt: new Date(Date.now() - 15 * 86400000).toISOString(),
-          updatedAt: new Date(Date.now() - 10 * 86400000).toISOString(),
-          details: { notes: "Invoice settled" },
-        },
-      ]);
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.INVOICES)) {
-      saveStore(STORAGE_KEYS.INVOICES, []);
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.PAYMENTS)) {
-      saveStore(STORAGE_KEYS.PAYMENTS, []);
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.AUDIT_LOGS)) {
-      saveStore(STORAGE_KEYS.AUDIT_LOGS, []);
-    }
-  };
-
-  const parseUrl = (path) => {
-    const url = new URL(path, "http://localhost");
-    return { pathname: url.pathname, searchParams: url.searchParams };
-  };
-
-  const applyFilters = (items, filters, mapper) => {
-    return items.filter((item) => mapper(item, filters));
-  };
-
-  const mockHandlers = {
-    "POST /auth/login": async ({ body }) => {
-      const users = loadStore(STORAGE_KEYS.USERS, []);
-      let user = users.find((entry) => entry.email === body.email);
-      if (!user) {
-        user = {
-          id: `USR-${Date.now()}`,
-          name: body.name || body.email.split("@")[0],
-          email: body.email,
-          role: normalizeRole(body.role) || ROLES.SALES,
-          status: "Active",
-          forcePasswordReset: false,
-          password: body.password || "password123",
-          lastLoginAt: null,
-          createdAt: nowIso(),
-          updatedAt: nowIso(),
-        };
-        users.push(user);
-      }
-      if (user.status === "Disabled") {
-        throw createError(403, "FORBIDDEN", "User account is disabled.");
-      }
-      if (user.password && body.password && user.password !== body.password) {
-        throw createError(401, "UNAUTHORIZED", "Invalid email or password.");
-      }
-      user.lastLoginAt = nowIso();
-      user.updatedAt = nowIso();
-      saveStore(STORAGE_KEYS.USERS, users);
-      const response = {
-        accessToken: "mock-access",
-        refreshToken: "mock-refresh",
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          status: user.status,
-          forcePasswordReset: user.forcePasswordReset,
-          lastLoginAt: user.lastLoginAt,
-        },
-      };
-      setSession(response);
-      return response;
-    },
-    "POST /auth/logout": async () => {
-      clearSession();
-      return { data: { message: "Logged out" } };
-    },
-    "POST /auth/refresh": async () => {
-      return { accessToken: "mock-access", refreshToken: "mock-refresh" };
-    },
-    "POST /auth/forgot-password": async () => {
-      return { message: "If an account exists, you will receive a reset link shortly." };
-    },
-    "POST /auth/reset-password": async () => {
-      return { message: "Password updated successfully." };
-    },
-    "GET /me": async () => {
-      const session = getSession();
-      const users = loadStore(STORAGE_KEYS.USERS, []);
-      const user = users.find((entry) => entry.id === session?.user?.id) || session?.user;
-      if (!user) {
-        throw createError(404, "NOT_FOUND", "User not found.");
-      }
-      return {
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          status: user.status || "Active",
-          forcePasswordReset: Boolean(user.forcePasswordReset),
-          lastLoginAt: user.lastLoginAt || null,
-        },
-      };
-    },
-    "POST /me/change-password": async ({ body }) => {
-      const session = getSession();
-      const users = loadStore(STORAGE_KEYS.USERS, []);
-      const userIndex = users.findIndex((entry) => entry.id === session?.user?.id);
-      const user = userIndex >= 0 ? users[userIndex] : null;
-      if (!user) {
-        throw createError(404, "NOT_FOUND", "User not found.");
-      }
-      if (!body?.currentPassword || !body?.newPassword || !body?.confirmPassword) {
-        throw createError(400, "VALIDATION_ERROR", "Invalid input", {
-          fieldErrors: { currentPassword: ["All fields are required."] },
-        });
-      }
-      if (body.newPassword !== body.confirmPassword) {
-        throw createError(400, "VALIDATION_ERROR", "Invalid input", {
-          fieldErrors: { confirmPassword: ["Passwords do not match."] },
-        });
-      }
-      if (body.newPassword === body.currentPassword) {
-        throw createError(400, "VALIDATION_ERROR", "Invalid input", {
-          fieldErrors: { newPassword: ["New password must be different from current password."] },
-        });
-      }
-      if (user.password && user.password !== body.currentPassword) {
-        throw createError(400, "VALIDATION_ERROR", "Invalid input", {
-          fieldErrors: { currentPassword: ["Current password is incorrect."] },
-        });
-      }
-      const policyError = Validators.passwordPolicy(body.newPassword);
-      if (policyError) {
-        throw createError(400, "VALIDATION_ERROR", "Invalid input", {
-          fieldErrors: { newPassword: [policyError] },
-        });
-      }
-      users[userIndex] = {
-        ...user,
-        password: body.newPassword,
-        forcePasswordReset: false,
-        updatedAt: nowIso(),
-      };
-      saveStore(STORAGE_KEYS.USERS, users);
-      saveStore(STORAGE_KEYS.REFRESH_TOKENS, []);
-      return { message: "Password changed successfully" };
-    },
-    "GET /users": async ({ searchParams }) => {
-      const users = loadStore(STORAGE_KEYS.USERS, []);
-      const search = (searchParams.get("search") || "").toLowerCase();
-      const role = searchParams.get("role") || "all";
-      const status = searchParams.get("status") || "all";
-      const filtered = applyFilters(users, { search, role, status }, (user, filters) => {
-        const matchesSearch = !filters.search || `${user.name} ${user.email}`.toLowerCase().includes(filters.search);
-        const matchesRole = filters.role === "all" || user.role === filters.role;
-        const matchesStatus = filters.status === "all" || user.status === filters.status;
-        return matchesSearch && matchesRole && matchesStatus;
-      });
-      return { data: filtered.map(({ password, ...rest }) => rest), meta: { total: filtered.length } };
-    },
-    "POST /users": async ({ body }) => {
-      const users = loadStore(STORAGE_KEYS.USERS, []);
-      const newUser = {
-        id: `USR-${Date.now()}`,
-        name: body.name,
-        email: body.email,
-        role: body.role,
-        status: body.status || "Pending",
-        forcePasswordReset: Boolean(body.forcePasswordReset),
-        password: body.password || "password123",
-        lastLoginAt: null,
-        createdAt: nowIso(),
-        updatedAt: nowIso(),
-      };
-      users.unshift(newUser);
-      saveStore(STORAGE_KEYS.USERS, users);
-      const { password, ...safeUser } = newUser;
-      return { data: safeUser, message: "User created" };
-    },
-    "PATCH /users/:id": async ({ params, body }) => {
-      const users = loadStore(STORAGE_KEYS.USERS, []);
-      const user = users.find((entry) => entry.id === params.id);
-      if (!user) throw createError(404, "NOT_FOUND", "User not found.");
-      Object.assign(user, body, { updatedAt: nowIso() });
-      saveStore(STORAGE_KEYS.USERS, users);
-      const auditLogs = loadStore(STORAGE_KEYS.AUDIT_LOGS, []);
-      const session = getSession();
-      auditLogs.unshift({
-        id: `AUD-${Date.now()}`,
-        timestamp: nowIso(),
-        userId: session?.user?.id || null,
-        userEmail: session?.user?.email || "demo@finemark.com",
-        action: "USER_UPDATED",
-        target: `user:${user.id}`,
-        severity: "Info",
-        ipAddress: "127.0.0.1",
-        userAgent: "ui-mock",
-        details: body,
-      });
-      saveStore(STORAGE_KEYS.AUDIT_LOGS, auditLogs);
-      const { password, ...safeUser } = user;
-      return { data: safeUser, message: "User updated" };
-    },
-    "POST /users/:id/reset-password": async ({ params }) => {
-      const users = loadStore(STORAGE_KEYS.USERS, []);
-      const user = users.find((entry) => entry.id === params.id);
-      if (!user) throw createError(404, "NOT_FOUND", "User not found.");
-      user.forcePasswordReset = true;
-      user.updatedAt = nowIso();
-      saveStore(STORAGE_KEYS.USERS, users);
-      const { password, ...safeUser } = user;
-      return { data: safeUser, message: "Reset password triggered" };
-    },
-    "GET /installations": async ({ searchParams }) => {
-      const items = loadStore(STORAGE_KEYS.INSTALLATIONS, []);
-      const status = searchParams.get("status");
-      const assigned = searchParams.get("assignedTechnician");
-      const filtered = items.filter((item) => {
-        const statusMatch = !status || item.status === status;
-        const assignedMatch = !assigned || item.assignedTechnician === assigned;
-        return statusMatch && assignedMatch;
-      });
-      return { data: filtered, meta: { total: filtered.length } };
-    },
-    "POST /installations": async ({ body }) => {
-      const items = loadStore(STORAGE_KEYS.INSTALLATIONS, []);
-      const newItem = { ...body, id: `JOB-${Date.now()}`, createdAt: nowIso(), updatedAt: nowIso() };
-      items.unshift(newItem);
-      saveStore(STORAGE_KEYS.INSTALLATIONS, items);
-      return { data: newItem, message: "Installation created" };
-    },
-    "PATCH /installations/:id/assign": async ({ params, body }) => {
-      const items = loadStore(STORAGE_KEYS.INSTALLATIONS, []);
-      const job = items.find((item) => item.id === params.id);
-      if (!job) throw createError(404, "NOT_FOUND", "Installation not found.");
-      job.assignedTechnician = body.assignedTechnician;
-      job.scheduledDate = body.scheduledDate || job.scheduledDate;
-      job.status = "Assigned";
-      job.updatedAt = nowIso();
-      saveStore(STORAGE_KEYS.INSTALLATIONS, items);
-      return { data: job, message: "Job assigned" };
-    },
-    "PATCH /installations/:id/status": async ({ params, body }) => {
-      const items = loadStore(STORAGE_KEYS.INSTALLATIONS, []);
-      const job = items.find((item) => item.id === params.id);
-      if (!job) throw createError(404, "NOT_FOUND", "Installation not found.");
-      if (window.FINEMARK_CONTRACTS) {
-        window.FINEMARK_CONTRACTS.assertTransitionInstallation(job.status, body.status);
-      }
-      job.status = body.status;
-      job.updatedAt = nowIso();
-      saveStore(STORAGE_KEYS.INSTALLATIONS, items);
-      return { data: job, message: "Status updated" };
-    },
-    "PATCH /installations/:id/job-card": async ({ params, body }) => {
-      const items = loadStore(STORAGE_KEYS.INSTALLATIONS, []);
-      const job = items.find((item) => item.id === params.id);
-      if (!job) throw createError(404, "NOT_FOUND", "Installation not found.");
-      job.jobCard = body.jobCard || job.jobCard;
-      job.updatedAt = nowIso();
-      saveStore(STORAGE_KEYS.INSTALLATIONS, items);
-      return { data: job, message: "Job card saved" };
-    },
-    "PATCH /installations/:id/confirm": async ({ params, body }) => {
-      const items = loadStore(STORAGE_KEYS.INSTALLATIONS, []);
-      const job = items.find((item) => item.id === params.id);
-      if (!job) throw createError(404, "NOT_FOUND", "Installation not found.");
-      job.confirmation = body.confirmation || job.confirmation;
-      job.updatedAt = nowIso();
-      saveStore(STORAGE_KEYS.INSTALLATIONS, items);
-      return { data: job, message: "Confirmation updated" };
-    },
-    "GET /crm/records": async ({ searchParams }) => {
-      const items = loadStore(STORAGE_KEYS.CRM_RECORDS, []);
-      const type = searchParams.get("type");
-      const status = searchParams.get("status");
-      const search = (searchParams.get("search") || "").toLowerCase();
-      const from = searchParams.get("from");
-      const to = searchParams.get("to");
-      const range = searchParams.get("range");
-      const resolvedFrom =
-        range === "7d" ? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() : from;
-      const filtered = items.filter((item) => {
-        const matchesType = !type || item.type === type;
-        const matchesStatus = !status || item.status === status;
-        const matchesSearch =
-          !search ||
-          (item.customer || "").toLowerCase().includes(search) ||
-          (item.location || "").toLowerCase().includes(search) ||
-          item.id.toLowerCase().includes(search);
-        const recordDate = new Date(item.createdAt);
-        const matchesFrom = !resolvedFrom || recordDate >= new Date(resolvedFrom);
-        const matchesTo = !to || recordDate <= new Date(new Date(to).getTime() + 86400000 - 1);
-        return matchesType && matchesStatus && matchesSearch && matchesFrom && matchesTo;
-      });
-      return { data: filtered, meta: { total: filtered.length } };
-    },
-    "POST /crm/records": async ({ body }) => {
-      const items = loadStore(STORAGE_KEYS.CRM_RECORDS, []);
-      if (!body?.type || !body?.customer || !body?.location) {
-        throw createError(400, "VALIDATION_ERROR", "type, customer and location are required.");
-      }
-      const session = getSession();
-      const newItem = {
-        id: `REC-${new Date().getFullYear()}-${String(items.length + 1).padStart(4, "0")}`,
-        type: body.type,
-        customer: body.customer,
-        location: body.location,
-        status: body.status || "Submitted",
-        owner: session?.user?.email || "demo@finemark.com",
-        createdAt: nowIso(),
-        updatedAt: nowIso(),
-        details: body.details || {},
-      };
-      items.unshift(newItem);
-      saveStore(STORAGE_KEYS.CRM_RECORDS, items);
-      const auditLogs = loadStore(STORAGE_KEYS.AUDIT_LOGS, []);
-      auditLogs.unshift({
-        id: `AUD-${Date.now()}`,
-        timestamp: nowIso(),
-        userId: session?.user?.id || null,
-        userEmail: session?.user?.email || "demo@finemark.com",
-        action: "CRM_RECORD_CREATED",
-        target: `crm:${newItem.id}`,
-        severity: "Info",
-        ipAddress: "127.0.0.1",
-        userAgent: "ui-mock",
-        details: { type: newItem.type, customer: newItem.customer },
-      });
-      saveStore(STORAGE_KEYS.AUDIT_LOGS, auditLogs);
-      return { data: newItem, message: "Request created" };
-    },
-    "PATCH /crm/records/:id": async ({ params, body }) => {
-      const items = loadStore(STORAGE_KEYS.CRM_RECORDS, []);
-      const record = items.find((item) => item.id === params.id);
-      if (!record) throw createError(404, "NOT_FOUND", "Record not found.");
-      Object.assign(record, body, { updatedAt: nowIso() });
-      saveStore(STORAGE_KEYS.CRM_RECORDS, items);
-      return { data: record, message: "Record updated" };
-    },
-    "GET /invoices": async ({ searchParams }) => {
-      const items = loadStore(STORAGE_KEYS.INVOICES, []);
-      const search = (searchParams.get("search") || "").toLowerCase();
-      const status = searchParams.get("status");
-      const from = searchParams.get("from");
-      const to = searchParams.get("to");
-      const filtered = items.filter((invoice) => {
-        const matchesSearch =
-          !search ||
-          (invoice.invoiceNumber || "").toLowerCase().includes(search) ||
-          (invoice.customer || "").toLowerCase().includes(search);
-        const matchesStatus = !status || invoice.status === status;
-        const issuedDate = invoice.issuedOn ? new Date(invoice.issuedOn) : null;
-        const matchesFrom = !from || (issuedDate && issuedDate >= new Date(from));
-        const matchesTo = !to || (issuedDate && issuedDate <= new Date(new Date(to).setHours(23, 59, 59, 999)));
-        return matchesSearch && matchesStatus && matchesFrom && matchesTo;
-      });
-      const normalized = filtered.map((invoice) => ({
-        ...invoice,
-        currency: "KES",
-      }));
-      return { data: normalized, meta: { total: normalized.length } };
-    },
-    "POST /invoices": async ({ body }) => {
-      const items = loadStore(STORAGE_KEYS.INVOICES, []);
-      const invoiceNumber = body.invoiceNumber || `INV-${new Date().getFullYear()}-${String(items.length + 1).padStart(4, "0")}`;
-      const newItem = {
-        ...body,
-        id: body.id || `INV-${Date.now()}`,
-        invoiceNumber,
-        currency: "KES",
-        createdAt: nowIso(),
-        updatedAt: nowIso(),
-      };
-      items.unshift(newItem);
-      saveStore(STORAGE_KEYS.INVOICES, items);
-      const crmRecords = loadStore(STORAGE_KEYS.CRM_RECORDS, []);
-      const summary = {
-        invoiceId: newItem.id,
-        invoiceNumber: newItem.invoiceNumber,
-        amount: newItem.amount,
-        currency: "KES",
-        status: newItem.status,
-        issuedOn: newItem.issuedOn,
-        dueOn: newItem.dueOn,
-        bank: newItem.bank,
-        salesPerson: newItem.salesPerson,
-      };
-      let crmRecordId = newItem.crmRecordId;
-      if (crmRecordId) {
-        const existing = crmRecords.find((record) => record.id === crmRecordId);
-        if (existing) {
-          existing.details = { ...(existing.details || {}), invoice: summary, ...(newItem.details || {}) };
-          existing.status = "Submitted";
-          existing.updatedAt = nowIso();
-        } else {
-          crmRecords.unshift({
-            id: crmRecordId,
-            type: "invoice",
-            customer: newItem.customer,
-            location: newItem.details?.location || "Unknown",
-            status: "Submitted",
-            owner: getSession()?.user?.email || "sales@finemark.com",
-            createdAt: nowIso(),
-            updatedAt: nowIso(),
-            details: { invoice: summary, ...(newItem.details || {}) },
-          });
-        }
-      } else {
-        crmRecordId = `REQ-${Date.now()}`;
-        newItem.crmRecordId = crmRecordId;
-        crmRecords.unshift({
-          id: crmRecordId,
-          type: "invoice",
-          customer: newItem.customer,
-          location: newItem.details?.location || "Unknown",
-          status: "Submitted",
-          owner: getSession()?.user?.email || "sales@finemark.com",
-          createdAt: nowIso(),
-          updatedAt: nowIso(),
-          details: { invoice: summary, ...(newItem.details || {}) },
-        });
-      }
-      saveStore(STORAGE_KEYS.CRM_RECORDS, crmRecords);
-      return { data: newItem, message: "Invoice created" };
-    },
-    "PATCH /invoices/:id": async ({ params, body }) => {
-      const items = loadStore(STORAGE_KEYS.INVOICES, []);
-      const invoice = items.find((item) => item.id === params.id);
-      if (!invoice) throw createError(404, "NOT_FOUND", "Invoice not found.");
-      Object.assign(invoice, body, { updatedAt: nowIso() });
-      saveStore(STORAGE_KEYS.INVOICES, items);
-      return { data: invoice, message: "Invoice updated" };
-    },
-    "GET /payments": async () => {
-      const items = loadStore(STORAGE_KEYS.PAYMENTS, []);
-      const normalized = items.map((payment) => ({ ...payment, currency: "KES" }));
-      return { data: normalized, meta: { total: normalized.length } };
-    },
-    "POST /payments": async ({ body }) => {
-      const items = loadStore(STORAGE_KEYS.PAYMENTS, []);
-      const newItem = { ...body, id: `PAY-${Date.now()}`, currency: "KES", createdAt: nowIso() };
-      items.unshift(newItem);
-      saveStore(STORAGE_KEYS.PAYMENTS, items);
-      return { data: newItem, message: "Payment recorded" };
-    },
-    "GET /audit-logs": async () => {
-      const items = loadStore(STORAGE_KEYS.AUDIT_LOGS, []);
-      const sorted = [...items].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      return { data: sorted, meta: { total: sorted.length } };
-    },
-  };
-
-  const routeMock = async (method, path, body) => {
-    seedStores();
-    const { pathname, searchParams } = parseUrl(path);
-    const handlerKey = `${method} ${pathname}`;
-
-    if (handlerKey === "PATCH /users/:id" || handlerKey === "POST /users/:id/reset-password") {
-      // placeholder for matching below
-    }
-
-    const matchParamRoute = (pattern) => {
-      const regex = new RegExp(`^${pattern.replace(/:[^/]+/g, "([^/]+)")}$`);
-      const match = pathname.match(regex);
-      if (!match) return null;
-      const keys = (pattern.match(/:[^/]+/g) || []).map((key) => key.substring(1));
-      const params = keys.reduce((acc, key, index) => {
-        acc[key] = match[index + 1];
-        return acc;
-      }, {});
-      return params;
-    };
-
-    const directHandler = mockHandlers[`${method} ${pathname}`];
-    if (directHandler) {
-      return directHandler({ body, searchParams });
-    }
-
-    const paramRoutes = [
-      "PATCH /users/:id",
-      "POST /users/:id/reset-password",
-      "PATCH /installations/:id/assign",
-      "PATCH /installations/:id/status",
-      "PATCH /installations/:id/job-card",
-      "PATCH /installations/:id/confirm",
-      "PATCH /crm/records/:id",
-      "PATCH /invoices/:id",
-    ];
-
-    for (const route of paramRoutes) {
-      const [routeMethod, routePath] = route.split(" ");
-      if (routeMethod !== method) continue;
-      const params = matchParamRoute(routePath);
-      if (params) {
-        const handler = mockHandlers[`${method} ${routePath}`];
-        if (handler) {
-          return handler({ body, searchParams, params });
-        }
-      }
-    }
-
-    throw createError(404, "NOT_FOUND", "Mock route not found");
-  };
+  // ── Mock/demo API layer removed 2026-08-07 (VAPT remediation) ──────────────
+  // seedStores, mockHandlers and routeMock emulated the API against localStorage.
+  // They were dead code (portal runs LIVE; CONFIG.MOCK_MODE = false) and shipped
+  // internal business logic + sample data to the browser. Removed. All data now
+  // comes exclusively from the authenticated /api via apiFetch below.
 
   const apiFetch = async (path, options = {}) => {
     const method = (options.method || "GET").toUpperCase();
@@ -1320,21 +765,23 @@
         path.startsWith("/audit-logs"));
     const forceLiveAuth = CONFIG.AUTH_LIVE && path.startsWith("/auth/");
     const forceLive = liveAuth || liveData || CONFIG.LIVE_ENDPOINTS?.some((prefix) => path.startsWith(prefix));
-    if (CONFIG.MOCK_MODE && !forceLiveAuth && !forceLive) {
-      await delay();
-      try {
-        const data = await routeMock(method, path, body);
-        return data;
-      } catch (error) {
-        const normalized = normalizeError(error);
-        if (formEl && normalized.code === "VALIDATION_ERROR" && normalized.details) {
-          applyFieldErrors(formEl, normalized.details);
-        }
-        throw normalized;
-      }
-    }
-
+    // Mock request path removed (VAPT) — always use the live API below.
     const session = getSession();
+    // A session with neither an access token nor a refresh token cannot authenticate
+    // any /api call. This happens when the full SESSION entry was lost (expired /
+    // evicted / corrupted localStorage) but the legacy `finemarkUser` key lingered —
+    // getSession() then returns a token-less {user} shim that looks logged-in. Rather
+    // than fire a doomed request that returns the cryptic "Missing or invalid
+    // authorization header", clear the half-session and send the user to re-login once.
+    if (!path.startsWith("/auth/") && !session?.accessToken && !session?.refreshToken) {
+      clearSession();
+      if (!window.__fmAuthRedirecting) {
+        window.__fmAuthRedirecting = true;
+        const pg = encodeURIComponent(getCurrentPageName());
+        window.location.href = `login.html?reason=session_expired&page=${pg}`;
+      }
+      throw createError(401, "SESSION_EXPIRED", "Your session has expired. Please sign in again.");
+    }
     const headers = Object.assign(
       { "Content-Type": "application/json" },
       options.headers || {},
@@ -1537,6 +984,58 @@
     },
   };
 
+  /**
+   * Parse an M-PESA confirmation SMS into { code, amount, payee, phone, date }.
+   * Handles both Buy-Goods/Till ("... paid to HAIR CRAFT STYLISTS. on 18/8/26 ...")
+   * and Send-Money ("... sent to ROSE MAINA 0721768050 on 18/8/26 ..."). Returns
+   * null if the text isn't recognisable. `date` is normalised to YYYY-MM-DD.
+   */
+  const parseMpesa = (text) => {
+    if (!text) return null;
+    const t = String(text).replace(/ /g, " ").replace(/\s+/g, " ").trim();
+    const out = { code: null, amount: null, payee: null, phone: null, date: null };
+    // Transaction code: 10-char alphanumeric token, usually right before "Confirmed".
+    let m = t.match(/\b([A-Z0-9]{10})\b(?=\s+Confirmed)/i) || t.match(/^([A-Z0-9]{10})\b/i) || t.match(/\bReference[:\s]+([A-Z0-9]{8,12})\b/i);
+    if (m) out.code = m[1].toUpperCase();
+    // Amount: the "Ksh…" figure immediately after "Confirmed" (the transaction amount,
+    // not the balance / cost / daily-limit figures that follow).
+    m = t.match(/Confirmed\.?\s*(?:Ksh|KES)\s*([\d,]+(?:\.\d{1,2})?)/i)
+     || t.match(/\b(?:sent|paid|received)\b[^.]*?\b(?:Ksh|KES)\s*([\d,]+(?:\.\d{1,2})?)/i)
+     || t.match(/\b(?:Ksh|KES)\s*([\d,]+(?:\.\d{1,2})?)/i);
+    if (m) out.amount = Number(m[1].replace(/,/g, ""));
+    // Payee (+ optional phone).
+    let pm = t.match(/\bpaid to\s+(.+?)\.?\s+on\b/i);
+    if (pm) {
+      out.payee = pm[1].trim();
+    } else {
+      pm = t.match(/\b(?:sent to|to)\s+(.+?)\s+on\b/i);
+      if (pm) {
+        let who = pm[1].trim().replace(/^[-–\s]+|[-–\s]+$/g, "");
+        const lead = who.match(/^(\+?\d[\d\s]{6,})\s*[-–]?\s*(.+)$/);
+        if (lead && /[A-Za-z]/.test(lead[2])) {
+          out.phone = lead[1].replace(/\s+/g, ""); out.payee = lead[2].trim();
+        } else {
+          const tail = who.match(/(?:^|\s)(\+?\d[\d\s]{6,})$/);
+          if (tail) { out.phone = tail[1].replace(/\s+/g, ""); who = who.slice(0, who.length - tail[1].length).trim(); }
+          out.payee = who.replace(/[-–\s]+$/, "").trim();
+        }
+      }
+    }
+    // Date: "on DD/MM/YY at …" → YYYY-MM-DD.
+    m = t.match(/\bon\s+(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/i);
+    if (m) {
+      const y = m[3].length === 2 ? "20" + m[3] : m[3];
+      out.date = y + "-" + String(m[2]).padStart(2, "0") + "-" + String(m[1]).padStart(2, "0");
+    } else {
+      const md = t.match(/\bon\s+(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3,9})\.?\s+(\d{4})\b/i);
+      if (md) {
+        const mo = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 }[md[2].slice(0, 3).toLowerCase()];
+        if (mo) out.date = md[3] + "-" + String(mo).padStart(2, "0") + "-" + String(md[1]).padStart(2, "0");
+      }
+    }
+    return (out.code || out.amount || out.payee) ? out : null;
+  };
+
   window.FINEMARK_APP = {
     CONFIG,
     API_BASE: CONFIG.API_BASE_URL,
@@ -1548,6 +1047,10 @@
     normalizeError,
     Validators,
     formatKES,
+    vehicleLabel,
+    HR_LEAVE_STATUS_COLOR,
+    HR_LEAVE_STATUS_LABEL,
+    renderLeaveStatusBadge,
     setFieldError,
     clearFieldError,
     clearFormErrors,
@@ -1580,5 +1083,6 @@
     InstallationTicketService,
     PaymentService,
     AuditService,
+    parseMpesa,
   };
 })();

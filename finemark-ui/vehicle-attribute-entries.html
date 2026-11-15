@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Vehicle Attribute Types</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    .tab-btn{padding:.5rem 1rem;border-radius:.5rem;font-size:.85rem;font-weight:600;color:#64748b;transition:all .15s;cursor:pointer;}
+    .tab-btn:hover{background:#fff;color:#0f172a;}
+    .tab-btn.active{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);color:#0f172a;}
+    .badge{display:inline-flex;align-items:center;border-radius:9999px;padding:.15rem .6rem;font-size:.7rem;font-weight:600;border-width:1px;}
+    table.et th{text-align:left;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:#64748b;padding:.6rem .75rem;border-bottom:1px solid #e2e8f0;background:#f8fafc;}
+    table.et td{padding:.6rem .75rem;font-size:.82rem;border-bottom:1px solid #f1f5f9;color:#334155;vertical-align:middle;}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-4 md:p-6 max-w-5xl mx-auto w-full space-y-5">
+
+    <div class="flex flex-wrap items-center gap-3 justify-between">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Vehicle Attribute Types</h1>
+        <p class="text-sm text-slate-500 mt-0.5">Manage the configurable Fabricated Body, Trailer, and Special Cargo type lists used across vehicle registration.</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-1 rounded-xl bg-slate-100 p-1 w-fit" id="cat-tabs"></div>
+
+    <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-wrap items-center gap-3">
+      <input id="search" type="text" placeholder="Search entries…" class="flex-1 min-w-[200px] rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+      <label class="flex items-center gap-2 text-sm text-slate-600">
+        <input id="show-inactive" type="checkbox" class="rounded border-slate-300" /> Show inactive
+      </label>
+      <button id="btn-add" class="ml-auto rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">+ Add Entry</button>
+    </div>
+
+    <!-- Add / Edit form -->
+    <div id="entry-form" class="hidden bg-white border border-blue-200 rounded-xl p-4 shadow-sm space-y-3">
+      <h3 id="form-title" class="text-sm font-semibold text-slate-800">Add Entry</h3>
+      <div class="grid gap-3 md:grid-cols-2">
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Name</label>
+          <input id="form-name" type="text" placeholder="e.g. Flatbed Trailer" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Description (optional)</label>
+          <input id="form-desc" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+      </div>
+      <p id="form-msg" class="text-xs"></p>
+      <div class="flex gap-2">
+        <button id="form-save" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Save</button>
+        <button id="form-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
+      </div>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="et min-w-full">
+          <thead><tr>
+            <th>Name</th><th>Status</th><th>Vehicles Using</th><th>Created</th><th>Updated</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="tbody"><tr><td colspan="6" class="text-center py-10 text-slate-400">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+<div id="fm-footer"></div>
+
+<!-- Deactivate confirmation -->
+<div id="confirm-modal" class="hidden fixed inset-0 z-40 bg-black/40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 space-y-3">
+    <h3 id="confirm-title" class="text-base font-bold text-slate-900">Deactivate Entry</h3>
+    <p id="confirm-body" class="text-sm text-slate-600"></p>
+    <div class="flex justify-end gap-2 pt-2">
+      <button id="confirm-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
+      <button id="confirm-ok" class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="hidden fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg text-sm font-medium shadow-lg"></div>
+
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+const APP = window.FINEMARK_APP;
+APP && APP.requirePageAccess && APP.requirePageAccess();
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function fmtDate(v) {
+  if (!v) return "—";
+  const d = new Date(v);
+  return isNaN(d) ? esc(v) : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function toast(msg, ok) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.className = "fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg text-sm font-medium shadow-lg " + (ok ? "bg-emerald-600 text-white" : "bg-red-600 text-white");
+  t.classList.remove("hidden");
+  setTimeout(() => t.classList.add("hidden"), 3200);
+}
+
+let _categories = [];
+let _activeCategory = null;
+let _entries = [];
+let _editingId = null;
+
+async function loadCategories() {
+  const r = await APP.apiFetch("/vehicle-attributes/categories");
+  _categories = r?.data || [];
+  _activeCategory = _activeCategory || _categories[0]?.code;
+  renderTabs();
+}
+
+function renderTabs() {
+  $("cat-tabs").innerHTML = _categories.map((c) =>
+    `<button class="tab-btn${c.code === _activeCategory ? " active" : ""}" data-code="${esc(c.code)}">${esc(c.name)}</button>`
+  ).join("");
+  $("cat-tabs").querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      _activeCategory = btn.dataset.code;
+      renderTabs();
+      loadEntries();
+    });
+  });
+}
+
+async function loadEntries() {
+  $("tbody").innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400">Loading…</td></tr>`;
+  const search = $("search").value.trim();
+  const qs = search ? `?search=${encodeURIComponent(search)}` : "";
+  try {
+    const r = await APP.apiFetch(`/vehicle-attributes/categories/${encodeURIComponent(_activeCategory)}/entries/admin${qs}`);
+    _entries = r?.data || [];
+    renderTable();
+  } catch (e) {
+    $("tbody").innerHTML = `<tr><td colspan="6" class="text-center py-10 text-red-500">${esc(e?.message || "Failed to load entries.")}</td></tr>`;
+  }
+}
+
+function renderTable() {
+  const showInactive = $("show-inactive").checked;
+  const rows = _entries.filter((e) => showInactive || e.status === "Active");
+  $("tbody").innerHTML = rows.length ? rows.map((e) => `
+    <tr>
+      <td class="font-medium text-slate-800">${esc(e.name)}</td>
+      <td><span class="badge ${e.status === "Active" ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-slate-100 border-slate-200 text-slate-500"}">${esc(e.status)}</span></td>
+      <td>${e.usageCount ?? 0}</td>
+      <td class="text-slate-500">${fmtDate(e.createdAt)}${e.createdByEmail ? `<br><span class="text-[0.65rem]">${esc(e.createdByEmail)}</span>` : ""}</td>
+      <td class="text-slate-500">${e.updatedAt ? fmtDate(e.updatedAt) + (e.updatedByEmail ? `<br><span class="text-[0.65rem]">${esc(e.updatedByEmail)}</span>` : "") : "—"}</td>
+      <td class="space-x-2 whitespace-nowrap">
+        <button class="text-blue-600 hover:underline text-xs" data-edit="${esc(e.id)}">Edit</button>
+        ${e.status === "Active"
+          ? `<button class="text-rose-600 hover:underline text-xs" data-deactivate="${esc(e.id)}">Deactivate</button>`
+          : `<button class="text-emerald-600 hover:underline text-xs" data-reactivate="${esc(e.id)}">Reactivate</button>`}
+      </td>
+    </tr>`).join("")
+    : `<tr><td colspan="6" class="text-center py-10 text-slate-400">No entries yet — click "+ Add Entry" to create the first one.</td></tr>`;
+}
+
+$("tbody").addEventListener("click", async (e) => {
+  const editId = e.target.closest("[data-edit]")?.dataset.edit;
+  const deactId = e.target.closest("[data-deactivate]")?.dataset.deactivate;
+  const reactId = e.target.closest("[data-reactivate]")?.dataset.reactivate;
+
+  if (editId) {
+    const entry = _entries.find((x) => x.id === editId);
+    _editingId = editId;
+    $("form-title").textContent = "Edit Entry";
+    $("form-name").value = entry.name;
+    $("form-desc").value = entry.description || "";
+    $("form-msg").textContent = "";
+    $("entry-form").classList.remove("hidden");
+    $("form-name").focus();
+  }
+
+  if (deactId) {
+    const entry = _entries.find((x) => x.id === deactId);
+    $("confirm-title").textContent = "Deactivate Entry";
+    $("confirm-body").textContent = `Entry: ${entry.name}. Vehicles currently using: ${entry.usageCount ?? 0}. Deactivating it will prevent it from being selected for new vehicle registrations but will not change existing vehicle records.`;
+    $("confirm-ok").className = "rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700";
+    $("confirm-ok").textContent = "Deactivate";
+    $("confirm-modal").classList.remove("hidden");
+    $("confirm-ok").onclick = async () => {
+      try {
+        await APP.apiFetch(`/vehicle-attributes/entries/${encodeURIComponent(deactId)}/status`, { method: "PATCH", body: { status: "Inactive" } });
+        $("confirm-modal").classList.add("hidden");
+        toast("Entry deactivated.", true);
+        loadEntries();
+      } catch (err) { toast(err?.message || "Failed to deactivate.", false); }
+    };
+  }
+
+  if (reactId) {
+    const entry = _entries.find((x) => x.id === reactId);
+    $("confirm-title").textContent = "Reactivate Entry";
+    $("confirm-body").textContent = `Reactivate "${entry.name}"? It will become selectable again in vehicle registration.`;
+    $("confirm-ok").className = "rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700";
+    $("confirm-ok").textContent = "Reactivate";
+    $("confirm-modal").classList.remove("hidden");
+    $("confirm-ok").onclick = async () => {
+      try {
+        await APP.apiFetch(`/vehicle-attributes/entries/${encodeURIComponent(reactId)}/status`, { method: "PATCH", body: { status: "Active" } });
+        $("confirm-modal").classList.add("hidden");
+        toast("Entry reactivated.", true);
+        loadEntries();
+      } catch (err) { toast(err?.message || "Failed to reactivate.", false); }
+    };
+  }
+});
+
+$("confirm-cancel").addEventListener("click", () => $("confirm-modal").classList.add("hidden"));
+
+$("btn-add").addEventListener("click", () => {
+  _editingId = null;
+  $("form-title").textContent = "Add Entry";
+  $("form-name").value = "";
+  $("form-desc").value = "";
+  $("form-msg").textContent = "";
+  $("entry-form").classList.remove("hidden");
+  $("form-name").focus();
+});
+$("form-cancel").addEventListener("click", () => $("entry-form").classList.add("hidden"));
+
+$("form-save").addEventListener("click", async () => {
+  const name = $("form-name").value.trim();
+  const description = $("form-desc").value.trim();
+  const msg = $("form-msg");
+  if (!name) { msg.className = "text-xs text-red-500"; msg.textContent = "Name is required."; return; }
+  msg.className = "text-xs text-slate-400";
+  msg.textContent = "Saving…";
+  try {
+    if (_editingId) {
+      await APP.apiFetch(`/vehicle-attributes/entries/${encodeURIComponent(_editingId)}`, { method: "PATCH", body: { name, description: description || null } });
+    } else {
+      await APP.apiFetch(`/vehicle-attributes/categories/${encodeURIComponent(_activeCategory)}/entries`, { method: "POST", body: { name, description: description || null } });
+    }
+    $("entry-form").classList.add("hidden");
+    toast(_editingId ? "Entry updated." : "Entry created.", true);
+    loadEntries();
+  } catch (err) {
+    if (err?.code === "DUPLICATE_ENTRY") {
+      msg.className = "text-xs text-amber-700 font-medium";
+      msg.textContent = err.message || "This entry already exists.";
+    } else {
+      msg.className = "text-xs text-red-500";
+      msg.textContent = err?.message || "Failed to save.";
+    }
+  }
+});
+
+let _searchDebounce;
+$("search").addEventListener("input", () => { clearTimeout(_searchDebounce); _searchDebounce = setTimeout(loadEntries, 250); });
+$("show-inactive").addEventListener("change", renderTable);
+
+(async function init() {
+  await loadCategories();
+  await loadEntries();
+})();
+</script>
+</body>
+</html>

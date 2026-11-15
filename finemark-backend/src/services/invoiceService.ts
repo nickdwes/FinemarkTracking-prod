@@ -38,6 +38,12 @@ export const mapInvoice = (row: any) => ({
   daysOverdue: row.due_on ? Math.max(0, Math.floor((new Date().getTime() - new Date(row.due_on).getTime()) / 86400000)) : 0,
   customerType: row.customer_type || null,
   vehicleRegistration: row.vehicle_registration || null,
+  vehicleChassis: row.vehicle_chassis || null,
+  // Referrer commission attached to this invoice (non-reversed) + the resulting
+  // net figure — lets any consumer of the invoice list (e.g. sales performance
+  // dashboards) report revenue net of commission without a separate fetch.
+  referrerCommissionTotal: Number(row.referrer_commission_total || 0),
+  netAmount: Number(row.total ?? row.amount ?? 0) - Number(row.referrer_commission_total || 0),
 });
 
 const safeJson = (value: string) => {
@@ -64,8 +70,37 @@ export const listInvoices = async (filters: {
   const clauses: string[] = [];
   const params: any[] = [];
   if (filters.search) {
-    clauses.push("(invoice_number ILIKE ? OR customer ILIKE ? OR representative ILIKE ?)");
-    params.push(`%${filters.search}%`, `%${filters.search}%`, `%${filters.search}%`);
+    // `customer` is a name snapshot taken when the invoice was raised; it does
+    // not follow later edits to the customer record (120 invoices differ), so
+    // searching only it misses invoices under the customer's current name.
+    // Match the linked customer's current name too.
+    // Vehicle registration/chassis are shown as columns but live two joins away
+    // (the invoice's proforma → its vehicle), so they need their own EXISTS —
+    // and regs were space-stripped in Aug 2026, so "KDZ 643M" must still match
+    // "KDZ643M". Written as subqueries so the COUNT query, which selects FROM
+    // invoices alone, takes the same WHERE clause.
+    clauses.push(`(invoice_number ILIKE ? OR customer ILIKE ? OR representative ILIKE ?
+      OR EXISTS (SELECT 1 FROM crm_individual_profiles ip WHERE ip.customer_id = invoices.customer_id AND ip.full_name ILIKE ?)
+      OR EXISTS (SELECT 1 FROM crm_corporate_profiles cp WHERE cp.customer_id = invoices.customer_id AND cp.company_name ILIKE ?)
+      OR EXISTS (
+        SELECT 1 FROM crm_proforma_invoices pf
+        LEFT JOIN installation_tickets it ON it.id = pf.installation_ticket_id
+        LEFT JOIN crm_quotes q ON q.id = pf.quote_id
+        LEFT JOIN crm_customer_vehicles cv
+          ON cv.id = COALESCE(pf.vehicle_id, it.vehicle_id, q.vehicle_id) AND cv.deleted_at IS NULL
+        WHERE pf.id = invoices.proforma_id
+          AND (
+               REPLACE(UPPER(COALESCE(cv.registration, '')), ' ', '') LIKE ?
+            OR REPLACE(UPPER(COALESCE(pf.vehicle_registration, '')), ' ', '') LIKE ?
+            OR REPLACE(UPPER(COALESCE(it.vehicle_registration, '')), ' ', '') LIKE ?
+            OR REPLACE(UPPER(COALESCE(q.vehicle_registration, '')), ' ', '') LIKE ?
+            OR REPLACE(UPPER(COALESCE(cv.chassis_number, '')), ' ', '') LIKE ?
+          )
+      ))`);
+    const term = `%${filters.search}%`;
+    // Same normalisation on the needle as on the haystack.
+    const regTerm = `%${filters.search.toUpperCase().replace(/\s+/g, "")}%`;
+    params.push(term, term, term, term, term, regTerm, regTerm, regTerm, regTerm, regTerm);
   }
   if (filters.status) { clauses.push("status = ?"); params.push(filters.status); }
   if (filters.from) { clauses.push("tax_date >= ?"); params.push(filters.from); }
@@ -76,15 +111,35 @@ export const listInvoices = async (filters: {
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const offset = (filters.page - 1) * filters.pageSize;
   const rows = await pgAll(
-    `SELECT *, (
+    `SELECT invoices.*, (
       SELECT it.ticket_no FROM crm_proforma_invoices pf
       JOIN installation_tickets it ON it.id = pf.installation_ticket_id
       WHERE pf.id = invoices.proforma_id LIMIT 1
-    ) as proforma_ticket_no, (
-      SELECT it.vehicle_registration FROM crm_proforma_invoices pf
-      JOIN installation_tickets it ON it.id = pf.installation_ticket_id
-      WHERE pf.id = invoices.proforma_id LIMIT 1
-    ) as vehicle_registration FROM invoices ${where} ORDER BY issued_on DESC, created_at DESC LIMIT ? OFFSET ?`,
+    ) as proforma_ticket_no,
+    vinfo.vehicle_registration, vinfo.vehicle_chassis, (
+      SELECT COALESCE(SUM(rp.fee_amount), 0) FROM referrer_payments rp
+      WHERE rp.invoice_id = invoices.id AND (rp.status IS NULL OR rp.status <> 'Reversed')
+        AND COALESCE(rp.approval_status, 'NotRequired') IN ('NotRequired','Approved')
+    ) as referrer_commission_total
+    FROM invoices
+    -- Vehicle reg/chassis: a proforma isn't always generated off an installation
+    -- ticket (renewals, subscription/service billing, corporate quotes raised
+    -- without picking a vehicle) — the OLD query only checked that one path,
+    -- missing cases where the proforma or its quote carries the vehicle directly.
+    -- Preference order: proforma's own text snapshot -> live central registry
+    -- (most likely to be current/corrected) -> ticket's snapshot -> quote's snapshot.
+    LEFT JOIN LATERAL (
+      SELECT
+        COALESCE(NULLIF(pf.vehicle_registration,''), NULLIF(cvv.registration,''), NULLIF(it.vehicle_registration,''), NULLIF(q.vehicle_registration,'')) as vehicle_registration,
+        cvv.chassis_number as vehicle_chassis
+      FROM crm_proforma_invoices pf
+      LEFT JOIN installation_tickets it ON it.id = pf.installation_ticket_id
+      LEFT JOIN crm_quotes q ON q.id = pf.quote_id
+      LEFT JOIN crm_customer_vehicles cvv ON cvv.id = COALESCE(pf.vehicle_id, it.vehicle_id, q.vehicle_id) AND cvv.deleted_at IS NULL
+      WHERE pf.id = invoices.proforma_id
+      LIMIT 1
+    ) vinfo ON true
+    ${where} ORDER BY issued_on DESC, created_at DESC LIMIT ? OFFSET ?`,
     [...params, filters.pageSize, offset]
   );
   const totalRow = await pgGet(`SELECT COUNT(*) as total FROM invoices ${where}`, params);
@@ -165,7 +220,16 @@ export const updateInvoiceStatusFromPayments = async (invoiceId: string) => {
   if (paid >= Number(invoice.amount)) nextStatus = "Paid";
   else if (paid > 0) nextStatus = "PartiallyPaid";
   if (nextStatus !== invoice.status) {
-    await pgRun("UPDATE invoices SET status = ?, updated_at = ? WHERE id = ?", [nextStatus, new Date().toISOString(), invoiceId]);
+    const nowIso = new Date().toISOString();
+    await pgRun("UPDATE invoices SET status = ?, updated_at = ? WHERE id = ?", [nextStatus, nowIso, invoiceId]);
+    // When the invoice becomes fully paid, any advanced commissions paid earlier are now
+    // backed by the customer's funds — mark them reconciled (visible in the ledger timeline).
+    if (nextStatus === "Paid") {
+      await pgRun(
+        "UPDATE referrer_payments SET reconciliation_status = 'Reconciled', reconciled_at = ? WHERE invoice_id = ? AND is_advance = TRUE AND reconciliation_status = 'Pending'",
+        [nowIso, invoiceId]
+      ).catch(() => {});
+    }
   }
   const row = await pgGet("SELECT * FROM invoices WHERE id = ?", [invoiceId]);
   return mapInvoice(row);

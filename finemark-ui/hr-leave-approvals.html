@@ -39,6 +39,7 @@
               <select id="filter-status" class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
                 <option value="">All Statuses</option>
                 <option value="Pending">Pending</option>
+                <option value="PendingL2">Awaiting HR Countersign</option>
                 <option value="Approved">Approved</option>
                 <option value="Rejected">Rejected</option>
                 <option value="Cancelled">Cancelled</option>
@@ -132,7 +133,7 @@
     <script src="assets/layout.js?v=202607011016"></script>
     <script>
       let isAdmin = false;
-      const STATUS_COLOR = { Pending: "bg-amber-50 text-amber-700 border-amber-200", Approved: "bg-emerald-50 text-emerald-700 border-emerald-200", Rejected: "bg-rose-50 text-rose-700 border-rose-200", Cancelled: "bg-slate-100 text-slate-500 border-slate-200" };
+      let isHrAdmin = false; // Admin or HR — the only roles allowed to countersign a PendingL2 application
 
       document.querySelectorAll(".tab-btn").forEach(btn => {
         btn.addEventListener("click", () => {
@@ -149,24 +150,33 @@
         document.getElementById("pending-count").textContent = items.length;
         const el = document.getElementById("tab-pending");
         if (!items.length) { el.innerHTML = `<div class="bg-white border border-slate-200/80 rounded-2xl p-10 text-center text-sm text-slate-400 shadow-sm">No pending applications.</div>`; return; }
-        el.innerHTML = items.map(a => `
+        el.innerHTML = items.map(a => {
+          // Managers only ever see their own Pending (L1) items here (the
+          // reports endpoint already scopes them server-side); PendingL2
+          // items only appear for HR/Admin/Executive — but only Admin/HR can
+          // actually act on them (HR countersign), so hide the buttons
+          // rather than show an action that will just 403.
+          const canAct = a.status === "Pending" || (a.status === "PendingL2" && isHrAdmin);
+          return `
           <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm p-5 flex flex-wrap items-start gap-4">
             <div class="flex-1 min-w-0">
               <div class="flex flex-wrap items-center gap-2 mb-1">
                 <p class="text-sm font-semibold text-slate-900">${a.employee_name}</p>
                 <span class="text-xs text-slate-400">${a.employee_no}</span>
                 <span class="text-xs text-slate-400">· ${a.org_unit_name||""}</span>
+                ${window.FINEMARK_APP.renderLeaveStatusBadge(a.status)}
               </div>
               <p class="text-sm text-slate-700 mb-1"><span class="font-medium">${a.leave_type_name}</span> · ${a.start_date} → ${a.end_date} · <strong>${a.total_days} days</strong></p>
               ${a.reason ? `<p class="text-xs text-slate-500 line-clamp-2">${a.reason}</p>` : ""}
               <p class="text-xs text-slate-400 mt-1">Applied: ${a.applied_date}</p>
             </div>
             <div class="flex flex-wrap gap-2 items-start">
-              <button onclick="openAction('${a.id}','Approved',${JSON.stringify(a).replace(/"/g,"&quot;")})" class="px-3 py-1.5 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100">Approve</button>
-              <button onclick="openAction('${a.id}','Rejected',${JSON.stringify(a).replace(/"/g,"&quot;")})" class="px-3 py-1.5 text-xs bg-rose-50 text-rose-700 border border-rose-200 rounded-lg hover:bg-rose-100">Reject</button>
+              ${canAct ? `<button onclick="openAction('${a.id}','Approved',${JSON.stringify(a).replace(/"/g,"&quot;")})" class="px-3 py-1.5 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100">Approve</button>
+              <button onclick="openAction('${a.id}','Rejected',${JSON.stringify(a).replace(/"/g,"&quot;")})" class="px-3 py-1.5 text-xs bg-rose-50 text-rose-700 border border-rose-200 rounded-lg hover:bg-rose-100">Reject</button>` : ""}
               ${isAdmin ? `<button onclick="openOverride('${a.id}')" class="px-3 py-1.5 text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100">Override</button>` : ""}
             </div>
-          </div>`).join("");
+          </div>`;
+        }).join("");
       };
 
       const loadAll = async () => {
@@ -178,8 +188,8 @@
         if (status) q.set("status", status);
         if (from) q.set("from", from);
         if (to) q.set("to", to);
-        const { data } = await window.FINEMARK_APP.apiFetch(`/hr/leave/applications?${q}`);
-        let rows = data?.applications || data || [];
+        const res = await window.FINEMARK_APP.apiFetch(`/hr/leave/applications?${q}`);
+        let rows = res?.applications || [];
         if (emp) rows = rows.filter(r => (r.employee_name||"").toLowerCase().includes(emp.toLowerCase()));
         const tbody = document.getElementById("all-tbody");
         const empty = document.getElementById("all-empty");
@@ -191,9 +201,9 @@
             <td class="px-5 py-3 text-slate-600">${a.leave_type_name}</td>
             <td class="px-5 py-3 text-slate-600">${a.start_date} → ${a.end_date}</td>
             <td class="px-5 py-3 text-center font-medium">${a.total_days}</td>
-            <td class="px-5 py-3 text-center"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${STATUS_COLOR[a.status]||''}">${a.status}</span></td>
+            <td class="px-5 py-3 text-center">${window.FINEMARK_APP.renderLeaveStatusBadge(a.status)}</td>
             <td class="px-5 py-3 text-right flex justify-end gap-2">
-              ${a.status==="Pending" ? `<button onclick="openAction('${a.id}','Approved',null)" class="text-xs text-emerald-600 hover:underline">Approve</button><button onclick="openAction('${a.id}','Rejected',null)" class="text-xs text-rose-500 hover:underline">Reject</button>` : ""}
+              ${a.status==="Pending" || (a.status==="PendingL2" && isHrAdmin) ? `<button onclick="openAction('${a.id}','Approved',null)" class="text-xs text-emerald-600 hover:underline">Approve</button><button onclick="openAction('${a.id}','Rejected',null)" class="text-xs text-rose-500 hover:underline">Reject</button>` : ""}
               ${isAdmin&&a.status!=="Cancelled" ? `<button onclick="openOverride('${a.id}')" class="text-xs text-amber-600 hover:underline">Override</button>` : ""}
             </td>
           </tr>`).join("");
@@ -260,6 +270,7 @@
       (async () => {
         await window.FINEMARK_APP.requirePageAccess();
         isAdmin = window.FINEMARK_APP.getSession()?.user?.role === "Admin";
+        isHrAdmin = ["Admin", "HR"].includes(window.FINEMARK_APP.getSession()?.user?.role);
         await Promise.all([loadPending(), loadAll()]);
       })();
     </script>

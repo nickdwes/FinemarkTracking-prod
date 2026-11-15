@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Certificate Extension Requests</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    .tab{padding:.4rem .9rem;font-size:.8rem;font-weight:600;border-radius:.5rem;cursor:pointer;color:#475569;}
+    .tab.active{background:#0f172a;color:#fff;}
+    .pill{display:inline-flex;align-items:center;border-radius:9999px;padding:.1rem .55rem;font-size:.68rem;font-weight:600;}
+    .pill-pending{background:#fef9c3;color:#854d0e;}
+    .pill-approved{background:#dbeafe;color:#1e40af;}
+    .pill-rejected{background:#fee2e2;color:#991b1b;}
+    .pill-returned{background:#ffedd5;color:#9a3412;}
+    .pill-generated{background:#dcfce7;color:#166534;}
+    .kv{font-size:.72rem;}
+    .kv dt{color:#64748b;text-transform:uppercase;letter-spacing:.03em;font-size:.62rem;font-weight:600;}
+    .kv dd{color:#0f172a;font-weight:600;margin-top:.05rem;}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-3 sm:p-6 min-w-0 space-y-5">
+
+    <div class="flex flex-wrap items-center gap-3 justify-between">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Certificate Extension Requests</h1>
+        <p class="text-sm text-slate-500 mt-0.5">Review requests to extend a vehicle certificate's validity, then generate the extension certificate.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <input id="search" type="search" placeholder="Search cert no, customer, reg…" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm w-56" />
+        <button id="btn-refresh" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm hover:bg-slate-50">Refresh</button>
+      </div>
+    </div>
+
+    <div class="flex items-center flex-wrap gap-2">
+      <span id="tab-Pending"   class="tab active" data-status="Pending">Pending</span>
+      <span id="tab-Approved"  class="tab"        data-status="Approved">Approved</span>
+      <span id="tab-Generated" class="tab"        data-status="Generated">Generated</span>
+      <span id="tab-Returned"  class="tab"        data-status="Returned">Returned</span>
+      <span id="tab-Rejected"  class="tab"        data-status="Rejected">Rejected</span>
+      <span id="count" class="text-xs text-slate-400 ml-2"></span>
+    </div>
+
+    <div id="list" class="space-y-4"></div>
+    <div id="empty" class="hidden bg-white border border-dashed border-slate-300 rounded-xl py-16 text-center text-sm text-slate-500">
+      No extension requests in this state.
+    </div>
+  </main>
+</div>
+<div id="fm-footer"></div>
+
+<!-- Reason modal -->
+<div id="reason-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-5 space-y-3">
+    <h3 id="reason-title" class="text-lg font-semibold text-slate-900">Reason</h3>
+    <p id="reason-sub" class="text-xs text-slate-500"></p>
+    <textarea id="reason-text" rows="4" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Type the reason…"></textarea>
+    <div class="flex justify-end gap-2">
+      <button id="reason-cancel" class="rounded-lg border border-slate-200 px-4 py-1.5 text-sm hover:bg-slate-50">Cancel</button>
+      <button id="reason-confirm" class="rounded-lg bg-slate-900 px-4 py-1.5 text-sm font-semibold text-white hover:bg-slate-800">Submit</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/app.js?v=202608171200"></script>
+<script src="assets/layout.js?v=202608171200"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  window.FINEMARK_APP?.requirePageAccess?.();
+  init();
+});
+
+const APP = window.FINEMARK_APP;
+let _status = "Pending";
+let _search = "";
+
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtDateTime = (s) => { try { return new Date(s).toLocaleString("en-GB",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}); } catch { return s || "—"; } };
+const fmtDay = (s) => { if(!s) return "—"; try { return new Date(s.length>10?s:s+"T00:00:00").toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}); } catch { return s; } };
+
+function init() {
+  document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => {
+    _status = t.dataset.status;
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+    load();
+  }));
+  document.getElementById("btn-refresh").addEventListener("click", load);
+  let deb;
+  document.getElementById("search").addEventListener("input", (e) => {
+    clearTimeout(deb); _search = e.target.value.trim(); deb = setTimeout(load, 300);
+  });
+  document.getElementById("reason-cancel").addEventListener("click", closeReason);
+  load();
+}
+
+async function load() {
+  const listEl = document.getElementById("list");
+  const emptyEl = document.getElementById("empty");
+  listEl.innerHTML = `<div class="text-sm text-slate-400 py-8 text-center">Loading…</div>`;
+  emptyEl.classList.add("hidden");
+  try {
+    const qs = new URLSearchParams({ status: _status });
+    if (_search) qs.set("search", _search);
+    const res = await APP.apiFetch(`/certificate-extensions?${qs.toString()}`);
+    const rows = res?.data || [];
+    document.getElementById("count").textContent = rows.length ? `${rows.length} request${rows.length===1?"":"s"}` : "";
+    if (!rows.length) { listEl.innerHTML = ""; emptyEl.classList.remove("hidden"); return; }
+    listEl.innerHTML = rows.map(renderCard).join("");
+    rows.forEach(r => {
+      document.getElementById(`approve-${r.id}`)?.addEventListener("click", () => approve(r.id));
+      document.getElementById(`reject-${r.id}`)?.addEventListener("click", () => askReason(r.id, "reject", r.requestNo));
+      document.getElementById(`return-${r.id}`)?.addEventListener("click", () => askReason(r.id, "return", r.requestNo));
+      document.getElementById(`generate-${r.id}`)?.addEventListener("click", () => { window.location.href = `create-certificate.html?extensionRequestId=${encodeURIComponent(r.id)}`; });
+    });
+  } catch (e) {
+    listEl.innerHTML = `<div class="text-sm text-red-600 py-8 text-center">${esc(e?.message || "Failed to load")}</div>`;
+  }
+}
+
+function pillFor(status) {
+  const c = { Pending:"pill-pending", Approved:"pill-approved", Rejected:"pill-rejected", Returned:"pill-returned", Generated:"pill-generated" }[status] || "pill-pending";
+  return `<span class="pill ${c}">${esc(status)}</span>`;
+}
+
+function renderCard(r) {
+  const methodLabel = r.extensionMethod === "months" ? `+${r.extensionMonths} month${r.extensionMonths===1?"":"s"}` : "New end date";
+  const kv = (label, val) => `<div><dt>${esc(label)}</dt><dd>${val}</dd></div>`;
+  let actions = "";
+  if (r.status === "Pending") {
+    actions = `
+      <div class="flex items-center flex-wrap gap-2 mt-3">
+        <button id="approve-${r.id}" class="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-blue-700">Approve</button>
+        <button id="return-${r.id}" class="rounded-lg border border-orange-300 text-orange-700 px-4 py-1.5 text-sm font-semibold hover:bg-orange-50">Return</button>
+        <button id="reject-${r.id}" class="rounded-lg border border-slate-200 px-4 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Reject</button>
+      </div>`;
+  } else if (r.status === "Approved") {
+    actions = `
+      <div class="flex items-center flex-wrap gap-2 mt-3">
+        <button id="generate-${r.id}" class="rounded-lg bg-emerald-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700">Generate Extension Certificate</button>
+        <span class="text-xs text-slate-400 self-center">Approved by ${esc(r.reviewedBy || "—")}${r.reviewedAt ? " · " + fmtDateTime(r.reviewedAt) : ""}</span>
+      </div>`;
+  } else if (r.status === "Generated") {
+    actions = `<p class="text-xs text-emerald-700 mt-3">Generated <strong>${esc(r.generatedSerialNo || "")}</strong>${r.generatedAt ? " · " + fmtDateTime(r.generatedAt) : ""}${r.generatedCertificateId ? ` · <a class="text-blue-600 hover:underline" href="create-certificate.html?certId=${encodeURIComponent(r.generatedCertificateId)}">view</a>` : ""}</p>`;
+  } else if (r.status === "Returned") {
+    actions = `<p class="text-xs text-orange-700 mt-3">Returned for correction: ${esc(r.returnReason || "—")}</p>`;
+  } else if (r.status === "Rejected") {
+    actions = `<p class="text-xs text-red-700 mt-3">Rejected: ${esc(r.reviewNotes || "—")}</p>`;
+  }
+
+  return `
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
+      <div class="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-semibold text-slate-900">${esc(r.requestNo || "—")}</span>
+            ${pillFor(r.status)}
+          </div>
+          <p class="text-xs text-slate-500 mt-0.5">Requested by ${esc(r.requestedBy || "—")} · ${fmtDateTime(r.requestedAt)}</p>
+        </div>
+        <div class="text-right text-xs text-slate-500">
+          <div>Original: <a class="text-blue-600 hover:underline" href="create-certificate.html?certId=${encodeURIComponent(r.originalCertificateId)}">${esc(r.originalSerialNo || "—")}</a></div>
+        </div>
+      </div>
+
+      <dl class="kv grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+        ${kv("Customer", esc(r.customerName || "—"))}
+        ${kv("Vehicle Reg", esc(r.registration || "—"))}
+        ${kv("Chassis / VIN", esc(r.chassisNumber || "—"))}
+        ${kv("Existing Cert", esc(r.originalSerialNo || "—"))}
+        ${kv("Current Validity", `${fmtDay(r.originalStartDate)} → ${fmtDay(r.currentEndDate)}`)}
+        ${kv("Requested", esc(methodLabel))}
+        ${kv("Proposed New End", `<span class="text-emerald-700">${fmtDay(r.requestedNewEndDate)}</span>`)}
+        ${kv("Extension #", esc(r.nextExtensionNo || 1))}
+      </dl>
+
+      <div class="mt-3 rounded-lg bg-slate-50 border border-slate-100 p-2.5">
+        <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Justification</p>
+        <p class="text-sm text-slate-700 mt-0.5 whitespace-pre-wrap">${esc(r.justification || "—")}</p>
+        ${r.supportingNotes ? `<p class="text-xs text-slate-500 mt-1.5"><span class="font-semibold">Notes:</span> ${esc(r.supportingNotes)}</p>` : ""}
+      </div>
+      ${actions}
+    </div>`;
+}
+
+async function approve(id) {
+  try {
+    await APP.apiFetch(`/certificate-extensions/${id}/approve`, { method: "POST", body: {} });
+    APP.showToast?.("Extension request approved.", "success");
+    load();
+  } catch (e) { APP.showToast?.(e?.message || "Approve failed", "error"); }
+}
+
+// Reason modal
+let _reasonCtx = null;
+function askReason(id, action, requestNo) {
+  _reasonCtx = { id, action };
+  document.getElementById("reason-title").textContent = action === "reject" ? "Reject Request" : "Return for Correction";
+  document.getElementById("reason-sub").textContent = `${requestNo} — ${action === "reject" ? "this will reject the request." : "the requester can correct and resubmit."}`;
+  document.getElementById("reason-text").value = "";
+  document.getElementById("reason-modal").classList.remove("hidden");
+  document.getElementById("reason-text").focus();
+  document.getElementById("reason-confirm").onclick = submitReason;
+}
+function closeReason() { document.getElementById("reason-modal").classList.add("hidden"); _reasonCtx = null; }
+async function submitReason() {
+  if (!_reasonCtx) return;
+  const reason = document.getElementById("reason-text").value.trim();
+  if (!reason) { APP.showToast?.("A reason is required.", "error"); return; }
+  const { id, action } = _reasonCtx;
+  try {
+    await APP.apiFetch(`/certificate-extensions/${id}/${action}`, { method: "POST", body: { reason } });
+    APP.showToast?.(action === "reject" ? "Request rejected." : "Request returned for correction.", "info");
+    closeReason();
+    load();
+  } catch (e) { APP.showToast?.(e?.message || "Action failed", "error"); }
+}
+</script>
+</body>
+</html>

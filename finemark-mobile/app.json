@@ -1,0 +1,109 @@
+{
+  "expo": {
+    "name": "Finemark",
+    "slug": "finemark-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "finemark",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#070B14",
+    "ios": {
+      "icon": "./assets/expo.icon",
+      "supportsTablet": true,
+      "bundleIdentifier": "co.ke.finemarktracking.mobile",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Use Face ID to quickly and securely unlock Finemark.",
+        "NSCameraUsageDescription": "Finemark uses the camera to capture installation and evidence photos.",
+        "NSPhotoLibraryUsageDescription": "Finemark lets you attach photos from your library as job evidence.",
+        "NSLocationWhenInUseUsageDescription": "Finemark records your location when you accept, travel to, and arrive at a job."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#070B14",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "package": "co.ke.finemarktracking.mobile",
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#070B14",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ],
+      "expo-secure-store",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Use Face ID to quickly and securely unlock Finemark."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Finemark uses the camera to capture installation and evidence photos."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Finemark lets you attach photos from your library as job evidence.",
+          "cameraPermission": "Finemark uses the camera to capture installation and evidence photos."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Finemark records your location when you accept, travel to, and arrive at a job."
+        }
+      ],
+      "expo-sharing"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c5bd4905-4151-49e7-a741-38fbade83fa6"
+      },
+      "router": {}
+    },
+    "owner": "nickseraph",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c5bd4905-4151-49e7-a741-38fbade83fa6"
+    }
+  }
+}

@@ -696,6 +696,17 @@
       if (t.notes) $("f-notes").value = t.notes;
       if (t.crmTicketId) $("f-crm-ticket-ref").value = t.crmTicketId;
 
+      // Product category — prefer the retail lead's chosen category (else the
+      // device/quote-resolved one) over guessing from invoice text. Match
+      // case-insensitively to an available option ("Anti Theft & Alarm" → "Anti Theft").
+      const leadCat = t.leadProductCategory || t.productCategory;
+      if (leadCat) {
+        const opts = [...$("f-category").options].filter(o => o.value);
+        const opt = opts.find(o => o.value.toLowerCase() === String(leadCat).toLowerCase())
+                 || opts.find(o => String(leadCat).toLowerCase().startsWith(o.value.toLowerCase()));
+        if (opt) $("f-category").value = opt.value;
+      }
+
       // Retail lead sales info
       const hasSalesInfo = t.installationLocation || t.installationContactName ||
                            t.installationContactPhone || t.salesNotes || t.installationFinancer;

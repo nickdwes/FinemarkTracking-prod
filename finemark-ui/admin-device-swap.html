@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Swap Job Devices</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    .pill{display:inline-flex;align-items:center;border-radius:9999px;padding:.12rem .6rem;font-size:.68rem;font-weight:600;}
+    .pill-installed{background:#dcfce7;color:#166534;}
+    .pill-stock{background:#e0f2fe;color:#075985;}
+    .pill-other{background:#f1f5f9;color:#475569;}
+    .dev-row{cursor:pointer;transition:background .12s;}
+    .dev-row:hover{background:#f8fafc;}
+    .dev-row.sel{background:#eff6ff;box-shadow:inset 3px 0 0 #2563eb;}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-3 sm:p-6 min-w-0 space-y-5 max-w-4xl">
+
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight text-slate-900">Swap Job Devices</h1>
+      <p class="text-sm text-slate-500 mt-0.5">
+        Correct a <strong>completed / closed</strong> installation that was finished with the wrong device.
+        The wrong device is returned to stock and the correct one is installed on the job — inventory,
+        the ticket, the certificate IMEI and the audit trail are all updated together.
+      </p>
+    </div>
+
+    <!-- Search -->
+    <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+      <label class="block text-xs font-semibold text-slate-500 mb-1">Installation ticket</label>
+      <div class="flex flex-wrap gap-2">
+        <input id="q" type="text" placeholder="Ticket no (e.g. RTL-Y72CVSXBRKWMY4) or ID"
+               class="flex-1 min-w-[240px] rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <button id="btn-load" class="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-semibold hover:bg-slate-800">Load</button>
+      </div>
+      <p id="load-msg" class="text-xs text-rose-600 mt-2 hidden"></p>
+    </div>
+
+    <!-- Ticket + devices -->
+    <div id="panel" class="hidden space-y-5">
+      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div class="text-lg font-bold text-slate-900" id="t-no">—</div>
+            <div class="text-sm text-slate-500">
+              <span id="t-vehicle" class="font-medium text-slate-700">—</span>
+              &middot; <span id="t-customer">—</span>
+            </div>
+          </div>
+          <span id="t-status" class="pill pill-other">—</span>
+        </div>
+      </div>
+
+      <!-- Step 1: pick the wrong device -->
+      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+        <h2 class="text-sm font-bold text-slate-900 mb-1">1 &middot; Select the device to remove</h2>
+        <p class="text-xs text-slate-500 mb-3">These are the devices currently linked to this job. The one used on the job card is pre-selected.</p>
+        <div id="dev-list" class="divide-y divide-slate-100 border border-slate-100 rounded-lg overflow-hidden"></div>
+        <p id="dev-empty" class="hidden text-sm text-slate-500 italic py-6 text-center">No devices are currently linked to this ticket.</p>
+      </div>
+
+      <!-- Step 2: correct device + reason -->
+      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+        <h2 class="text-sm font-bold text-slate-900 mb-3">2 &middot; Correct device &amp; reason</h2>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">Correct device IMEI</label>
+            <input id="new-imei" type="text" placeholder="Scan / type the IMEI actually installed"
+                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <p class="text-[11px] text-slate-400 mt-1">Must exist in inventory and not be installed on another job.</p>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">Reason for swap</label>
+            <input id="reason" type="text" placeholder="e.g. Wrong IMEI captured at install"
+                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+        <div class="mt-4 flex items-center gap-3">
+          <button id="btn-swap" class="rounded-lg bg-blue-600 text-white px-5 py-2 text-sm font-semibold hover:bg-blue-700 disabled:opacity-50" disabled>Swap Device</button>
+          <span id="swap-msg" class="text-sm"></span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div id="fm-footer"></div>
+<script src="assets/app.js?v=202607281200"></script>
+<script src="assets/layout.js?v=202607281200"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  window.FINEMARK_APP?.requirePageAccess?.();
+  init();
+});
+
+const APP = window.FINEMARK_APP;
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+let _ticket = null;        // { ticketId, ticketNo, vehicle, customer, status, assignedDeviceId, devices[] }
+let _selectedOldId = null; // id of the device to remove
+
+function init() {
+  document.getElementById("btn-load").addEventListener("click", loadTicket);
+  document.getElementById("q").addEventListener("keydown", (e) => { if (e.key === "Enter") loadTicket(); });
+  document.getElementById("btn-swap").addEventListener("click", doSwap);
+  document.getElementById("new-imei").addEventListener("input", refreshSwapBtn);
+}
+
+function statusPill(status) {
+  const s = String(status || "").toLowerCase();
+  const cls = s.includes("complet") || s.includes("closed") ? "pill-installed" : "pill-other";
+  return { cls, text: status || "—" };
+}
+
+async function loadTicket() {
+  const q = document.getElementById("q").value.trim();
+  const msg = document.getElementById("load-msg");
+  msg.classList.add("hidden");
+  document.getElementById("panel").classList.add("hidden");
+  document.getElementById("swap-msg").textContent = "";
+  _ticket = null; _selectedOldId = null;
+  if (!q) { showLoadErr("Enter a ticket number or ID."); return; }
+
+  const btn = document.getElementById("btn-load");
+  btn.disabled = true; btn.textContent = "Loading…";
+  try {
+    const resp = await APP.apiFetch(`/installation-tickets/${encodeURIComponent(q)}/installed-devices`);
+    _ticket = resp.data || resp;
+    renderTicket();
+  } catch (err) {
+    showLoadErr(err?.message || "Ticket not found.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Load";
+  }
+}
+
+function showLoadErr(text) {
+  const msg = document.getElementById("load-msg");
+  msg.textContent = text; msg.classList.remove("hidden");
+}
+
+function renderTicket() {
+  const t = _ticket;
+  document.getElementById("t-no").textContent = t.ticketNo || t.ticketId;
+  document.getElementById("t-vehicle").textContent = t.vehicle || "—";
+  document.getElementById("t-customer").textContent = t.customer || "—";
+  const sp = statusPill(t.status);
+  const st = document.getElementById("t-status");
+  st.className = "pill " + sp.cls; st.textContent = sp.text;
+
+  const list = document.getElementById("dev-list");
+  const empty = document.getElementById("dev-empty");
+  list.innerHTML = "";
+  const devices = t.devices || [];
+  if (!devices.length) {
+    list.classList.add("hidden"); empty.classList.remove("hidden");
+  } else {
+    list.classList.remove("hidden"); empty.classList.add("hidden");
+    devices.forEach(d => list.appendChild(deviceRow(d)));
+  }
+  // Pre-select the device used on the job card (assigned)
+  _selectedOldId = (devices.find(d => d.assigned) || devices[0] || {}).id || null;
+  highlightSelection();
+
+  document.getElementById("panel").classList.remove("hidden");
+  refreshSwapBtn();
+}
+
+function deviceRow(d) {
+  const row = document.createElement("div");
+  row.className = "dev-row px-3 py-2.5 flex items-center gap-3";
+  row.dataset.id = d.id;
+  const stat = String(d.status || "").toLowerCase();
+  const statCls = stat.includes("install") ? "pill-installed" : stat.includes("stock") ? "pill-stock" : "pill-other";
+  row.innerHTML = `
+    <input type="radio" name="olddev" class="accent-blue-600" ${d.assigned ? "checked" : ""} />
+    <div class="flex-1 min-w-0">
+      <div class="text-sm font-semibold text-slate-800">IMEI ${esc(d.imei || "—")}</div>
+      <div class="text-xs text-slate-500 truncate">
+        ${d.model ? esc(d.model) + " &middot; " : ""}${d.serial ? "SN " + esc(d.serial) : ""}
+        ${d.assigned ? "<span class='ml-1 text-blue-600 font-semibold'>&bull; on job card</span>" : ""}
+      </div>
+    </div>
+    <span class="pill ${statCls}">${esc(d.status || "—")}</span>`;
+  row.addEventListener("click", () => {
+    _selectedOldId = d.id;
+    row.querySelector("input[type=radio]").checked = true;
+    highlightSelection();
+    refreshSwapBtn();
+  });
+  return row;
+}
+
+function highlightSelection() {
+  document.querySelectorAll(".dev-row").forEach(r => {
+    const on = r.dataset.id === _selectedOldId;
+    r.classList.toggle("sel", on);
+    const radio = r.querySelector("input[type=radio]");
+    if (radio) radio.checked = on;
+  });
+}
+
+function refreshSwapBtn() {
+  const imei = document.getElementById("new-imei").value.trim();
+  document.getElementById("btn-swap").disabled = !(_ticket && _selectedOldId && imei);
+}
+
+async function doSwap() {
+  const newImei = document.getElementById("new-imei").value.trim();
+  const reason = document.getElementById("reason").value.trim();
+  const oldDev = (_ticket.devices || []).find(d => d.id === _selectedOldId) || {};
+  if (!_selectedOldId || !newImei) return;
+
+  const confirmed = window.confirm(
+    `Swap device on ${_ticket.ticketNo}?\n\n` +
+    `REMOVE  IMEI ${oldDev.imei || _selectedOldId}  → back to stock\n` +
+    `INSTALL IMEI ${newImei}  → onto this job\n\n` +
+    `This updates inventory, the ticket and the vehicle's certificate. Continue?`
+  );
+  if (!confirmed) return;
+
+  const btn = document.getElementById("btn-swap");
+  const msg = document.getElementById("swap-msg");
+  btn.disabled = true; btn.textContent = "Swapping…";
+  msg.textContent = ""; msg.className = "text-sm";
+  try {
+    const resp = await APP.apiFetch(`/installation-tickets/${encodeURIComponent(_ticket.ticketId)}/admin-swap-device`, {
+      method: "POST",
+      body: { oldDeviceId: _selectedOldId, newDeviceImei: newImei, reason: reason || null },
+    });
+    msg.textContent = (resp && resp.message) || "Device swapped.";
+    msg.className = "text-sm text-emerald-600 font-semibold";
+    document.getElementById("new-imei").value = "";
+    document.getElementById("reason").value = "";
+    // Reload the ticket so the new state is reflected
+    await loadTicket();
+    const m2 = document.getElementById("swap-msg");
+    m2.textContent = (resp && resp.message) || "Device swapped.";
+    m2.className = "text-sm text-emerald-600 font-semibold";
+  } catch (err) {
+    msg.textContent = err?.message || "Swap failed.";
+    msg.className = "text-sm text-rose-600 font-semibold";
+  } finally {
+    btn.textContent = "Swap Device";
+    refreshSwapBtn();
+  }
+}
+</script>
+</body>
+</html>

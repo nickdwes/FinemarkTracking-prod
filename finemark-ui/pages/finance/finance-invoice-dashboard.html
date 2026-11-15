@@ -61,7 +61,7 @@
             <div class="flex flex-wrap gap-3 items-end">
               <div class="flex-1 min-w-[180px]">
                 <label class="block text-xs font-medium text-slate-600 mb-1">Search</label>
-                <input id="f-search" type="text" placeholder="Invoice #, customer…" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+                <input id="f-search" type="text" placeholder="Invoice #, customer, vehicle reg, chassis…" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
               </div>
               <div>
                 <label class="block text-xs font-medium text-slate-600 mb-1">Start Date</label>
@@ -74,12 +74,16 @@
               <div>
                 <label class="block text-xs font-medium text-slate-600 mb-1">Status</label>
                 <select id="f-status" class="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500">
+                  <!-- Values must match the backend invoiceStatus enum exactly
+                       (financeValidators.ts) — it is case-sensitive and any
+                       other value is rejected as an invalid query param. -->
                   <option value="">All Statuses</option>
-                  <option value="draft">Draft</option>
-                  <option value="pending">Pending</option>
-                  <option value="unpaid">Unpaid</option>
-                  <option value="paid">Paid</option>
-                  <option value="overdue">Overdue</option>
+                  <option value="Draft">Draft</option>
+                  <option value="Unpaid">Unpaid</option>
+                  <option value="PartiallyPaid">Partially Paid</option>
+                  <option value="Paid">Paid</option>
+                  <option value="Overdue">Overdue</option>
+                  <option value="Cancelled">Cancelled</option>
                 </select>
               </div>
               <div>
@@ -109,6 +113,8 @@
                   <tr class="text-left text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-slate-100">
                     <th class="px-5 py-3">Invoice #</th>
                     <th class="px-5 py-3">Customer</th>
+                    <th class="px-5 py-3">Vehicle Reg</th>
+                    <th class="px-5 py-3">Chassis</th>
                     <th class="px-5 py-3">Amount</th>
                     <th class="px-5 py-3">Status</th>
                     <th class="px-5 py-3">eTIMS</th>
@@ -117,7 +123,7 @@
                   </tr>
                 </thead>
                 <tbody id="invoice-tbody">
-                  <tr><td colspan="7" class="px-5 py-10 text-center text-slate-400">Loading…</td></tr>
+                  <tr><td colspan="9" class="px-5 py-10 text-center text-slate-400">Loading…</td></tr>
                 </tbody>
               </table>
             </div>
@@ -183,9 +189,15 @@
         </div>
         <div id="pay-result" class="hidden rounded-lg border p-3 text-sm"></div>
         <div class="space-y-3">
-          <div>
-            <label class="block text-xs font-medium text-slate-600 mb-1">Amount (KES) <span class="text-red-500">*</span></label>
-            <input id="pay-amount" type="number" min="1" step="1" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" placeholder="Enter amount paid" />
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Amount (KES) <span class="text-red-500">*</span></label>
+              <input id="pay-amount" type="number" min="1" step="1" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" placeholder="Enter amount paid" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Invoice Payment Date <span class="text-red-500">*</span></label>
+              <input id="pay-date" type="date" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            </div>
           </div>
           <div>
             <label class="block text-xs font-medium text-slate-600 mb-1">Payment Mode <span class="text-red-500">*</span></label>
@@ -212,16 +224,53 @@
             <label class="block text-xs font-medium text-slate-600 mb-1">Processed By</label>
             <input id="pay-accountant" type="text" readonly class="w-full rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-500 cursor-not-allowed" />
           </div>
+          <!-- Referrer commission -->
+          <div class="pt-2 border-t border-slate-100">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input id="pay-commission-toggle" type="checkbox" class="rounded border-slate-300 text-emerald-600" />
+              <span class="text-sm font-semibold text-slate-700">Pay commission from this invoice</span>
+            </label>
+            <div id="pay-commission-wrap" class="hidden mt-2 space-y-2">
+              <p class="text-[0.7rem] text-slate-500">Recorded as a <strong>separate</strong> transaction with its own payout date. The full invoice amount is still banked.</p>
+              <div class="rounded-lg border border-amber-200 bg-amber-50 p-2 space-y-1">
+                <label class="block text-[0.7rem] font-semibold text-amber-800">Advanced Commission Reason <span class="font-normal text-amber-600">(required if the invoice is not fully paid by this receipt)</span></label>
+                <select id="pay-advance-reason" class="w-full rounded-lg border border-amber-300 px-2 py-1.5 text-xs bg-white">
+                  <option value="">— none / not an advance —</option>
+                  <option>Management approval</option>
+                  <option>Special sales arrangement</option>
+                  <option>Commission policy exception</option>
+                  <option>Sales incentive</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div class="rounded-lg border border-blue-100 bg-blue-50/50 p-2 space-y-1.5">
+                <label class="block text-[0.7rem] font-semibold text-slate-600">Paste M-PESA message to auto-fill</label>
+                <textarea id="pay-mpesa" rows="2" placeholder="e.g. UHIPG31XAX Confirmed. Ksh500.00 paid to HAIR CRAFT STYLISTS on 18/8/26…" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs focus:outline-none focus:border-blue-500"></textarea>
+                <div class="flex items-center gap-2">
+                  <button type="button" id="pay-mpesa-extract" class="rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700">Extract</button>
+                  <span id="pay-mpesa-msg" class="text-[0.7rem] text-slate-500"></span>
+                </div>
+              </div>
+              <div id="pay-referrers" class="space-y-2"></div>
+              <button type="button" id="pay-add-referrer" class="text-xs font-semibold text-blue-600 hover:underline">+ Add referrer</button>
+              <div class="flex items-center justify-between rounded-lg bg-slate-50 border border-slate-200 px-3 py-1.5 text-xs">
+                <span class="text-slate-600">Commission: <span id="pay-comm-total" class="font-semibold text-amber-700">KES 0</span></span>
+                <span class="text-slate-600">Net revenue: <span id="pay-net" class="font-semibold text-emerald-700">KES 0</span></span>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="flex justify-end gap-3 pt-1">
           <button id="pay-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
+          <button id="pay-submit-commission-only" class="hidden rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100"
+                  title="Record only the commission payout(s) below — the invoice itself is left exactly as it is, not marked paid.">Process Commission Only</button>
           <button id="pay-submit" class="rounded-lg bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700">Record Payment</button>
         </div>
       </div>
     </div>
 
     <div id="fm-footer"></div>
-    <script src="../../assets/app.js"></script>
+    <script src="../../assets/app.js?v=20260819mpesa"></script>
     <script src="../../assets/layout.js"></script>
     <script>
       document.addEventListener("DOMContentLoaded", () => {
@@ -244,7 +293,7 @@
 
         async function loadInvoices() {
           const tbody = document.getElementById("invoice-tbody");
-          tbody.innerHTML = `<tr><td colspan="7" class="px-5 py-10 text-center text-slate-400">Loading…</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="9" class="px-5 py-10 text-center text-slate-400">Loading…</td></tr>`;
 
           const params = new URLSearchParams({
             page: String(state.page),
@@ -273,7 +322,7 @@
             renderKpis(items);
             renderPagination();
           } catch (e) {
-            tbody.innerHTML = `<tr><td colspan="7" class="px-5 py-10 text-center text-red-400">Failed to load invoices. ${e.message || ""}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="9" class="px-5 py-10 text-center text-red-400">Failed to load invoices. ${e.message || ""}</td></tr>`;
           }
         }
 
@@ -282,7 +331,7 @@
           const token = window.FINEMARK_APP?.getSession?.()?.accessToken || "";
 
           if (!state.items.length) {
-            tbody.innerHTML = `<tr><td colspan="7" class="px-5 py-10 text-center text-slate-400">No invoices found.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="9" class="px-5 py-10 text-center text-slate-400">No invoices found.</td></tr>`;
             document.getElementById("result-count").textContent = "0 results";
             return;
           }
@@ -304,9 +353,6 @@
             const payBtn = isFinanceAdmin && ["unpaid", "pending", "overdue", "partiallypaid"].includes(invStatus)
               ? `<span class="mx-1.5 text-slate-300">|</span><button class="btn-pay rounded bg-green-600 px-2 py-0.5 text-xs font-semibold text-white hover:bg-green-700" data-id="${inv.id}" data-no="${inv.invoiceNumber || ''}" data-customer="${(inv.customer || '').replace(/"/g, '&quot;')}" data-amount="${inv.total ?? inv.amount ?? 0}">Process Payment</button>`
               : ``;
-            const raiseTicketBtn = (isBDM || isFinanceAdmin)
-              ? `<span class="mx-1.5 text-slate-300">|</span><a href="../../installation-ticket.html?invoiceId=${inv.id}&invoiceNo=${encodeURIComponent(inv.invoiceNumber||'')}&customer=${encodeURIComponent(inv.customer||'')}" class="rounded bg-indigo-600 px-2 py-0.5 text-xs font-semibold text-white hover:bg-indigo-700">Raise Ticket</a>`
-              : ``;
             return `<tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors">
               <td class="px-5 py-3 font-medium text-slate-900">
                 <a href="../../invoice-detail.html?id=${inv.id}" class="hover:text-blue-600">${inv.invoiceNumber || "—"}</a>
@@ -314,11 +360,13 @@
               <td class="px-5 py-3 text-slate-600 max-w-[180px] truncate">${inv.customerId
                 ? `<a href="../../crm-customer-360.html?id=${inv.customerId}" class="text-blue-600 hover:underline">${inv.customer || "—"}</a>`
                 : (inv.customer || "—")}</td>
+              <td class="px-5 py-3 text-slate-600">${inv.vehicleRegistration || "—"}</td>
+              <td class="px-5 py-3 font-mono text-xs text-slate-600">${inv.vehicleChassis || "—"}</td>
               <td class="px-5 py-3 font-mono text-xs text-slate-800">${fmtKes(inv.total ?? inv.amount)}</td>
               <td class="px-5 py-3">${statusBadge(inv.status)}</td>
               <td class="px-5 py-3">${etimsBadge}</td>
               <td class="px-5 py-3 text-slate-500 text-xs">${fmtDate(inv.issuedOn || inv.issued_on)}</td>
-              <td class="px-5 py-3 text-right whitespace-nowrap">${isFinanceAdmin ? signBtn : `<button class="btn-view-pdf text-blue-600 hover:underline text-xs" data-id="${inv.id}" data-no="${inv.invoiceNumber}" data-pdf="${pdfUrl}">View PDF</button>`}${payBtn}${raiseTicketBtn}</td>
+              <td class="px-5 py-3 text-right whitespace-nowrap">${isFinanceAdmin ? signBtn : `<button class="btn-view-pdf text-blue-600 hover:underline text-xs" data-id="${inv.id}" data-no="${inv.invoiceNumber}" data-pdf="${pdfUrl}">View PDF</button>`}${payBtn}</td>
             </tr>`;
           }).join("");
 
@@ -419,9 +467,86 @@
           document.getElementById("pay-accountant").value = user?.name || user?.email || "—";
           const resultEl = document.getElementById("pay-result");
           resultEl.classList.add("hidden");
+          document.getElementById("pay-date").value = new Date().toISOString().slice(0, 10);
+          document.getElementById("pay-commission-toggle").checked = false;
+          document.getElementById("pay-commission-wrap").classList.add("hidden");
+          const advReason = document.getElementById("pay-advance-reason");
+          if (advReason) advReason.value = "";
+          document.getElementById("pay-referrers").innerHTML = "";
+          payRecalcNet();
           document.getElementById("pay-submit").disabled = false;
           document.getElementById("pay-submit").textContent = "Record Payment";
+          const commOnlyBtn = document.getElementById("pay-submit-commission-only");
+          commOnlyBtn.classList.add("hidden");
+          commOnlyBtn.disabled = false;
+          commOnlyBtn.textContent = "Process Commission Only";
           document.getElementById("payment-modal").classList.remove("hidden");
+        }
+
+        // ── Referrer commission helpers ─────────────────────────────────────
+        function payRecalcNet() {
+          const amount = parseInt(document.getElementById("pay-amount").value, 10) || 0;
+          let comm = 0;
+          document.querySelectorAll(".pay-ref-amount").forEach((i) => { comm += Number(i.value) || 0; });
+          const f = (v) => "KES " + Number(v || 0).toLocaleString("en-KE");
+          document.getElementById("pay-comm-total").textContent = f(comm);
+          document.getElementById("pay-net").textContent = f(amount - comm);
+        }
+        function payAddReferrer(prefill) {
+          prefill = prefill || {};
+          const v = (s) => String(s == null ? "" : s).replace(/"/g, "&quot;");
+          const INP = "rounded-lg border border-slate-200 px-2 py-1.5 text-sm w-full";
+          const row = document.createElement("div");
+          row.className = "pay-ref-row rounded-lg border border-slate-200 bg-slate-50/60 p-2 space-y-2";
+          row.innerHTML =
+            '<div class="flex items-center justify-between">' +
+              '<span class="text-[0.7rem] font-semibold text-slate-500">Commission payout</span>' +
+              '<button type="button" class="pay-ref-del text-red-500 text-xs hover:underline" title="Remove">&#10005; Remove</button>' +
+            '</div>' +
+            '<div class="grid grid-cols-2 gap-2">' +
+              '<input type="text" placeholder="Referrer name" value="' + v(prefill.name) + '" class="pay-ref-name ' + INP + '" />' +
+              '<input type="text" placeholder="Phone paid to" value="' + v(prefill.phone) + '" class="pay-ref-phone ' + INP + '" />' +
+              '<input type="number" min="0" placeholder="Amount" value="' + v(prefill.amount) + '" class="pay-ref-amount ' + INP + '" />' +
+              '<input type="text" placeholder="Comm ref / txn code" value="' + v(prefill.txn) + '" title="Commission payout reference" class="pay-ref-txn ' + INP + '" />' +
+            '</div>' +
+            '<div class="grid grid-cols-2 gap-2">' +
+              '<div><label class="block text-[0.65rem] font-medium text-slate-500 mb-0.5">Commission payout date <span class="text-red-500">*</span></label>' +
+                '<input type="date" value="' + v(prefill.paidDate) + '" title="Commission payout date (independent of the invoice date)" class="pay-ref-date ' + INP + '" /></div>' +
+              '<div><label class="block text-[0.65rem] font-medium text-slate-500 mb-0.5">Payout mode</label>' +
+                '<select class="pay-ref-mode ' + INP + '">' +
+                  '<option value="">Mode…</option><option>Mobile Money</option><option>Bank Transfer</option><option>Cash</option><option>Card</option>' +
+                '</select></div>' +
+            '</div>';
+          document.getElementById("pay-referrers").appendChild(row);
+          if (prefill.mode) row.querySelector(".pay-ref-mode").value = prefill.mode;
+          if (!prefill.paidDate) row.querySelector(".pay-ref-date").value = new Date().toISOString().slice(0, 10);
+          row.querySelector(".pay-ref-amount").addEventListener("input", payRecalcNet);
+          row.querySelector(".pay-ref-del").addEventListener("click", () => { row.remove(); payRecalcNet(); });
+          return row;
+        }
+
+        // Paste an M-PESA SMS → auto-fill a referrer row (payee, phone, amount, txn code).
+        function payExtractMpesa() {
+          const box = document.getElementById("pay-mpesa");
+          const msg = document.getElementById("pay-mpesa-msg");
+          const parsed = window.FINEMARK_APP.parseMpesa(box.value);
+          if (!parsed) { msg.className = "text-[0.7rem] text-red-500"; msg.textContent = "Couldn't read that — paste the full M-PESA SMS."; return; }
+          const toggle = document.getElementById("pay-commission-toggle");
+          if (!toggle.checked) { toggle.checked = true; document.getElementById("pay-commission-wrap").classList.remove("hidden"); }
+          const prefill = { name: parsed.payee || "", phone: parsed.phone || "", amount: parsed.amount != null ? parsed.amount : "", txn: parsed.code || "", paidDate: parsed.date || "", mode: "Mobile Money" };
+          let target = null;
+          document.querySelectorAll(".pay-ref-row").forEach((r) => { if (!target && !r.querySelector(".pay-ref-name").value.trim()) target = r; });
+          if (target) {
+            target.querySelector(".pay-ref-name").value = prefill.name;
+            target.querySelector(".pay-ref-phone").value = prefill.phone;
+            target.querySelector(".pay-ref-amount").value = prefill.amount;
+            target.querySelector(".pay-ref-txn").value = prefill.txn;
+          } else { payAddReferrer(prefill); }
+          payRecalcNet();
+          const bits = [parsed.payee, parsed.amount != null ? ("KES " + Number(parsed.amount).toLocaleString("en-KE")) : null, parsed.code, parsed.date].filter(Boolean);
+          msg.className = "text-[0.7rem] text-emerald-600";
+          msg.textContent = "✓ " + bits.join(" · ");
+          box.value = "";
         }
 
         // Show/hide bank account row based on payment mode
@@ -434,6 +559,17 @@
             document.getElementById("pay-bank-account").value = "";
           }
         });
+
+        document.getElementById("pay-commission-toggle").addEventListener("change", function() {
+          const on = this.checked;
+          document.getElementById("pay-commission-wrap").classList.toggle("hidden", !on);
+          document.getElementById("pay-submit-commission-only").classList.toggle("hidden", !on);
+          if (on && !document.querySelector(".pay-ref-row")) payAddReferrer();
+          payRecalcNet();
+        });
+        document.getElementById("pay-add-referrer").addEventListener("click", () => payAddReferrer());
+        document.getElementById("pay-mpesa-extract").addEventListener("click", payExtractMpesa);
+        document.getElementById("pay-amount").addEventListener("input", payRecalcNet);
 
         document.getElementById("pay-cancel").addEventListener("click", () => {
           document.getElementById("payment-modal").classList.add("hidden");
@@ -448,12 +584,19 @@
           const amountRaw = parseInt(document.getElementById("pay-amount").value, 10);
           const method = document.getElementById("pay-mode").value;
           const ref = document.getElementById("pay-ref").value.trim();
+          const payDate = document.getElementById("pay-date").value;
           const resultEl = document.getElementById("pay-result");
           const btn = document.getElementById("pay-submit");
 
           if (!amountRaw || amountRaw <= 0) {
             resultEl.className = "rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700";
             resultEl.textContent = "Please enter a valid amount.";
+            resultEl.classList.remove("hidden");
+            return;
+          }
+          if (!payDate) {
+            resultEl.className = "rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700";
+            resultEl.textContent = "Please enter the invoice payment date.";
             resultEl.classList.remove("hidden");
             return;
           }
@@ -477,9 +620,32 @@
           }
 
           try {
-            const body = { invoiceId: state.payTarget.id, amount: amountRaw, method, currency: "KES" };
+            // Invoice payment date is captured independently of the record's created_at.
+            const body = { invoiceId: state.payTarget.id, amount: amountRaw, method, currency: "KES", paidAt: payDate + "T12:00:00.000Z" };
             if (ref) body.paymentRef = ref;
             if (bankAccount) body.bank = bankAccount;
+            // Referrer commissions paid out of this receipt — each carries its own
+            // payout date/mode and (when the invoice isn't fully paid) an advance reason.
+            if (document.getElementById("pay-commission-toggle").checked) {
+              const advanceReason = (document.getElementById("pay-advance-reason") || {}).value || "";
+              const commissions = [];
+              for (const r of document.querySelectorAll(".pay-ref-row")) {
+                const name = r.querySelector(".pay-ref-name").value.trim();
+                const phone = r.querySelector(".pay-ref-phone").value.trim();
+                const amt = Number(r.querySelector(".pay-ref-amount").value) || 0;
+                const txn = r.querySelector(".pay-ref-txn").value.trim();
+                const cDate = r.querySelector(".pay-ref-date").value;
+                const cMode = r.querySelector(".pay-ref-mode").value;
+                if (!name && !amt) continue;
+                if (!name || amt <= 0) throw new Error("Each referrer needs a name and a commission amount.");
+                if (!cDate) throw new Error("Each commission payout needs a payout date.");
+                commissions.push({ name, phone: phone || undefined, amount: amt, transactionCode: txn || undefined,
+                  paidDate: cDate, commissionMode: cMode || undefined, advanceReason: advanceReason || undefined });
+              }
+              const commTotal = commissions.reduce((s, c) => s + c.amount, 0);
+              if (commTotal > amountRaw) throw new Error("Total commission cannot exceed the amount received.");
+              if (commissions.length) body.referrerCommissions = commissions;
+            }
             await window.FINEMARK_APP.apiFetch("/payments", { method: "POST", body });
             resultEl.className = "rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800";
             resultEl.textContent = "✓ Payment recorded successfully!";
@@ -495,6 +661,74 @@
             resultEl.classList.remove("hidden");
             btn.disabled = false;
             btn.textContent = "Record Payment";
+          }
+        });
+
+        // Process Commission Only — for the advanced-commission case: pay the
+        // referrer(s) now without touching the invoice at all (no amount,
+        // mode, or invoice payment date required/submitted). Each referrer row
+        // is posted independently to /referrers/payments (the same commission-
+        // only endpoint the invoice-detail page's "Process Commission" action
+        // uses); the backend itself decides whether this is an advance (invoice
+        // not yet fully paid) and enforces the Advanced Commission Reason.
+        document.getElementById("pay-submit-commission-only").addEventListener("click", async () => {
+          if (!state.payTarget) return;
+          const resultEl = document.getElementById("pay-result");
+          const btn = document.getElementById("pay-submit-commission-only");
+          const advanceReason = (document.getElementById("pay-advance-reason") || {}).value || "";
+
+          const commissions = [];
+          try {
+            for (const r of document.querySelectorAll(".pay-ref-row")) {
+              const name = r.querySelector(".pay-ref-name").value.trim();
+              const phone = r.querySelector(".pay-ref-phone").value.trim();
+              const amt = Number(r.querySelector(".pay-ref-amount").value) || 0;
+              const txn = r.querySelector(".pay-ref-txn").value.trim();
+              const cDate = r.querySelector(".pay-ref-date").value;
+              const cMode = r.querySelector(".pay-ref-mode").value;
+              if (!name && !amt) continue;
+              if (!name || amt <= 0) throw new Error("Each referrer needs a name and a commission amount.");
+              if (!cDate) throw new Error("Each commission payout needs a payout date.");
+              commissions.push({
+                referrerName: name, referrerPhone: phone || undefined, invoiceId: state.payTarget.id,
+                feeAmount: amt, transactionCode: txn || undefined, paymentDate: cDate,
+                commissionMode: cMode || undefined, advanceReason: advanceReason || undefined,
+              });
+            }
+          } catch (e) {
+            resultEl.className = "rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700";
+            resultEl.textContent = e.message;
+            resultEl.classList.remove("hidden");
+            return;
+          }
+          if (!commissions.length) {
+            resultEl.className = "rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700";
+            resultEl.textContent = "Add at least one commission payout first.";
+            resultEl.classList.remove("hidden");
+            return;
+          }
+
+          btn.disabled = true;
+          btn.textContent = "Processing…";
+          resultEl.classList.add("hidden");
+          try {
+            for (const c of commissions) {
+              await window.FINEMARK_APP.apiFetch("/referrers/payments", { method: "POST", body: c });
+            }
+            resultEl.className = "rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800";
+            resultEl.textContent = "✓ Commission processed — invoice payment left untouched.";
+            resultEl.classList.remove("hidden");
+            btn.textContent = "Done";
+            setTimeout(() => {
+              document.getElementById("payment-modal").classList.add("hidden");
+              loadInvoices();
+            }, 1500);
+          } catch (err) {
+            resultEl.className = "rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700";
+            resultEl.textContent = `Error: ${err.message || "Failed to process commission. Please try again."}`;
+            resultEl.classList.remove("hidden");
+            btn.disabled = false;
+            btn.textContent = "Process Commission Only";
           }
         });
 

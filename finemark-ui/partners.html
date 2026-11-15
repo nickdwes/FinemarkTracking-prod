@@ -166,6 +166,11 @@
               <input id="f-contract-expiry" type="date" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
             </div>
             <div class="sm:col-span-2">
+              <label class="block text-xs font-medium text-slate-600 mb-1">Postal Address / P.O. Box</label>
+              <textarea id="f-postal" rows="2" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 resize-none" placeholder="e.g. P.O. BOX 44599 - 00100&#10;NAIROBI"></textarea>
+              <p class="mt-1 text-xs text-slate-400">Used as the billing address on quotations, proformas &amp; invoices when billing to this bank partner.</p>
+            </div>
+            <div class="sm:col-span-2">
               <label class="block text-xs font-medium text-slate-600 mb-1">Operational Regions</label>
               <div id="regions-checkboxes" class="flex flex-wrap gap-2 mt-1 max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50"></div>
             </div>
@@ -329,6 +334,7 @@
           document.getElementById("f-contract-ref").value = p.contractRef || "";
           document.getElementById("f-contract-start").value = p.contractStart ? p.contractStart.slice(0,10) : "";
           document.getElementById("f-contract-expiry").value = p.contractExpiry ? p.contractExpiry.slice(0,10) : "";
+          document.getElementById("f-postal").value = p.postalAddress || "";
           document.getElementById("f-notes").value = p.notes || "";
           document.getElementById("f-kam").value = p.keyAccountManagerId || "";
           setRegions(p.regions || ["All"]);
@@ -367,6 +373,7 @@
           contractRef: document.getElementById("f-contract-ref").value.trim() || null,
           contractStart: document.getElementById("f-contract-start").value || null,
           contractExpiry: document.getElementById("f-contract-expiry").value || null,
+          postalAddress: document.getElementById("f-postal").value.trim() || null,
           notes: document.getElementById("f-notes").value.trim() || null,
           regions: regions.length ? regions : ["All"],
           keyAccountManagerId: document.getElementById("f-kam").value || null,

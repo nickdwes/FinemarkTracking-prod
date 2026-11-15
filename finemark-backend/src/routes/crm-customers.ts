@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { pgGet, pgAll, pgRun, pgExec } from "../db.js";
+import { repriceBankFinancedForLead } from "../services/retailQuoteAutomation.js";
 import { requireAuth, AuthRequest } from "../middleware/auth.js";
 import { requireRole, ROLE_GROUPS, buildCustomerOwnershipFilter, isIndividualSalesRole } from "../middleware/rbac.js";
 import { ok, created, errorResponse } from "../utils/responses.js";
@@ -8,8 +9,9 @@ import { auditLog } from "../services/auditService.js";
 import { encryptField, decryptField, maskValue } from "../services/cryptoService.js";
 import { cacheDeleteByPrefix, cacheGetOrSet } from "../utils/cache.js";
 import { IdGenerator } from "../utils/idGenerator.js";
+import { buildCsv, sendCsv } from "../utils/csv.js";
 import { getByPhoneRows, invalidateCustomerCaches, CachedRow } from "../services/customerCacheService.js";
-import { findDuplicateCustomers } from "../services/customerDedupeService.js";
+import { findDuplicateCustomers, findDuplicateCustomersLive } from "../services/customerDedupeService.js";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -30,7 +32,10 @@ pgExec(`
   CREATE TABLE IF NOT EXISTS crm_customer_vehicles (
     id TEXT PRIMARY KEY,
     customer_id TEXT NOT NULL,
-    registration VARCHAR(50) NOT NULL,
+    -- Nullable: an unregistered vehicle (registration_known = FALSE) is keyed on its
+    -- chassis/VIN and carries no plate until one is issued.
+    registration VARCHAR(50),
+    registration_known BOOLEAN NOT NULL DEFAULT TRUE,
     make VARCHAR(100),
     model VARCHAR(200),
     model_number VARCHAR(100),
@@ -52,10 +57,25 @@ pgExec(`
 // vehicle capture off vehicle-register.html.
 setTimeout(async () => {
   await pgExec(`ALTER TABLE crm_customer_vehicles ADD COLUMN IF NOT EXISTS lead_id TEXT`).catch(() => {});
+  // Registered (plate) vs unregistered (chassis only). Also relax the legacy NOT NULL
+  // on registration so an unregistered vehicle can be stored without a plate.
+  await pgExec(`ALTER TABLE crm_customer_vehicles ADD COLUMN IF NOT EXISTS registration_known BOOLEAN NOT NULL DEFAULT TRUE`).catch(() => {});
+  await pgExec(`ALTER TABLE crm_customer_vehicles ALTER COLUMN registration DROP NOT NULL`).catch(() => {});
   // Motor vehicle / motorcycle / tractor / tuktuk / special_equipment — mirrors
   // vehicle_specs.vehicle_category in the separate finemark_vehicles DB, lets
   // the make/model picker narrow to the right catalog subset for this vehicle.
   await pgExec(`ALTER TABLE crm_customer_vehicles ADD COLUMN IF NOT EXISTS vehicle_category TEXT NOT NULL DEFAULT 'motor_vehicle'`).catch(() => {});
+  // Extended vehicle-detail fields edited from Vehicle 360 / the registry form.
+  // These were referenced by the /vehicles PATCH whitelist and the edit form, but
+  // the columns were never added — so any edit that included one of them made the
+  // whole UPDATE fail ("column does not exist") and silently didn't save.
+  for (const col of [
+    "trim TEXT", "vin TEXT", "status TEXT", "fuel_type TEXT", "transmission TEXT",
+    "odometer NUMERIC", "insurance_details TEXT", "insurance_expiry TEXT",
+    "ntsa_status TEXT", "fleet_number TEXT", "asset_code TEXT",
+  ]) {
+    await pgExec(`ALTER TABLE crm_customer_vehicles ADD COLUMN IF NOT EXISTS ${col}`).catch(() => {});
+  }
 }, 1500);
 
 // ── Account number generator ─────────────────────────────────────────────────
@@ -144,7 +164,7 @@ function decryptContact(row: any, masked = false) {
 router.get(
   "/",
   requireAuth,
-  requireRole(["Admin", "Sales", "CorporateSales", "Telesales", "FieldSales", "Support", "Finance", "Operations", "BDM", "BDMCorporate"]),
+  requireRole(["Admin", "CertAdmin", "Sales", "CorporateSales", "Telesales", "FieldSales", "Support", "Finance", "Operations", "BDM", "BDMCorporate"]),
   async (req: AuthRequest, res) => {
     const { search, type, status, region, accountManagerId, industry, page = "1", pageSize = "50" } = req.query as any;
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
@@ -205,19 +225,21 @@ router.get(
 router.get(
   "/by-phone",
   requireAuth,
-  requireRole(["Admin", "Sales", "CorporateSales", "Telesales", "FieldSales", "Support", "Finance", "Operations", "BDM", "BDMCorporate"]),
+  requireRole(["Admin", "CertAdmin", "Sales", "CorporateSales", "Telesales", "FieldSales", "Support", "Finance", "Operations", "BDM", "BDMCorporate"]),
   async (req: AuthRequest, res) => {
     const q = ((req.query.q as string) || "").trim().replace(/\s+/g, "");
     if (q.length < 2) return ok(res, { data: [] });
 
     const allRows = await getByPhoneRows();
     const ql = q.toLowerCase();
+    const qu = q.toUpperCase();
     const matches: CachedRow[] = [];
     for (const row of allRows) {
       const phoneMatch = row.phone.includes(q);
       const nameMatch  = row.displayName.toLowerCase().includes(ql);
       const emailMatch = row.email.toLowerCase().includes(ql);
-      if (phoneMatch || nameMatch || (q.length >= 4 && emailMatch)) {
+      const regMatch   = !!row.vehicleRegs && row.vehicleRegs.includes(qu); // vehicle plate
+      if (phoneMatch || nameMatch || regMatch || (q.length >= 4 && emailMatch)) {
         matches.push(row);
       }
       if (matches.length >= 20) break;
@@ -232,7 +254,7 @@ router.get(
 router.post(
   "/register",
   requireAuth,
-  requireRole(["Admin", "Sales", "CorporateSales", "Telesales", "FieldSales", "BDM", "BDMCorporate"]),
+  requireRole(["Admin", "CertAdmin", "Sales", "CorporateSales", "Telesales", "FieldSales", "BDM", "BDMCorporate"]),
   async (req: AuthRequest, res) => {
     const { type, region, source, segment, notes, accountManagerId, individual, corporate, contacts, affiliatePartnerId, secondaryPartnerId, overrideDuplicate } = req.body;
 
@@ -253,7 +275,7 @@ router.post(
     // existing customer (the operator may genuinely mean two different
     // people who happen to share a name and number, e.g. a shared office line).
     if (!overrideDuplicate) {
-      const dupMatches = await findDuplicateCustomers({
+      const dupMatches = await findDuplicateCustomersLive({
         name: type === "individual" ? individual?.fullName : corporate?.companyName,
         phone: type === "individual" ? individual?.phone : corporate?.phone,
         email: type === "individual" ? individual?.email : corporate?.email,
@@ -363,27 +385,40 @@ router.post(
 router.get(
   "/vehicles/lookup",
   requireAuth,
-    requireRole(["Admin", "Sales", "CorporateSales", "Telesales", "FieldSales", "Support", "Finance", "Operations", "Technical", "Technician", "InstallOffice"]),
+    requireRole(["Admin", "CertAdmin", "Sales", "CorporateSales", "Telesales", "FieldSales", "Support", "Finance", "Operations", "Technical", "Technician", "InstallOffice"]),
   async (req: AuthRequest, res) => {
-    const raw = (req.query.registration as string || "").trim();
-    if (!raw) return errorResponse(res, 400, "VALIDATION_ERROR", "registration query param required");
+    // Find a registered vehicle by registration, chassis, or both (either identifier
+    // locates the same physical vehicle). Used by the certificate flow to enforce
+    // registry-only generation and to detect duplicate vehicle records.
+    const rawReg     = (req.query.registration as string || "").trim();
+    const rawChassis = (req.query.chassis as string || "").trim();
+    if (!rawReg && !rawChassis) {
+      return errorResponse(res, 400, "VALIDATION_ERROR", "registration or chassis query param required");
+    }
+    const normReg     = rawReg     ? rawReg.toUpperCase().replace(/[\s-]/g, "")  : null;
+    const normChassis = rawChassis ? rawChassis.toUpperCase().replace(/\s+/g, "") : null;
 
-    // Normalise: uppercase, collapse spaces
-    const norm = raw.toUpperCase().replace(/\s+/g, " ");
+    const conds: string[] = [];
+    const params: any[] = [];
+    if (normReg)     { conds.push("UPPER(REPLACE(REPLACE(v.registration,' ',''),'-','')) = ?"); params.push(normReg); }
+    if (normChassis) { conds.push("UPPER(REPLACE(v.chassis_number,' ','')) = ?");               params.push(normChassis); }
 
     const row = await pgGet(
       `SELECT v.*,
               c.id AS cust_id, c.account_no, c.type AS cust_type,
               ind.full_name, ind.phone_enc, ind.email_enc,
-              corp.company_name
+              corp.company_name,
+              p.name AS partner_name
        FROM crm_customer_vehicles v
        JOIN crm_customers c ON c.id = v.customer_id AND c.deleted_at IS NULL
        LEFT JOIN crm_individual_profiles ind ON ind.customer_id = c.id
        LEFT JOIN crm_corporate_profiles  corp ON corp.customer_id = c.id
-       WHERE UPPER(REPLACE(REPLACE(v.registration,' ',''),'\t','')) = REPLACE(?,'-','')
+       LEFT JOIN partners p ON p.id::text = v.partner_id::text AND p.deleted_at IS NULL
+       WHERE (${conds.join(" OR ")})
          AND v.deleted_at IS NULL
+       ORDER BY v.created_at DESC
        LIMIT 1`,
-      [norm.replace(/ /g, "")]
+      params
     );
 
     if (!row) return ok(res, { found: false });
@@ -403,6 +438,8 @@ router.get(
         chassisNumber: row.chassis_number,
         engineNumber: row.engine_number,
         vehicleCategory: row.vehicle_category,
+        partnerId: row.partner_id != null ? String(row.partner_id) : null,
+        partnerName: row.partner_name || null,
       },
       customer: {
         id: row.cust_id,
@@ -420,7 +457,7 @@ router.get(
 router.get(
   "/account-managers",
   requireAuth,
-  requireRole(["Admin", "Sales", "CorporateSales", "Telesales", "FieldSales", "Support", "Finance", "Operations", "BDM", "BDMCorporate"]),
+  requireRole(["Admin", "CertAdmin", "Sales", "CorporateSales", "Telesales", "FieldSales", "Support", "Finance", "Operations", "BDM", "BDMCorporate"]),
   async (_req: AuthRequest, res) => {
     const rows = await pgAll(
       `SELECT DISTINCT u.id, u.email, u.name
@@ -438,7 +475,7 @@ router.get(
 router.get(
   "/:id",
   requireAuth,
-  requireRole(["Admin", "Sales", "CorporateSales", "Telesales", "FieldSales", "Support", "Finance", "Operations", "Technical", "TeamLead", "BDM", "BDMCorporate"]),
+  requireRole(["Admin", "CertAdmin", "Sales", "CorporateSales", "Telesales", "FieldSales", "Support", "Finance", "Operations", "Technical", "TeamLead", "BDM", "BDMCorporate"]),
   async (req: AuthRequest, res) => {
     const abac = buildAbacFilter(req.user!);
     const row = await pgGet(
@@ -460,7 +497,7 @@ router.get(
 router.get(
   "/:id/360",
   requireAuth,
-  requireRole(["Admin", "Sales", "CorporateSales", "Telesales", "FieldSales", "Support", "Finance", "Operations", "Technical", "TeamLead", "BDM", "BDMCorporate"]),
+  requireRole(["Admin", "CertAdmin", "Sales", "CorporateSales", "Telesales", "FieldSales", "Support", "Finance", "Operations", "Technical", "TeamLead", "BDM", "BDMCorporate"]),
   async (req: AuthRequest, res) => {
     const customerId = req.params.id;
     const abac = buildAbacFilter(req.user!);
@@ -489,16 +526,26 @@ router.get(
       pgAll("SELECT * FROM crm_communication_logs WHERE customer_id = ? ORDER BY contacted_at DESC LIMIT 20", [customerId]),
       pgAll("SELECT * FROM invoices WHERE customer_id = ? ORDER BY created_at DESC LIMIT 20", [customerId]),
       pgAll(
+        // Certificates for this customer — linked by the certificate's own customer /
+        // vehicle FK (populated at generation), or matched to any of the customer's
+        // vehicles by registration or chassis for older records.
         `SELECT DISTINCT c.id, c.serial_no, c.system_type, c.car_registration, c.model,
                 c.date, c.name, c.color, c.phone, c.start_date, c.end_date,
                 c.loan_duration_years, c.imei_1, c.imei_2, c.tracker_no_1, c.tracker_no_2,
-                c.created_by_email, c.created_at
+                c.created_by_email, c.created_at,
+                c.is_extension, c.extension_no, c.root_cert_id, c.extended_from_cert_id,
+                c.prior_start_date, c.prior_end_date, c.extended_at
          FROM certificates c
-         JOIN crm_customer_vehicles v
-           ON UPPER(REPLACE(c.car_registration,' ','')) = UPPER(REPLACE(v.registration,' ',''))
-         WHERE v.customer_id = ? AND v.deleted_at IS NULL
+         WHERE c.deleted_at IS NULL
+           AND ( c.customer_id = ?
+              OR c.crm_vehicle_id IN (SELECT id FROM crm_customer_vehicles WHERE customer_id = ? AND deleted_at IS NULL)
+              OR EXISTS (
+                   SELECT 1 FROM crm_customer_vehicles v
+                    WHERE v.customer_id = ? AND v.deleted_at IS NULL
+                      AND ( NULLIF(REPLACE(UPPER(TRIM(c.car_registration)),' ',''),'') = NULLIF(REPLACE(UPPER(TRIM(v.registration)),' ',''),'')
+                         OR NULLIF(REPLACE(UPPER(TRIM(c.chassis_number)),' ',''),'')   = NULLIF(REPLACE(UPPER(TRIM(v.chassis_number)),' ',''),'') ) ) )
          ORDER BY c.created_at DESC LIMIT 50`,
-        [customerId]
+        [customerId, customerId, customerId]
       ),
       pgAll("SELECT cm.*, ca.name AS campaign_name, ca.type AS campaign_type FROM crm_campaign_members cm JOIN crm_campaigns ca ON ca.id = cm.campaign_id WHERE cm.customer_id = ? ORDER BY cm.created_at DESC LIMIT 10", [customerId]),
       pgAll(`SELECT v.*, p.name AS partner_name FROM crm_customer_vehicles v LEFT JOIN partners p ON p.id = v.partner_id WHERE v.customer_id = ? AND v.deleted_at IS NULL ORDER BY v.created_at DESC`, [customerId]),
@@ -582,13 +629,20 @@ router.get(
           imei1: c.imei_1, imei2: c.imei_2,
           trackerNo1: c.tracker_no_1, trackerNo2: c.tracker_no_2,
           createdByEmail: c.created_by_email, createdAt: c.created_at, status,
+          isExtension: !!c.is_extension,
+          extensionNo: Number(c.extension_no || 0),
+          rootCertId: c.root_cert_id || null,
+          extendedFromCertId: c.extended_from_cert_id || null,
+          priorStartDate: c.prior_start_date || null,
+          priorEndDate: c.prior_end_date || null,
+          extendedAt: c.extended_at || null,
         };
       }),
       campaignMemberships: campaignMemberships.map((cm: any) => ({
         campaignId: cm.campaign_id, campaignName: cm.campaign_name,
         campaignType: cm.campaign_type, status: cm.status, sentAt: cm.sent_at, outcome: cm.outcome,
       })),      vehicles: vehicleRows.map((v: any) => ({
-        id: v.id, vehicleNo: v.vehicle_no, registration: v.registration, make: v.make, model: v.model,
+        id: v.id, vehicleNo: v.vehicle_no, registration: v.registration, registrationKnown: v.registration_known !== false, make: v.make, model: v.model,
         modelNumber: v.model_number, bodyType: v.body_type, color: v.color,
         yearOfManufacture: v.year_of_manufacture, chassisNumber: v.chassis_number,
         engineNumber: v.engine_number, notes: v.notes, createdAt: v.created_at,
@@ -603,7 +657,7 @@ router.get(
 router.patch(
   "/:id",
   requireAuth,
-  requireRole(["Admin", "Sales", "CorporateSales", "Telesales", "FieldSales", "BDM", "BDMCorporate"]),
+  requireRole(["Admin", "CertAdmin", "Sales", "CorporateSales", "Telesales", "FieldSales", "BDM", "BDMCorporate"]),
   async (req: AuthRequest, res) => {
     const now = new Date().toISOString();
     const { status, region, source, notes, accountManagerId, individual, corporate, affiliatePartnerId, secondaryPartnerId, segment } = req.body;
@@ -746,6 +800,34 @@ router.patch(
       }
     }
 
+    // Propagate a renamed customer to the denormalized name copies on operational
+    // records (retail leads + installation tickets), so lists that read those stay in
+    // sync with the profile. Documents (quotes/proformas/invoices) are intentionally
+    // left as issued.
+    const newName = (individual && row.type === "individual" ? individual.fullName : null)
+                 || (corporate && row.type === "corporate" ? corporate.companyName : null);
+    if (newName && String(newName).trim()) {
+      const nm = String(newName).trim();
+      await pgRun(`UPDATE retail_leads SET customer_name = ?, updated_at = ? WHERE customer_id = ?`, [nm, now, req.params.id]).catch(() => {});
+      await pgRun(`UPDATE installation_tickets SET customer_name = ?, updated_at = ? WHERE customer_id = ? AND deleted_at IS NULL`, [nm, now, req.params.id]).catch(() => {});
+    }
+
+    // Same rationale for the contact phone/email: the retail leads grid, its search,
+    // and reports read the denormalized retail_leads.customer_phone / customer_email,
+    // so an edited profile phone/email must be mirrored there or those lists go stale.
+    // (installation_tickets.installation_contact_phone is the on-site contact — a
+    // potentially different person — and is deliberately NOT overwritten here.)
+    const newPhone = (individual && row.type === "individual" ? individual.phone : null)
+                  || (corporate && row.type === "corporate" ? corporate.phone : null);
+    if (newPhone && String(newPhone).trim()) {
+      await pgRun(`UPDATE retail_leads SET customer_phone = ?, updated_at = ? WHERE customer_id = ?`, [String(newPhone).trim(), now, req.params.id]).catch(() => {});
+    }
+    const newEmail = (individual && row.type === "individual" ? individual.email : null)
+                  || (corporate && row.type === "corporate" ? corporate.email : null);
+    if (newEmail && String(newEmail).trim()) {
+      await pgRun(`UPDATE retail_leads SET customer_email = ?, updated_at = ? WHERE customer_id = ?`, [String(newEmail).trim(), now, req.params.id]).catch(() => {});
+    }
+
     auditLog(req, "CRM_CUSTOMER_UPDATED", `crm_customer:${req.params.id}`, "Info", { status, region }).catch(console.error);
     invalidateCustomerCaches();
     const updated = await pgGet("SELECT * FROM crm_customers WHERE id = ?", [req.params.id]);
@@ -773,13 +855,13 @@ router.delete(
 );
 
 // ── Contacts ───────────────────────────────────────────────────────────────────
-router.get("/:id/contacts", requireAuth, requireRole(["Admin", "Sales", "CorporateSales", "Telesales", "FieldSales", "Support", "Finance", "Operations", "BDM", "BDMCorporate"]), async (req: AuthRequest, res) => {
+router.get("/:id/contacts", requireAuth, requireRole(["Admin", "CertAdmin", "Sales", "CorporateSales", "Telesales", "FieldSales", "Support", "Finance", "Operations", "BDM", "BDMCorporate"]), async (req: AuthRequest, res) => {
   const isMasked = req.user!.role === "Support";
   const rows = await pgAll("SELECT * FROM crm_contact_persons WHERE customer_id = ? ORDER BY is_primary DESC", [req.params.id]);
   return ok(res, rows.map((r: any) => decryptContact(r, isMasked)));
 });
 
-router.post("/:id/contacts", requireAuth, requireRole(["Admin", "Sales", "CorporateSales", "Telesales", "FieldSales", "BDM", "BDMCorporate"]), async (req: AuthRequest, res) => {
+router.post("/:id/contacts", requireAuth, requireRole(["Admin", "CertAdmin", "Sales", "CorporateSales", "Telesales", "FieldSales", "BDM", "BDMCorporate"]), async (req: AuthRequest, res) => {
   const now = new Date().toISOString();
   const { name, roleLabel, phone, email, isPrimary, isBilling, isOperations, isConcierge } = req.body;
   if (!name) return errorResponse(res, 400, "VALIDATION_ERROR", "name is required");
@@ -798,7 +880,7 @@ router.post("/:id/contacts", requireAuth, requireRole(["Admin", "Sales", "Corpor
   return created(res, decryptContact(row, false), "Contact added");
 });
 
-router.patch("/:id/contacts/:contactId", requireAuth, requireRole(["Admin", "Sales", "CorporateSales", "Telesales", "FieldSales", "BDM", "BDMCorporate"]), async (req: AuthRequest, res) => {
+router.patch("/:id/contacts/:contactId", requireAuth, requireRole(["Admin", "CertAdmin", "Sales", "CorporateSales", "Telesales", "FieldSales", "BDM", "BDMCorporate"]), async (req: AuthRequest, res) => {
   const now = new Date().toISOString();
   const { name, roleLabel, phone, email, isPrimary, isBilling, isOperations, isConcierge } = req.body;
   const row = await pgGet("SELECT * FROM crm_contact_persons WHERE id = ? AND customer_id = ?", [req.params.contactId, req.params.id]);
@@ -832,7 +914,7 @@ router.patch("/:id/contacts/:contactId", requireAuth, requireRole(["Admin", "Sal
   return ok(res, decryptContact(updated, false), "Contact updated");
 });
 
-router.delete("/:id/contacts/:contactId", requireAuth, requireRole(["Admin", "Sales", "CorporateSales", "Telesales", "FieldSales", "BDM", "BDMCorporate"]), async (req: AuthRequest, res) => {
+router.delete("/:id/contacts/:contactId", requireAuth, requireRole(["Admin", "CertAdmin", "Sales", "CorporateSales", "Telesales", "FieldSales", "BDM", "BDMCorporate"]), async (req: AuthRequest, res) => {
   const row = await pgGet("SELECT id FROM crm_contact_persons WHERE id = ? AND customer_id = ?", [req.params.contactId, req.params.id]);
   if (!row) return errorResponse(res, 404, "NOT_FOUND", "Contact not found");
   await pgRun("DELETE FROM crm_contact_persons WHERE id = ?", [req.params.contactId]);
@@ -842,7 +924,7 @@ router.delete("/:id/contacts/:contactId", requireAuth, requireRole(["Admin", "Sa
 });
 
 // ── Subscriptions ──────────────────────────────────────────────────────────────
-router.get("/:id/subscriptions", requireAuth, requireRole(["Admin", "Sales", "CorporateSales", "Telesales", "FieldSales", "Finance", "Operations", "BDM", "BDMCorporate"]), async (req: AuthRequest, res) => {
+router.get("/:id/subscriptions", requireAuth, requireRole(["Admin", "CertAdmin", "Sales", "CorporateSales", "Telesales", "FieldSales", "Finance", "Operations", "BDM", "BDMCorporate"]), async (req: AuthRequest, res) => {
   const rows = await pgAll("SELECT * FROM crm_subscriptions WHERE customer_id = ? ORDER BY created_at DESC", [req.params.id]);
   return ok(res, rows.map((s: any) => ({
     id: s.id, serviceType: s.service_type, planName: s.plan_name, status: s.status,
@@ -893,7 +975,7 @@ router.post("/:id/devices", requireAuth, requireRole(["Admin", "Sales", "Corpora
 
 // ── Vehicle CRUD ──────────────────────────────────────────────────────────────
 // List vehicles
-router.get("/:id/vehicles", requireAuth, requireRole(["Admin", "Sales", "CorporateSales", "Telesales", "FieldSales", "Support", "Finance", "Operations", "BDM", "BDMCorporate", "Technical"]), async (req: AuthRequest, res) => {
+router.get("/:id/vehicles", requireAuth, requireRole(["Admin", "CertAdmin", "Sales", "CorporateSales", "Telesales", "FieldSales", "Support", "Finance", "Operations", "BDM", "BDMCorporate", "Technical"]), async (req: AuthRequest, res) => {
   const rows = await pgAll(
     `SELECT v.*, p.name AS partner_name
      FROM crm_customer_vehicles v
@@ -903,7 +985,8 @@ router.get("/:id/vehicles", requireAuth, requireRole(["Admin", "Sales", "Corpora
     [req.params.id]
   );
   return ok(res, rows.map((v: any) => ({
-    id: v.id, registration: v.registration, make: v.make, model: v.model,
+    id: v.id, registration: v.registration, registrationKnown: v.registration_known !== false,
+    make: v.make, model: v.model,
     modelNumber: v.model_number, bodyType: v.body_type, color: v.color,
     yearOfManufacture: v.year_of_manufacture, chassisNumber: v.chassis_number,
     engineNumber: v.engine_number, notes: v.notes, createdAt: v.created_at,
@@ -914,19 +997,48 @@ router.get("/:id/vehicles", requireAuth, requireRole(["Admin", "Sales", "Corpora
 });
 
 // Add vehicle
-router.post("/:id/vehicles", requireAuth, requireRole(["Admin", "Sales", "CorporateSales", "Operations"]), async (req: AuthRequest, res) => {
-  const { registration, make, model, modelNumber, bodyType, color, yearOfManufacture, chassisNumber, engineNumber, notes, partnerId, loanTenureMonths, loanStartDate, vehicleCategory } = req.body;
-  if (!registration) return errorResponse(res, 400, "VALIDATION_ERROR", "registration is required");
+router.post("/:id/vehicles", requireAuth, requireRole(["Admin", "CertAdmin", "Sales", "CorporateSales", "Telesales", "FieldSales", "BDM", "BDMCorporate", "Operations"]), async (req: AuthRequest, res) => {
+  const { registration, registrationKnown, make, model, modelNumber, bodyType, color, yearOfManufacture, chassisNumber, engineNumber, notes, partnerId, loanTenureMonths, loanStartDate, vehicleCategory } = req.body;
+  // A registered vehicle is identified by its number plate (registration required);
+  // an unregistered one by its chassis/VIN (chassis required, no plate stored yet).
+  const isRegistered = registrationKnown !== false;
+  const normReg = registration ? String(registration).replace(/\s+/g, '').toUpperCase() : null;
+  const normChassis = chassisNumber ? String(chassisNumber).trim().toUpperCase() : null;
+  if (isRegistered && !normReg) return errorResponse(res, 400, "VALIDATION_ERROR", "Registration is required for a registered vehicle");
+  if (!isRegistered && !normChassis) return errorResponse(res, 400, "VALIDATION_ERROR", "Chassis number is required for an unregistered vehicle");
   const customer = await pgGet("SELECT id FROM crm_customers WHERE id = ? AND deleted_at IS NULL", [req.params.id]);
   if (!customer) return errorResponse(res, 404, "NOT_FOUND", "Customer not found");
+
+  // Duplicate guard — never create a second vehicle record for a plate/chassis that
+  // already exists (any customer). One canonical vehicle per plate is what stops the
+  // duplicate-vehicle problem (and duplicate certificates) from recurring.
+  const dupConds: string[] = [];
+  const dupParams: any[] = [];
+  if (normReg)     { dupConds.push("UPPER(REPLACE(REPLACE(registration,' ',''),'-','')) = ?"); dupParams.push(normReg); }
+  if (normChassis) { dupConds.push("UPPER(REPLACE(chassis_number,' ','')) = ?");               dupParams.push(normChassis); }
+  if (dupConds.length) {
+    const existing = await pgGet(
+      `SELECT id, vehicle_no, registration, chassis_number, customer_id
+         FROM crm_customer_vehicles WHERE (${dupConds.join(" OR ")}) AND deleted_at IS NULL LIMIT 1`,
+      dupParams
+    );
+    if (existing) {
+      const byReg = !!(normReg && String(existing.registration || "").replace(/[\s-]/g, "").toUpperCase() === normReg);
+      const sameCustomer = existing.customer_id === req.params.id;
+      return errorResponse(res, 409, "DUPLICATE_VEHICLE",
+        `A vehicle with this ${byReg ? "registration" : "chassis number"} is already registered${sameCustomer ? " under this customer" : " (under a different customer)"}.`,
+        { existingVehicleId: existing.id, existingCustomerId: existing.customer_id, sameCustomer });
+    }
+  }
+
   const now = new Date().toISOString();
   const id = uuidv4();
   const vehicleNo = IdGenerator.generateId("vehicle");
   await pgRun(
     `INSERT INTO crm_customer_vehicles
-       (id, vehicle_no, customer_id, registration, make, model, model_number, body_type, color, year_of_manufacture, chassis_number, engine_number, notes, partner_id, loan_tenure_months, loan_start_date, vehicle_category, created_by_user_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, vehicleNo, req.params.id, registration.replace(/\s+/g, '').toUpperCase(), make || null, model || null, modelNumber || null, bodyType || null, color || null, yearOfManufacture || null, chassisNumber || null, engineNumber || null, notes || null, partnerId || null, loanTenureMonths ? Number(loanTenureMonths) : null, loanStartDate || null, vehicleCategory || "motor_vehicle", req.user!.id, now, now]
+       (id, vehicle_no, customer_id, registration, registration_known, make, model, model_number, body_type, color, year_of_manufacture, chassis_number, engine_number, notes, partner_id, loan_tenure_months, loan_start_date, vehicle_category, created_by_user_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, vehicleNo, req.params.id, isRegistered ? normReg : null, isRegistered, make || null, model || null, modelNumber || null, bodyType || null, color || null, yearOfManufacture || null, normChassis, engineNumber || null, notes || null, partnerId || null, loanTenureMonths ? Number(loanTenureMonths) : null, loanStartDate || null, vehicleCategory || "motor_vehicle", req.user!.id, now, now]
   );
   invalidateCustomerCaches();
   auditLog(req, "CRM_VEHICLE_ADDED", `crm_vehicle:${id}`, "Info", { registration, make, model }).catch(console.error);
@@ -934,32 +1046,229 @@ router.post("/:id/vehicles", requireAuth, requireRole(["Admin", "Sales", "Corpor
   return created(res, { id: row.id, vehicleNo: row.vehicle_no, registration: row.registration, make: row.make, model: row.model }, "Vehicle added");
 });
 
+// ─── BULK VEHICLE REGISTRATION (CSV) ─────────────────────────────────────────
+// Registering vehicles one form at a time does not scale for a customer bringing
+// in a fleet. The template below is the contract: the same columns the import
+// reads, with the rules written into the file itself so whoever fills it in
+// doesn't have to be told them separately.
+
+const VEHICLE_CSV_COLUMNS = [
+  "registration", "chassis_number", "make", "model", "model_number", "body_type",
+  "color", "year_of_manufacture", "engine_number", "vehicle_category",
+  "partner_name", "loan_tenure_months", "loan_start_date", "notes",
+] as const;
+
+const VEHICLE_CATEGORIES = ["motor_vehicle", "motorcycle", "tractor", "trailers", "tuktuk", "special_equipment"];
+
+/** GET /crm/customers/vehicles/template.csv — the fill-in guide + examples. */
+router.get("/vehicles/template.csv", requireAuth, async (_req: AuthRequest, res) => {
+  const rows = [
+    // Two worked examples: a registered vehicle and one still on chassis only.
+    { registration: "KDA123A", chassis_number: "JTEHA20V500123456", make: "Toyota", model: "Land Cruiser",
+      model_number: "VDJ76", body_type: "SUV", color: "White", year_of_manufacture: "2019",
+      engine_number: "1VD0012345", vehicle_category: "motor_vehicle", partner_name: "NCBA BANK KENYA PLC",
+      loan_tenure_months: "36", loan_start_date: "2026-01-15", notes: "Example row — delete before uploading" },
+    { registration: "", chassis_number: "MR0HA3CD900234567", make: "Isuzu", model: "D-Max",
+      model_number: "", body_type: "PICK UP", color: "Silver", year_of_manufacture: "2024",
+      engine_number: "", vehicle_category: "motor_vehicle", partner_name: "",
+      loan_tenure_months: "", loan_start_date: "", notes: "Not yet plated — chassis only. Delete before uploading" },
+  ];
+  const guide = [
+    "# HOW TO FILL THIS TEMPLATE",
+    "# 1. Delete the two example rows below the header before uploading.",
+    "# 2. One vehicle per row. Only registration OR chassis_number is required:",
+    "#    - plated vehicle  -> put the number plate in registration (spaces are ignored)",
+    "#    - not yet plated  -> leave registration empty and fill chassis_number",
+    "# 3. A plate or chassis already in the system is skipped and reported back, never duplicated.",
+    `# 4. vehicle_category must be one of: ${VEHICLE_CATEGORIES.join(", ")} (blank = motor_vehicle).`,
+    "# 5. partner_name must match a partner already on file (blank = Private / none).",
+    "# 6. loan_start_date format YYYY-MM-DD. loan_tenure_months is a whole number of months.",
+    "# 7. Keep the header row exactly as it is. Extra columns are ignored.",
+    "# Lines starting with # are ignored by the importer.",
+  ].join("\n");
+  const csv = `${guide}\n${buildCsv([...VEHICLE_CSV_COLUMNS], rows as any)}`;
+  return sendCsv(res, "vehicle-registration-template.csv", csv);
+});
+
+/**
+ * POST /crm/customers/:id/vehicles/import — register many vehicles for one
+ * customer from the filled-in template. Every row is checked the same way the
+ * single-vehicle form checks it (plate-or-chassis required, duplicate guard
+ * across ALL customers), and each row's outcome is reported back: a bad row
+ * never stops the good ones.
+ */
+router.post("/:id/vehicles/import", requireAuth, requireRole(["Admin", "CertAdmin", "Sales", "CorporateSales", "Telesales", "FieldSales", "BDM", "BDMCorporate", "Operations"]), async (req: AuthRequest, res) => {
+  const csvText = String((req.body || {}).csv || "");
+  if (!csvText.trim()) return errorResponse(res, 400, "VALIDATION_ERROR", "Upload the filled-in CSV template.");
+  const customer = await pgGet("SELECT id FROM crm_customers WHERE id = ? AND deleted_at IS NULL", [req.params.id]);
+  if (!customer) return errorResponse(res, 404, "NOT_FOUND", "Customer not found");
+
+  // Minimal CSV reader: quoted fields, embedded commas, CRLF, and '#' guide lines.
+  const parseLine = (line: string): string[] => {
+    const out: string[] = []; let cur = ""; let q = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (q) {
+        if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+        else if (ch === '"') q = false;
+        else cur += ch;
+      } else if (ch === '"') q = true;
+      else if (ch === ",") { out.push(cur); cur = ""; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out.map((v) => v.trim());
+  };
+  const lines = csvText.split(/\r?\n/).filter((l) => l.trim() && !l.trimStart().startsWith("#"));
+  if (lines.length < 2) return errorResponse(res, 400, "EMPTY_CSV", "The file has a header but no vehicle rows.");
+  const header = parseLine(lines[0]).map((h) => h.toLowerCase().replace(/\s+/g, "_"));
+  if (!header.includes("registration") && !header.includes("chassis_number")) {
+    return errorResponse(res, 400, "BAD_HEADER", "The header row must keep the template's column names (registration, chassis_number, …).");
+  }
+  const dataLines = lines.slice(1);
+  if (dataLines.length > 500) return errorResponse(res, 400, "TOO_MANY_ROWS", `${dataLines.length} rows — upload 500 or fewer at a time.`);
+
+  const partners = await pgAll<any>("SELECT id, name FROM partners").catch(() => []);
+  const partnerByName = new Map(partners.map((p) => [String(p.name).trim().toLowerCase(), p.id]));
+  const results: any[] = [];
+  const seen = new Set<string>();   // catches duplicates WITHIN the file too
+  let added = 0;
+
+  for (let n = 0; n < dataLines.length; n++) {
+    const cells = parseLine(dataLines[n]);
+    const row: Record<string, string> = {};
+    header.forEach((h, i) => { row[h] = cells[i] ?? ""; });
+    const line = n + 2;   // the row number as the person sees it in their editor
+    const rawReg = row.registration || "";
+    const normReg = rawReg ? rawReg.replace(/\s+/g, "").toUpperCase() : null;
+    const normChassis = row.chassis_number ? row.chassis_number.trim().toUpperCase() : null;
+    const label = normReg || normChassis || "(blank row)";
+    const fail = (reason: string) => results.push({ line, vehicle: label, status: "Skipped", reason });
+
+    if (!normReg && !normChassis) { fail("No registration and no chassis number — one is required."); continue; }
+    const category = (row.vehicle_category || "").trim().toLowerCase() || "motor_vehicle";
+    if (!VEHICLE_CATEGORIES.includes(category)) { fail(`vehicle_category "${row.vehicle_category}" is not one of: ${VEHICLE_CATEGORIES.join(", ")}`); continue; }
+    let partnerId: string | null = null;
+    if (row.partner_name && row.partner_name.trim()) {
+      partnerId = partnerByName.get(row.partner_name.trim().toLowerCase()) ?? null;
+      if (!partnerId) { fail(`partner_name "${row.partner_name}" does not match any partner on file.`); continue; }
+    }
+    const year = row.year_of_manufacture && row.year_of_manufacture.trim() ? Number(row.year_of_manufacture) : null;
+    if (year !== null && (!Number.isFinite(year) || year < 1950 || year > new Date().getFullYear() + 1)) { fail(`year_of_manufacture "${row.year_of_manufacture}" is not a sensible year.`); continue; }
+    const tenure = row.loan_tenure_months && row.loan_tenure_months.trim() ? Number(row.loan_tenure_months) : null;
+    if (tenure !== null && (!Number.isInteger(tenure) || tenure <= 0)) { fail(`loan_tenure_months "${row.loan_tenure_months}" must be a whole number of months.`); continue; }
+    if (row.loan_start_date && row.loan_start_date.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(row.loan_start_date.trim())) { fail(`loan_start_date "${row.loan_start_date}" must be YYYY-MM-DD.`); continue; }
+
+    const key = normReg ? `R:${normReg}` : `C:${normChassis}`;
+    if (seen.has(key)) { fail("The same vehicle appears earlier in this file."); continue; }
+    seen.add(key);
+
+    // Same duplicate guard as the single-vehicle form: one canonical vehicle per plate.
+    const dupConds: string[] = []; const dupParams: any[] = [];
+    if (normReg)     { dupConds.push("UPPER(REPLACE(REPLACE(registration,' ',''),'-','')) = ?"); dupParams.push(normReg); }
+    if (normChassis) { dupConds.push("UPPER(REPLACE(chassis_number,' ','')) = ?");               dupParams.push(normChassis); }
+    const existing = await pgGet<any>(
+      `SELECT id, registration, customer_id FROM crm_customer_vehicles WHERE (${dupConds.join(" OR ")}) AND deleted_at IS NULL LIMIT 1`,
+      dupParams
+    );
+    if (existing) {
+      results.push({ line, vehicle: label, status: "Skipped",
+        reason: existing.customer_id === req.params.id ? "Already registered under this customer." : "Already registered under a different customer.",
+        existingVehicleId: existing.id });
+      continue;
+    }
+
+    const now = new Date().toISOString();
+    const id = uuidv4();
+    const vehicleNo = IdGenerator.generateId("vehicle");
+    await pgRun(
+      `INSERT INTO crm_customer_vehicles
+         (id, vehicle_no, customer_id, registration, registration_known, make, model, model_number, body_type, color, year_of_manufacture, chassis_number, engine_number, notes, partner_id, loan_tenure_months, loan_start_date, vehicle_category, created_by_user_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, vehicleNo, req.params.id, normReg, !!normReg, row.make || null, row.model || null, row.model_number || null,
+       row.body_type || null, row.color || null, year, normChassis, row.engine_number || null, row.notes || null,
+       partnerId, tenure, row.loan_start_date?.trim() || null, category, req.user!.id, now, now]
+    );
+    added++;
+    results.push({ line, vehicle: label, status: "Registered", vehicleId: id, vehicleNo });
+  }
+
+  if (added) invalidateCustomerCaches();
+  auditLog(req, "CRM_VEHICLES_IMPORTED", `crm_customer:${req.params.id}`, "Info",
+    { rows: dataLines.length, added, skipped: dataLines.length - added }).catch(console.error);
+  // ok(res, data, message) already wraps as { data, message } — wrapping again
+  // here buried the counts one level deeper and the UI summary read zeros.
+  return ok(res, { added, skipped: dataLines.length - added, total: dataLines.length, results },
+    `${added} of ${dataLines.length} vehicle(s) registered.`);
+});
+
 // Update vehicle
-router.put("/:id/vehicles/:vid", requireAuth, requireRole(["Admin", "Sales", "CorporateSales", "Operations"]), async (req: AuthRequest, res) => {
-  const { registration, make, model, modelNumber, bodyType, color, yearOfManufacture, chassisNumber, engineNumber, notes, partnerId, loanTenureMonths, loanStartDate, vehicleCategory } = req.body;
-  const row = await pgGet("SELECT id, vehicle_category FROM crm_customer_vehicles WHERE id = ? AND customer_id = ? AND deleted_at IS NULL", [req.params.vid, req.params.id]);
+router.put("/:id/vehicles/:vid", requireAuth, requireRole(["Admin", "CertAdmin", "Sales", "CorporateSales", "Telesales", "FieldSales", "BDM", "BDMCorporate", "Operations"]), async (req: AuthRequest, res) => {
+  const { registration, registrationKnown, make, model, modelNumber, bodyType, color, yearOfManufacture, chassisNumber, engineNumber, notes, partnerId, loanTenureMonths, loanStartDate, vehicleCategory } = req.body;
+  const row = await pgGet("SELECT id, vehicle_category, registration, chassis_number, registration_known FROM crm_customer_vehicles WHERE id = ? AND customer_id = ? AND deleted_at IS NULL", [req.params.vid, req.params.id]);
   if (!row) return errorResponse(res, 404, "NOT_FOUND", "Vehicle not found");
+  // Registered → keyed on plate (registration required); unregistered → keyed on chassis.
+  // When the client omits registrationKnown, keep the vehicle's existing status.
+  const isRegistered = registrationKnown === undefined ? (row.registration_known !== false) : (registrationKnown !== false);
+  const normReg = registration ? String(registration).replace(/\s+/g, '').toUpperCase() : null;
+  const normChassis = chassisNumber ? String(chassisNumber).trim().toUpperCase() : null;
+  const effReg = isRegistered ? (normReg || row.registration) : null;
+  const effChassis = normChassis !== null ? normChassis : row.chassis_number;
+  if (isRegistered && !effReg) return errorResponse(res, 400, "VALIDATION_ERROR", "Registration is required for a registered vehicle");
+  if (!isRegistered && !effChassis) return errorResponse(res, 400, "VALIDATION_ERROR", "Chassis number is required for an unregistered vehicle");
   const now = new Date().toISOString();
   await pgRun(
     `UPDATE crm_customer_vehicles SET
-       registration=?, make=?, model=?, model_number=?, body_type=?, color=?,
+       registration=?, registration_known=?, make=?, model=?, model_number=?, body_type=?, color=?,
        year_of_manufacture=?, chassis_number=?, engine_number=?, notes=?,
        partner_id=?, loan_tenure_months=?, loan_start_date=?, vehicle_category=?, updated_at=?
      WHERE id=?`,
-    [registration ? registration.replace(/\s+/g, '').toUpperCase() : row.registration,
+    [effReg, isRegistered,
      make || null, model || null, modelNumber || null, bodyType || null, color || null,
-     yearOfManufacture || null, chassisNumber || null, engineNumber || null, notes || null,
+     yearOfManufacture || null, effChassis, engineNumber || null, notes || null,
      partnerId || null, loanTenureMonths ? Number(loanTenureMonths) : null, loanStartDate || null,
      vehicleCategory || row.vehicle_category || "motor_vehicle",
      now, req.params.vid]
   );
+  // Harmonize the loan term end-to-end: the retail lead's captured vehicle (which the
+  // Retail Leads list reads) is kept aligned with the customer vehicle registration.
+  await pgRun(
+    `UPDATE retail_lead_vehicles SET loan_term_months = ? WHERE vehicle_id = ?`,
+    [loanTenureMonths != null && loanTenureMonths !== "" ? Number(loanTenureMonths) : null, req.params.vid]
+  ).catch(() => {});
+  // Loan term changed → re-price any bank-financed quote (+ proforma + UNPAID invoice)
+  // for leads on this vehicle, so the price follows the new term instead of staying
+  // frozen at the original. Fire-and-forget; never blocks the vehicle save.
+  if (loanTenureMonths != null && loanTenureMonths !== "") {
+    (async () => {
+      const leadsForVeh = await pgAll<any>(`SELECT DISTINCT lead_id FROM retail_lead_vehicles WHERE vehicle_id = ? AND lead_id IS NOT NULL`, [req.params.vid]).catch(() => [] as any[]);
+      for (const l of leadsForVeh) {
+        const r = await repriceBankFinancedForLead(l.lead_id).catch((e) => { console.error("[reprice] failed:", e?.message); return null; });
+        if (r?.repriced) console.log(`[reprice] ${r.quoteNo}: ${r.oldTotal} → ${r.newTotal} @ ${r.term}mo`);
+      }
+    })();
+  }
+  // Harmonize the registration end-to-end: a vehicle first captured as "Not Registered"
+  // (chassis only) shows its chassis on the Retail Leads list until the plate is added.
+  // Propagate the newly-entered plate to the lead's vehicle + the installation ticket
+  // (normReg computed above). Only runs when a plate was actually provided.
+  if (normReg) {
+    await pgRun(
+      `UPDATE retail_lead_vehicles SET registration = ?, registration_known = TRUE WHERE vehicle_id = ?`,
+      [normReg, req.params.vid]
+    ).catch(() => {});
+    await pgRun(
+      `UPDATE installation_tickets SET vehicle_registration = ?, updated_at = ? WHERE vehicle_id = ? AND deleted_at IS NULL`,
+      [normReg, now, req.params.vid]
+    ).catch(() => {});
+  }
   invalidateCustomerCaches();
   auditLog(req, "CRM_VEHICLE_UPDATED", `crm_vehicle:${req.params.vid}`, "Info", { registration, make, model }).catch(console.error);
   return ok(res, null, "Vehicle updated");
 });
 
 // Remove vehicle (soft delete)
-router.delete("/:id/vehicles/:vid", requireAuth, requireRole(["Admin", "Sales", "CorporateSales"]), async (req: AuthRequest, res) => {
+router.delete("/:id/vehicles/:vid", requireAuth, requireRole(["Admin", "CertAdmin", "Sales", "CorporateSales", "Telesales", "FieldSales", "BDM", "BDMCorporate", "Operations"]), async (req: AuthRequest, res) => {
   const now = new Date().toISOString();
   const row = await pgGet("SELECT id FROM crm_customer_vehicles WHERE id = ? AND customer_id = ? AND deleted_at IS NULL", [req.params.vid, req.params.id]);
   if (!row) return errorResponse(res, 404, "NOT_FOUND", "Vehicle not found");
@@ -1089,6 +1398,10 @@ pgRun(`
     updated_at  TEXT NOT NULL
   )
 `).catch(console.error);
+// Vehicle-specific documents (Log Book, Loan Offer Letter, NTSA Form) carry the
+// crm_customer_vehicles id they belong to; customer-level docs leave it NULL.
+pgRun(`ALTER TABLE customer_documents ADD COLUMN IF NOT EXISTS vehicle_id TEXT`, []).catch(() => {});
+pgRun(`CREATE INDEX IF NOT EXISTS idx_customer_documents_vehicle ON customer_documents(vehicle_id)`, []).catch(() => {});
 
 // ── GET /:id/documents ────────────────────────────────────────────────────────
 router.get(
@@ -1105,6 +1418,7 @@ router.get(
       data: rows.map((r: any) => ({
         id: r.id,
         customerId: r.customer_id,
+        vehicleId: r.vehicle_id || null,
         docType: r.doc_type,
         label: r.label,
         status: r.status,
@@ -1120,6 +1434,34 @@ router.get(
   }
 );
 
+// ── GET /:id/certificates ─────────────────────────────────────────────────────
+// Certificates generated for this customer — linked via certificates.customer_id, or
+// via any of the customer's registered vehicles (crm_vehicle_id) for completeness.
+router.get(
+  "/:id/certificates",
+  requireAuth,
+  requireRole(["Admin", "CertAdmin", "Sales", "CorporateSales", "Telesales", "FieldSales", "Support", "Finance", "Operations", "BDM", "BDMCorporate"]),
+  async (req: AuthRequest, res) => {
+    const cust = await pgGet(`SELECT id FROM crm_customers WHERE id = ? AND deleted_at IS NULL`, [req.params.id]);
+    if (!cust) return errorResponse(res, 404, "NOT_FOUND", "Customer not found.");
+    const rows = await pgAll(
+      `SELECT c.id, c.serial_no, c.template, c.system_type, c.car_registration, c.chassis_number,
+              c.model, c.name, c.start_date, c.end_date, c.created_at
+         FROM certificates c
+        WHERE c.deleted_at IS NULL
+          AND ( c.customer_id = ?
+             OR c.crm_vehicle_id IN (SELECT id FROM crm_customer_vehicles WHERE customer_id = ? AND deleted_at IS NULL) )
+        ORDER BY c.created_at DESC`,
+      [req.params.id, req.params.id]
+    );
+    return ok(res, rows.map((r: any) => ({
+      id: r.id, serialNo: r.serial_no, template: r.template || "finemark", systemType: r.system_type,
+      carRegistration: r.car_registration, chassisNumber: r.chassis_number, model: r.model, name: r.name,
+      startDate: r.start_date, endDate: r.end_date, createdAt: r.created_at,
+    })));
+  }
+);
+
 // ── POST /:id/documents ───────────────────────────────────────────────────────
 router.post(
   "/:id/documents",
@@ -1130,9 +1472,20 @@ router.post(
     const cust = await pgGet(`SELECT id FROM crm_customers WHERE id = ? AND deleted_at IS NULL`, [req.params.id]);
     if (!cust) return errorResponse(res, 404, "NOT_FOUND", "Customer not found.");
 
-    const { docType, label, notes, status } = req.body;
+    const { docType, label, notes, status, vehicleId } = req.body;
     if (!docType?.trim() || !label?.trim())
       return errorResponse(res, 400, "VALIDATION_ERROR", "docType and label are required");
+
+    // Vehicle-specific documents must reference a real vehicle belonging to this customer.
+    let vehId: string | null = null;
+    if (vehicleId?.trim()) {
+      const veh = await pgGet(
+        `SELECT id FROM crm_customer_vehicles WHERE id = ? AND customer_id = ? AND deleted_at IS NULL`,
+        [vehicleId.trim(), req.params.id]
+      );
+      if (!veh) return errorResponse(res, 400, "VALIDATION_ERROR", "vehicleId does not belong to this customer.");
+      vehId = veh.id;
+    }
 
     const file = req.file as Express.Multer.File | undefined;
     const id   = uuidv4();
@@ -1141,10 +1494,10 @@ router.post(
 
     await pgRun(
       `INSERT INTO customer_documents
-         (id, customer_id, doc_type, label, status, notes, file_name, file_path, file_size, mime_type, uploaded_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, customer_id, vehicle_id, doc_type, label, status, notes, file_name, file_path, file_size, mime_type, uploaded_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        id, req.params.id, docType.trim(), label.trim(), docStatus,
+        id, req.params.id, vehId, docType.trim(), label.trim(), docStatus,
         notes?.trim() || null,
         file?.originalname || null,
         file ? `/uploads/lead-attachments/${file.filename}` : null,
@@ -1155,6 +1508,8 @@ router.post(
     );
 
     auditLog(req, "CUSTOMER_DOCUMENT_UPLOADED", `customer:${req.params.id}`, "Info", { docType, label }).catch(console.error);
+    // A Log Book / NTSA attach changes certificate readiness — refresh the cert dashboard.
+    cacheDeleteByPrefix("certificates:dashboard:");
     const row = await pgGet("SELECT * FROM customer_documents WHERE id = ?", [id]);
     return created(res, { data: row }, "Document recorded");
   }
@@ -1177,6 +1532,7 @@ router.delete(
       fs.unlink(abs, () => {});
     }
     await pgRun(`DELETE FROM customer_documents WHERE id = ?`, [req.params.docId]);
+    cacheDeleteByPrefix("certificates:dashboard:");
     auditLog(req, "CUSTOMER_DOCUMENT_DELETED", `customer:${req.params.id}`, "Info", { docId: req.params.docId }).catch(console.error);
     return ok(res, { message: "Document deleted." });
   }

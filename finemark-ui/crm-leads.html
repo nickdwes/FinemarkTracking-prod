@@ -118,8 +118,10 @@
                 <th class="py-2 pr-4 text-left font-semibold">Lead No</th>
                 <th class="py-2 pr-4 text-left font-semibold">Customer</th>
                 <th class="py-2 pr-4 text-left font-semibold">Source</th>
+                <th class="py-2 pr-4 text-left font-semibold">Category</th>
                 <th class="py-2 pr-4 text-left font-semibold">Type</th>
                 <th class="py-2 pr-4 text-left font-semibold">Status</th>
+                <th class="py-2 pr-4 text-left font-semibold">Quotation</th>
                 <th class="py-2 pr-4 text-left font-semibold">Sales Rep</th>
                 <th class="py-2 pr-4 text-left font-semibold">Date</th>
                 <th class="py-2 text-left font-semibold">Flags</th>
@@ -242,11 +244,19 @@
               </div>
             </div>
 
+            <!-- Branch — shown when a bank partner is chosen -->
+            <div id="div-lead-branch" class="sm:col-span-2 hidden">
+              <label class="block text-xs font-semibold text-slate-600 mb-1.5">Branch</label>
+              <input id="field-lead-branch" type="text" placeholder="e.g. Westlands, Mombasa Road, Kisumu"
+                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition" />
+            </div>
+
             <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1.5">Product Category of Interest</label>
+              <label class="block text-xs font-semibold text-slate-600 mb-1.5">Product Category of Interest <span class="text-red-500 font-semibold">*</span></label>
               <select id="field-product-cat" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition">
-                <option value="">— Select category (optional) —</option>
+                <option value="">— Select category —</option>
               </select>
+              <p id="field-product-cat-err" class="hidden text-xs text-red-500 mt-1">Please select a product category of interest.</p>
             </div>
 
             <div>
@@ -500,10 +510,20 @@ async function loadLeads() {
     tbody.innerHTML = data.map(l => `
       <tr class="hover:bg-slate-50 cursor-pointer" data-id="${l.id}">
         <td class="py-2 pr-4 font-mono text-xs text-slate-700">${l.leadNo || "—"}</td>
-        <td class="py-2 pr-4 font-medium">${l.customerName || l.email || "—"}</td>
+        <td class="py-2 pr-4 font-medium">${l.customerId
+          ? `<a href="crm-customer-360.html?id=${encodeURIComponent(l.customerId)}" class="text-blue-600 hover:underline">${l.customerName || l.email || "—"}</a>`
+          : (l.customerName || l.email || "—")}</td>
         <td class="py-2 pr-4 text-slate-600">${l.leadSource}</td>
+        <td class="py-2 pr-4 text-slate-600">${escHtml(l.productCategoryName || "—")}${l.productCategoryNameSecondary ? ` <span class="text-slate-400">/ ${escHtml(l.productCategoryNameSecondary)}</span>` : ""}</td>
         <td class="py-2 pr-4 text-slate-600">${l.customerType === "existing_customer" ? "Existing" : "New"}</td>
         <td class="py-2 pr-4">${statusBadge(l.status)}</td>
+        <td class="py-2 pr-4 whitespace-nowrap">${
+          l.convertedToQuoteId
+            ? `<a href="crm-quote-detail.html?id=${encodeURIComponent(l.convertedToQuoteId)}" onclick="event.stopPropagation()" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800">View Quote →</a>`
+            : l.customerId
+              ? `<a href="crm-quotes.html?leadId=${encodeURIComponent(l.id)}" onclick="event.stopPropagation()" class="text-xs font-semibold text-emerald-600 hover:text-emerald-800">Create &amp; Edit Quote →</a>`
+              : `<span class="text-slate-300" title="Convert the lead to a customer first, then a quote can be created">—</span>`
+        }</td>
         <td class="py-2 pr-4 text-slate-600">${l.salesRepName || l.salesRepEmail || "—"}</td>
         <td class="py-2 pr-4 text-slate-500">${l.leadDate ? new Date(l.leadDate).toLocaleDateString() : "—"}</td>
         <td class="py-2">${(l.warnings && l.warnings.length) ? `<span title="${escHtml(l.warnings.join(' • '))}" class="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 text-[11px] font-semibold">⚠ ${l.warnings.length}</span>` : ""}</td>
@@ -741,7 +761,16 @@ async function openLeadDetail(id) {
     ${row("Customer Type", l.customerType === "new_customer" ? "New Customer" : "Existing Customer")}
     ${row("Sales Rep", l.salesRepName || l.salesRepEmail)}
     <hr class="border-slate-100 my-2"/>
-    ${row("Product Category", l.productCategoryName || "—")}
+    ${(() => {
+      const sec = l.productCategoryNameSecondary ? ` <span class="text-slate-400">/ ${escHtml(l.productCategoryNameSecondary)}</span>` : "";
+      return `<div class="flex gap-2 text-sm items-start">
+        <span class="w-36 shrink-0 text-slate-500">Product Category</span>
+        <span class="flex items-center gap-2 flex-wrap">
+          <span>${escHtml(l.productCategoryName || "—")}${sec}</span>
+          ${_canEdit ? `<button type="button" onclick="openEditCategory('${l.id}','${l.productCategoryId || ""}','${l.productCategoryIdSecondary || ""}')" class="text-xs text-blue-600 hover:underline font-medium">Edit →</button>` : ""}
+        </span>
+      </div>`;
+    })()}
     ${(() => {
       const prods = Array.isArray(l.productsInterested) ? l.productsInterested : [];
       if (!prods.length) return row("Products Interested", "—");
@@ -847,15 +876,21 @@ async function loadConversations(leadId) {
 
   const attachmentHtml = (atts) => {
     if (!atts?.length) return "";
+    // /uploads is auth-gated, so a bare href/src would 401 ("Missing or invalid
+    // authorization header"). Open files via an authed blob fetch (openAttachment)
+    // and load inline media via data-auth-src (hydrated after render).
     return `<div class="flex flex-wrap gap-2 mt-2">${atts.map(a => {
       const url = a.url;
+      const uq = String(url || "").replace(/'/g, "\\'");
+      const name = escHtml(a.originalName || "attachment");
+      const nq = String(a.originalName || "attachment").replace(/'/g, "\\'");
       const isImg = a.mimeType?.startsWith("image/");
       const isAudio = a.mimeType?.startsWith("audio/");
       const isVideo = a.mimeType?.startsWith("video/");
-      if (isImg) return `<a href="${url}" target="_blank" class="block"><img src="${url}" class="h-16 w-16 object-cover rounded-lg border border-slate-200" title="${a.originalName}"/></a>`;
-      if (isAudio) return `<audio controls class="w-full mt-1" src="${url}"></audio>`;
-      if (isVideo) return `<video controls class="w-full rounded-lg mt-1 max-h-40" src="${url}"></video>`;
-      return `<a href="${url}" target="_blank" class="flex items-center gap-1.5 text-xs text-blue-700 bg-blue-50 rounded-lg px-2 py-1 hover:bg-blue-100">${a.originalName}</a>`;
+      if (isImg) return `<a href="#" onclick="openAttachment('${uq}','${nq}');return false;" class="block"><img data-auth-src="${url}" class="h-16 w-16 object-cover rounded-lg border border-slate-200 bg-slate-100" title="${name}"/></a>`;
+      if (isAudio) return `<audio controls class="w-full mt-1" data-auth-src="${url}"></audio>`;
+      if (isVideo) return `<video controls class="w-full rounded-lg mt-1 max-h-40" data-auth-src="${url}"></video>`;
+      return `<a href="#" onclick="openAttachment('${uq}','${nq}');return false;" class="flex items-center gap-1.5 text-xs text-blue-700 bg-blue-50 rounded-lg px-2 py-1 hover:bg-blue-100">📎 ${name}</a>`;
     }).join("")}</div>`;
   };
 
@@ -898,6 +933,38 @@ async function loadConversations(leadId) {
     </div>` : "";
 
   panel.innerHTML = `${form}<div class="space-y-3 ${canLog ? "mt-1" : ""}">${timeline}</div>`;
+  hydrateAuthMedia(panel);
+}
+
+// Open a protected /uploads attachment: a plain link navigates to /uploads with no
+// token and 401s, so fetch it WITH the auth header and open the blob in a new tab.
+async function openAttachment(url, name) {
+  try {
+    const token = window.FINEMARK_APP?.getSession?.()?.accessToken;
+    const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (!res.ok) throw new Error(String(res.status));
+    const blobUrl = URL.createObjectURL(await res.blob());
+    const w = window.open(blobUrl, "_blank");
+    if (!w) { const a = document.createElement("a"); a.href = blobUrl; a.download = name || "attachment"; a.click(); }
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+  } catch {
+    toast?.("Couldn't open the attachment — please re-login and try again.", "error");
+  }
+}
+
+// Load protected /uploads media (image/audio/video) via the auth header, since a
+// bare src= would hit /uploads without a token and fail.
+function hydrateAuthMedia(root) {
+  if (!root) return;
+  const token = window.FINEMARK_APP?.getSession?.()?.accessToken;
+  root.querySelectorAll("[data-auth-src]").forEach(async (el) => {
+    const u = el.getAttribute("data-auth-src");
+    el.removeAttribute("data-auth-src");
+    try {
+      const res = await fetch(u, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (res.ok) el.src = URL.createObjectURL(await res.blob());
+    } catch {}
+  });
 }
 
 // Accepts 07XXXXXXXX, 01XXXXXXXX, 254XXXXXXXXX, +254XXXXXXXXX — matches the
@@ -959,7 +1026,7 @@ async function submitConversation(leadId) {
       convPanel.dataset.loaded = "";
       await loadConversations(leadId);
     } else {
-      if (errEl) { errEl.textContent = data?.message ?? "Failed to save."; errEl.classList.remove("hidden"); }
+      if (errEl) { errEl.textContent = data?.error?.message ?? data?.message ?? "Failed to save."; errEl.classList.remove("hidden"); }
     }
   } catch (e) {
     if (errEl) { errEl.textContent = "Network error. Please try again."; errEl.classList.remove("hidden"); }
@@ -973,10 +1040,13 @@ async function submitConversation(leadId) {
 // mirroring submitConversation()'s POST but callable from a small modal
 // instead of the full inline form. Refreshes the conversations panel if
 // this lead's drawer happens to be the one currently open.
-async function logLeadInteraction(leadId, channel, notes) {
+async function logLeadInteraction(leadId, channel, notes, phone) {
   const fd = new FormData();
   fd.append("notes", notes);
   fd.append("channel", channel);
+  // The SMS popup's number is editable; without this the backend always
+  // texted the lead's phone on file, whatever was typed.
+  if (phone) fd.append("phone", phone);
   fd.append("interactionDate", new Date().toISOString().slice(0, 10));
   const token = window.FINEMARK_APP?.getSession?.()?.accessToken;
   const base = window.FINEMARK_APP?.API_BASE ?? "/api";
@@ -986,7 +1056,9 @@ async function logLeadInteraction(leadId, channel, notes) {
     body: fd,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.message ?? "Failed to save.");
+  // errorResponse() nests the reason under error.message; reading only
+  // data.message hid every server error behind "Failed to save.".
+  if (!res.ok) throw new Error(data?.error?.message ?? data?.message ?? "Failed to save.");
   if (currentDrawerLead?.id === leadId) {
     const convPanel = detailDrawer.querySelector("#dd-conversations");
     if (convPanel) { convPanel.dataset.loaded = ""; await loadConversations(leadId); }
@@ -1034,7 +1106,7 @@ const leadSmsModal = (() => {
     const btn = el.querySelector("#sms-send");
     btn.disabled = true; btn.textContent = "Sending…";
     try {
-      const msg = await logLeadInteraction(_smsLeadId, "SMS", message);
+      const msg = await logLeadInteraction(_smsLeadId, "SMS", message, phone);
       el.classList.add("hidden");
       toast(msg, msg.toLowerCase().includes("but") ? "info" : "success");
     } catch (err) {
@@ -1602,6 +1674,8 @@ function resetModal() {
   $("prod-interest-dropdown").classList.add("hidden");
   $("div-lead-partner").classList.add("hidden");
   $("field-lead-partner").value = "";
+  $("div-lead-branch").classList.add("hidden");
+  $("field-lead-branch").value = "";
   $("field-customer-segment").value = "";
   $("field-expected-close").value = "";
   $("field-product-cat-secondary").value = "";
@@ -1714,6 +1788,8 @@ function handleLeadSourceChange() {
   const src = $("field-source").value.toLowerCase();
   const isPartnership = PARTNERSHIP_SOURCES.includes(src);
   $("div-lead-partner").classList.toggle("hidden", !isPartnership);
+  // Branch only applies to a bank partner, not car-yard / lead-generator partners.
+  $("div-lead-branch").classList.toggle("hidden", src !== "bank partnership");
   if (isPartnership) loadLeadPartners();
 }
 $("field-source").addEventListener("change", handleLeadSourceChange);
@@ -1822,11 +1898,25 @@ $("form-new-lead").addEventListener("submit", async e => {
     productCategoryIdSecondary: $("field-product-cat-secondary").value || null,
     productsInterested: interestedProducts,
     partnerId: $("field-lead-partner").value || null,
+    bankPartnerBranch: $("field-source").value.toLowerCase() === "bank partnership"
+      ? ($("field-lead-branch").value.trim() || null) : null,
     installationFinancer: $("field-financer").value || null,
     customerSegment: $("field-customer-segment").value || null,
     expectedCloseDate: $("field-expected-close").value || null,
   };
   if (!body.expectedCloseDate) { showErr("Expected Close Date is required."); return; }
+  if (!body.productCategoryId) {
+    showErr("Product category of interest is required.");
+    $("field-product-cat-err")?.classList.remove("hidden");
+    $("field-product-cat")?.focus();
+    return;
+  }
+  $("field-product-cat-err")?.classList.add("hidden");
+  if ((body.leadSource || "").toLowerCase() === "bank partnership" && !body.partnerId) {
+    showErr("A partner bank is required for a Bank Partnership lead. (The loan term is captured when registering the vehicle.)");
+    $("field-lead-partner")?.focus();
+    return;
+  }
   if (type === "new_customer") {
     body.customerName = $("field-name").value.trim();
     body.phone = $("field-phone").value.trim();
@@ -1947,6 +2037,92 @@ async function openLinkPartner(leadId, currentId, currentName) {
       partners.map(p => `<option value="${p.id}" ${p.id === currentId ? "selected" : ""}>${escHtml(p.name)}</option>`).join("");
   } catch {
     sel.innerHTML = `<option value="">— Failed to load —</option>`;
+  }
+}
+
+// ── Edit Product Category mini-modal ───────────────────────────────────────
+let _catLeadId = null;
+const editCategoryModal = (() => {
+  const el = document.createElement("div");
+  el.id = "modal-edit-category";
+  el.className = "hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4";
+  el.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-bold text-slate-900">Edit Product Category</h3>
+        <button id="ec-close" class="w-7 h-7 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Product Category of Interest <span class="text-red-500 font-semibold">*</span></label>
+        <select id="ec-primary" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition">
+          <option value="">— Loading… —</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Secondary Product Category</label>
+        <select id="ec-secondary" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition">
+          <option value="">— None —</option>
+        </select>
+      </div>
+      <div id="ec-error" class="hidden text-xs text-red-600"></div>
+      <div class="flex justify-end gap-2">
+        <button id="ec-cancel" class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition">Cancel</button>
+        <button id="ec-save" class="rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-2 text-sm font-semibold text-white transition">Save</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  el.querySelector("#ec-close").onclick = () => el.classList.add("hidden");
+  el.querySelector("#ec-cancel").onclick = () => el.classList.add("hidden");
+  el.querySelector("#ec-save").onclick = async () => {
+    const primEl = el.querySelector("#ec-primary");
+    const secEl = el.querySelector("#ec-secondary");
+    const errEl = el.querySelector("#ec-error");
+    errEl.classList.add("hidden");
+    const productCategoryId = primEl.value;
+    if (!productCategoryId) { errEl.textContent = "Product category of interest is required."; errEl.classList.remove("hidden"); return; }
+    const productCategoryName = primEl.options[primEl.selectedIndex]?.text || "";
+    const secId = secEl.value || null;
+    const secName = secId ? (secEl.options[secEl.selectedIndex]?.text || "") : null;
+    const btn = el.querySelector("#ec-save");
+    btn.disabled = true; btn.textContent = "Saving…";
+    try {
+      const r = await window.FINEMARK_APP.apiFetch(`/crm/leads/${_catLeadId}`, {
+        method: "PATCH",
+        body: { productCategoryId, productCategoryName, productCategoryIdSecondary: secId, productCategoryNameSecondary: secName },
+      });
+      if (!r.ok && !r.data) throw new Error(r.message || "Failed to save.");
+      el.classList.add("hidden");
+      toast("Product category updated", "success");
+      openLeadDetail(_catLeadId);
+      loadLeads();
+    } catch (err) {
+      errEl.textContent = err.message; errEl.classList.remove("hidden");
+    } finally {
+      btn.disabled = false; btn.textContent = "Save";
+    }
+  };
+  return el;
+})();
+
+async function openEditCategory(leadId, currentPrimaryId, currentSecondaryId) {
+  _catLeadId = leadId;
+  const primEl = editCategoryModal.querySelector("#ec-primary");
+  const secEl = editCategoryModal.querySelector("#ec-secondary");
+  editCategoryModal.querySelector("#ec-error").classList.add("hidden");
+  primEl.innerHTML = `<option value="">— Loading… —</option>`;
+  secEl.innerHTML = `<option value="">— None —</option>`;
+  editCategoryModal.classList.remove("hidden");
+  try {
+    const r = await api("/inventory/catalog/categories");
+    const cats = r?.data ?? [];
+    primEl.innerHTML = `<option value="">— Select category —</option>` +
+      cats.map(c => `<option value="${c.id}" ${c.id === currentPrimaryId ? "selected" : ""}>${escHtml(c.name)}</option>`).join("");
+    secEl.innerHTML = `<option value="">— None —</option>` +
+      cats.map(c => `<option value="${c.id}" ${c.id === currentSecondaryId ? "selected" : ""}>${escHtml(c.name)}</option>`).join("");
+  } catch {
+    primEl.innerHTML = `<option value="">— Failed to load —</option>`;
   }
 }
 

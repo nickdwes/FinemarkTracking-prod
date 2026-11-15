@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Vehicle Change Approvals</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    .tab{padding:.4rem .9rem;font-size:.8rem;font-weight:600;border-radius:.5rem;cursor:pointer;color:#475569;}
+    .tab.active{background:#0f172a;color:#fff;}
+    .pill{display:inline-flex;align-items:center;border-radius:9999px;padding:.1rem .55rem;font-size:.68rem;font-weight:600;}
+    .pill-pending{background:#fef9c3;color:#854d0e;}
+    .pill-approved{background:#dcfce7;color:#166534;}
+    .pill-rejected{background:#fee2e2;color:#991b1b;}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-3 sm:p-6 min-w-0 space-y-5">
+
+    <div class="flex flex-wrap items-center gap-3 justify-between">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Vehicle Change Approvals</h1>
+        <p class="text-sm text-slate-500 mt-0.5">Edits to <strong>installed</strong> vehicles are held here for admin review before they are committed to the registry.</p>
+      </div>
+      <button id="btn-refresh" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm hover:bg-slate-50">Refresh</button>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <span id="tab-Pending"  class="tab active"  data-status="Pending">Pending</span>
+      <span id="tab-Approved" class="tab"         data-status="Approved">Approved</span>
+      <span id="tab-Rejected" class="tab"         data-status="Rejected">Rejected</span>
+      <span id="count" class="text-xs text-slate-400 ml-2"></span>
+    </div>
+
+    <div id="list" class="space-y-4"></div>
+    <div id="empty" class="hidden bg-white border border-dashed border-slate-300 rounded-xl py-16 text-center text-sm text-slate-500">
+      No change requests in this state.
+    </div>
+  </main>
+</div>
+
+<div id="fm-footer"></div>
+<script src="assets/app.js?v=202607211200"></script>
+<script src="assets/layout.js?v=202607211200"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  window.FINEMARK_APP?.requirePageAccess?.();
+  init();
+});
+
+const APP = window.FINEMARK_APP;
+let _status = "Pending";
+
+const FIELD_LABELS = {
+  make:"Make", model:"Model", model_number:"Model Number", trim:"Trim / Variant",
+  body_type:"Body Type", color:"Color", year_of_manufacture:"Year", chassis_number:"Chassis No",
+  engine_number:"Engine No", vin:"VIN", registration:"Registration", registration_known:"Registration Known",
+  vehicle_no:"Fleet / Vehicle No", fleet_number:"Fleet Number", asset_code:"Asset Code",
+  fuel_type:"Fuel Type", transmission:"Transmission", odometer:"Odometer (km)",
+  partner_id:"Partner", status:"Status", notes:"Notes", loan_tenure_months:"Loan Tenure (months)",
+  loan_start_date:"Loan Start Date", insurance_details:"Insurance Details",
+  insurance_expiry:"Insurance Expiry", ntsa_status:"NTSA Status",
+};
+const label = (k) => FIELD_LABELS[k] || k.replace(/_/g," ").replace(/\b\w/g, c => c.toUpperCase());
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtDate = (s) => { try { return new Date(s).toLocaleString("en-GB",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}); } catch { return s || "—"; } };
+const showVal = (v) => (v === null || v === undefined || v === "") ? "<span class='text-slate-400 italic'>empty</span>" : esc(v);
+
+function init() {
+  document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => {
+    _status = t.dataset.status;
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+    load();
+  }));
+  document.getElementById("btn-refresh").addEventListener("click", load);
+  load();
+}
+
+async function load() {
+  const listEl = document.getElementById("list");
+  const emptyEl = document.getElementById("empty");
+  listEl.innerHTML = `<div class="text-sm text-slate-400 py-8 text-center">Loading…</div>`;
+  emptyEl.classList.add("hidden");
+  try {
+    const res = await APP.apiFetch(`/vehicles/change-requests?status=${encodeURIComponent(_status)}`);
+    const rows = res?.data || [];
+    document.getElementById("count").textContent = rows.length ? `${rows.length} request${rows.length===1?"":"s"}` : "";
+    if (!rows.length) { listEl.innerHTML = ""; emptyEl.classList.remove("hidden"); return; }
+    listEl.innerHTML = rows.map(renderCard).join("");
+    if (_status === "Pending") {
+      rows.forEach(r => {
+        document.getElementById(`approve-${r.id}`)?.addEventListener("click", () => review(r.id, "approve"));
+        document.getElementById(`reject-${r.id}`)?.addEventListener("click", () => review(r.id, "reject"));
+      });
+    }
+  } catch (e) {
+    listEl.innerHTML = `<div class="text-sm text-red-600 py-8 text-center">${esc(e?.message || "Failed to load")}</div>`;
+  }
+}
+
+function renderCard(r) {
+  const changes = r.changes || {};
+  const rowsHtml = Object.entries(changes).map(([k, c]) => `
+    <tr class="border-t border-slate-100">
+      <td class="py-1.5 pr-4 font-medium text-slate-700">${esc(label(k))}</td>
+      <td class="py-1.5 pr-4 text-slate-500">${showVal(c.from)}</td>
+      <td class="py-1.5 pr-4 text-slate-900 font-medium">${showVal(c.to)}</td>
+    </tr>`).join("");
+  const pillClass = r.status === "Approved" ? "pill-approved" : r.status === "Rejected" ? "pill-rejected" : "pill-pending";
+  const vehLabel = [r.registration, [r.make, r.model].filter(Boolean).join(" ")].filter(Boolean).join(" · ") || "Vehicle";
+  const actions = r.status === "Pending" ? `
+      <div class="flex items-center gap-2 mt-3">
+        <button id="approve-${r.id}" class="rounded-lg bg-emerald-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700">Approve &amp; Apply</button>
+        <button id="reject-${r.id}" class="rounded-lg border border-slate-200 px-4 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Reject</button>
+      </div>` : `
+      <p class="text-xs text-slate-400 mt-3">${esc(r.status)} by ${esc(r.reviewedBy || "—")} · ${fmtDate(r.reviewedAt)}${r.reviewNotes ? " · " + esc(r.reviewNotes) : ""}</p>`;
+  return `
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <a href="vehicle-360.html?id=${encodeURIComponent(r.vehicleId)}" class="font-semibold text-slate-900 hover:text-blue-600">${esc(vehLabel)}</a>
+          <p class="text-xs text-slate-500 mt-0.5">Requested by ${esc(r.requestedBy || "—")} · ${fmtDate(r.requestedAt)}</p>
+        </div>
+        <span class="pill ${pillClass}">${esc(r.status)}</span>
+      </div>
+      <div class="overflow-x-auto mt-3">
+        <table class="min-w-full text-sm">
+          <thead><tr class="text-left text-[11px] uppercase tracking-wide text-slate-400">
+            <th class="py-1 pr-4">Field</th><th class="py-1 pr-4">Current</th><th class="py-1 pr-4">Requested</th>
+          </tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+      ${actions}
+    </div>`;
+}
+
+async function review(id, action) {
+  let notes = null;
+  if (action === "reject") {
+    notes = prompt("Reason for rejecting this change (optional):", "") ;
+    if (notes === null) return; // cancelled
+  }
+  try {
+    await APP.apiFetch(`/vehicles/change-requests/${id}/${action}`, { method: "POST", body: { notes } });
+    APP.showToast?.(action === "approve" ? "Change approved and applied." : "Change rejected.", action === "approve" ? "success" : "info");
+    load();
+  } catch (e) {
+    APP.showToast?.(e?.message || "Action failed", "error");
+  }
+}
+</script>
+</body>
+</html>

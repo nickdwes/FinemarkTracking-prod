@@ -1,24 +1,40 @@
 /**
  * AES-256-GCM encryption/decryption for PII fields.
  * Key is sourced from CRM_ENCRYPTION_KEY env (32-byte hex, 64 hex chars).
- * Falls back to a deterministic dev key if not set (NOT for production).
  *
  * Stored format: "<iv_hex>:<authTag_hex>:<ciphertext_hex>"
  */
 import crypto from "crypto";
 
-const KEY_HEX = process.env.CRM_ENCRYPTION_KEY || "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
 const ALGORITHM = "aes-256-gcm";
 const IV_LEN = 12; // 96-bit IV recommended for GCM
 
-let KEY_BUF: Buffer;
-try {
-  KEY_BUF = Buffer.from(KEY_HEX, "hex");
-  if (KEY_BUF.length !== 32) throw new Error("Key must be 32 bytes (64 hex chars)");
-} catch (e) {
-  console.error("[cryptoService] Invalid CRM_ENCRYPTION_KEY, using insecure dev key:", e);
-  KEY_BUF = Buffer.alloc(32, 0);
+function toKey(hex: string, name: string): Buffer {
+  const buf = Buffer.from(hex, "hex");
+  if (buf.length !== 32) throw new Error(`${name} must be 32 bytes (64 hex chars)`);
+  return buf;
 }
+
+// Primary key — MUST come from the environment. We deliberately do NOT fall back
+// to a built-in key: a silent fallback means production PII ends up "encrypted"
+// under a value that lives in source control. Fail closed instead, exactly like
+// tokens.ts does for JWT_SECRET.
+const PRIMARY_KEY_HEX = process.env.CRM_ENCRYPTION_KEY;
+if (!PRIMARY_KEY_HEX) {
+  throw new Error(
+    "CRM_ENCRYPTION_KEY is required (32-byte hex / 64 chars). Refusing to start — " +
+    "PII must not be encrypted under a source-embedded fallback key."
+  );
+}
+const KEY_BUF = toKey(PRIMARY_KEY_HEX, "CRM_ENCRYPTION_KEY");
+
+// Legacy key — the historical built-in default. Retained ONLY to decrypt values
+// written before the key rotation; it is never used to encrypt new data. Once the
+// re-encryption migration has converted every row it becomes dead code (removable).
+const LEGACY_KEY_BUF = toKey(
+  "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "legacy CRM key",
+);
 
 /**
  * Encrypt a plaintext string → "<iv>:<authTag>:<ciphertext>" all hex.
@@ -39,20 +55,26 @@ export function encryptField(plain: string | null | undefined): string | null {
  */
 export function decryptField(stored: string | null | undefined): string | null {
   if (stored == null || stored === "") return null;
-  try {
-    const parts = stored.split(":");
-    if (parts.length !== 3) return null;
-    const [ivHex, authTagHex, cipherHex] = parts;
-    const iv = Buffer.from(ivHex, "hex");
-    const authTag = Buffer.from(authTagHex, "hex");
-    const ciphertext = Buffer.from(cipherHex, "hex");
-    const decipher = crypto.createDecipheriv(ALGORITHM, KEY_BUF, iv);
-    decipher.setAuthTag(authTag);
-    const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-    return decrypted.toString("utf8");
-  } catch {
-    return null;
+  const parts = stored.split(":");
+  if (parts.length !== 3) return null;
+  const [ivHex, authTagHex, cipherHex] = parts;
+  const iv = Buffer.from(ivHex, "hex");
+  const authTag = Buffer.from(authTagHex, "hex");
+  const ciphertext = Buffer.from(cipherHex, "hex");
+  // Try the current key first, then the legacy key — so data written before the
+  // key rotation stays readable while the re-encryption migration runs (and after,
+  // for any stragglers). GCM's auth tag makes a wrong-key attempt fail cleanly.
+  for (const key of [KEY_BUF, LEGACY_KEY_BUF]) {
+    try {
+      const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+      decipher.setAuthTag(authTag);
+      const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+      return decrypted.toString("utf8");
+    } catch {
+      // wrong key (or corrupt value) — try the next candidate
+    }
   }
+  return null;
 }
 
 /**

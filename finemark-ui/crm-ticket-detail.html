@@ -61,6 +61,17 @@
         <div id="linked-body" class="text-sm space-y-2"></div>
       </div>
 
+      <!-- Full vehicle + job card + installed-device context (Uninstallation / Gadget Issue) -->
+      <div id="context-section" class="hidden card space-y-4">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Vehicle &amp; Installation</p>
+        <div id="ctx-vehicle" class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm"></div>
+        <div id="ctx-jobcard" class="text-sm"></div>
+        <div>
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Devices on Vehicle</p>
+          <div id="ctx-devices" class="overflow-x-auto"></div>
+        </div>
+      </div>
+
       <!-- Description -->
       <div id="desc-card" class="hidden card">
         <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Description</p>
@@ -183,6 +194,10 @@
       <label class="block text-xs font-medium text-slate-600 mb-1">Reason</label>
       <textarea id="sw-reason" rows="2" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Why is this device being replaced?"></textarea>
     </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Removed device retrieved into custody of</label>
+      <select id="sw-custodian" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"><option value="">Loading…</option></select>
+    </div>
     <label class="flex items-center gap-2 text-xs font-medium text-slate-600">
       <input id="sw-sim-toggle" type="checkbox" class="rounded border-slate-300" /> Also swap the SIM
     </label>
@@ -269,6 +284,7 @@
 <div id="modal-complete-uninstall" class="modal">
   <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md space-y-4">
     <h2 class="font-semibold text-slate-900">Complete Uninstallation</h2>
+    <p class="text-xs text-slate-500 -mt-1">Retrieved gadgets go into <strong>your custody</strong> first. Return them to the store from <em>Technician Custody → Awaiting Return</em> once physically handed back.</p>
     <div>
       <label class="block text-xs font-medium text-slate-600 mb-1">Devices Being Removed</label>
       <div id="cu-devices" class="space-y-1.5 text-sm"></div>
@@ -278,11 +294,37 @@
       <div id="cu-sims" class="space-y-1.5 text-sm"></div>
     </div>
     <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Retrieved into custody of</label>
+      <select id="cu-custodian" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"><option value="">Loading…</option></select>
+      <p class="text-[0.7rem] text-slate-400 mt-1">Defaults to the assigned technician; an ISO can direct custody to another technician.</p>
+    </div>
+    <div>
       <label class="block text-xs font-medium text-slate-600 mb-1">Notes</label>
       <textarea id="cu-notes" rows="2" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Optional completion notes"></textarea>
     </div>
     <p id="cu-error" class="hidden text-xs text-red-600"></p>
     <div class="flex justify-end gap-2"><button id="cu-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button><button id="cu-submit" class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white">Complete Uninstallation</button></div>
+  </div>
+</div>
+
+<div id="modal-retrieve" class="modal">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md space-y-4">
+    <h2 class="font-semibold text-slate-900">Retrieve Device into Custody</h2>
+    <p class="text-xs text-slate-500 -mt-1">Pull a faulty gadget off the vehicle into a technician's custody without a replacement. Return it to the store later from <em>My Custody</em>.</p>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Device to Retrieve</label>
+      <select id="rt-device" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"><option value="">Loading…</option></select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Retrieved into custody of</label>
+      <select id="rt-custodian" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"><option value="">Loading…</option></select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Reason</label>
+      <textarea id="rt-reason" rows="2" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Why is this device being retrieved?"></textarea>
+    </div>
+    <p id="rt-error" class="hidden text-xs text-red-600"></p>
+    <div class="flex justify-end gap-2"><button id="rt-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button><button id="rt-submit" class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white">Retrieve Device</button></div>
   </div>
 </div>
 
@@ -375,6 +417,8 @@ function render(res) {
     `;
   }
 
+  loadContext(t);
+
   if (t.description) { $("description").textContent = t.description; $("desc-card").classList.remove("hidden"); }
 
   if (t.openedAt && t.slaBreachAt && t.status !== "Merged") {
@@ -402,14 +446,38 @@ function render(res) {
   renderTimeline(res.actions || []);
 }
 
+// Open an auth-gated /uploads attachment: a plain link 401s ("Missing or invalid
+// authorization header") since the browser sends no token on navigation — fetch it
+// WITH the auth header and open the blob. hydrateAuthMedia does the same for thumbnails.
+async function openAttachment(url, name) {
+  try {
+    const res = await fetch(url, { headers: authHeaders() });
+    if (!res.ok) throw new Error(String(res.status));
+    const blobUrl = URL.createObjectURL(await res.blob());
+    const w = window.open(blobUrl, "_blank");
+    if (!w) { const a = document.createElement("a"); a.href = blobUrl; a.download = name || "file"; a.click(); }
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+  } catch { APP?.showToast?.("Couldn't open the attachment — please re-login and try again.", "error"); }
+}
+function hydrateAuthMedia(root) {
+  if (!root) return;
+  root.querySelectorAll("[data-auth-src]").forEach(async (el) => {
+    const u = el.getAttribute("data-auth-src"); el.removeAttribute("data-auth-src");
+    try { const res = await fetch(u, { headers: authHeaders() }); if (res.ok) el.src = URL.createObjectURL(await res.blob()); } catch {}
+  });
+}
+
 function renderAttachments(attachments) {
   $("attachments").innerHTML = attachments.length ? attachments.map((a) => {
     const isImage = (a.mimetype || "").startsWith("image/");
-    return `<a href="${a.url}" target="_blank" class="block rounded-lg border border-slate-200 overflow-hidden hover:shadow-sm">
-      ${isImage ? `<img src="${a.url}" class="w-full h-20 object-cover" />` : `<div class="w-full h-20 flex items-center justify-center bg-slate-50 text-slate-400 text-2xl">📄</div>`}
+    const uq = String(a.url || "").replace(/'/g, "\\'");
+    const nq = String(a.filename || "file").replace(/'/g, "\\'");
+    return `<a href="#" onclick="openAttachment('${uq}','${nq}');return false;" class="block rounded-lg border border-slate-200 overflow-hidden hover:shadow-sm">
+      ${isImage ? `<img data-auth-src="${a.url}" class="w-full h-20 object-cover bg-slate-50" />` : `<div class="w-full h-20 flex items-center justify-center bg-slate-50 text-slate-400 text-2xl">📄</div>`}
       <p class="px-2 py-1 truncate text-slate-600">${escapeHtml(a.filename)}</p>
     </a>`;
   }).join("") : `<p class="text-slate-400 italic col-span-4">No attachments.</p>`;
+  hydrateAuthMedia($("attachments"));
 }
 
 $("upload-input").addEventListener("change", async (e) => {
@@ -424,7 +492,7 @@ $("upload-input").addEventListener("change", async (e) => {
   e.target.value = "";
 });
 
-const TEAM_TECHNICAL_ROLES = ["Admin", "Technical", "Technician", "InstallOffice"];
+const TEAM_TECHNICAL_ROLES = ["Admin", "Technical", "Technician", "InstallOffice", "technical_manager"];
 const TEAM_FINANCE_ROLES = ["Admin", "Finance"];
 
 function renderActions(t, actions) {
@@ -449,6 +517,9 @@ function renderActions(t, actions) {
     }
     if (t.category === "Uninstallation" && t.team === "Technical" && t.linkedDeviceItemIds?.length && !alreadyUninstalled && TEAM_TECHNICAL_ROLES.includes(role)) {
       buttons.push(`<button class="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800 hover:bg-rose-100" onclick="openCompleteUninstall()">Complete Uninstallation</button>`);
+    }
+    if (t.category === "Gadget Issue" && t.team === "Technical" && TEAM_TECHNICAL_ROLES.includes(role)) {
+      buttons.push(`<button class="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800 hover:bg-rose-100" onclick="openRetrieve()">Retrieve Device</button>`);
     }
     buttons.push(`<button class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50" onclick="openReassign()">Reassign</button>`);
     if (t.category === "Installation" && !t.linkedItNo && (role === "Technical" || role === "Admin")) {
@@ -575,6 +646,7 @@ async function openSwap() {
   $("sw-old-sim").innerHTML = `<option value="">Loading…</option>`;
   $("sw-new-sim").innerHTML = `<option value="">Loading…</option>`;
   $("modal-swap").classList.add("show");
+  loadTechnicianOptions("sw-custodian", _ticket.assignedToUserId);
 
   try {
     const [oldDevices, newDevicesRes] = await Promise.all([
@@ -635,7 +707,7 @@ $("sw-submit").addEventListener("click", async () => {
   if (swapSim && (!oldSimId || !newSimId)) { $("sw-error").textContent = "Select both SIMs, or uncheck “Also swap the SIM”."; $("sw-error").classList.remove("hidden"); return; }
 
   try {
-    await APP.apiFetch(`/crm/tickets/${ticketId}/swap-device`, { method: "POST", body: { oldDeviceItemId, newDeviceItemId, reason, oldSimId, newSimId } });
+    await APP.apiFetch(`/crm/tickets/${ticketId}/swap-device`, { method: "POST", body: { oldDeviceItemId, newDeviceItemId, reason, oldSimId, newSimId, custodianUserId: $("sw-custodian").value || undefined } });
     $("modal-swap").classList.remove("show");
     load();
   } catch (e) { $("sw-error").textContent = e?.message || "Swap failed."; $("sw-error").classList.remove("hidden"); }
@@ -731,6 +803,7 @@ async function openCompleteUninstall() {
   $("cu-devices").innerHTML = `<p class="text-slate-400 text-xs">Loading…</p>`;
   $("cu-sims").innerHTML = `<p class="text-slate-400 text-xs">Loading…</p>`;
   $("modal-complete-uninstall").classList.add("show");
+  loadTechnicianOptions("cu-custodian", _ticket.assignedToUserId);
 
   try {
     const devices = await Promise.all((_ticket.linkedDeviceItemIds || []).map((id) =>
@@ -765,10 +838,88 @@ $("cu-submit").addEventListener("click", async () => {
   if (!deviceItemIds.length) { $("cu-error").textContent = "Select at least one device to remove."; $("cu-error").classList.remove("hidden"); return; }
 
   try {
-    await APP.apiFetch(`/crm/tickets/${ticketId}/complete-uninstallation`, { method: "POST", body: { deviceItemIds, simIds, notes: $("cu-notes").value.trim() || undefined } });
+    await APP.apiFetch(`/crm/tickets/${ticketId}/complete-uninstallation`, { method: "POST", body: { deviceItemIds, simIds, notes: $("cu-notes").value.trim() || undefined, custodianUserId: $("cu-custodian").value || undefined } });
     $("modal-complete-uninstall").classList.remove("show");
     load();
   } catch (e) { $("cu-error").textContent = e?.message || "Failed to complete uninstallation."; $("cu-error").classList.remove("hidden"); }
+});
+
+// ── Retrieved-device context (vehicle + job card + installed devices) ────────
+let _ctx = null;
+
+async function loadTechnicianOptions(selectId, defaultId) {
+  const el = $(selectId);
+  if (!el) return;
+  el.innerHTML = `<option value="">Loading…</option>`;
+  try {
+    const res = await APP.apiFetch("/technical-team/members?role=all");
+    const members = (res.data || []).filter((m) => m.hasUserAccount);
+    el.innerHTML = members.map((m) =>
+      `<option value="${m.id}" data-name="${escapeHtml(m.fullName)}"${m.id === defaultId ? " selected" : ""}>${escapeHtml(m.fullName)} (${escapeHtml(m.jobRoleTitle)})</option>`
+    ).join("") || `<option value="">No technicians found</option>`;
+  } catch { el.innerHTML = `<option value="">Failed to load</option>`; }
+}
+
+async function loadContext(t) {
+  if (!["Uninstallation", "Gadget Issue"].includes(t.category) || !t.vehicleId) return;
+  try {
+    const res = await APP.apiFetch(`/crm/tickets/${ticketId}/context`);
+    _ctx = res.data || {};
+    const v = _ctx.vehicle, inst = _ctx.installation, devs = _ctx.devicesOnVehicle || [];
+    if (!v && !inst && !devs.length) return;
+    $("context-section").classList.remove("hidden");
+    const cell = (label, val) => val ? `<div><p class="text-xs text-slate-400 font-medium">${label}</p><p class="font-semibold text-slate-800 mt-0.5">${escapeHtml(String(val))}</p></div>` : "";
+    $("ctx-vehicle").innerHTML = v ? [
+      cell("Registration", v.registration), cell("Make", v.make), cell("Model", v.model),
+      cell("Year", v.yearOfManufacture), cell("Body", v.bodyType), cell("Category", v.vehicleCategory),
+      cell("Chassis / VIN", v.chassisNumber || v.vin), cell("Engine No", v.engineNumber), cell("Fleet No", v.fleetNumber),
+    ].join("") : `<p class="text-slate-400 italic col-span-3">Vehicle details unavailable.</p>`;
+    $("ctx-jobcard").innerHTML = inst
+      ? `<span class="text-slate-400">Job Card:</span> <a href="job-card.html?id=${inst.id}" class="font-medium text-blue-600 hover:underline">${escapeHtml(inst.jobCardRef || inst.id)}</a>`
+        + (inst.installationLocation ? ` &nbsp;·&nbsp; <span class="text-slate-400">Location:</span> <span class="font-medium">${escapeHtml(inst.installationLocation)}</span>` : "")
+        + (inst.technicianEmail ? ` &nbsp;·&nbsp; <span class="text-slate-400">Installed by:</span> <span class="font-medium">${escapeHtml(inst.technicianEmail)}</span>` : "")
+      : `<span class="text-slate-400 italic">No completed installation job card found for this vehicle.</span>`;
+    $("ctx-devices").innerHTML = devs.length ? `<table class="w-full text-sm">
+      <thead><tr class="text-left text-xs text-slate-400 border-b border-slate-100">
+        <th class="py-1.5 pr-3">Device</th><th class="py-1.5 pr-3">Model</th><th class="py-1.5 pr-3">Serial / IMEI</th><th class="py-1.5 pr-3">SIM</th><th class="py-1.5 pr-3">Mount Position</th><th class="py-1.5 pr-3">Status</th><th class="py-1.5">Target</th></tr></thead>
+      <tbody>${devs.map((d) => `<tr class="border-b border-slate-50 ${d.isTarget ? "bg-rose-50/60" : ""}">
+        <td class="py-1.5 pr-3 font-medium text-slate-700">${escapeHtml(d.productName || "—")}</td>
+        <td class="py-1.5 pr-3 text-slate-500">${escapeHtml(d.deviceModel || "—")}</td>
+        <td class="py-1.5 pr-3 font-mono text-xs">${escapeHtml(d.serialNumber || d.imei || "—")}</td>
+        <td class="py-1.5 pr-3 font-mono text-xs">${escapeHtml(d.simSerial || d.simPhone || "—")}</td>
+        <td class="py-1.5 pr-3 ${d.mountPosition ? "font-medium text-slate-700" : "text-slate-400"}">${escapeHtml(d.mountPosition || "—")}</td>
+        <td class="py-1.5 pr-3"><span class="badge">${escapeHtml(d.status || "—")}</span></td>
+        <td class="py-1.5">${d.isTarget ? `<span class="badge bg-rose-100 text-rose-700 border border-rose-200">Target</span>` : ""}</td></tr>`).join("")}</tbody></table>`
+      : `<p class="text-slate-400 italic text-sm">No devices currently installed on this vehicle.</p>`;
+  } catch { /* context is best-effort */ }
+}
+
+// ── Retrieve Device (Gadget Issue) ───────────────────────────────────────────
+async function openRetrieve() {
+  $("rt-error").classList.add("hidden");
+  $("rt-reason").value = "";
+  $("rt-device").innerHTML = `<option value="">Loading…</option>`;
+  $("modal-retrieve").classList.add("show");
+  loadTechnicianOptions("rt-custodian", _ticket.assignedToUserId);
+  // Prefer the ticket's linked devices; fall back to devices currently on the vehicle.
+  let devs = (_ctx && _ctx.linkedDevices && _ctx.linkedDevices.length) ? _ctx.linkedDevices : (_ctx && _ctx.devicesOnVehicle) || [];
+  devs = devs.filter((d) => d.status === "Installed" || d.isTarget);
+  if (!devs.length && _ctx && _ctx.devicesOnVehicle) devs = _ctx.devicesOnVehicle;
+  $("rt-device").innerHTML = devs.length
+    ? devs.map((d) => `<option value="${d.id}">${escapeHtml(d.serialNumber || d.imei || d.id)} — ${escapeHtml(d.deviceModel || d.productName || "")} (${escapeHtml(d.status || "")})</option>`).join("")
+    : `<option value="">No installed devices found</option>`;
+}
+window.openRetrieve = openRetrieve;
+$("rt-cancel").addEventListener("click", () => $("modal-retrieve").classList.remove("show"));
+$("rt-submit").addEventListener("click", async () => {
+  const deviceItemId = $("rt-device").value;
+  const reason = $("rt-reason").value.trim();
+  if (!deviceItemId) { $("rt-error").textContent = "Select a device to retrieve."; $("rt-error").classList.remove("hidden"); return; }
+  try {
+    await APP.apiFetch(`/crm/tickets/${ticketId}/retrieve-device`, { method: "POST", body: { deviceItemId, reason: reason || undefined, custodianUserId: $("rt-custodian").value || undefined } });
+    $("modal-retrieve").classList.remove("show");
+    load();
+  } catch (e) { $("rt-error").textContent = e?.message || "Failed to retrieve device."; $("rt-error").classList.remove("hidden"); }
 });
 
 function init() { load(); }

@@ -5,6 +5,7 @@ import { requireAuth, AuthRequest } from "../middleware/auth.js";
 import { requireRole, ROLE_GROUPS } from "../middleware/rbac.js";
 import { ok, created, errorResponse } from "../utils/responses.js";
 import { auditLog } from "../services/auditService.js";
+import { isNonStockProduct } from "../services/nonStockProducts.js";
 
 const router = Router();
 
@@ -124,6 +125,18 @@ const DEFAULT_CATS = [
   { code: "SG", prefix: "SG", name: "Speed Governors" },
 ];
 setTimeout(async () => {
+  // Non-inventory categories (services): products are quotable/invoiceable but never stocked.
+  await pgRun(`ALTER TABLE inv_product_categories ADD COLUMN IF NOT EXISTS tracks_inventory BOOLEAN NOT NULL DEFAULT true`, [])
+    .catch(e => console.error("[inv_product_categories] tracks_inventory:", e));
+  const sv = await pgGet("SELECT id FROM inv_product_categories WHERE code = 'SV'", []).catch(() => null);
+  if (!sv) {
+    const now = new Date().toISOString();
+    await pgRun(
+      `INSERT INTO inv_product_categories (id,code,prefix,name,description,tracks_inventory,created_at,updated_at)
+       VALUES (?,?,?,?,?,false,?,?) ON CONFLICT DO NOTHING`,
+      [uuidv4(), "SV", "SV", "Services", "Non-inventory services (installation labour, renewals, relocations, certificates, support). No stock is held.", now, now]
+    ).catch(e => console.error("[inv_product_categories] seed SV:", e));
+  }
   for (const c of DEFAULT_CATS) {
     const exists = await pgGet("SELECT id FROM inv_product_categories WHERE code = ?", [c.code]).catch(() => null);
     if (!exists) {
@@ -161,18 +174,47 @@ router.get("/categories", requireAuth, async (_req, res) => {
 });
 
 router.post("/categories", requireAuth, requireRole(ROLE_GROUPS.INVENTORY_FULL), async (req: AuthRequest, res) => {
-  const { code, prefix, name, description } = req.body;
+  const { code, prefix, name, description, tracksInventory } = req.body;
   if (!code || !prefix || !name)
     return errorResponse(res, 400, "MISSING_FIELD", "code, prefix, and name are required.");
   const now = new Date().toISOString();
   const id = uuidv4();
+  const tracks = tracksInventory === false ? false : true;
+  const dup = await pgGet("SELECT id FROM inv_product_categories WHERE code = ? OR prefix = ?", [code.toUpperCase(), prefix.toUpperCase()]);
+  if (dup) return errorResponse(res, 409, "DUPLICATE", "A category with that code or prefix already exists.");
   await pgRun(
-    `INSERT INTO inv_product_categories (id,code,prefix,name,description,created_at,updated_at) VALUES (?,?,?,?,?,?,?)`,
-    [id, code.toUpperCase(), prefix.toUpperCase(), name, description || null, now, now]
+    `INSERT INTO inv_product_categories (id,code,prefix,name,description,tracks_inventory,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)`,
+    [id, code.toUpperCase(), prefix.toUpperCase(), name, description || null, tracks, now, now]
   );
   const row = await pgGet("SELECT * FROM inv_product_categories WHERE id = ?", [id]);
-  auditLog(req, "INV_CATEGORY_CREATED", "inv_product_categories", "Info", { code }).catch(console.error);
+  auditLog(req, "INV_CATEGORY_CREATED", "inv_product_categories", "Info", { code, tracksInventory: tracks }).catch(console.error);
   return created(res, { data: row }, "Category created.");
+});
+
+/** Edit a category (name/description, and switch inventory tracking).
+ *  Switching OFF is refused while any product in it still holds live stock records. */
+router.patch("/categories/:id", requireAuth, requireRole(ROLE_GROUPS.INVENTORY_FULL), async (req: AuthRequest, res) => {
+  const cat: any = await pgGet("SELECT * FROM inv_product_categories WHERE id = ?", [req.params.id]);
+  if (!cat) return errorResponse(res, 404, "NOT_FOUND", "Category not found.");
+  const { name, description, tracksInventory } = req.body || {};
+  if (tracksInventory === false && cat.tracks_inventory !== false) {
+    const items: any = await pgGet(
+      `SELECT COUNT(*)::int AS n FROM inv_items i JOIN inv_product_catalog p ON p.id = i.product_id
+       WHERE p.category_id = ? AND i.deleted_at IS NULL`, [req.params.id]);
+    if (Number(items?.n) > 0)
+      return errorResponse(res, 409, "HAS_STOCK", `This category has ${items.n} stock record(s). It can't be made a no-inventory category.`);
+  }
+  await pgRun(
+    `UPDATE inv_product_categories SET name = COALESCE(?, name), description = COALESCE(?, description),
+       tracks_inventory = COALESCE(?, tracks_inventory), updated_at = ? WHERE id = ?`,
+    [name || null, description ?? null, typeof tracksInventory === "boolean" ? tracksInventory : null, new Date().toISOString(), req.params.id]
+  );
+  if (tracksInventory === false) {
+    await pgRun(`UPDATE inv_product_catalog SET requires_sim = false, reorder_level = 0, max_stock_level = 0 WHERE category_id = ?`, [req.params.id]);
+  }
+  const row = await pgGet("SELECT * FROM inv_product_categories WHERE id = ?", [req.params.id]);
+  auditLog(req, "INV_CATEGORY_UPDATED", "inv_product_categories", "Info", { id: req.params.id, name, tracksInventory }).catch(console.error);
+  return ok(res, { data: row }, "Category updated.");
 });
 
 // ────────────────────────────────────────────────────────────────────────────────
@@ -352,10 +394,11 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
   const params: any[] = [];
   if (categoryId) { filters.push("p.category_id = ?"); params.push(categoryId); }
   if (active !== undefined) { filters.push("p.active = ?"); params.push(active === "false" ? 0 : 1); }
-  if (q) { filters.push("(p.product_name LIKE ? OR p.product_code LIKE ? OR p.device_model LIKE ?)"); params.push(`%${q}%`, `%${q}%`, `%${q}%`); }
+  if (q) { filters.push("(p.product_name ILIKE ? OR p.product_code ILIKE ? OR p.device_model ILIKE ?)"); params.push(`%${q}%`, `%${q}%`, `%${q}%`); }
   try {
     const rows = await pgAll(
-      `SELECT p.*, c.name as category_name, c.prefix as category_prefix, s.supplier_name
+      `SELECT p.*, c.name as category_name, c.prefix as category_prefix, s.supplier_name,
+              COALESCE(c.tracks_inventory, true) AS tracks_inventory
        FROM inv_product_catalog p
        JOIN inv_product_categories c ON c.id = p.category_id
        LEFT JOIN inv_suppliers s ON s.id = p.supplier_id
@@ -398,10 +441,15 @@ router.post("/", requireAuth, requireRole(ROLE_GROUPS.INVENTORY_FULL), async (re
     keyFeatures, talkingPoints, techSpecs, targetSegment,
     identifierType, quotationDescription, requiresSim,
   } = req.body;
-  if (!categoryId || !productName || !deviceModel)
+  const cat: any = categoryId ? await pgGet("SELECT tracks_inventory FROM inv_product_categories WHERE id = ?", [categoryId]) : null;
+  if (categoryId && !cat) return errorResponse(res, 400, "INVALID_CATEGORY", "Category not found.");
+  const nonStock = cat?.tracks_inventory === false;
+  // Service products have no physical model — default it to the product name.
+  const model = deviceModel || (nonStock ? productName : null);
+  if (!categoryId || !productName || !model)
     return errorResponse(res, 400, "MISSING_FIELD", "categoryId, productName, and deviceModel are required.");
   const VALID_ID_TYPES = ["imei", "serial", "both"];
-  const resolvedIdType = VALID_ID_TYPES.includes(identifierType) ? identifierType : "both";
+  const resolvedIdType = nonStock ? "none" : (VALID_ID_TYPES.includes(identifierType) ? identifierType : "both");
   try {
     const productCode = await nextProductCode(categoryId);
     const now = new Date().toISOString();
@@ -414,14 +462,14 @@ router.post("/", requireAuth, requireRole(ROLE_GROUPS.INVENTORY_FULL), async (re
           max_stock_level,key_features,talking_points,tech_specs,target_segment,identifier_type,
           quotation_description,requires_sim,created_by_user_id,created_at,updated_at)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [id, categoryId, productCode, productName, deviceModel, manufacturer||null, vendor||null,
+      [id, categoryId, productCode, productName, model, manufacturer||null, vendor||null,
        supplierId||null, countryOfOrigin||null, description||null,
-       warrantyMonths||12, installationNotes||null,
+       nonStock ? (warrantyMonths||0) : (warrantyMonths||12), installationNotes||null,
        purchasePrice||null, salePrice||null, installationPrice||null, subscriptionPrice||null,
        maxDiscountPct||10, minMarginPct||20,
-       reorderLevel||5, maxStockLevel||100,
+       nonStock ? 0 : (reorderLevel||5), nonStock ? 0 : (maxStockLevel||100),
        keyFeatures||null, talkingPoints||null, techSpecs||null, targetSegment||null, resolvedIdType,
-       quotationDescription||null, requiresSim === false ? false : true,
+       quotationDescription||null, nonStock ? false : (requiresSim === false ? false : true),
        req.user!.id, now, now]
     );
     const row = await pgGet(
@@ -438,7 +486,8 @@ router.post("/", requireAuth, requireRole(ROLE_GROUPS.INVENTORY_FULL), async (re
 router.get("/:id", requireAuth, async (req, res) => {
   try {
     const row = await pgGet(
-      `SELECT p.*, c.name as category_name, c.prefix as category_prefix, s.supplier_name
+      `SELECT p.*, c.name as category_name, c.prefix as category_prefix, s.supplier_name,
+              COALESCE(c.tracks_inventory, true) AS tracks_inventory
        FROM inv_product_catalog p
        JOIN inv_product_categories c ON c.id = p.category_id
        LEFT JOIN inv_suppliers s ON s.id = p.supplier_id
@@ -492,6 +541,9 @@ router.patch("/:id", requireAuth, requireRole(ROLE_GROUPS.INVENTORY_FULL), async
      requiresSim !== undefined ? (requiresSim ? true : false) : null,
      now, req.params.id]
   );
+  if (await isNonStockProduct(req.params.id)) {
+    await pgRun(`UPDATE inv_product_catalog SET requires_sim = false, identifier_type = 'none', reorder_level = 0, max_stock_level = 0 WHERE id = ?`, [req.params.id]);
+  }
   auditLog(req, "INV_PRODUCT_UPDATED", "inv_product_catalog", "Info", { id: req.params.id }).catch(console.error);
   return ok(res, null, "Product updated.");
 });

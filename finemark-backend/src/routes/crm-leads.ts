@@ -90,6 +90,7 @@ setTimeout(async () => {
     "products_interested TEXT NOT NULL DEFAULT '[]'",
     "partner_id TEXT",
     "partner_name TEXT",
+    "bank_partner_branch TEXT",
     "assigned_to_id TEXT",
     "assigned_to_email TEXT",
     "lead_owner_role TEXT",
@@ -259,6 +260,7 @@ function mapLead(row: any) {
     productsInterested: (() => { try { return JSON.parse(row.products_interested || "[]"); } catch { return []; } })(),
     partnerId: row.partner_id,
     partnerName: row.partner_name,
+    bankPartnerBranch: row.bank_partner_branch || null,
     assignedToId: row.assigned_to_id,
     assignedToEmail: row.assigned_to_email,
     leadOwnerRole: row.lead_owner_role,
@@ -532,7 +534,7 @@ router.post(
       customerId, customerName, email, phone, idNumber,
       companyName, address, accountManagerId,
       productCategoryId, productCategoryIdSecondary, productsInterested = [],
-      partnerId, fleetSize, installationFinancer,
+      partnerId, bankPartnerBranch, fleetSize, installationFinancer,
       locationName, installationCounty, installationContactName, installationContactPhone,
       locationDescription, locationNotes, vehicles = [],
       customerSegment, expectedCloseDate,
@@ -544,6 +546,14 @@ router.post(
     // (vehicle-register.html) — no longer required at lead capture.
     if (!expectedCloseDate)
       return errorResponse(res, 400, "MISSING_FIELD", "expectedCloseDate is required.");
+    // Product category of interest is mandatory — every lead must record which
+    // product category it is for (mirrors the retail-lead rule).
+    if (!productCategoryId)
+      return errorResponse(res, 400, "MISSING_FIELD", "A product category of interest is required.");
+    // A Bank Partnership lead must name the partner bank it came through (the loan
+    // term is captured later, at vehicle registration — enforced on /vehicles).
+    if ((leadSource || "").toLowerCase() === "bank partnership" && !partnerId)
+      return errorResponse(res, 400, "MISSING_FIELD", "A partner bank is required for a Bank Partnership lead.");
     if (customerSegment && !CUSTOMER_SEGMENTS.includes(customerSegment))
       return errorResponse(res, 400, "INVALID_FIELD", `customerSegment must be one of: ${CUSTOMER_SEGMENTS.join(", ")}.`);
     // Only applies to new_customer — an existing_customer lead's contact info
@@ -619,12 +629,12 @@ router.post(
          (id, lead_no, lead_source, customer_type, service_requested, sales_rep_id, sales_rep_email,
           lead_date, lead_notes, status, customer_id, customer_name, email, phone, id_number,
           company_name, address, account_manager_id, product_category_id, product_category_name,
-          products_interested, partner_id, partner_name, created_by_user_id, lead_owner_role, fleet_size,
+          products_interested, partner_id, partner_name, bank_partner_branch, created_by_user_id, lead_owner_role, fleet_size,
           segment, installation_financer, location_name, installation_county,
           installation_contact_name, installation_contact_phone, location_description, location_notes,
           product_category_id_secondary, product_category_name_secondary, customer_segment, expected_close_date,
           created_at, updated_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         id, leadNo, leadSource, customerType,
         JSON.stringify(Array.isArray(serviceRequested) ? serviceRequested : [serviceRequested]),
@@ -634,7 +644,7 @@ router.post(
         idNumber || null, companyName || null, address || null, accountManagerId || null,
         productCategoryId || null, productCategoryName,
         JSON.stringify(Array.isArray(productsInterested) ? productsInterested : []),
-        partnerId || null, resolvedPartnerName,
+        partnerId || null, resolvedPartnerName, bankPartnerBranch || null,
         req.user!.id, req.user!.role, fleetSizeVal,
         // Segment is always "Corporate" for leads raised through this route —
         // hard-enforced server-side regardless of what the client sends.
@@ -717,8 +727,16 @@ router.patch(
   async (req: AuthRequest, res) => {
     const lead = await pgGet("SELECT * FROM crm_leads WHERE id = ? AND deleted_at IS NULL", [req.params.id]);
     if (!lead) return errorResponse(res, 404, "NOT_FOUND", "Lead not found.");
-    // Non-admin/BDM can only edit leads they created or are assigned to
-    const canEdit = req.user!.role === "Admin"
+    // Managers work the whole book: Admin, BDM and BDMCorporate may edit and
+    // (re)assign ANY lead. Previously a BDM reached only their own reports'
+    // leads and BDMCorporate only corporate-owned ones, so handing a retail
+    // lead to a rep was impossible. Everyone else still needs to own the lead
+    // or be its assignee. (qualify/disqualify/convert keep the narrower
+    // bdmCanManageLead rule.)
+    const ASSIGNMENT_FIELDS = ["salesRepId", "salesRepEmail", "assignedToId", "assignedToEmail"];
+    const bodyKeys = Object.keys(req.body || {}).filter((k) => req.body[k] !== undefined);
+    const isAssigner = ["Admin", "BDM", "BDMCorporate"].includes(req.user!.role);
+    const canEdit = isAssigner
       || await bdmCanManageLead(req.user!.role, req.user!.id, lead)
       || lead.sales_rep_id === req.user!.id
       || lead.assigned_to_id === req.user!.id;
@@ -729,14 +747,16 @@ router.patch(
       "customer_name","email","phone","id_number","company_name","address","account_manager_id",
       "partner_id","partner_name",
       // Stage One (capture) fields, editable post-creation
+      "product_category_id","product_category_name",
       "product_category_id_secondary","product_category_name_secondary","customer_segment","expected_close_date",
       // Stage Two (vehicle registration & installation) fields — moved off the New Lead
       // form onto vehicle-register.html, persisted back onto the lead via this route
       "location_name","installation_county","installation_contact_name","installation_contact_phone",
       "location_description","location_notes","fleet_size",
     ];
-    // Admin and BDM roles can reassign the working rep via PATCH
-    if (["Admin", "BDM", "BDMCorporate"].includes(req.user!.role)) allowed.push("assigned_to_id", "assigned_to_email");
+    // Admin and BDM roles can reassign the lead via PATCH — both the owning rep
+    // (sales_rep_id, what the assignment tool sends) and the working assignee.
+    if (isAssigner) allowed.push("assigned_to_id", "assigned_to_email", "sales_rep_id", "sales_rep_email");
     const updates: string[] = [];
     const vals: any[] = [];
 
@@ -744,6 +764,11 @@ router.patch(
     if (req.body.partnerId && !req.body.partnerName) {
       const p = await pgGet("SELECT name FROM partners WHERE id = ? AND deleted_at IS NULL", [req.body.partnerId]);
       req.body.partnerName = p?.name ?? "";
+    }
+    // Auto-resolve the primary product category name when only the ID is provided
+    if (req.body.productCategoryId && !req.body.productCategoryName) {
+      const c = await pgGet("SELECT name FROM inv_product_categories WHERE id = ?", [req.body.productCategoryId]);
+      req.body.productCategoryName = c?.name ?? "";
     }
     // Auto-resolve the secondary product category name when only the ID is provided
     if (req.body.productCategoryIdSecondary && !req.body.productCategoryNameSecondary) {
@@ -764,7 +789,12 @@ router.patch(
 
     await pgRun(`UPDATE crm_leads SET ${updates.join(", ")} WHERE id = ?`, vals);
     const updated = await pgGet("SELECT * FROM crm_leads WHERE id = ?", [req.params.id]);
-    auditLog(req, "LEAD_UPDATED", "crm_leads", "Info", { leadId: req.params.id }).catch(console.error);
+    const reassigned = bodyKeys.some((k) => ASSIGNMENT_FIELDS.includes(k));
+    auditLog(req, reassigned ? "LEAD_REASSIGNED" : "LEAD_UPDATED", "crm_leads", "Info",
+      reassigned
+        ? { leadId: req.params.id, leadNo: lead.lead_no, fromSalesRepId: lead.sales_rep_id,
+            toSalesRepId: req.body.salesRepId ?? undefined, toAssignedToId: req.body.assignedToId ?? undefined }
+        : { leadId: req.params.id }).catch(console.error);
     return ok(res, { data: mapLead(updated!) });
   }
 );
@@ -845,9 +875,13 @@ router.post(
       // customer instead of inserting a duplicate. The interactive "Add
       // Customer" form (crm-customers.ts POST /register) is the one place
       // that blocks and asks a human to confirm/override instead.
-      const dupMatches = await findDuplicateCustomers({
-        name: lead.company_name || lead.customer_name, phone: lead.phone, email: lead.email,
-      });
+      const dupMatches = await findDuplicateCustomers(
+        { name: lead.company_name || lead.customer_name, phone: lead.phone, email: lead.email },
+        undefined,
+        // A company name is specific enough to link on alone — prevents the same
+        // corporate customer being recreated across repeat leads. Individuals stay strict.
+        { nameOnly: !!lead.company_name },
+      );
 
       if (dupMatches.length) {
         targetCustomerId = dupMatches[0].customerId;
@@ -973,22 +1007,29 @@ router.post(
   async (req: AuthRequest, res) => {
     const lead = await pgGet("SELECT id, phone, customer_id, customer_name, sales_rep_id, assigned_to_id FROM crm_leads WHERE id = ? AND deleted_at IS NULL", [req.params.id]);
     if (!lead) return errorResponse(res, 404, "NOT_FOUND", "Lead not found.");
-    if (req.user!.role !== "Admin" && lead.sales_rep_id !== req.user!.id && lead.assigned_to_id !== req.user!.id)
-      return errorResponse(res, 403, "FORBIDDEN", "Access denied.");
+    // Same rule as GET /:id/conversations. This used a raw `role !== "Admin"`
+    // check, so BDM/BDMCorporate/Executive could open a lead's drawer but got
+    // a 403 logging a conversation or sending an SMS from it.
+    if (!hasCrmFullVisibility(req.user!.role) && lead.sales_rep_id !== req.user!.id && lead.assigned_to_id !== req.user!.id)
+      return errorResponse(res, 403, "FORBIDDEN", "You can only log conversations on your own leads.");
     const { notes, channel = "Phone call", interactionDate } = req.body;
     if (!notes?.trim()) return errorResponse(res, 400, "MISSING_FIELD", "notes is required.");
 
     // Logging an SMS interaction actually sends the SMS via Telkosh — the log
     // is meant to reflect a real outbound message, not just a note-to-self.
+    // The quick-send popup lets the user edit the number (prefilled from the
+    // lead), so honour it; the full interaction form sends none and falls back
+    // to the lead's phone on file.
+    const smsTo = String(req.body.phone || "").trim() || lead.phone;
     let sendWarning: string | null = null;
     if (channel === "SMS") {
-      if (!lead.phone) {
+      if (!smsTo) {
         sendWarning = "Logged, but this lead has no phone number on file — SMS was not sent.";
       } else if (!isSmsConfigured()) {
         sendWarning = "Logged, but SMS is not configured.";
       } else {
         try {
-          const results = await sendSms([lead.phone], notes.trim());
+          const results = await sendSms([smsTo], notes.trim());
           if (!results.some(r => r.status === "Success")) sendWarning = "Logged, but the SMS failed to send.";
         } catch (err: any) {
           sendWarning = "Logged, but the SMS failed to send.";
@@ -1040,7 +1081,7 @@ router.post(
     }
 
     const row = await pgGet("SELECT * FROM crm_lead_conversations WHERE id = ?", [id]);
-    return created(res, { data: mapConversation(row) }, sendWarning || (channel === "SMS" ? "SMS sent and logged." : "Conversation logged."));
+    return created(res, { data: mapConversation(row) }, sendWarning || (channel === "SMS" ? `SMS sent to ${smsTo} and logged.` : "Conversation logged."));
   }
 );
 
@@ -1054,8 +1095,8 @@ router.post(
   async (req: AuthRequest, res) => {
     const lead = await pgGet("SELECT id, sales_rep_id, assigned_to_id FROM crm_leads WHERE id = ? AND deleted_at IS NULL", [req.params.id]);
     if (!lead) return errorResponse(res, 404, "NOT_FOUND", "Lead not found.");
-    if (req.user!.role !== "Admin" && lead.sales_rep_id !== req.user!.id && lead.assigned_to_id !== req.user!.id)
-      return errorResponse(res, 403, "FORBIDDEN", "Access denied.");
+    if (!hasCrmFullVisibility(req.user!.role) && lead.sales_rep_id !== req.user!.id && lead.assigned_to_id !== req.user!.id)
+      return errorResponse(res, 403, "FORBIDDEN", "You can only add documents to your own leads.");
 
     const { label, notes } = req.body;
     if (!label?.trim()) return errorResponse(res, 400, "MISSING_FIELD", "label is required.");

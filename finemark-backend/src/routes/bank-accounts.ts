@@ -8,15 +8,28 @@ import { pgAll, pgGet, pgRun } from "../db.js";
 
 const router = Router();
 
+// Partner-linked payment details + M-Pesa support. These auto-populate the payment
+// section of quotes/proformas/invoices (see utils/paymentDetails.ts).
+pgRun(`ALTER TABLE bank_accounts ADD COLUMN IF NOT EXISTS partner_id TEXT`, []).catch(() => {});
+pgRun(`ALTER TABLE bank_accounts ADD COLUMN IF NOT EXISTS payee_name TEXT`, []).catch(() => {});
+pgRun(`ALTER TABLE bank_accounts ADD COLUMN IF NOT EXISTS branch_code TEXT`, []).catch(() => {});
+pgRun(`ALTER TABLE bank_accounts ADD COLUMN IF NOT EXISTS payment_instructions TEXT`, []).catch(() => {});
+pgRun(`ALTER TABLE bank_accounts ADD COLUMN IF NOT EXISTS payment_method TEXT NOT NULL DEFAULT 'bank'`, []).catch(() => {});
+
 const createSchema = z.object({
   accountName:    z.string().min(1),
   bankName:       z.string().min(1),
   accountNumber:  z.string().min(1),
   branch:         z.string().nullable().optional(),
-  accountType:    z.enum(["Current", "Savings", "Fixed Deposit", "Mobile Money"]).optional().default("Current"),
+  accountType:    z.enum(["Current", "Savings", "Fixed Deposit", "Mobile Money", "Paybill", "Till"]).optional().default("Current"),
   currency:       z.string().optional().default("KES"),
   openingBalance: z.number().optional().default(0),
   notes:          z.string().nullable().optional(),
+  partnerId:            z.string().nullable().optional(),
+  payeeName:            z.string().nullable().optional(),
+  branchCode:          z.string().nullable().optional(),
+  paymentInstructions: z.string().nullable().optional(),
+  paymentMethod:       z.enum(["bank", "mpesa"]).optional().default("bank"),
 });
 
 const updateSchema = createSchema.partial().extend({
@@ -36,6 +49,12 @@ function mapRow(r: any) {
     currentBalance: Number(r.current_balance),
     isActive:       r.is_active,
     notes:          r.notes || null,
+    partnerId:            r.partner_id || null,
+    partnerName:         r.partner_name || null,
+    payeeName:           r.payee_name || null,
+    branchCode:          r.branch_code || null,
+    paymentInstructions: r.payment_instructions || null,
+    paymentMethod:       r.payment_method || "bank",
     createdBy:      r.created_by || null,
     createdAt:      r.created_at,
     updatedAt:      r.updated_at,
@@ -45,12 +64,13 @@ function mapRow(r: any) {
 // GET /api/bank-accounts
 router.get("/", requireAuth, requireRole(ROLE_GROUPS.FINANCE_AMEND), async (_req, res) => {
   const rows = await pgAll(`
-    SELECT ba.*,
+    SELECT ba.*, pt.name AS partner_name,
       COALESCE((
         SELECT SUM(p.amount) FROM payments p
         WHERE p.bank = ba.bank_name AND p.status = 'Completed'
       ), 0) AS payments_received
     FROM bank_accounts ba
+    LEFT JOIN partners pt ON pt.id::text = ba.partner_id
     ORDER BY ba.is_active DESC, ba.bank_name, ba.account_name
   `);
   // Sync current_balance = opening + payments received
@@ -75,9 +95,10 @@ router.post("/", requireAuth, requireRole(ROLE_GROUPS.FINANCE_AMEND), async (req
   if (existing) return errorResponse(res, 409, "CONFLICT", "An account with this number already exists");
 
   await pgRun(`
-    INSERT INTO bank_accounts (account_name, bank_name, account_number, branch, account_type, currency, opening_balance, current_balance, notes, created_by)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$7,$8,$9)
-  `, [d.accountName, d.bankName, d.accountNumber, d.branch || null, d.accountType, d.currency, d.openingBalance, d.notes || null, req.user!.email]);
+    INSERT INTO bank_accounts (account_name, bank_name, account_number, branch, account_type, currency, opening_balance, current_balance, notes, created_by, partner_id, payee_name, branch_code, payment_instructions, payment_method)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$7,$8,$9,$10,$11,$12,$13,$14)
+  `, [d.accountName, d.bankName, d.accountNumber, d.branch || null, d.accountType, d.currency, d.openingBalance, d.notes || null, req.user!.email,
+      d.partnerId || null, d.payeeName || null, d.branchCode || null, d.paymentInstructions || null, d.paymentMethod || "bank"]);
 
   const created = await pgGet("SELECT * FROM bank_accounts WHERE account_number = $1", [d.accountNumber]);
   auditLog(req, "BANK_ACCOUNT_CREATED", `bank_account:${created?.id}`, "Info", { accountName: d.accountName, bankName: d.bankName }).catch(console.error);
@@ -107,6 +128,11 @@ router.patch("/:id", requireAuth, requireRole(ROLE_GROUPS.FINANCE_AMEND), async 
   if (d.openingBalance !== undefined) add("opening_balance", d.openingBalance);
   if (d.notes         !== undefined) add("notes",           d.notes || null);
   if (d.isActive      !== undefined) add("is_active",       d.isActive);
+  if (d.partnerId            !== undefined) add("partner_id",           d.partnerId || null);
+  if (d.payeeName            !== undefined) add("payee_name",           d.payeeName || null);
+  if (d.branchCode           !== undefined) add("branch_code",          d.branchCode || null);
+  if (d.paymentInstructions  !== undefined) add("payment_instructions", d.paymentInstructions || null);
+  if (d.paymentMethod        !== undefined) add("payment_method",       d.paymentMethod);
   add("updated_at", new Date().toISOString());
   params.push(req.params.id);
 

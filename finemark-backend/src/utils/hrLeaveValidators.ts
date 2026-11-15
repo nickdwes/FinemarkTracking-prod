@@ -66,7 +66,7 @@ export const recalculateBalanceSchema = z.object({
 
 // ── QUERIES ───────────────────────────────────────────────────────────────────
 export const listApplicationsQuerySchema = z.object({
-  status: z.enum(["Pending", "Approved", "Rejected", "Cancelled"]).optional(),
+  status: z.enum(["Pending", "PendingL2", "Approved", "Rejected", "Cancelled"]).optional(),
   employeeId: z.string().optional(),
   leaveTypeId: z.string().optional(),
   from: z.string().optional(),

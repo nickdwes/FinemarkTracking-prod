@@ -21,7 +21,8 @@ import { decryptField } from "./cryptoService.js";
 import { createNotification } from "../routes/notifications.js";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const TAX_RATE   = 16; // Standard KRA VAT %
+// NB: partner pricing (device & bank-financed) is quoted VAT-INCLUSIVE, so auto-
+// generated quotes/proformas carry tax_rate = 0 and do not add VAT on top.
 const PORTAL_BASE = (process.env.FRONTEND_URL || "https://portal.finemarktracking.co.ke").replace(/\/$/, "");
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -71,7 +72,7 @@ async function insertQuoteItems(
       device.serial_number ? `SN: ${device.serial_number}` : null,
       1, devicePrice, devicePrice,
       device.id,
-      JSON.stringify([device.id]),
+      JSON.stringify(device.id ? [device.id] : []),
       JSON.stringify(device.serial_number ? [device.serial_number] : []),
       JSON.stringify(device.imei         ? [device.imei]          : []),
       device.product_id || null,
@@ -173,19 +174,68 @@ export async function materializeRetailQuoteForTicket(
     [ticketId]
   );
   if (!ticket) throw new Error(`[retailQuoteAuto] Ticket ${ticketId} not found`);
-  if (!ticket.assigned_device_id) throw new Error(`[retailQuoteAuto] Ticket ${ticketId} has no assigned device`);
 
-  // ── 2. Load device + product catalog row ──────────────────────────────────
-  const device = await pgGet(
-    `SELECT i.id, i.serial_number, i.imei, i.product_id,
-            p.product_name, p.product_code,
-            p.device_model AS product_model
-     FROM inv_items i
-     LEFT JOIN inv_product_catalog p ON p.id = i.product_id
-     WHERE i.id = ?`,
-    [ticket.assigned_device_id]
-  );
-  if (!device) throw new Error(`[retailQuoteAuto] Device ${ticket.assigned_device_id} not found`);
+  // ── 1b. Bank-financed partners are owned by materializeBankFinancedQuoteForLead() ──
+  // Their price is a flat annual charge from bank_financed_pricing, independent of
+  // the device. Generating a per-device quote here (priced from partner_product_pricing,
+  // which has no row for a bank) produced a DUPLICATE, usually-zero quote → proforma →
+  // invoice chain. So for a bank-financed partner, do NOT build the per-device chain;
+  // ensure the bank-financed Draft quote exists and return it instead.
+  const bankPartnerId = ticket.lead_partner_id || ticket.customer_partner_id || null;
+  if (bankPartnerId) {
+    const isBankFinanced = await pgGet(
+      `SELECT 1 AS ok FROM bank_financed_pricing WHERE partner_id::text = ? LIMIT 1`,
+      [String(bankPartnerId)]
+    ).catch(() => null);
+    if (isBankFinanced) {
+      let bq = ticket.retail_lead_id
+        ? await pgGet<{ id: string; quote_no: string }>(
+            `SELECT id, quote_no FROM crm_quotes
+             WHERE lead_id = ? AND service_type = 'Bank Financed Vehicle Tracking Installation'
+               AND deleted_at IS NULL
+             ORDER BY created_at DESC LIMIT 1`,
+            [ticket.retail_lead_id]
+          ).catch(() => null)
+        : null;
+      if (!bq && ticket.retail_lead_id) {
+        const madeBank = await materializeBankFinancedQuoteForLead(ticket.retail_lead_id, actor).catch(() => null);
+        if (madeBank) bq = { id: madeBank.quoteId, quote_no: madeBank.quoteNo };
+      }
+      if (bq) {
+        return { quoteId: bq.id, quoteNo: bq.quote_no, proformaId: "", proformaNo: "", isNew: false, pricingMissing: false };
+      }
+      // No lead context to build/find the bank quote — refuse rather than silently
+      // fall through and mint a zero per-device chain.
+      throw new Error(`[retailQuoteAuto] Bank-financed partner on ticket ${ticketId} has no bank-financed quote and no lead to create one.`);
+    }
+  }
+
+  // ── 2. Resolve the quote's product line ───────────────────────────────────
+  // Prefer the physically-assigned device. But a quote can be raised BEFORE a
+  // device is assigned (decoupled from install completion — same as the
+  // bank-financed auto-quote at submit): fall back to the lead's chosen product,
+  // leaving serial/IMEI blank. When the device is later assigned and the quote
+  // re-materializes, the real serial replaces this placeholder.
+  let device: any = ticket.assigned_device_id
+    ? await pgGet(
+        `SELECT i.id, i.serial_number, i.imei, i.product_id,
+                p.product_name, p.product_code,
+                p.device_model AS product_model
+         FROM inv_items i
+         LEFT JOIN inv_product_catalog p ON p.id = i.product_id
+         WHERE i.id = ?`,
+        [ticket.assigned_device_id]
+      )
+    : null;
+  if (!device && ticket.lead_product_id) {
+    const prod = await pgGet(
+      `SELECT id AS product_id, product_name, product_code, device_model AS product_model
+       FROM inv_product_catalog WHERE id = ?`,
+      [ticket.lead_product_id]
+    ).catch(() => null);
+    if (prod) device = { id: null, serial_number: null, imei: null, ...prod };
+  }
+  if (!device) throw new Error(`[retailQuoteAuto] Ticket ${ticketId} has neither an assigned device nor a lead product to quote`);
 
   // ── 3. Resolve partner + pricing ──────────────────────────────────────────
   const partnerId      = ticket.lead_partner_id || ticket.customer_partner_id || null;
@@ -194,6 +244,13 @@ export async function materializeRetailQuoteForTicket(
 
   const { devicePrice, installationFee, pricingMissing } =
     await resolvePartnerPricing(partnerId, productId, loanTermMonths);
+
+  // A quote is partner-priced only when a real partner/bank agreement backs it.
+  // Private / non-bank-financed leads (no partnerId) must NOT be flagged VAT-inclusive
+  // and must NOT be locked — they use the standard retail VAT-exclusive 16% rate and
+  // stay freely editable so Sales can set the quotation amount.
+  const hasPartner = !!partnerId;
+  const taxRate    = hasPartner ? 0 : 16;
 
   // ── 4. Load vehicle ───────────────────────────────────────────────────────
   const vehicle = ticket.vehicle_id
@@ -205,12 +262,16 @@ export async function materializeRetailQuoteForTicket(
     : null;
 
   // ── 5. Compute totals ─────────────────────────────────────────────────────
+  // Partner pricing (resolvePartnerPricing) is quoted VAT-INCLUSIVE — the total IS the
+  // partner price. Do NOT add VAT on top, and store tax_rate = 0 so downstream
+  // detail/PDF rendering (which re-applies tax_rate) doesn't re-add it either.
   const subtotal   = devicePrice + installationFee;
-  const vatAmount  = Math.round(subtotal * (TAX_RATE / 100) * 100) / 100;
-  const total      = Math.round((subtotal + vatAmount) * 100) / 100;
+  const total      = Math.round(subtotal * 100) / 100;
   const expiryDate = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
   const pricingNote = pricingMissing
-    ? "Awaiting partner pricing — Sales Rep to update before sending."
+    ? (hasPartner
+        ? "Awaiting partner pricing — Sales Rep to update before sending."
+        : "Awaiting pricing — Sales Rep to set the quotation amount before sending.")
     : null;
 
   // ── 6. Check for an existing auto-quote for this ticket ───────────────────
@@ -246,7 +307,7 @@ export async function materializeRetailQuoteForTicket(
            updated_at         = ?
        WHERE id = ?`,
       [
-        devicePrice, installationFee, TAX_RATE, total,
+        devicePrice, installationFee, taxRate, total,
         vehicle?.id || null, vehicle?.registration || null,
         partnerId, loanTermMonths,
         pricingNote, pricingMissing ? 1 : 0, now,
@@ -281,7 +342,7 @@ export async function materializeRetailQuoteForTicket(
              updated_at         = ?
          WHERE id = ?`,
         [
-          devicePrice, installationFee, TAX_RATE, total,
+          devicePrice, installationFee, taxRate, total,
           vehicle?.id || null, vehicle?.registration || null,
           pricingNote, pricingMissing ? 1 : 0, now,
           proformaId,
@@ -325,7 +386,7 @@ export async function materializeRetailQuoteForTicket(
         quoteId, quoteNo, ticket.customer_id,
         null, salesRepId, salesRepEmail,
         "GPS Tracking Installation", "Draft", 1,
-        devicePrice, installationFee, TAX_RATE, 0, total,
+        devicePrice, installationFee, taxRate, 0, total,
         expiryDate, pricingNote,
         vehicle?.id || null, vehicle?.registration || null,
         partnerId, loanTermMonths,
@@ -347,7 +408,7 @@ export async function materializeRetailQuoteForTicket(
       [
         proformaId, proformaNo, ticket.customer_id,
         quoteId, null, salesRepId, "Pending Approval",
-        devicePrice, installationFee, TAX_RATE, 0, total,
+        devicePrice, installationFee, taxRate, 0, total,
         pricingNote,
         vehicle?.id || null, vehicle?.registration || null,
         ticketId, 1, pricingMissing ? 1 : 0,
@@ -371,16 +432,28 @@ export async function materializeRetailQuoteForTicket(
     }
   }
 
+  // Partner pricing is VAT-INCLUSIVE — flag the quote & proforma so documents back out
+  // the embedded VAT for display instead of adding it on top. Only genuine partner-
+  // priced quotes are flagged; private quotes stay VAT-exclusive (and thus unlocked).
+  if (hasPartner) {
+    await pgRun(`UPDATE crm_quotes SET vat_inclusive = 1 WHERE id = ?`, [quoteId]).catch(console.error);
+    await pgRun(`UPDATE crm_proforma_invoices SET vat_inclusive = 1 WHERE id = ?`, [proformaId]).catch(console.error);
+  }
+
   // ── 7. Notifications ──────────────────────────────────────────────────────
   createNotification({
     targetRole: "Sales",
     type: "quote",
     title: `Auto-quote ${isNew ? "created" : "updated"}: ${quoteNo}`,
-    body: `Quote & proforma auto-generated for ${ticket.customer_name || ticket.customer_id} (ticket ${ticket.ticket_no}).${pricingMissing ? " ⚠ Partner pricing not found — items at KES 0." : ""}`,
+    body: `Quote & proforma auto-generated for ${ticket.customer_name || ticket.customer_id} (ticket ${ticket.ticket_no}).${pricingMissing ? (hasPartner ? " ⚠ Partner pricing not found — items at KES 0." : " ⚠ Needs pricing — set the amounts before sending.") : ""}`,
     link: `crm-quote-detail.html?id=${quoteId}`,
   }).catch(console.error);
 
-  if (pricingMissing) {
+  // A missing-pricing quote where a real partner is attached is a partner-agreement gap
+  // Finance should chase. Private (no-partner) quotes are expected to be priced by Sales,
+  // so we don't alarm Finance for those — Sales is reminded instead (see below + on lead
+  // submission in retail-leads.ts).
+  if (pricingMissing && hasPartner) {
     createNotification({
       targetRole: "Finance",
       type: "warning",
@@ -513,7 +586,7 @@ export async function materializeBankFinancedQuoteForLead(
   actor: { userId: string; email: string },
 ): Promise<{ quoteId: string; quoteNo: string } | null> {
   const lead = await pgGet(
-    `SELECT rl.*, rlv.loan_term_months, rlv.registration, rlv.chassis_no
+    `SELECT rl.*, rlv.loan_term_months, rlv.registration, rlv.chassis_no, rlv.vehicle_id
      FROM retail_leads rl
      LEFT JOIN retail_lead_vehicles rlv ON rlv.lead_id = rl.id
      WHERE rl.id = ? AND rl.deleted_at IS NULL`,
@@ -540,10 +613,13 @@ export async function materializeBankFinancedQuoteForLead(
   const quoteNo = IdGenerator.generateId("quote");
   const vehicleRef = lead.registration || lead.chassis_no || "the vehicle";
   const termLabel = years === 1 ? "1 year" : `${years} years`;
-  const description = `Supply and installation of a vehicle tracking system for ${vehicleRef}, for a bank financing period of ${termLabel}.`;
+  const vehSuffix = (lead.registration || lead.chassis_no) ? ` (${vehicleRef})` : "";
+  const description = `Vehicle installation for the loan duration of ${termLabel}${vehSuffix}.`;
 
-  const taxRate = TAX_RATE;
-  const total = Math.round(Number(price) * (1 + taxRate / 100) * 100) / 100;
+  // Bank-financed partner pricing (bank_financed_pricing.year_N) is VAT-INCLUSIVE —
+  // the total is the bank rate itself; no VAT is added on top (tax_rate = 0).
+  const taxRate = 0;
+  const total = Math.round(Number(price) * 100) / 100;
 
   await pgRun(
     `INSERT INTO crm_quotes
@@ -551,14 +627,16 @@ export async function materializeBankFinancedQuoteForLead(
         service_type, status, revision_no,
         installation_cost, subscription_fee, tax_rate, discount_amount, total_amount,
         partner_id, loan_term_months, bill_to_bank,
+        vehicle_id, vehicle_registration,
         auto_generated, pricing_missing,
         created_by_user_id, created_at, updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       quoteId, quoteNo, lead.customer_id, leadId, lead.sales_rep_id, actor.email,
       "Bank Financed Vehicle Tracking Installation", "Draft", 1,
       Number(price), 0, taxRate, 0, total,
       lead.partner_id, Number(lead.loan_term_months), 1,
+      lead.vehicle_id || null, lead.registration || null,
       1, 0,
       actor.userId, now, now,
     ]
@@ -574,6 +652,9 @@ export async function materializeBankFinancedQuoteForLead(
 
   await pgRun(`UPDATE retail_leads SET quote_id = ?, updated_at = ? WHERE id = ?`, [quoteId, now, leadId]);
 
+  // Bank pricing is VAT-INCLUSIVE — flag so documents back out the embedded VAT.
+  await pgRun(`UPDATE crm_quotes SET vat_inclusive = 1 WHERE id = ?`, [quoteId]).catch(console.error);
+
   createNotification({
     targetRole: "BDM",
     type: "quote",
@@ -583,4 +664,72 @@ export async function materializeBankFinancedQuoteForLead(
   }).catch(console.error);
 
   return { quoteId, quoteNo };
+}
+
+/**
+ * Re-price a bank-financed lead's quote (+ its proforma and any UNPAID invoice) to the
+ * lead's CURRENT loan term. Bank pricing is VAT-inclusive, priced by year bucket
+ * (ceil(months/12) → year_N). Keeps the whole chain in sync when the loan term is
+ * edited AFTER the quote was generated — previously the quote/proforma/invoice stayed
+ * frozen at the original term/price. Never touches a Paid invoice (that needs a credit
+ * note, not a silent edit). Returns { repriced:false } when already in sync, null when
+ * the lead isn't a bank-financed quote.
+ */
+export async function repriceBankFinancedForLead(
+  leadId: string,
+): Promise<{ repriced: boolean; quoteId: string; quoteNo: string; term: number; oldTotal: number; newTotal: number } | null> {
+  const lead = await pgGet<any>(
+    `SELECT rl.id, rl.quote_id, rl.partner_id, rlv.loan_term_months, rlv.registration, rlv.chassis_no
+     FROM retail_leads rl LEFT JOIN retail_lead_vehicles rlv ON rlv.lead_id = rl.id
+     WHERE rl.id = ? AND rl.deleted_at IS NULL`,
+    [leadId],
+  );
+  if (!lead || !lead.quote_id || !lead.partner_id || !lead.loan_term_months) return null;
+
+  const quote = await pgGet<any>(
+    `SELECT id, quote_no, service_type, loan_term_months, total_amount FROM crm_quotes WHERE id = ? AND deleted_at IS NULL`,
+    [lead.quote_id],
+  );
+  if (!quote || quote.service_type !== "Bank Financed Vehicle Tracking Installation") return null;
+
+  const pricing = await pgGet<any>(
+    `SELECT year_1, year_2, year_3, year_4, year_5, year_6 FROM bank_financed_pricing WHERE partner_id::text = ?`,
+    [String(lead.partner_id)],
+  );
+  if (!pricing) return null;
+  const term = Number(lead.loan_term_months);
+  const years = Math.min(6, Math.max(1, Math.ceil(term / 12)));
+  const price = [pricing.year_1, pricing.year_2, pricing.year_3, pricing.year_4, pricing.year_5, pricing.year_6][years - 1];
+  if (price == null) return null;
+  const newTotal = Math.round(Number(price) * 100) / 100;
+  const oldTotal = Number(quote.total_amount);
+
+  if (Number(quote.loan_term_months) === term && oldTotal === newTotal) {
+    return { repriced: false, quoteId: quote.id, quoteNo: quote.quote_no, term, oldTotal, newTotal };
+  }
+
+  const now = new Date().toISOString();
+  const termLabel = years === 1 ? "1 year" : `${years} years`;
+  const vehRef = lead.registration || lead.chassis_no || null;
+  const description = `Vehicle installation for the loan duration of ${termLabel}${vehRef ? ` (${vehRef})` : ""}.`;
+  const net = newTotal / 1.16;   // bank price is VAT-inclusive
+  const vat = newTotal - net;
+
+  // Quote + line item
+  await pgRun(`UPDATE crm_quotes SET loan_term_months=?, installation_cost=?, total_amount=?, updated_at=? WHERE id=?`,
+    [term, newTotal, newTotal, now, quote.id]);
+  await pgRun(`UPDATE crm_quote_items SET unit_price=?, total_price=?, description=? WHERE quote_id=?`,
+    [newTotal, newTotal, description, quote.id]);
+  // Proforma + line item (linked by quote_id)
+  await pgRun(`UPDATE crm_proforma_invoices SET installation_cost=?, total_amount=?, updated_at=? WHERE quote_id=?`,
+    [newTotal, newTotal, now, quote.id]);
+  await pgRun(`UPDATE crm_proforma_items SET unit_price=?, total_price=?, description=? WHERE proforma_id IN (SELECT id FROM crm_proforma_invoices WHERE quote_id=?)`,
+    [newTotal, newTotal, description, quote.id]);
+  // Invoice + line item — only when NOT Paid.
+  await pgRun(`UPDATE invoices SET subtotal=?, vat_total=?, total=?, updated_at=? WHERE quote_id=? AND status <> 'Paid'`,
+    [net, vat, newTotal, now, quote.id]);
+  await pgRun(`UPDATE invoice_items SET amount=?, description=? WHERE invoice_id IN (SELECT id FROM invoices WHERE quote_id=? AND status <> 'Paid')`,
+    [newTotal, description, quote.id]);
+
+  return { repriced: true, quoteId: quote.id, quoteNo: quote.quote_no, term, oldTotal, newTotal };
 }

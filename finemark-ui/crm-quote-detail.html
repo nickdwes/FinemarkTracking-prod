@@ -400,7 +400,15 @@ async function loadQuote() {
     $("q-rev").textContent = q.revisionNo || "0";
     $("q-install").textContent = "KES " + fmt(q.installationCost);
     $("q-sub").textContent = "KES " + fmt(q.subscriptionFee);
-    $("q-tax").textContent = (q.taxRate || 0) + "%";
+    if (q.vatInclusive) {
+      // Partner pricing is VAT-inclusive — the total IS the gross; show the embedded VAT.
+      const gross = Number(q.totalAmount || 0);
+      const net = Math.round((gross / 1.16) * 100) / 100;
+      const vat = Math.round((gross - net) * 100) / 100;
+      $("q-tax").textContent = "16% incl. (KES " + fmt(vat) + " of KES " + fmt(net) + " net)";
+    } else {
+      $("q-tax").textContent = (q.taxRate || 0) + "%";
+    }
     $("q-disc").textContent = "KES " + fmt(q.discountAmount);
     $("q-total").textContent = "KES " + fmt(q.totalAmount);
     $("q-expiry").textContent = q.expiryDate ? new Date(q.expiryDate).toLocaleDateString() : "—";
@@ -447,10 +455,18 @@ async function loadQuote() {
     btns.innerHTML = "";
     btns.innerHTML += `<button onclick="openQuotePreview()" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">&#128438; Print / PDF</button>`;
     if (q.status === "Draft" || q.status === "Sent") {
-      btns.innerHTML += `<button onclick="editQuote()" class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100">&#9998; Edit Quote</button>`;
-      btns.innerHTML += `<button onclick="openSendOptions()" class="rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700 hover:bg-sky-100">Send to Customer</button>`;
-      btns.innerHTML += `<button onclick="openAddItem()" class="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">+ Item</button>`;
       const myRole = APP.getSession()?.user?.role || "";
+      // Partner-priced quotes are locked — sales cannot edit the agreed pricing (Admin/Finance override).
+      // Lock ONLY when the quote has a real partner agreement (partnerId). Private /
+      // non-bank-financed leads have no partner, so Sales can freely create & price them.
+      const partnerLocked = !!q.partnerId && !["Admin", "Finance"].includes(myRole);
+      if (partnerLocked) {
+        btns.innerHTML += `<span class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">&#128274; Partner-priced — pricing locked</span>`;
+      } else {
+        btns.innerHTML += `<button onclick="editQuote()" class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100">&#9998; Edit Quote</button>`;
+        btns.innerHTML += `<button onclick="openAddItem()" class="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">+ Item</button>`;
+      }
+      btns.innerHTML += `<button onclick="openSendOptions()" class="rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700 hover:bg-sky-100">Send to Customer</button>`;
       if (["BDM", "BDMCorporate", "Admin"].includes(myRole)) {
         btns.innerHTML += `<button onclick="if(confirm('Approve this quote internally without sending it to the customer?'))doAction('bdm-approve')" class="rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-100">BDM Approve (skip customer)</button>`;
       }

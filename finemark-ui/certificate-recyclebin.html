@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Certificate Recycle Bin</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+    .fade-in{animation:fadeIn .2s ease;}
+    table{border-collapse:collapse;width:100%;}
+    th{text-align:left;font-size:.72rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.04em;padding:.5rem .75rem;border-bottom:1px solid #e2e8f0;white-space:nowrap;}
+    td{font-size:.82rem;padding:.55rem .75rem;border-bottom:1px solid #f1f5f9;color:#334155;vertical-align:middle;}
+    tr:hover td{background:#f8fafc;}
+    .badge{display:inline-flex;align-items:center;border-radius:9999px;padding:.15rem .6rem;font-size:.68rem;font-weight:600;border-width:1px;}
+    .btn{display:inline-flex;align-items:center;gap:.3rem;padding:.3rem .7rem;border-radius:.45rem;font-size:.75rem;font-weight:600;transition:all .15s;white-space:nowrap;}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-4 md:p-6 max-w-[1400px] mx-auto space-y-6">
+
+    <!-- Page Header -->
+    <div class="flex flex-wrap items-center gap-3 justify-between">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Certificate Recycle Bin</h1>
+        <p class="text-sm text-slate-500 mt-0.5">Soft-deleted certificates — restore them, or permanently delete.</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a href="certificate-dashboard.html"
+           class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+          Back to Dashboard
+        </a>
+        <button onclick="loadBin()"
+           class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- Info banner -->
+    <div class="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+      <svg class="w-5 h-5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <div>Certificates here are <strong>hidden from the register and all counts</strong> but not gone. <strong>Restore</strong> returns a certificate to active use. <strong>Delete forever</strong> (Admin only) removes it permanently and cannot be undone.</div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="bg-white rounded-xl border border-slate-200 p-4 space-y-4">
+      <div class="flex flex-wrap items-center gap-3 justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-semibold text-slate-700">In the bin</span>
+          <span id="binTotal" class="badge bg-amber-100 border-amber-200 text-amber-700">0</span>
+        </div>
+        <div class="relative">
+          <svg class="w-4 h-4 absolute left-3 top-2.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input id="searchInput" type="text" placeholder="Search serial, reg, IMEI, chassis, name…"
+                 class="pl-9 pr-3 py-2 w-72 max-w-full rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400" />
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Serial</th>
+              <th>Vehicle</th>
+              <th>Model</th>
+              <th>Owner</th>
+              <th>IMEI</th>
+              <th>Validity</th>
+              <th>Deleted</th>
+              <th>Reason</th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="binBody">
+            <tr><td colspan="9" class="text-center text-slate-400 py-10">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="toast" class="hidden fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg text-sm font-medium shadow-lg fade-in"></div>
+
+<div id="fm-footer"></div>
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+  const APP = window.FINEMARK_APP;
+  APP && APP.requirePageAccess && APP.requirePageAccess();
+
+  let _rows = [];
+  let _byId = {};
+  let _isAdmin = false;
+  let _searchTimer = null;
+
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (m) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+
+  function fmtDate(v){
+    if (!v) return '—';
+    const d = new Date(v);
+    if (isNaN(d)) return esc(v);
+    return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+  }
+
+  function validityBadge(endDate){
+    if (!endDate) return '<span class="badge bg-slate-100 border-slate-200 text-slate-500">No expiry</span>';
+    const today = new Date(); today.setHours(0,0,0,0);
+    const end = new Date(endDate);
+    if (isNaN(end)) return '<span class="badge bg-slate-100 border-slate-200 text-slate-500">'+esc(endDate)+'</span>';
+    const expired = end < today;
+    const cls = expired ? 'bg-red-50 border-red-200 text-red-600' : 'bg-emerald-50 border-emerald-200 text-emerald-600';
+    return '<span class="badge '+cls+'">'+(expired?'Expired':'Valid')+' · '+fmtDate(endDate)+'</span>';
+  }
+
+  function toast(msg, ok){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg text-sm font-medium shadow-lg fade-in ' + (ok ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white');
+    t.classList.remove('hidden');
+    setTimeout(() => t.classList.add('hidden'), 3200);
+  }
+
+  function _getAuthHeaders(){
+    const s = APP.getSession && APP.getSession();
+    return s && s.accessToken ? { Authorization: `Bearer ${s.accessToken}` } : {};
+  }
+
+  function render(rows){
+    const body = document.getElementById('binBody');
+    document.getElementById('binTotal').textContent = rows.length;
+    if (!rows.length){
+      body.innerHTML = '<tr><td colspan="9" class="text-center text-slate-400 py-10">The recycle bin is empty.</td></tr>';
+      return;
+    }
+    body.innerHTML = rows.map((c) => {
+      const vehicle = c.carRegistration
+        ? '<span class="font-mono font-semibold text-slate-800">'+esc(c.carRegistration)+'</span>'
+        : (c.chassisNumber ? '<span class="font-mono text-xs text-slate-500" title="Chassis / VIN">Chassis: '+esc(c.chassisNumber)+'</span>' : '—');
+      const purgeBtn = _isAdmin
+        ? '<button class="btn text-red-600 hover:bg-red-50" onclick="purgeCert(\''+c.id+'\')">Delete forever</button>'
+        : '';
+      return '<tr class="fade-in">'
+        + '<td class="font-mono text-xs text-slate-600">'+esc(c.serialNo)+'</td>'
+        + '<td>'+vehicle+'</td>'
+        + '<td>'+esc(c.model || '—')+'</td>'
+        + '<td>'+esc(c.name || '—')+'</td>'
+        + '<td class="font-mono text-xs">'+esc(c.imei1 || '—')+'</td>'
+        + '<td>'+validityBadge(c.endDate)+'</td>'
+        + '<td class="text-xs text-slate-500">'+fmtDate(c.deletedAt)+'<br><span class="text-slate-400">'+esc(c.deletedByEmail || '')+'</span></td>'
+        + '<td class="text-xs text-slate-500 max-w-[220px]"><span title="'+esc(c.deletedReason||'')+'">'+esc(c.deletedReason || '—')+'</span></td>'
+        + '<td class="text-right whitespace-nowrap">'
+          + '<button class="btn text-slate-600 hover:bg-slate-100" onclick="previewPdf(\''+c.id+'\')">Preview</button> '
+          + '<button class="btn text-emerald-700 hover:bg-emerald-50" onclick="restoreCert(\''+c.id+'\')">Restore</button> '
+          + purgeBtn
+        + '</td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  function applySearch(){
+    const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+    if (!q) return render(_rows);
+    const nq = q.replace(/\s+/g, '');
+    render(_rows.filter((c) =>
+      [c.serialNo, c.name, c.imei1, c.model].some((f) => (f||'').toLowerCase().includes(q))
+      || (c.carRegistration||'').toLowerCase().replace(/\s+/g,'').includes(nq)
+      || (c.chassisNumber||'').toLowerCase().includes(nq)
+    ));
+  }
+
+  async function loadBin(){
+    document.getElementById('binBody').innerHTML = '<tr><td colspan="9" class="text-center text-slate-400 py-10">Loading…</td></tr>';
+    try {
+      const r = await APP.apiFetch('/certificates/recycle-bin');
+      _rows = (r && r.data) || [];
+      _byId = {}; _rows.forEach((c) => { _byId[c.id] = c; });
+      applySearch();
+    } catch (e) {
+      document.getElementById('binBody').innerHTML = '<tr><td colspan="9" class="text-center text-red-500 py-10">Failed to load recycle bin.</td></tr>';
+    }
+  }
+
+  async function restoreCert(id){
+    const c = _byId[id]; if (!c) return;
+    if (!confirm('Restore certificate '+ (c.carRegistration || c.serialNo) +' back to the active register?')) return;
+    try {
+      await APP.apiFetch('/certificates/'+id+'/restore', { method: 'POST' });
+      toast('Certificate restored.', true);
+      await loadBin();
+    } catch (e) { toast((e && e.message) || 'Restore failed.', false); }
+  }
+
+  async function purgeCert(id){
+    const c = _byId[id]; if (!c) return;
+    if (!confirm('PERMANENTLY delete certificate '+ (c.carRegistration || c.serialNo) +'?\n\nThis cannot be undone.')) return;
+    if (!confirm('Are you absolutely sure? This erases the certificate and its PDF forever.')) return;
+    try {
+      await APP.apiFetch('/certificates/'+id+'/purge', { method: 'POST' });
+      toast('Certificate permanently deleted.', true);
+      await loadBin();
+    } catch (e) { toast((e && e.message) || 'Delete failed.', false); }
+  }
+
+  async function previewPdf(id){
+    try {
+      const res = await fetch(`${APP.CONFIG.API_BASE_URL}/certificates/${id}/pdf`, { headers: _getAuthHeaders() });
+      if (!res.ok) throw new Error('No PDF available');
+      const url = URL.createObjectURL(await res.blob());
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) { toast((e && e.message) || 'Preview failed.', false); }
+  }
+
+  (function init(){
+    if (!APP || !APP.apiFetch || !APP.getSession) { return setTimeout(init, 200); }
+    const role = ((APP.getSession() || {}).user || {}).role || '';
+    _isAdmin = ['admin','certadmin'].includes(String(role).toLowerCase());
+    document.getElementById('searchInput').addEventListener('input', () => {
+      clearTimeout(_searchTimer); _searchTimer = setTimeout(applySearch, 200);
+    });
+    loadBin();
+  })();
+</script>
+</body>
+</html>

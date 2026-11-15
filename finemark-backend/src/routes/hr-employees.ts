@@ -38,6 +38,7 @@ const mapEmployee = (row: any, isAdmin: boolean) => ({
   cadreName: row.cadre_name,
   benefitPlanId: row.benefit_plan_id,
   employmentType: row.employment_type,
+  gender: row.gender,
   startDate: row.start_date,
   status: row.status,
   privacyNoticeAcknowledged: Boolean(row.privacy_notice_acknowledged),
@@ -112,7 +113,7 @@ router.get("/", requireAuth, requireRole(ROLE_GROUPS.HR_ADMIN), async (req: Auth
   const where: string[] = [];
   const params: any[] = [];
   if (search) {
-    where.push("(e.full_name LIKE ? OR e.email LIKE ? OR e.phone LIKE ? OR e.employee_no LIKE ?)");
+    where.push("(e.full_name ILIKE ? OR e.email ILIKE ? OR e.phone ILIKE ? OR e.employee_no ILIKE ?)");
     const like = `%${search}%`;
     params.push(like, like, like, like);
   }
@@ -242,13 +243,13 @@ router.post("/", requireAuth, requireRole(ROLE_GROUPS.HR_ADMIN), async (req: Aut
     `INSERT INTO hr_employees
       (id, employee_no, personal_file_no, full_name, national_id, kra_pin, date_of_birth, phone, email,
        residential_address, job_role_id, org_unit_id, manager_id, cadre_id, benefit_plan_id, employment_type,
-       start_date, salary, status, privacy_notice_acknowledged, emergency_contact_consent, user_account_id,
+       gender, start_date, salary, status, privacy_notice_acknowledged, emergency_contact_consent, user_account_id,
        created_by_user_id, created_at, updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [id, employeeNo, personalFileNo, d.fullName, d.nationalId || null, d.kraPin || null, d.dateOfBirth || null,
      d.phone, d.email, d.residentialAddress || null, d.jobRoleId || null, d.orgUnitId || null,
      d.managerId || null, d.cadreId || null, d.benefitPlanId || null, d.employmentType,
-     d.startDate, d.salary ?? null, d.status, d.privacyNoticeAcknowledged, d.emergencyContactConsent,
+     d.gender || null, d.startDate, d.salary ?? null, d.status, d.privacyNoticeAcknowledged, d.emergencyContactConsent,
      d.userAccountId || null, req.user?.id, now, now]
   );
   auditLog(req, "HR_EMPLOYEE_CREATED", `hr_employee:${id}`, "Info", { employeeNo, personalFileNo, fullName: d.fullName }).catch(console.error);
@@ -273,7 +274,7 @@ router.patch("/:id", requireAuth, async (req: AuthRequest, res) => {
   // Non-admins cannot change sensitive or structural fields
   if (!isAdmin) {
     const forbidden = ["salary", "nationalId", "kraPin", "jobRoleId", "orgUnitId", "managerId",
-      "cadreId", "benefitPlanId", "employmentType", "status"] as const;
+      "cadreId", "benefitPlanId", "employmentType", "status", "gender"] as const;
     for (const f of forbidden) {
       if (d[f] !== undefined) return errorResponse(res, 403, "FORBIDDEN", `Cannot modify field: ${f}`);
     }
@@ -300,6 +301,7 @@ router.patch("/:id", requireAuth, async (req: AuthRequest, res) => {
       org_unit_id=COALESCE(?,org_unit_id), manager_id=COALESCE(?,manager_id),
       cadre_id=COALESCE(?,cadre_id), benefit_plan_id=COALESCE(?,benefit_plan_id),
       employment_type=COALESCE(?,employment_type),
+      gender=COALESCE(?,gender),
       employee_no=COALESCE(?,employee_no),
       start_date=COALESCE(?,start_date),
       salary=COALESCE(?,salary), status=COALESCE(?,status),
@@ -310,7 +312,7 @@ router.patch("/:id", requireAuth, async (req: AuthRequest, res) => {
     [d.fullName ?? null, d.nationalId ?? null, d.kraPin ?? null, d.dateOfBirth ?? null,
      d.phone ?? null, d.email ?? null, d.residentialAddress ?? null, d.jobRoleId ?? null,
      d.orgUnitId ?? null, d.managerId ?? null, d.cadreId ?? null, d.benefitPlanId ?? null,
-     d.employmentType ?? null, newEmployeeNo,
+     d.employmentType ?? null, d.gender ?? null, newEmployeeNo,
      d.startDate ?? null, d.salary ?? null, d.status ?? null,
      d.workEmail ?? null,
      d.privacyNoticeAcknowledged ?? null, d.emergencyContactConsent ?? null,

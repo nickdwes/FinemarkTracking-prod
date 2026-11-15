@@ -424,7 +424,7 @@ router.get("/dashboard", requirePartnerAuth, async (req: any, res) => {
        LEFT JOIN LATERAL (
          SELECT id, serial_no, end_date, created_at
          FROM certificates
-         WHERE REPLACE(UPPER(car_registration), ' ', '') = REPLACE(UPPER(v.registration), ' ', '')
+         WHERE REPLACE(UPPER(car_registration), ' ', '') = REPLACE(UPPER(v.registration), ' ', '') AND deleted_at IS NULL
          ORDER BY created_at DESC
          LIMIT 1
        ) cert ON TRUE
@@ -539,7 +539,7 @@ router.get("/certificates/:id/download", requirePartnerAuth, async (req: any, re
      FROM certificates c
      JOIN crm_customer_vehicles v
        ON REPLACE(UPPER(v.registration), ' ', '') = REPLACE(UPPER(c.car_registration), ' ', '')
-     WHERE c.id = ? AND v.partner_id = ? AND v.deleted_at IS NULL
+     WHERE c.id = ? AND v.partner_id = ? AND v.deleted_at IS NULL AND c.deleted_at IS NULL
      LIMIT 1`,
     [req.params.id, pid]
   );

@@ -91,13 +91,15 @@ router.get("/catalog/models", requireAuth, async (req, res) => {
   if (category && !VEHICLE_CATEGORIES.includes(category as any)) {
     return errorResponse(res, 400, "VALIDATION_ERROR", `category must be one of: ${VEHICLE_CATEGORIES.join(", ")}.`);
   }
-  const rows = await vehicleAll<{ model: string; body_style: string | null }>(
-    `SELECT DISTINCT ON (model) model, body_style
+  const rows = await vehicleAll<{ model: string; body_style: string | null; ps: number | null; pe: number | null }>(
+    `SELECT DISTINCT ON (model) model, body_style,
+            EXTRACT(YEAR FROM production_start_date)::int AS ps,
+            EXTRACT(YEAR FROM production_end_date)::int   AS pe
      FROM vehicle_specs WHERE ${CATALOG_SOURCE_FILTER} AND make = ? ${category ? "AND vehicle_category = ?" : ""}
-     ORDER BY model, body_style NULLS LAST`,
+     ORDER BY model, (production_start_date IS NULL), body_style NULLS LAST`,
     category ? [make, category] : [make]
   );
-  return ok(res, { data: rows.map((r) => ({ model: r.model, bodyStyle: r.body_style })) });
+  return ok(res, { data: rows.map((r) => ({ model: r.model, bodyStyle: r.body_style, prodStart: r.ps, prodEnd: r.pe })) });
 });
 
 router.get("/catalog/model-numbers", requireAuth, async (req, res) => {

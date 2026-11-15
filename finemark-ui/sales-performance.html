@@ -117,9 +117,9 @@
           <div class="stat-icon bg-emerald-50 text-emerald-600">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V6m0 10v2m9-8a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           </div>
-          <p class="text-xs text-slate-500 font-medium mt-2 mb-0.5">Total Revenue</p>
+          <p class="text-xs text-slate-500 font-medium mt-2 mb-0.5">Total Net Revenue</p>
           <p id="ovr-revenue" class="text-2xl font-bold text-emerald-600">—</p>
-          <p class="text-xs text-slate-400">KES invoiced</p>
+          <p class="text-xs text-slate-400">KES, net of referrer commission</p>
           <div class="stat-spark"><canvas id="spark-revenue"></canvas></div>
         </div>
         <div class="stat-card">
@@ -178,7 +178,7 @@
 
         <!-- Top 5 performers mini-table -->
         <div class="chart-card">
-          <h3 class="font-semibold text-slate-900 text-sm mb-3">Top Performers (Revenue)</h3>
+          <h3 class="font-semibold text-slate-900 text-sm mb-3">Top Performers (Net Revenue)</h3>
           <table class="w-full text-xs">
             <tbody id="top5-body">
               <tr><td colspan="4" class="py-6 text-center text-slate-400">Loading…</td></tr>
@@ -190,7 +190,7 @@
 
       <!-- Lead volume vs revenue dual chart -->
       <div class="chart-card">
-        <h3 class="font-semibold text-slate-900 text-sm mb-3">Lead Volume vs Revenue (Monthly)</h3>
+        <h3 class="font-semibold text-slate-900 text-sm mb-3">Lead Volume vs Net Revenue (Monthly)</h3>
         <div class="relative h-52"><canvas id="overview-chart"></canvas></div>
       </div>
 
@@ -214,7 +214,7 @@
         </select>
         <select id="rep-sort-by" onchange="renderPerRep()"
           class="text-xs rounded-lg border border-slate-200 bg-white px-3 py-2 focus:outline-none">
-          <option value="revenue">Sort: Revenue</option>
+          <option value="revenue">Sort: Net Revenue</option>
           <option value="leads">Sort: Leads</option>
           <option value="converted">Sort: Conversions</option>
           <option value="convRate">Sort: Conv%</option>
@@ -235,7 +235,7 @@
               <th class="py-3 px-3 text-center font-semibold text-slate-500">Conv%</th>
               <th class="py-3 px-3 text-center font-semibold text-slate-500">Invoices</th>
               <th class="py-3 px-3 text-center font-semibold text-slate-500">Activity</th>
-              <th class="py-3 px-3 text-right font-semibold text-slate-500">Revenue (KES)</th>
+              <th class="py-3 px-3 text-right font-semibold text-slate-500">Net Revenue (KES)</th>
               <th class="py-3 px-3 text-center font-semibold text-slate-500">Efficiency</th>
             </tr>
           </thead>
@@ -259,7 +259,7 @@
           <div class="relative h-52"><canvas id="leads-trend-chart"></canvas></div>
         </div>
         <div class="chart-card">
-          <h3 class="font-semibold text-slate-800 text-sm mb-3">Revenue per Month (KES)</h3>
+          <h3 class="font-semibold text-slate-800 text-sm mb-3">Net Revenue per Month (KES)</h3>
           <div class="relative h-52"><canvas id="revenue-trend-chart"></canvas></div>
         </div>
       </div>
@@ -287,7 +287,7 @@
               <th class="py-2.5 px-4 text-center font-semibold text-slate-500">Conv%</th>
               <th class="py-2.5 px-4 text-center font-semibold text-slate-500">Invoices</th>
               <th class="py-2.5 px-4 text-center font-semibold text-slate-500">Activity</th>
-              <th class="py-2.5 px-4 text-right font-semibold text-slate-500">Revenue(KES)</th>
+              <th class="py-2.5 px-4 text-right font-semibold text-slate-500">Net Revenue(KES)</th>
             </tr>
           </thead>
           <tbody id="monthly-table-body" class="divide-y divide-slate-50">
@@ -305,7 +305,7 @@
         <h2 class="font-bold text-slate-900 text-lg">Leaderboard</h2>
         <select id="lb-metric" onchange="renderLeaderboard()"
           class="text-xs rounded-lg border border-slate-200 bg-white px-3 py-2 focus:outline-none">
-          <option value="revenue">Rank by Revenue</option>
+          <option value="revenue">Rank by Net Revenue</option>
           <option value="converted">Rank by Conversions</option>
           <option value="convRate">Rank by Conv%</option>
           <option value="efficiency">Rank by Efficiency Score</option>
@@ -330,7 +330,7 @@
               <th class="py-3 px-3 text-center font-semibold text-slate-500">Leads</th>
               <th class="py-3 px-3 text-center font-semibold text-slate-500">Converted</th>
               <th class="py-3 px-3 text-center font-semibold text-slate-500">Conv%</th>
-              <th class="py-3 px-3 text-right font-semibold text-slate-500">Revenue</th>
+              <th class="py-3 px-3 text-right font-semibold text-slate-500">Net Revenue</th>
               <th class="py-3 px-3 text-center font-semibold text-slate-500">Score</th>
             </tr>
           </thead>
@@ -369,8 +369,8 @@
               <th class="py-3 px-4 text-center font-semibold text-slate-500">Converted</th>
               <th class="py-3 px-4 text-center font-semibold text-slate-500">Conv%</th>
               <th class="py-3 px-4 text-center font-semibold text-slate-500">Invoices</th>
-              <th class="py-3 px-4 text-right font-semibold text-slate-500">Revenue (KES)</th>
-              <th class="py-3 px-4 text-right font-semibold text-slate-500">Revenue Share</th>
+              <th class="py-3 px-4 text-right font-semibold text-slate-500">Net Revenue (KES)</th>
+              <th class="py-3 px-4 text-right font-semibold text-slate-500">Net Revenue Share</th>
             </tr>
           </thead>
           <tbody id="channel-table-body" class="divide-y divide-slate-50">
@@ -810,7 +810,10 @@ function computeStats(){
       };
     }
     _repStats[email].invoiceCount++;
-    _repStats[email].revenue += parseFloat(inv.total)||0;
+    // Net of referrer commission — inv.netAmount (= total - referrerCommissionTotal)
+    // is computed server-side (services/invoiceService.ts); fall back to total for
+    // any older cached payload shape that predates the field.
+    _repStats[email].revenue += Number(inv.netAmount ?? inv.total) || 0;
   }
 
   // Tally quotes
@@ -876,7 +879,7 @@ function computeMonthlyData(){
     const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
     if(byKey[key]){
       byKey[key].invoices++;
-      byKey[key].revenue += parseFloat(inv.total)||0;
+      byKey[key].revenue += Number(inv.netAmount ?? inv.total) || 0;
     }
   }
   for(const c of _communications){
@@ -970,7 +973,7 @@ function renderOverview(){
       datasets: [
         { type:'bar', label:'Leads', data: _monthlyData.map(m=>m.leads),
           backgroundColor:'#818cf8', borderRadius:3, yAxisID:'y' },
-        { type:'line', label:'Revenue (KES)', data: _monthlyData.map(m=>Math.round(m.revenue/1000)),
+        { type:'line', label:'Net Revenue (KES)', data: _monthlyData.map(m=>Math.round(m.revenue/1000)),
           borderColor:'#10b981', backgroundColor:'rgba(16,185,129,.08)',
           tension:.4, fill:true, pointRadius:3, yAxisID:'y1' },
       ]
@@ -1056,7 +1059,7 @@ function renderTrends(){
     data:{
       labels,
       datasets:[
-        { label:'Revenue (KES)', data:_monthlyData.map(m=>Math.round(m.revenue)),
+        { label:'Net Revenue (KES)', data:_monthlyData.map(m=>Math.round(m.revenue)),
           backgroundColor:'#10b981', borderRadius:3 },
       ]
     },
@@ -1228,7 +1231,7 @@ function renderChannels(){
         <div><p class="text-xs text-slate-400">Reps</p><p class="font-bold text-slate-900">${d.reps}</p></div>
         <div><p class="text-xs text-slate-400">Leads</p><p class="font-bold text-slate-900">${d.leads}</p></div>
         <div><p class="text-xs text-slate-400">Conv%</p><p class="font-bold ${d.convRate>=50?'text-green-600':d.convRate>0?'text-amber-600':'text-slate-400'}">${d.leads>0?fmtPct(d.convRate):'—'}</p></div>
-        <div><p class="text-xs text-slate-400">Revenue</p><p class="font-bold text-emerald-600 text-xs">KES ${fmtMoney(d.revenue)}</p></div>
+        <div><p class="text-xs text-slate-400">Net Revenue</p><p class="font-bold text-emerald-600 text-xs">KES ${fmtMoney(d.revenue)}</p></div>
       </div>
     </div>`;
   }).join('');
@@ -1243,7 +1246,7 @@ function renderChannels(){
           backgroundColor:'#818cf8', borderRadius:3, yAxisID:'y' },
         { type:'bar', label:'Converted', data:channelNames.map(ch=>byChannel[ch].converted),
           backgroundColor:'#34d399', borderRadius:3, yAxisID:'y' },
-        { type:'line', label:'Revenue (K KES)',
+        { type:'line', label:'Net Revenue (K KES)',
           data:channelNames.map(ch=>Math.round(byChannel[ch].revenue/1000)),
           borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.08)',
           tension:.3, fill:false, pointRadius:5, yAxisID:'y1' },

@@ -17,6 +17,9 @@ export const initSchema = async (): Promise<void> => {
     )
   `);
   await pgExec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS signature_url TEXT`);
+  // Account lockout after repeated failed password logins.
+  await pgExec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER NOT NULL DEFAULT 0`);
+  await pgExec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TEXT`);
 
   await pgExec(`
     CREATE TABLE IF NOT EXISTS refresh_tokens (
@@ -193,6 +196,9 @@ export const initSchema = async (): Promise<void> => {
   await pgExec(`CREATE INDEX IF NOT EXISTS idx_invoices_created_at ON invoices(created_at)`);
   await pgExec(`CREATE INDEX IF NOT EXISTS idx_invoices_tax_date ON invoices(tax_date)`);
   await pgExec(`CREATE INDEX IF NOT EXISTS idx_invoices_invoice_number ON invoices(invoice_number)`);
+  // Lets the cert dashboard's per-row invoice lookup (i.id = ... OR i.quote_id = ...)
+  // resolve via a bitmap OR of two index scans instead of seq-scanning invoices per row.
+  await pgExec(`CREATE INDEX IF NOT EXISTS idx_invoices_quote_id ON invoices(quote_id)`);
 
   await pgExec(`
     CREATE TABLE IF NOT EXISTS invoice_items (
@@ -225,6 +231,16 @@ export const initSchema = async (): Promise<void> => {
       created_at TEXT NOT NULL
     )
   `);
+
+  // Process Payment: the full invoice amount is banked (amount), while any referrer
+  // commission deducted from that receipt is captured for net-revenue reporting.
+  await pgExec(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS referrer_commission_total DOUBLE PRECISION DEFAULT 0`);
+  await pgExec(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS net_amount DOUBLE PRECISION`);
+  // Payment reference is NOT globally unique — finance legitimately reuses generic
+  // bank labels (e.g. "COOP", "NCBA") across different invoices. Genuine duplicates
+  // (same invoice + ref + amount) are guarded in createPayment instead.
+  await pgExec(`ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_payment_ref_key`).catch(() => {});
+  await pgExec(`CREATE INDEX IF NOT EXISTS idx_payments_invoice_ref ON payments(invoice_id, payment_ref)`);
 
   await pgExec(`
     CREATE TABLE IF NOT EXISTS speed_governors (
@@ -289,6 +305,13 @@ export const initSchema = async (): Promise<void> => {
   await pgExec(`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS authorized_by_name TEXT`);
   await pgExec(`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS authorized_by_role TEXT`);
   await pgExec(`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS authorized_by_signature_url TEXT`);
+  // Registry link — the customer + registered vehicle a certificate was generated for.
+  // Populated at generation (registry-only policy) so certificates are never orphaned
+  // from a customer/vehicle again.
+  await pgExec(`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS customer_id TEXT`);
+  await pgExec(`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS crm_vehicle_id TEXT`);
+  await pgExec(`CREATE INDEX IF NOT EXISTS idx_certificates_customer_id ON certificates(customer_id)`);
+  await pgExec(`CREATE INDEX IF NOT EXISTS idx_certificates_crm_vehicle_id ON certificates(crm_vehicle_id)`);
   // "finemark" | "unique" — which certificate template/paper this record was generated on.
   await pgExec(`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS template TEXT NOT NULL DEFAULT 'finemark'`);
   // The Unique Tracking template only requires Registration — every other
@@ -305,11 +328,47 @@ export const initSchema = async (): Promise<void> => {
   await pgExec(`ALTER TABLE certificates ALTER COLUMN imei_1 DROP NOT NULL`);
   await pgExec(`ALTER TABLE certificates ALTER COLUMN tracker_no_1 DROP NOT NULL`);
 
+  // Soft-delete (Recycle Bin): a non-null deleted_at moves the certificate into the
+  // recycle bin. Every live-certificate query filters `deleted_at IS NULL`; the bin
+  // shows `deleted_at IS NOT NULL`, from where a cert can be restored or purged.
+  await pgExec(`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS deleted_at TEXT`);
+  await pgExec(`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS deleted_by_user_id TEXT`);
+  await pgExec(`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS deleted_by_email TEXT`);
+  await pgExec(`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS deleted_reason TEXT`);
+
+  // Vehicle Certificate Extension linkage. An extension certificate retains the
+  // original's identity (serial tail, customer, vehicle, devices) but carries an
+  // extended validity end date. extension_no = chain depth (0 = original,
+  // 1 = first extension, …); each level's serial gains one more "X" after the
+  // letter prefix (SG… → SGX… → SGXX…). All certs in one coverage chain share a
+  // root_cert_id, so a vehicle's history is `… WHERE root_cert_id = ? ORDER BY extension_no`.
+  await pgExec(`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS is_extension BOOLEAN DEFAULT false`);
+  await pgExec(`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS extension_no INTEGER DEFAULT 0`);
+  await pgExec(`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS extended_from_cert_id TEXT`);
+  await pgExec(`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS root_cert_id TEXT`);
+  await pgExec(`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS extension_request_id TEXT`);
+  await pgExec(`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS prior_start_date TEXT`);
+  await pgExec(`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS prior_end_date TEXT`);
+  await pgExec(`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS extended_at TEXT`);
+  await pgExec(`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS extension_approved_by_user_id TEXT`);
+  await pgExec(`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS extension_approved_by_name TEXT`);
+  await pgExec(`CREATE INDEX IF NOT EXISTS idx_certificates_extended_from ON certificates(extended_from_cert_id)`);
+  await pgExec(`CREATE INDEX IF NOT EXISTS idx_certificates_root_cert ON certificates(root_cert_id)`);
+  await pgExec(`CREATE INDEX IF NOT EXISTS idx_certificates_extension_request ON certificates(extension_request_id)`);
+
+  await pgExec(`CREATE INDEX IF NOT EXISTS idx_certificates_deleted_at ON certificates(deleted_at)`);
   await pgExec(`CREATE INDEX IF NOT EXISTS idx_certificates_created_at ON certificates(created_at)`);
   await pgExec(`CREATE INDEX IF NOT EXISTS idx_certificates_serial_no ON certificates(serial_no)`);
   await pgExec(`CREATE INDEX IF NOT EXISTS idx_certificates_registration ON certificates(car_registration)`);
   await pgExec(`CREATE INDEX IF NOT EXISTS idx_certificates_name ON certificates(name)`);
   await pgExec(`CREATE INDEX IF NOT EXISTS idx_certificates_phone ON certificates(phone)`);
+  // Functional indexes on the NORMALIZED registration/chassis used to match a
+  // certificate to a vehicle in the dashboard's "awaiting generation" anti-join.
+  // The expression MUST match the query's normalization exactly. Without these the
+  // join re-normalizes every certificate for every installation (~1.25M-row nested
+  // loop, ~2.8s); with them it's a bitmap index lookup (~14ms).
+  await pgExec(`CREATE INDEX IF NOT EXISTS idx_cert_reg_norm ON certificates ((NULLIF(REPLACE(UPPER(TRIM(car_registration)),' ',''),''))) WHERE deleted_at IS NULL`);
+  await pgExec(`CREATE INDEX IF NOT EXISTS idx_cert_chassis_norm ON certificates ((NULLIF(REPLACE(UPPER(TRIM(chassis_number)),' ',''),''))) WHERE deleted_at IS NULL`);
 
   // Admin-managed designated signatories (COO/CEO) whose name + signature PNG
   // are printed in the certificate's "Authorised By" section. Exactly one row
@@ -361,6 +420,10 @@ export const initSchema = async (): Promise<void> => {
   // validation, so omitting a NOT NULL column here would fail this INSERT
   // (and crash every subsequent boot) even for rows that already exist.
   await pgExec(`ALTER TABLE cert_bank_configs ADD COLUMN IF NOT EXISTS full_name TEXT`);
+  // Link each certificate bank config to the shared partner master (the unifying
+  // key across pricing / doc-config / bank-accounts). Nullable: some cert-only
+  // banks have no financing-partner record.
+  await pgExec(`ALTER TABLE cert_bank_configs ADD COLUMN IF NOT EXISTS partner_id TEXT`);
   await pgExec(`
     INSERT INTO cert_bank_configs (id, bank_name, full_name, template, show_chassis, show_engine, show_imei, show_tracker, max_imei, max_tracker, sort_order, is_default, created_at, updated_at)
     VALUES
@@ -976,6 +1039,35 @@ export const initSchema = async (): Promise<void> => {
   // ── Late-added columns ────────────────────────────────────────────────────────
   await pgExec(`ALTER TABLE hr_employees ADD COLUMN IF NOT EXISTS work_email TEXT`);
   await pgExec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_hr_employees_work_email ON hr_employees(work_email) WHERE work_email IS NOT NULL`);
+  // 'M' | 'F' — matches hr_leave_types.gender_restricted so Maternity/Paternity
+  // leave-type restrictions can actually be enforced.
+  await pgExec(`ALTER TABLE hr_employees ADD COLUMN IF NOT EXISTS gender TEXT`);
+  // Idempotency guard for the monthly leave-accrual cron ('YYYY-MM') — prevents
+  // a duplicate same-month run (redeploy timing, manual re-trigger) from double-accruing.
+  await pgExec(`ALTER TABLE hr_leave_balances ADD COLUMN IF NOT EXISTS last_accrual_month TEXT`);
+  // Postgres UNIQUE on hr_leave_types.name is case-sensitive; this closes the
+  // "Sick Leave" vs "sick leave" duplicate gap the app-level check alone can't
+  // (concurrent creates racing past the SELECT check).
+  await pgExec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_hr_leave_types_name_ci ON hr_leave_types (LOWER(name))`);
+
+  // ── Inventory-items report join indexes ──────────────────────────────────────
+  // GET /inventory/items resolves each item's installation ticket through a
+  // LATERAL matching either installation_id OR assigned_device_id. Without an
+  // index on assigned_device_id that OR degraded to a seq scan of
+  // installation_tickets *per item row* — 2.1M buffer hits for one 500-row page,
+  // ~22s, which blew past the frontend's 15s fetch abort and made the Installed
+  // Gadgets report fail outright. The other two indexes remove seq scans in the
+  // same query's proforma lookup and SIM pairing. Combined: 22s -> 0.6s a page.
+  await pgExec(`CREATE INDEX IF NOT EXISTS idx_it_assigned_device ON installation_tickets(assigned_device_id) WHERE assigned_device_id IS NOT NULL`);
+  await pgExec(`CREATE INDEX IF NOT EXISTS idx_pf_quote_id ON crm_proforma_invoices(quote_id) WHERE deleted_at IS NULL`);
+  // Sales Reports' per-lead LATERALs (quote -> proforma -> ticket -> certificate)
+  // scanned crm_quotes and installation_tickets once PER LEAD without these:
+  // Corporate Leads took 13.5s, past the client's 15s abort once data grew.
+  // With them: 0.29s. See also the certificate UNION rewrite in sales-intelligence.ts.
+  await pgExec(`CREATE INDEX IF NOT EXISTS idx_crm_quotes_lead ON crm_quotes(lead_id) WHERE deleted_at IS NULL`);
+  await pgExec(`CREATE INDEX IF NOT EXISTS idx_it_invoice_id ON installation_tickets(invoice_id) WHERE invoice_id IS NOT NULL`);
+  await pgExec(`CREATE INDEX IF NOT EXISTS idx_it_proforma_id ON installation_tickets(proforma_id) WHERE proforma_id IS NOT NULL`);
+  await pgExec(`CREATE INDEX IF NOT EXISTS idx_inv_sims_device_item ON inv_sims(device_item_id) WHERE deleted_at IS NULL`);
 
   // ── Technical Team Roster ────────────────────────────────────────────────────
   await pgExec(`

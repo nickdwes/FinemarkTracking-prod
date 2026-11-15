@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Vehicle Certification Extension</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    .step-num{width:1.5rem;height:1.5rem;border-radius:9999px;background:#0f172a;color:#fff;font-size:.75rem;font-weight:700;display:inline-flex;align-items:center;justify-content:center;}
+    .card{background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;box-shadow:0 1px 2px rgba(0,0,0,.04);}
+    .disabled{opacity:.5;pointer-events:none;}
+    .pill{display:inline-flex;align-items:center;border-radius:9999px;padding:.1rem .55rem;font-size:.66rem;font-weight:600;}
+    .pill-pending{background:#fef9c3;color:#854d0e;}
+    .pill-approved{background:#dbeafe;color:#1e40af;}
+    .pill-rejected{background:#fee2e2;color:#991b1b;}
+    .pill-returned{background:#ffedd5;color:#9a3412;}
+    .pill-generated{background:#dcfce7;color:#166534;}
+    .cert-opt{cursor:pointer;border:1px solid #e2e8f0;border-radius:.6rem;padding:.6rem .8rem;}
+    .cert-opt.sel{border-color:#2563eb;background:#eff6ff;}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-3 sm:p-6 min-w-0 space-y-5 max-w-5xl">
+
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight text-slate-900">Vehicle Certification Extension</h1>
+      <p class="text-sm text-slate-500 mt-0.5">Request an extension to a vehicle certificate's validity. Requests are reviewed by the Certificate Administrator before an extension certificate is generated.</p>
+    </div>
+
+    <!-- Step 1: Customer -->
+    <section class="card p-4 space-y-3">
+      <div class="flex items-center gap-2"><span class="step-num">1</span><h2 class="font-semibold text-slate-900">Find Customer or Vehicle</h2></div>
+      <div class="relative">
+        <input id="cust-search" type="search" autocomplete="off" placeholder="Search by customer name or phone…" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        <div id="cust-results" class="hidden absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-64 overflow-auto"></div>
+      </div>
+      <div class="flex items-center gap-3 text-xs text-slate-400"><span class="flex-1 border-t border-slate-100"></span>or<span class="flex-1 border-t border-slate-100"></span></div>
+      <div class="flex gap-2">
+        <input id="reg-search" type="search" autocomplete="off" placeholder="Search by car registration (e.g. KDZ150E)…" class="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm uppercase" />
+        <button id="reg-search-btn" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 whitespace-nowrap">Search Reg</button>
+      </div>
+      <div id="cust-selected" class="hidden text-sm bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 flex items-center justify-between">
+        <span id="cust-selected-label"></span>
+        <button id="cust-clear" class="text-xs text-blue-600 hover:underline">Change</button>
+      </div>
+    </section>
+
+    <!-- Step 2: Vehicle -->
+    <section id="step-veh" class="card p-4 space-y-3 disabled">
+      <div class="flex items-center gap-2"><span class="step-num">2</span><h2 class="font-semibold text-slate-900">Select Vehicle</h2></div>
+      <select id="veh-select" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+        <option value="">— Select a vehicle —</option>
+      </select>
+      <p id="veh-empty" class="hidden text-xs text-slate-500">This customer has no registered vehicles.</p>
+    </section>
+
+    <!-- Step 3: Certificate -->
+    <section id="step-cert" class="card p-4 space-y-3 disabled">
+      <div class="flex items-center gap-2"><span class="step-num">3</span><h2 class="font-semibold text-slate-900">Select Certificate to Extend</h2></div>
+      <div id="cert-list" class="space-y-2"></div>
+      <p id="cert-empty" class="hidden text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+        No extendable certificate found for this vehicle. A certificate can be extended only if it exists, is the latest one for the vehicle, and has no extension request already in progress.
+      </p>
+    </section>
+
+    <!-- Step 4: Extension details -->
+    <section id="step-details" class="card p-4 space-y-4 disabled">
+      <div class="flex items-center gap-2"><span class="step-num">4</span><h2 class="font-semibold text-slate-900">Extension Details</h2></div>
+
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Current Certificate End Date</label>
+          <input id="cur-end" type="text" readonly class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Extension Method</label>
+          <div class="mt-1 flex gap-2">
+            <label class="flex-1 flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm cursor-pointer">
+              <input type="radio" name="method" value="date" checked /> By new end date
+            </label>
+            <label class="flex-1 flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm cursor-pointer">
+              <input type="radio" name="method" value="months" /> By months
+            </label>
+          </div>
+        </div>
+        <div id="wrap-date">
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">New End Date</label>
+          <input id="new-end" type="date" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+        <div id="wrap-months" class="hidden">
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Months to Extend</label>
+          <input id="months" type="number" min="1" max="120" step="1" placeholder="e.g. 12" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+      </div>
+
+      <div class="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-sm text-blue-900">
+        New validity end: <strong id="preview-end">—</strong>
+        <span id="preview-serial" class="ml-2 text-blue-700"></span>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Justification / Reason <span class="text-red-500">*</span></label>
+        <textarea id="justification" rows="3" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Why is this extension needed?"></textarea>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Supporting Comments</label>
+        <textarea id="comments" rows="2" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Optional additional context"></textarea>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Supporting Document</label>
+        <input id="doc-file" type="file" class="mt-1 block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold" />
+        <p class="text-xs text-slate-400 mt-1">Optional. Attached to the customer record and linked to this request.</p>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button id="btn-submit" class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700">Submit Extension Request</button>
+        <span id="submit-status" class="text-xs text-slate-500"></span>
+      </div>
+    </section>
+
+    <!-- My requests -->
+    <section class="card p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="font-semibold text-slate-900">My Extension Requests</h2>
+        <button id="btn-reload-mine" class="text-xs text-blue-600 hover:underline">Refresh</button>
+      </div>
+      <div id="mine" class="text-sm text-slate-500">Loading…</div>
+    </section>
+
+  </main>
+</div>
+<div id="fm-footer"></div>
+
+<script src="assets/app.js?v=202608171200"></script>
+<script src="assets/layout.js?v=202608171200"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  window.FINEMARK_APP?.requirePageAccess?.();
+  init();
+});
+
+const APP = window.FINEMARK_APP;
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtDay = (s) => { if(!s) return "—"; try { return new Date(s.length>10?s:s+"T00:00:00").toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}); } catch { return s; } };
+
+let sel = { customerId:null, customerName:null, vehicleId:null, cert:null };
+
+function addMonths(iso, months) {
+  const [y,m,d] = String(iso).slice(0,10).split("-").map(Number);
+  let ny=y, nm=(m-1)+months; ny += Math.floor(nm/12); nm=((nm%12)+12)%12;
+  const dim = new Date(Date.UTC(ny, nm+1, 0)).getUTCDate();
+  const nd = Math.min(d, dim);
+  return `${ny}-${String(nm+1).padStart(2,"0")}-${String(nd).padStart(2,"0")}`;
+}
+function deriveExtensionSerial(rootSerial, extensionNo) {
+  const m = /^([A-Za-z]+)(.*)$/.exec(String(rootSerial||""));
+  if (!m) return rootSerial;
+  return m[1] + "X".repeat(Math.max(0, extensionNo)) + m[2];
+}
+
+function init() {
+  wireCustomerSearch();
+  document.getElementById("reg-search-btn").addEventListener("click", searchByRegistration);
+  document.getElementById("reg-search").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); searchByRegistration(); } });
+  document.getElementById("cust-clear").addEventListener("click", resetCustomer);
+  document.getElementById("veh-select").addEventListener("change", onVehicleChange);
+  document.querySelectorAll('input[name="method"]').forEach(r => r.addEventListener("change", onMethodChange));
+  document.getElementById("new-end").addEventListener("input", updatePreview);
+  document.getElementById("months").addEventListener("input", updatePreview);
+  document.getElementById("btn-submit").addEventListener("click", submit);
+  document.getElementById("btn-reload-mine").addEventListener("click", loadMine);
+  loadMine();
+}
+
+// ── Step 1 ──
+function wireCustomerSearch() {
+  const input = document.getElementById("cust-search");
+  const box = document.getElementById("cust-results");
+  let deb;
+  input.addEventListener("input", () => {
+    clearTimeout(deb);
+    const q = input.value.trim();
+    if (q.length < 2) { box.classList.add("hidden"); box.innerHTML=""; return; }
+    deb = setTimeout(async () => {
+      try {
+        const res = await APP.apiFetch(`/crm/customers/by-phone?q=${encodeURIComponent(q)}`);
+        const rows = res?.data || [];
+        if (!rows.length) { box.innerHTML = `<div class="px-3 py-2 text-sm text-slate-400">No matches</div>`; box.classList.remove("hidden"); return; }
+        box.innerHTML = rows.map(c => {
+          const name = c.displayName || c.name || "Unnamed";
+          const meta = [c.accountNo, c.phone].filter(Boolean).join(" · ");
+          return `<div class="px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer" data-id="${esc(c.id)}" data-name="${esc(name)}">
+            <div class="font-medium text-slate-800">${esc(name)}</div>
+            <div class="text-xs text-slate-400">${esc(meta)}</div></div>`;
+        }).join("");
+        box.classList.remove("hidden");
+        box.querySelectorAll("[data-id]").forEach(el => el.addEventListener("click", () => selectCustomer(el.dataset.id, el.dataset.name)));
+      } catch (e) { box.classList.add("hidden"); }
+    }, 300);
+  });
+  document.addEventListener("click", (e) => { if (!box.contains(e.target) && e.target !== input) box.classList.add("hidden"); });
+}
+
+async function selectCustomer(id, name) {
+  sel.customerId = id; sel.customerName = name;
+  document.getElementById("cust-results").classList.add("hidden");
+  document.getElementById("cust-search").value = "";
+  document.getElementById("cust-selected-label").textContent = name;
+  document.getElementById("cust-selected").classList.remove("hidden");
+  const stepVeh = document.getElementById("step-veh");
+  stepVeh.classList.remove("disabled");
+  // Load vehicles
+  const sel2 = document.getElementById("veh-select");
+  sel2.innerHTML = `<option value="">Loading…</option>`;
+  try {
+    const list = await APP.apiFetch(`/crm/customers/${encodeURIComponent(id)}/vehicles`);
+    const vehicles = Array.isArray(list) ? list : (list?.data || []);
+    if (!vehicles.length) {
+      sel2.innerHTML = `<option value="">— none —</option>`;
+      document.getElementById("veh-empty").classList.remove("hidden");
+    } else {
+      document.getElementById("veh-empty").classList.add("hidden");
+      sel2.innerHTML = `<option value="">— Select a vehicle —</option>` + vehicles.map(v => {
+        const label = window.FINEMARK_APP.vehicleLabel(v);
+        return `<option value="${esc(v.id)}">${esc(label)}</option>`;
+      }).join("");
+    }
+  } catch (e) {
+    sel2.innerHTML = `<option value="">Failed to load</option>`;
+    APP.showToast?.(e?.message || "Failed to load vehicles", "error");
+  }
+}
+
+function resetCustomer() {
+  sel = { customerId:null, customerName:null, vehicleId:null, cert:null };
+  document.getElementById("cust-selected").classList.add("hidden");
+  document.getElementById("step-veh").classList.add("disabled");
+  document.getElementById("step-cert").classList.add("disabled");
+  document.getElementById("step-details").classList.add("disabled");
+  document.getElementById("veh-select").innerHTML = `<option value="">— Select a vehicle —</option>`;
+  document.getElementById("cert-list").innerHTML = "";
+}
+
+// Start from a car registration: resolve the vehicle → its customer, auto-select
+// both, and jump straight to the certificate step.
+async function searchByRegistration() {
+  const reg = document.getElementById("reg-search").value.trim();
+  if (!reg) { APP.showToast?.("Enter a car registration.", "error"); return; }
+  const btn = document.getElementById("reg-search-btn");
+  btn.disabled = true;
+  try {
+    const res = await APP.apiFetch(`/certificate-extensions/resolve-vehicle?registration=${encodeURIComponent(reg)}`);
+    if (!res?.found) { APP.showToast?.("No registered vehicle found for that registration.", "error"); return; }
+    await selectCustomer(res.customer.id, res.customer.name);
+    const vsel = document.getElementById("veh-select");
+    vsel.value = res.vehicle.id;
+    if (vsel.value !== res.vehicle.id) { APP.showToast?.("Vehicle found but not listed under its customer.", "error"); return; }
+    await onVehicleChange();
+    APP.showToast?.(`Loaded ${res.vehicle.registration} — now pick the certificate to extend.`, "success");
+    document.getElementById("step-cert")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  } catch (e) {
+    APP.showToast?.(e?.message || "Lookup failed", "error");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── Step 2 ──
+async function onVehicleChange() {
+  const vid = document.getElementById("veh-select").value;
+  sel.vehicleId = vid || null; sel.cert = null;
+  document.getElementById("step-cert").classList.toggle("disabled", !vid);
+  document.getElementById("step-details").classList.add("disabled");
+  const listEl = document.getElementById("cert-list");
+  const emptyEl = document.getElementById("cert-empty");
+  if (!vid) { listEl.innerHTML = ""; emptyEl.classList.add("hidden"); return; }
+  listEl.innerHTML = `<div class="text-sm text-slate-400">Loading…</div>`;
+  emptyEl.classList.add("hidden");
+  try {
+    const res = await APP.apiFetch(`/certificate-extensions/candidates?vehicleId=${encodeURIComponent(vid)}`);
+    const rows = res?.data || [];
+    if (!rows.length) { listEl.innerHTML = ""; emptyEl.classList.remove("hidden"); return; }
+    listEl.innerHTML = rows.map((c, i) => `
+      <div class="cert-opt" data-idx="${i}">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="font-semibold text-slate-900">${esc(c.serialNo)} ${c.isExtension ? `<span class="pill pill-generated ml-1">Extension ${c.extensionNo}</span>` : ""}</div>
+            <div class="text-xs text-slate-500">${esc(c.systemType || "")} ${c.model ? "· "+esc(c.model) : ""}</div>
+          </div>
+          <div class="text-xs text-slate-500 text-right">
+            <div>Valid to</div><div class="font-semibold text-slate-800">${fmtDay(c.endDate)}</div>
+          </div>
+        </div>
+      </div>`).join("");
+    listEl.querySelectorAll(".cert-opt").forEach(el => el.addEventListener("click", () => selectCert(rows[Number(el.dataset.idx)], el)));
+  } catch (e) {
+    listEl.innerHTML = `<div class="text-sm text-red-600">${esc(e?.message || "Failed to load")}</div>`;
+  }
+}
+
+// ── Step 3 ──
+function selectCert(cert, el) {
+  sel.cert = cert;
+  document.querySelectorAll(".cert-opt").forEach(x => x.classList.toggle("sel", x === el));
+  document.getElementById("step-details").classList.remove("disabled");
+  document.getElementById("cur-end").value = fmtDay(cert.endDate);
+  // Default the date input to +12 months
+  const def = addMonths(cert.endDate, 12);
+  document.getElementById("new-end").value = def;
+  document.getElementById("new-end").min = cert.endDate;
+  document.getElementById("months").value = "";
+  updatePreview();
+}
+
+// ── Step 4 ──
+function onMethodChange() {
+  const method = document.querySelector('input[name="method"]:checked').value;
+  document.getElementById("wrap-date").classList.toggle("hidden", method !== "date");
+  document.getElementById("wrap-months").classList.toggle("hidden", method !== "months");
+  updatePreview();
+}
+function computeNewEnd() {
+  if (!sel.cert) return null;
+  const method = document.querySelector('input[name="method"]:checked').value;
+  if (method === "months") {
+    const n = Number(document.getElementById("months").value);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return addMonths(sel.cert.endDate, n);
+  }
+  const v = document.getElementById("new-end").value;
+  return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+}
+function updatePreview() {
+  const ne = computeNewEnd();
+  const ok = ne && sel.cert && ne > sel.cert.endDate;
+  document.getElementById("preview-end").textContent = ne ? fmtDay(ne) + (ok ? "" : "  (must be after current end)") : "—";
+  if (sel.cert && ok) {
+    const proposed = deriveExtensionSerial(sel.cert.rootSerialNo || sel.cert.serialNo, (sel.cert.extensionNo || 0) + 1);
+    document.getElementById("preview-serial").textContent = `· proposed cert no ${proposed}`;
+  } else {
+    document.getElementById("preview-serial").textContent = "";
+  }
+}
+
+async function submit() {
+  if (!sel.customerId || !sel.vehicleId || !sel.cert) { APP.showToast?.("Complete steps 1–3 first.", "error"); return; }
+  const justification = document.getElementById("justification").value.trim();
+  if (!justification) { APP.showToast?.("A justification is required.", "error"); return; }
+  const method = document.querySelector('input[name="method"]:checked').value;
+  const ne = computeNewEnd();
+  if (!ne || ne <= sel.cert.endDate) { APP.showToast?.("Enter a new end date after the current end date.", "error"); return; }
+
+  const btn = document.getElementById("btn-submit");
+  const statusEl = document.getElementById("submit-status");
+  btn.disabled = true; statusEl.textContent = "Submitting…";
+
+  // Best-effort document upload (attached to the customer, linked to the vehicle).
+  let attachments = [];
+  const file = document.getElementById("doc-file").files?.[0];
+  if (file) {
+    try {
+      statusEl.textContent = "Uploading document…";
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("docType", "cert_extension");
+      fd.append("label", `Extension support — ${file.name}`);
+      fd.append("vehicleId", sel.vehicleId);
+      const token = APP.getSession?.()?.accessToken;
+      const up = await fetch(`${APP.API_BASE}/crm/customers/${encodeURIComponent(sel.customerId)}/documents`, {
+        method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}, body: fd,
+      });
+      if (up.ok) {
+        const body = await up.json().catch(() => null);
+        const row = body?.data || body;
+        if (row?.file_path) attachments.push({ name: row.file_name || file.name, url: row.file_path });
+      } else {
+        APP.showToast?.("Document upload skipped (no permission or error). Request will still be submitted.", "info");
+      }
+    } catch { APP.showToast?.("Document upload skipped. Request will still be submitted.", "info"); }
+  }
+
+  const body = {
+    customerId: sel.customerId, customerName: sel.customerName,
+    vehicleId: sel.vehicleId, certificateId: sel.cert.id,
+    extensionMethod: method, justification,
+    supportingNotes: document.getElementById("comments").value.trim() || undefined,
+    attachments,
+  };
+  if (method === "months") body.extensionMonths = Number(document.getElementById("months").value);
+  else body.newEndDate = ne;
+
+  try {
+    const res = await APP.apiFetch(`/certificate-extensions`, { method: "POST", body });
+    const rq = res?.data || res;
+    APP.showToast?.(`Extension request ${rq?.requestNo || ""} submitted for review.`, "success");
+    // Reset step 3/4 (keep customer for convenience)
+    sel.cert = null;
+    document.getElementById("step-details").classList.add("disabled");
+    document.getElementById("cert-list").querySelectorAll(".cert-opt").forEach(x => x.classList.remove("sel"));
+    document.getElementById("justification").value = "";
+    document.getElementById("comments").value = "";
+    document.getElementById("doc-file").value = "";
+    onVehicleChange(); // refresh candidates (the extended cert now has an open request)
+    loadMine();
+  } catch (e) {
+    APP.showToast?.(e?.message || "Failed to submit request", "error");
+  } finally {
+    btn.disabled = false; statusEl.textContent = "";
+  }
+}
+
+// ── My requests ──
+function pillFor(status) {
+  const c = { Pending:"pill-pending", Approved:"pill-approved", Rejected:"pill-rejected", Returned:"pill-returned", Generated:"pill-generated" }[status] || "pill-pending";
+  return `<span class="pill ${c}">${esc(status)}</span>`;
+}
+async function loadMine() {
+  const el = document.getElementById("mine");
+  el.innerHTML = "Loading…";
+  try {
+    const res = await APP.apiFetch(`/certificate-extensions`);
+    const rows = res?.data || [];
+    if (!rows.length) { el.innerHTML = `<p class="text-slate-400">You have no extension requests yet.</p>`; return; }
+    el.innerHTML = `<div class="overflow-x-auto"><table class="min-w-full text-sm">
+      <thead><tr class="text-left text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
+        <th class="py-1.5 pr-4">Request</th><th class="py-1.5 pr-4">Cert</th><th class="py-1.5 pr-4">Reg</th>
+        <th class="py-1.5 pr-4">New End</th><th class="py-1.5 pr-4">Status</th><th class="py-1.5 pr-4">Note</th>
+      </tr></thead><tbody>
+      ${rows.map(r => `<tr class="border-b border-slate-50">
+        <td class="py-1.5 pr-4 font-medium">${esc(r.requestNo || "—")}</td>
+        <td class="py-1.5 pr-4">${esc(r.originalSerialNo || "—")}${r.generatedSerialNo ? ` → <span class="text-emerald-700 font-semibold">${esc(r.generatedSerialNo)}</span>` : ""}</td>
+        <td class="py-1.5 pr-4">${esc(r.registration || "—")}</td>
+        <td class="py-1.5 pr-4">${fmtDay(r.requestedNewEndDate)}</td>
+        <td class="py-1.5 pr-4">${pillFor(r.status)}</td>
+        <td class="py-1.5 pr-4 text-xs text-slate-500">${esc(r.status === "Returned" ? (r.returnReason || "") : r.status === "Rejected" ? (r.reviewNotes || "") : "")}</td>
+      </tr>`).join("")}
+      </tbody></table></div>`;
+  } catch (e) {
+    el.innerHTML = `<p class="text-red-600">${esc(e?.message || "Failed to load")}</p>`;
+  }
+}
+</script>
+</body>
+</html>

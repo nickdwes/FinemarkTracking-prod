@@ -67,7 +67,9 @@ router.get("/attrition", requireAuth, requireRole(ROLE_GROUPS.MANAGEMENT), async
      LEFT JOIN hr_job_roles jr ON jr.id = e.job_role_id
      WHERE e.status = 'Terminated' AND e.updated_at >= ? AND e.updated_at <= ?
      ORDER BY e.updated_at DESC`,
-    [from, to]
+    // updated_at is a TEXT ISO timestamp ("...T...Z"); a bare "YYYY-MM-DD" upper bound sorts
+    // before any same-day "T" value and drops the whole end day, so use a T-separated end-of-day.
+    [from, `${to}T23:59:59.999Z`]
   );
   return ok(res, { from, to, data: rows });
 });

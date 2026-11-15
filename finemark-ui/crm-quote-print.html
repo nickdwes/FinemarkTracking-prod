@@ -7,18 +7,24 @@
   <style>
     /* ── Base ─────────────────────────────────────────────────────────── */
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --brand: #2f3c93;        /* primary brand colour (Finemark blue by default) */
+      --brand-accent: #2fa9df; /* accent / gradient end */
+      --brand-row: #f1f4fb;    /* alternating row + light fill tint */
+    }
+    /* Unique Tracking quotes override these to the orange certificate palette (set from JS). */
     body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; background: #f0f0f0; color: #1a1a1a; }
 
     /* ── Controls bar (hidden when printing) ──────────────────────────── */
     .controls-bar {
       position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-      background: #2f3c93; color: white;
+      background: var(--brand); color: white;
       display: flex; align-items: center; gap: 10px; padding: 10px 20px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.25);
     }
     .controls-bar h2 { font-size: 15px; font-weight: 700; flex: 1; letter-spacing: -0.2px; }
     .btn-print {
-      background: white; color: #2f3c93; border: none; border-radius: 6px;
+      background: white; color: var(--brand); border: none; border-radius: 6px;
       padding: 8px 18px; font-weight: 700; font-size: 13px; cursor: pointer; white-space: nowrap;
     }
     .btn-print:hover { background: #e0e7ff; }
@@ -33,14 +39,14 @@
     .page-wrapper { padding: 70px 20px 30px; min-height: 100vh; }
     .document {
       background: white; width: 210mm; margin: 0 auto;
-      padding: 15mm 14mm 12mm;
+      padding: 7mm 9mm 6mm;
       box-shadow: 0 4px 24px rgba(0,0,0,0.18);
     }
 
     /* ── Brand gradient bar ───────────────────────────────────────────── */
     .brand-bar {
       height: 5px; border-radius: 2px; margin-bottom: 18px;
-      background: linear-gradient(90deg, #2f3c93 0%, #2fa9df 100%);
+      background: linear-gradient(90deg, var(--brand) 0%, var(--brand-accent) 100%);
     }
 
     /* ── Header ───────────────────────────────────────────────────────── */
@@ -48,31 +54,31 @@
     .header-top { display: flex; justify-content: space-between; align-items: flex-start; }
     .header-bottom { text-align: center; padding: 4px 0 2px; }
     .company-block { display: flex; gap: 10px; align-items: center; }
-    .company-name { font-size: 17px; font-weight: 800; color: #2f3c93; letter-spacing: -0.3px; line-height: 1.1; white-space: nowrap; }
+    .company-name { font-size: 17px; font-weight: 800; color: var(--brand); letter-spacing: -0.3px; line-height: 1.1; white-space: nowrap; }
     .company-sub { font-size: 9px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
     .company-contact { font-size: 9.5px; color: #555; line-height: 1.7; }
-    .doc-title { font-size: 14px; font-weight: 900; color: #2f3c93; letter-spacing: 1.5px; text-transform: uppercase; line-height: 1.5; }
+    .doc-title { font-size: 14px; font-weight: 900; color: var(--brand); letter-spacing: 1.5px; text-transform: uppercase; line-height: 1.5; }
     .contact-block { text-align: right; font-size: 8.5px; color: #555; line-height: 1.9; min-width: 145px; }
-    .contact-pin { color: #2f3c93; font-weight: 800; font-size: 9px; display: block; margin-top: 3px; }
+    .contact-pin { color: var(--brand); font-weight: 800; font-size: 9px; display: block; margin-top: 3px; }
 
     /* ── Divider ──────────────────────────────────────────────────────── */
-    hr.divider { border: none; border-top: 1.5px solid #2f3c93; margin: 14px 0 12px; }
+    hr.divider { border: none; border-top: 1.5px solid var(--brand); margin: 14px 0 12px; }
 
     /* ── Info row: Bill To + Quote meta ──────────────────────────────── */
     .info-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: stretch; }
 
     .billto-box { flex: 0 0 55%; border: 1px solid #bbb; border-radius: 3px; overflow: hidden; }
     .billto-label {
-      background: #eef2fb; border-bottom: 1px solid #bbb;
+      background: var(--brand-row); border-bottom: 1px solid #bbb;
       padding: 3px 8px; font-size: 8px; font-weight: 800;
-      text-transform: uppercase; letter-spacing: 0.5px; color: #2f3c93;
+      text-transform: uppercase; letter-spacing: 0.5px; color: var(--brand);
     }
     .billto-body { padding: 8px 10px; }
     .customer-name { font-size: 13px; font-weight: 800; color: #1a1a1a; line-height: 1.2; }
 
     .quote-meta-box { flex: 1; border: 1px solid #bbb; border-radius: 3px; overflow: hidden; }
     .qmeta-tbl { width: 100%; border-collapse: collapse; }
-    .qmeta-tbl tr:nth-child(odd) td { background: #f1f4fb; }
+    .qmeta-tbl tr:nth-child(odd) td { background: var(--brand-row); }
     .qmeta-tbl tr:nth-child(even) td { background: white; }
     .qmeta-tbl td { padding: 4px 8px; font-size: 9.5px; border-bottom: 1px solid #e8ecf0; }
     .qmeta-tbl td:first-child { font-weight: 700; color: #374151; width: 42%; border-right: 1px solid #e8ecf0; white-space: nowrap; }
@@ -92,7 +98,7 @@
     /* ── Vehicle table ────────────────────────────────────────────────── */
     .vehicle-wrap { border: 1px solid #c8d0e0; border-radius: 3px; overflow: hidden; margin-bottom: 12px; }
     .vehicle-tbl { width: 100%; border-collapse: collapse; }
-    .vehicle-tbl thead tr { background: #2f3c93; color: white; }
+    .vehicle-tbl thead tr { background: var(--brand); color: white; }
     .vehicle-tbl th {
       padding: 6px 8px; font-size: 9px; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.4px; text-align: left; color: white;
@@ -105,14 +111,14 @@
 
     /* ── Line items table ─────────────────────────────────────────────── */
     .items-table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
-    .items-table thead tr { background: #2f3c93; color: white; }
+    .items-table thead tr { background: var(--brand); color: white; }
     .items-table th {
       padding: 7px 8px; font-size: 9.5px; font-weight: 700;
       text-transform: uppercase; letter-spacing: 0.4px;
     }
     .items-table td { padding: 6px 8px; font-size: 10.5px; border-bottom: 1px solid #e8ecf0; vertical-align: top; }
-    .items-table tbody tr:nth-child(even) td { background: #f1f4fb; }
-    .items-table tbody tr:last-child td { border-bottom: 2px solid #2f3c93; }
+    .items-table tbody tr:nth-child(even) td { background: var(--brand-row); }
+    .items-table tbody tr:last-child td { border-bottom: 2px solid var(--brand); }
     .num { text-align: right; white-space: nowrap; }
     .center { text-align: center; }
     .col-model { min-width: 90px; }
@@ -131,7 +137,7 @@
     .totals-table td:first-child { color: #475569; font-weight: 600; text-align: right; }
     .totals-table td:last-child  { font-weight: 700; text-align: right; color: #1a1a1a; min-width: 115px; }
     .totals-table tr.subtotal-row td { border-top: 1px solid #e2e8f0; padding-top: 7px; }
-    .totals-table tr.grand-total td  { font-size: 13px; color: #2f3c93; border-top: 2px solid #2f3c93; padding-top: 7px; }
+    .totals-table tr.grand-total td  { font-size: 13px; color: var(--brand); border-top: 2px solid var(--brand); padding-top: 7px; }
     .totals-table tr.discount-row td { color: #dc2626; }
 
     /* ── Notes ────────────────────────────────────────────────────────── */
@@ -142,12 +148,12 @@
     .payment-section { margin-bottom: 14px; display: flex; justify-content: flex-end; }
     .payment-tbl { width: 55%; border-collapse: collapse; border: 1px solid #c8d0e0; }
     .payment-tbl caption {
-      background: #2f3c93; color: white;
+      background: var(--brand); color: white;
       font-size: 9.5px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase;
       padding: 6px 10px; text-align: left; caption-side: top;
     }
     .payment-tbl th {
-      background: #f1f4fb; color: #2f3c93;
+      background: var(--brand-row); color: var(--brand);
       font-size: 9.5px; font-weight: 800; text-align: left;
       padding: 6px 10px; border: 1px solid #c8d0e0;
       width: 30%; vertical-align: top; white-space: nowrap;
@@ -158,7 +164,7 @@
       line-height: 1.6; vertical-align: top;
     }
     .payment-tbl tbody tr:nth-child(even) th,
-    .payment-tbl tbody tr:nth-child(even) td { background: #f1f4fb; }
+    .payment-tbl tbody tr:nth-child(even) td { background: var(--brand-row); }
 
     /* ── Footer ───────────────────────────────────────────────────────── */
     .footer {
@@ -176,9 +182,9 @@
       body { background: white; }
       .controls-bar { display: none !important; }
       .page-wrapper { padding: 0; }
-      .document { width: 100%; margin: 0; padding: 10mm 10mm 8mm; box-shadow: none; }
+      .document { width: 100%; margin: 0; padding: 3mm 4mm; box-shadow: none; }
     }
-    @page { size: A4 portrait; margin: 8mm 10mm; }
+    @page { size: A4 portrait; margin: 5mm; }
   </style>
 </head>
 <body>
@@ -253,6 +259,43 @@
   const taxAmount   = afterDisc * (taxRate / 100);
   const grandTotal  = Number(quote.totalAmount || 0) || afterDisc + taxAmount;
 
+  // ── Company brand (Finemark vs Unique Tracking) + VAT presentation ────────
+  const BRAND = quote.brandProfile || {};
+  const bCompany = BRAND.companyName || "Fine Mark Tracking Limited";
+  const bTagline = BRAND.tagline || "Security in Every Mile";
+  const bAddress = BRAND.address || "P.O. Box 12345-00100, Nairobi";
+  const bPhone   = BRAND.phone || "+254 700 000 000";
+  const bEmail   = BRAND.email || "info@finemark.co.ke";
+  const bWeb     = BRAND.website || "www.finemark.co.ke";
+  const bPin     = BRAND.pin || "P051961922E";
+
+  // Unique Tracking documents adopt the orange certificate palette + the UT logo.
+  const isUnique = (BRAND.key === "unique") || (quote.template === "unique");
+  if (isUnique) {
+    const rs = document.documentElement.style;
+    rs.setProperty("--brand", "#de7809");
+    rs.setProperty("--brand-accent", "#f97316");
+    rs.setProperty("--brand-row", "#fff3ea");
+  }
+  const logoHtml = isUnique
+    ? `<img src="assets/unique-tracking-logo.png" alt="Unique Tracking Solutions" style="height:46px;width:auto;display:block;" />`
+    : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="52" height="52">
+              <path d="M44 60c40-36 128-36 168 0" fill="none" stroke="#2f3c93" stroke-width="12" stroke-linecap="round"/>
+              <path d="M56 84c32-28 112-28 144 0" fill="none" stroke="#2fa9df" stroke-width="16" stroke-linecap="round"/>
+              <text x="28" y="190" font-family="Arial,sans-serif" font-size="120" font-weight="700" fill="#2f3c93">F</text>
+              <text x="118" y="190" font-family="Arial,sans-serif" font-size="120" font-weight="700" fill="#2fa9df">M</text>
+              <path fill="#2f3c93" d="M168 104c0-22.1-17.9-40-40-40s-40 17.9-40 40c0 30 40 78 40 78s40-48 40-78z"/>
+              <circle fill="#2fa9df" cx="128" cy="104" r="18"/>
+            </svg>`;
+
+  const vatMode = quote.vatDisplay || "auto";
+  const effInclusive = vatMode === "inclusive" || (vatMode === "auto" && quote.vatInclusive);
+  let dSub = subtotalFromItems - discount, dVat = taxAmount, dTot = grandTotal;
+  let vatLabel = `TAX (${taxRate}%) :`, inclLabel = false, showVat = taxRate > 0;
+  if (effInclusive) { dSub = Math.round(grandTotal / 1.16 * 100) / 100; dVat = Math.round((grandTotal - dSub) * 100) / 100; dTot = grandTotal; inclLabel = true; showVat = true; }
+  else if (vatMode === "zero_rated") { dSub = grandTotal; dVat = 0; dTot = grandTotal; showVat = true; vatLabel = "VAT (0%) :"; }
+  else if (vatMode === "none") { dSub = grandTotal; dVat = 0; dTot = grandTotal; showVat = false; }   // amount as-is, no VAT line/calc
+
   // ── Partner-bank matching for payment section ────────────────────────────
   const partnerKey   = (quote.partnerName || "").toLowerCase();
   const isEquity     = partnerKey.includes("equity");
@@ -317,26 +360,19 @@
       <div class="header-top">
         <div class="company-block">
           <div>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="52" height="52">
-              <path d="M44 60c40-36 128-36 168 0" fill="none" stroke="#2f3c93" stroke-width="12" stroke-linecap="round"/>
-              <path d="M56 84c32-28 112-28 144 0" fill="none" stroke="#2fa9df" stroke-width="16" stroke-linecap="round"/>
-              <text x="28" y="190" font-family="Arial,sans-serif" font-size="120" font-weight="700" fill="#2f3c93">F</text>
-              <text x="118" y="190" font-family="Arial,sans-serif" font-size="120" font-weight="700" fill="#2fa9df">M</text>
-              <path fill="#2f3c93" d="M168 104c0-22.1-17.9-40-40-40s-40 17.9-40 40c0 30 40 78 40 78s40-48 40-78z"/>
-              <circle fill="#2fa9df" cx="128" cy="104" r="18"/>
-            </svg>
+            ${logoHtml}
           </div>
           <div style="margin-left:10px">
-            <div class="company-name">Fine Mark Tracking Limited</div>
-            <div class="company-sub">Security in Every Mile</div>
+            <div class="company-name">${esc(bCompany)}</div>
+            <div class="company-sub">${esc(bTagline)}</div>
           </div>
         </div>
         <div class="contact-block">
-          P.O. Box 12345-00100, Nairobi<br>
-          M: +254 700 000 000<br>
-          E: info@finemark.co.ke<br>
-          W: www.finemark.co.ke<br>
-          <span class="contact-pin">PIN: P051961922E</span>
+          ${esc(bAddress)}<br>
+          M: ${esc(bPhone)}<br>
+          E: ${esc(bEmail)}<br>
+          W: ${esc(bWeb)}<br>
+          <span class="contact-pin">PIN: ${esc(bPin)}</span>
         </div>
       </div>
       <div class="header-bottom">
@@ -354,6 +390,7 @@
           ${quote.billToBank && quote.partnerName ? `
           <div class="customer-name">${esc(quote.partnerName)}</div>
           ${quote.bankAddress ? `<div style="font-size:9.5px;color:#374151;margin-top:3px">${esc(quote.bankAddress)}</div>` : ""}
+          <div style="font-size:10px;color:#111827;margin-top:6px"><strong>Customer:</strong> ${esc(quote.customerName || quote.customer_name || "—")}</div>
           ` : `
           <div class="customer-name">${esc(quote.customerName || quote.customer_name || "\u2014")}</div>
           ${quote.customerAddress ? `<div style="font-size:9.5px;color:#374151;margin-top:3px">${esc(quote.customerAddress)}</div>` : ""}
@@ -419,14 +456,14 @@
     <div class="totals-section">
       <table class="totals-table">
         <tr class="subtotal-row">
-          <td>SUB TOTAL :</td>
-          <td>${kes(subtotalFromItems)}</td>
+          <td>${inclLabel ? "AMOUNT (EXCL. VAT) :" : "SUB TOTAL :"}</td>
+          <td>${kes(inclLabel ? dSub : subtotalFromItems)}</td>
         </tr>
         ${discount > 0 ? `<tr class="discount-row"><td>DISCOUNT :</td><td>- ${kes(discount)}</td></tr>` : ""}
-        ${taxRate > 0 ? `<tr><td>TAX (${taxRate}%) :</td><td>${kes(taxAmount)}</td></tr>` : ""}
+        ${showVat ? `<tr><td>${inclLabel ? "VAT (16% INCL.) :" : vatLabel}</td><td>${kes(dVat)}</td></tr>` : ""}
         <tr class="grand-total">
           <td>GRAND TOTAL :</td>
-          <td>${kes(grandTotal)}</td>
+          <td>${kes(dTot)}</td>
         </tr>
       </table>
     </div>
@@ -442,36 +479,19 @@
     <hr class="divider" style="margin-top:10px" />
     <div class="payment-section">
       <table class="payment-tbl">
-        <caption>Mode of Payments &mdash; Fine Mark Tracking Limited</caption>
+        <caption>Mode of Payments &mdash; ${esc(bCompany)}</caption>
         <tbody>
-          <tr>
-            <th>MPESA PAYBILL</th>
-            <td>Paybill Number &mdash; Fine Mark Tracking Limited<br><strong>4048569</strong><br>Account: <strong>${vehicleReg}</strong></td>
-          </tr>
-          <tr>
-            <th>MPESA TILL NUMBER</th>
-            <td>Till Number &mdash; Fine Mark Tracking Limited<br><strong>5620852</strong></td>
-          </tr>
-          ${isEquity ? `<tr>
-            <th>EQUITY BANK</th>
-            <td>EquityBank: A/C <strong>1750281157351</strong><br>Fine Mark Tracking Limited &mdash; Garden City Branch</td>
-          </tr>` : ""}
-          ${isCoop ? `<tr>
-            <th>COOPERATIVE BANK</th>
-            <td>COOP ACCOUNT &mdash; Fine Mark Tracking Limited<br>Account No. <strong>01101172442001</strong></td>
-          </tr>` : ""}
-          ${isSidian ? `<tr>
-            <th>SIDIAN BANK</th>
-            <td>Sidian Bank &mdash; Paybill: <strong>111999</strong><br>Ac No: <strong>404856</strong></td>
-          </tr>` : ""}
-          ${isSmep ? `<tr>
-            <th>SMEP BANK</th>
-            <td>Smep Bank &mdash; Fine Mark Tracking Limited<br>Acc: <strong>509407711</strong></td>
-          </tr>` : ""}
-          ${isUniversal ? `<tr>
-            <th>UNIVERSAL SACCO ACCOUNT</th>
-            <td>Till Number: <strong>695311</strong> &mdash; Unique Tracking Co. Ltd<br>UNIVERSAL SACCO ACCOUNT NO. <strong>083359</strong> &mdash; Mlolongo Branch</td>
-          </tr>` : ""}
+          ${(quote.paymentOptions && quote.paymentOptions.length) ? quote.paymentOptions.map(o => `
+          <tr><th>${esc(o.label)}</th><td>${esc(o.value)}</td></tr>`).join("") : `
+          <tr><th>MPESA PAYBILL</th><td>Paybill Number &mdash; Fine Mark Tracking Limited<br><strong>4048569</strong><br>Account: <strong>${vehicleReg}</strong></td></tr>
+          <tr><th>MPESA TILL NUMBER</th><td>Till Number &mdash; Fine Mark Tracking Limited<br><strong>5620852</strong></td></tr>`}
+          ${(!quote.paymentOptions || !quote.paymentOptions.some(o => o.label === "BANK NAME")) ? `
+          ${isEquity ? `<tr><th>EQUITY BANK</th><td>EquityBank: A/C <strong>1750281157351</strong><br>Fine Mark Tracking Limited &mdash; Garden City Branch</td></tr>` : ""}
+          ${isCoop ? `<tr><th>COOPERATIVE BANK</th><td>COOP ACCOUNT &mdash; Fine Mark Tracking Limited<br>Account No. <strong>01101172442001</strong></td></tr>` : ""}
+          ${isSidian ? `<tr><th>SIDIAN BANK</th><td>Sidian Bank &mdash; Paybill: <strong>111999</strong><br>Ac No: <strong>404856</strong></td></tr>` : ""}
+          ${isSmep ? `<tr><th>SMEP BANK</th><td>Smep Bank &mdash; Fine Mark Tracking Limited<br>Acc: <strong>509407711</strong></td></tr>` : ""}
+          ${isUniversal ? `<tr><th>UNIVERSAL SACCO ACCOUNT</th><td>Till Number: <strong>695311</strong> &mdash; Unique Tracking Co. Ltd<br>UNIVERSAL SACCO ACCOUNT NO. <strong>083359</strong> &mdash; Mlolongo Branch</td></tr>` : ""}
+          ` : ""}
         </tbody>
       </table>
     </div>

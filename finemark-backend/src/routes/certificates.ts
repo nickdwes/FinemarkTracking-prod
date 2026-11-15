@@ -11,6 +11,7 @@ import { createCertificateSchema, listCertificatesQuerySchema, emailCertificateS
 import { sendMail } from "../utils/mailer.js";
 import { buildCertificateEmail } from "../utils/emailTemplates.js";
 import { cacheDeleteByPrefix, cacheGetOrSet } from "../utils/cache.js";
+import { makeReadinessEvaluator } from "../utils/certReadiness.js";
 
 const router = Router();
 const CERT_LIST_TTL_MS = 30_000;
@@ -30,36 +31,87 @@ router.get("/dashboard", requireAuth, requireRole(ROLE_GROUPS.CERT_ACCESS), asyn
 
   const cacheKey = `certificates:dashboard:${today}:${in60}`;
   const payload = await cacheGetOrSet(cacheKey, CERT_DASHBOARD_TTL_MS, async () => {
-    const [statsRow, pipeline, allCerts] = await Promise.all([
+    const [statsRow, pipeline, allCerts, bankConfigs] = await Promise.all([
       pgGet(
         `SELECT
-          (SELECT COUNT(*) FROM certificates WHERE end_date >= ?) AS active,
-          (SELECT COUNT(*) FROM certificates WHERE end_date >= ? AND end_date <= ?) AS nearing_expiry,
-          (SELECT COUNT(*) FROM certificates WHERE end_date < ?) AS expired,
+          (SELECT COUNT(*) FROM certificates WHERE end_date >= ? AND deleted_at IS NULL) AS active,
+          (SELECT COUNT(*) FROM certificates WHERE end_date >= ? AND end_date <= ? AND deleted_at IS NULL) AS nearing_expiry,
+          (SELECT COUNT(*) FROM certificates WHERE end_date < ? AND deleted_at IS NULL) AS expired,
           (SELECT COUNT(*) FROM vi_installations vi
              JOIN crm_customer_vehicles v ON v.id = vi.vehicle_id
-             LEFT JOIN certificates c ON UPPER(c.car_registration) = UPPER(v.registration)
-             WHERE vi.completed_at IS NOT NULL AND c.id IS NULL) AS awaiting_generation`,
+             WHERE vi.completed_at IS NOT NULL AND vi.deleted_at IS NULL
+               AND NOT EXISTS (
+                 SELECT 1 FROM installation_tickets st
+                 WHERE st.deleted_at IS NULL AND st.service_only = true
+                   AND (st.vi_installation_id = vi.id OR st.ticket_no = vi.ticket_ref)
+                   AND NOT EXISTS (SELECT 1 FROM installation_tickets gt
+                                   WHERE gt.deleted_at IS NULL AND gt.service_only = false
+                                     AND (gt.vi_installation_id = vi.id OR gt.ticket_no = vi.ticket_ref))
+               )
+               AND NOT EXISTS (
+                 SELECT 1 FROM certificates c
+                 WHERE c.deleted_at IS NULL
+                   AND (   NULLIF(REPLACE(UPPER(TRIM(c.car_registration)),' ',''),'') = NULLIF(REPLACE(UPPER(TRIM(v.registration)),' ',''),'')
+                        OR NULLIF(REPLACE(UPPER(TRIM(c.chassis_number)),' ',''),'')   = NULLIF(REPLACE(UPPER(TRIM(v.chassis_number)),' ',''),'') )
+               )) AS awaiting_generation`,
         [today, today, in60, today]
       ).catch(() => ({ active: 0, nearing_expiry: 0, expired: 0, awaiting_generation: 0 })),
       pgAll(
-        `SELECT vi.id, vi.completed_at, v.registration, v.make, v.model,
-                it.id AS ticket_id, it.ticket_no, it.customer_name
+        `SELECT vi.id, vi.completed_at, v.registration, v.registration_known, v.chassis_number, v.engine_number, v.make, v.model,
+                v.customer_id, v.id AS crm_vehicle_id,
+                it.id AS ticket_id, it.ticket_no, it.customer_name,
+                EXISTS (SELECT 1 FROM customer_documents cd
+                        WHERE cd.vehicle_id = v.id AND cd.doc_type IN ('log_book','ntsa_form')) AS has_log_book,
+                q.id AS quote_id, q.quote_no, p.name AS partner_bank,
+                COALESCE(tu.name, it.assigned_to_email) AS technician,
+                COALESCE(it.iso_name, it.iso_email) AS iso,
+                COALESCE(rl.sales_rep_name, q.sales_rep_email) AS sales_person,
+                (SELECT i.id             FROM invoices i WHERE (i.id = it.invoice_id OR i.quote_id = q.id) ORDER BY i.created_at DESC LIMIT 1) AS invoice_id,
+                (SELECT i.invoice_number FROM invoices i WHERE (i.id = it.invoice_id OR i.quote_id = q.id) ORDER BY i.created_at DESC LIMIT 1) AS invoice_no
          FROM vi_installations vi
          JOIN crm_customer_vehicles v ON v.id = vi.vehicle_id
-         LEFT JOIN installation_tickets it ON it.vi_installation_id = vi.id
-         LEFT JOIN certificates c ON UPPER(c.car_registration) = UPPER(v.registration)
-         WHERE vi.completed_at IS NOT NULL AND c.id IS NULL
+         LEFT JOIN LATERAL (
+           SELECT t.* FROM installation_tickets t
+           WHERE (t.vi_installation_id = vi.id OR t.ticket_no = vi.ticket_ref) AND t.deleted_at IS NULL
+           ORDER BY (t.vi_installation_id = vi.id) DESC, t.created_at DESC LIMIT 1
+         ) it ON true
+         LEFT JOIN retail_leads rl ON rl.id = it.retail_lead_id
+         LEFT JOIN crm_quotes q ON q.id = rl.quote_id AND q.deleted_at IS NULL
+         LEFT JOIN partners p ON p.id::text = q.partner_id
+         LEFT JOIN users tu ON tu.id = it.assigned_to_user_id
+         WHERE vi.completed_at IS NOT NULL AND vi.deleted_at IS NULL
+           AND NOT EXISTS (
+             SELECT 1 FROM installation_tickets st
+             WHERE st.deleted_at IS NULL AND st.service_only = true
+               AND (st.vi_installation_id = vi.id OR st.ticket_no = vi.ticket_ref)
+               AND NOT EXISTS (SELECT 1 FROM installation_tickets gt
+                               WHERE gt.deleted_at IS NULL AND gt.service_only = false
+                                 AND (gt.vi_installation_id = vi.id OR gt.ticket_no = vi.ticket_ref))
+           )
+           AND NOT EXISTS (
+             SELECT 1 FROM certificates c
+             WHERE c.deleted_at IS NULL
+               AND (   NULLIF(REPLACE(UPPER(TRIM(c.car_registration)),' ',''),'') = NULLIF(REPLACE(UPPER(TRIM(v.registration)),' ',''),'')
+                    OR NULLIF(REPLACE(UPPER(TRIM(c.chassis_number)),' ',''),'')   = NULLIF(REPLACE(UPPER(TRIM(v.chassis_number)),' ',''),'') )
+           )
          ORDER BY vi.completed_at DESC
-         LIMIT 100`,
+         LIMIT 2000`,
         []
       ).catch(() => [] as any[]),
       pgAll(
         `SELECT id, serial_no, template, system_type, car_registration, model, name, phone,
-                start_date, end_date, created_at
+                start_date, end_date, created_at,
+                is_extension, extension_no, root_cert_id, extended_from_cert_id, extension_request_id,
+                prior_start_date, prior_end_date, extended_at
          FROM certificates
+         WHERE deleted_at IS NULL
          ORDER BY created_at DESC
          LIMIT 500`,
+        []
+      ).catch(() => [] as any[]),
+      pgAll(
+        `SELECT bank_name, full_name, template, show_chassis, show_engine, is_default
+         FROM cert_bank_configs`,
         []
       ).catch(() => [] as any[]),
     ]);
@@ -71,6 +123,9 @@ router.get("/dashboard", requireAuth, requireRole(ROLE_GROUPS.CERT_ACCESS), asyn
       return "Active";
     };
 
+    // Certificate readiness per partner requirement (cert_bank_configs).
+    const evalCertReadiness = makeReadinessEvaluator(bankConfigs as any[]);
+
     return {
       stats: {
         active: Number((statsRow as any)?.active || 0),
@@ -81,11 +136,29 @@ router.get("/dashboard", requireAuth, requireRole(ROLE_GROUPS.CERT_ACCESS), asyn
       pipeline: pipeline.map((r: any) => ({
         viId: r.id,
         ticketId: r.ticket_id || null,
+        customerId: r.customer_id || null,
+        vehicleId: r.crm_vehicle_id || null,
         completedAt: r.completed_at,
         registration: r.registration,
+        chassisNumber: r.chassis_number || null,
+        registrationKnown: r.registration_known !== false,
         makeModel: [r.make, r.model].filter(Boolean).join(" "),
         ticketNo: r.ticket_no || null,
         customerName: r.customer_name || null,
+        quoteId: r.quote_id || null,
+        quoteNo: r.quote_no || null,
+        invoiceId: r.invoice_id || null,
+        invoiceNo: r.invoice_no || null,
+        technician: r.technician || null,
+        iso: r.iso || null,
+        salesPerson: r.sales_person || null,
+        partnerBank: r.partner_bank || null,
+        certReadiness: evalCertReadiness(r),
+        hasLogBook: !!r.has_log_book,
+        // Ready to print = job card complete (these are all completed installs) AND
+        // a Log Book / NTSA Form is attached AND the partner's required cert fields
+        // are present. Only these get the one-click Generate on the dashboard.
+        readyToPrint: !!(evalCertReadiness(r).ready && r.has_log_book),
       })),
       certificates: allCerts.map((r: any) => ({
         id: r.id,
@@ -100,7 +173,163 @@ router.get("/dashboard", requireAuth, requireRole(ROLE_GROUPS.CERT_ACCESS), asyn
         endDate: r.end_date,
         createdAt: r.created_at,
         status: certStatus(r.end_date),
+        isExtension: !!r.is_extension,
+        extensionNo: Number(r.extension_no || 0),
+        rootCertId: r.root_cert_id || null,
+        extendedFromCertId: r.extended_from_cert_id || null,
+        extensionRequestId: r.extension_request_id || null,
+        priorStartDate: r.prior_start_date || null,
+        priorEndDate: r.prior_end_date || null,
+        extendedAt: r.extended_at || null,
       })),
+    };
+  });
+
+  return ok(res, payload);
+});
+
+// ── Certificate generation metrics / analytics ───────────────────────────────
+router.get("/metrics", requireAuth, requireRole(ROLE_GROUPS.CERT_ACCESS), async (_req, res) => {
+  const now = new Date();
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const today = iso(now);
+  const in60 = iso(new Date(now.getTime() + 60 * 86400000));
+  const since7 = iso(new Date(now.getTime() - 7 * 86400000));
+  const since30 = iso(new Date(now.getTime() - 30 * 86400000));
+
+  const payload = await cacheGetOrSet(`certificates:metrics:${today}`, 60_000, async () => {
+    const [totalsRow, perDayRows, perPartnerRows, perTemplateRows, topGenRows, awaitingRows, bankConfigs] = await Promise.all([
+      pgGet(
+        `SELECT
+           count(*) FILTER (WHERE deleted_at IS NULL) AS live,
+           count(*) FILTER (WHERE deleted_at IS NULL AND end_date >= ?) AS active,
+           count(*) FILTER (WHERE deleted_at IS NULL AND end_date >= ? AND end_date <= ?) AS nearing,
+           count(*) FILTER (WHERE deleted_at IS NULL AND end_date < ?) AS expired,
+           count(*) FILTER (WHERE deleted_at IS NOT NULL) AS recycled,
+           count(*) FILTER (WHERE deleted_at IS NULL AND substr(created_at,1,10) = ?) AS gen_today,
+           count(*) FILTER (WHERE deleted_at IS NULL AND created_at >= ?) AS gen_week,
+           count(*) FILTER (WHERE deleted_at IS NULL AND created_at >= ?) AS gen_month
+         FROM certificates`,
+        [today, today, in60, today, today, since7, since30],
+      ).catch(() => ({} as any)),
+      pgAll(
+        `SELECT substr(created_at,1,10) AS d, count(*) AS n
+         FROM certificates WHERE deleted_at IS NULL AND created_at >= ?
+         GROUP BY 1 ORDER BY 1`,
+        [since30],
+      ).catch(() => [] as any[]),
+      pgAll(
+        `SELECT COALESCE(NULLIF(TRIM(partner_bank),''),'Direct / Private') AS partner, count(*) AS n
+         FROM certificates WHERE deleted_at IS NULL GROUP BY 1 ORDER BY n DESC`,
+        [],
+      ).catch(() => [] as any[]),
+      pgAll(
+        `SELECT COALESCE(NULLIF(TRIM(template),''),'finemark') AS template, count(*) AS n
+         FROM certificates WHERE deleted_at IS NULL GROUP BY 1 ORDER BY n DESC`,
+        [],
+      ).catch(() => [] as any[]),
+      pgAll(
+        `SELECT COALESCE(NULLIF(TRIM(created_by_email),''),'—') AS email, count(*) AS n
+         FROM certificates WHERE deleted_at IS NULL GROUP BY 1 ORDER BY n DESC LIMIT 8`,
+        [],
+      ).catch(() => [] as any[]),
+      pgAll(
+        `SELECT v.registration, v.chassis_number, v.engine_number, p.name AS partner_bank,
+                (SELECT i.id FROM invoices i WHERE (i.id = it.invoice_id OR i.quote_id = q.id) LIMIT 1) IS NOT NULL AS has_invoice
+         FROM vi_installations vi
+         JOIN crm_customer_vehicles v ON v.id = vi.vehicle_id
+         LEFT JOIN certificates c ON
+              (   NULLIF(REPLACE(UPPER(TRIM(c.car_registration)),' ',''),'') = NULLIF(REPLACE(UPPER(TRIM(v.registration)),' ',''),'')
+               OR NULLIF(REPLACE(UPPER(TRIM(c.chassis_number)),' ',''),'')   = NULLIF(REPLACE(UPPER(TRIM(v.chassis_number)),' ',''),'') )
+              AND c.deleted_at IS NULL
+         LEFT JOIN LATERAL (
+           SELECT t.* FROM installation_tickets t
+           WHERE (t.vi_installation_id = vi.id OR t.ticket_no = vi.ticket_ref) AND t.deleted_at IS NULL
+           ORDER BY (t.vi_installation_id = vi.id) DESC, t.created_at DESC LIMIT 1
+         ) it ON true
+         LEFT JOIN retail_leads rl ON rl.id = it.retail_lead_id
+         LEFT JOIN crm_quotes q ON q.id = rl.quote_id AND q.deleted_at IS NULL
+         LEFT JOIN partners p ON p.id::text = q.partner_id
+         WHERE vi.completed_at IS NOT NULL AND vi.deleted_at IS NULL AND c.id IS NULL
+           AND NOT EXISTS (
+             SELECT 1 FROM installation_tickets st
+             WHERE st.deleted_at IS NULL AND st.service_only = true
+               AND (st.vi_installation_id = vi.id OR st.ticket_no = vi.ticket_ref)
+               AND NOT EXISTS (SELECT 1 FROM installation_tickets gt
+                               WHERE gt.deleted_at IS NULL AND gt.service_only = false
+                                 AND (gt.vi_installation_id = vi.id OR gt.ticket_no = vi.ticket_ref))
+           )
+         LIMIT 2000`,
+        [],
+      ).catch(() => [] as any[]),
+      pgAll(`SELECT bank_name, full_name, template, show_chassis, show_engine, is_default FROM cert_bank_configs`, []).catch(() => [] as any[]),
+    ]);
+
+    // Fill the last 30 calendar days (including zero days) for the per-day series.
+    const dayMap = new Map<string, number>();
+    for (const r of perDayRows as any[]) dayMap.set(r.d, Number(r.n));
+    const perDay: { date: string; count: number }[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = iso(new Date(now.getTime() - i * 86400000));
+      perDay.push({ date: d, count: dayMap.get(d) || 0 });
+    }
+
+    // Awaiting readiness + invoice-readiness aggregation.
+    const evalR = makeReadinessEvaluator(bankConfigs as any[]);
+    let awReady = 0, awNeeds = 0, readyWithInvoice = 0, readyNoInvoice = 0;
+    const miss = { engine: 0, chassis: 0, registration: 0, identity: 0 };
+    const byPartner = new Map<string, any>();
+    for (const r of awaitingRows as any[]) {
+      const rd = evalR(r);
+      const pk = (r.partner_bank && String(r.partner_bank).trim()) || "Direct / Private";
+      let bp = byPartner.get(pk);
+      if (!bp) { bp = { partner: pk, total: 0, ready: 0, needsInfo: 0, withInvoice: 0 }; byPartner.set(pk, bp); }
+      bp.total++;
+      if (r.has_invoice) bp.withInvoice++;
+      if (rd.ready) {
+        awReady++; bp.ready++;
+        if (r.has_invoice) readyWithInvoice++; else readyNoInvoice++;
+      } else {
+        awNeeds++; bp.needsInfo++;
+        for (const f of rd.missing) {
+          if (f.startsWith("Engine")) miss.engine++;
+          else if (f.startsWith("Chassis")) miss.chassis++;
+          else if (f.startsWith("Registration")) miss.registration++;
+          else miss.identity++;
+        }
+      }
+    }
+    const awaitingByPartner = [...byPartner.values()].sort((a, b) => b.total - a.total);
+
+    const num = (v: any) => Number(v || 0);
+    const genMonth = num((totalsRow as any)?.gen_month);
+    return {
+      totals: {
+        live: num((totalsRow as any)?.live),
+        active: num((totalsRow as any)?.active),
+        nearingExpiry: num((totalsRow as any)?.nearing),
+        expired: num((totalsRow as any)?.expired),
+        recycled: num((totalsRow as any)?.recycled),
+      },
+      throughput: {
+        today: num((totalsRow as any)?.gen_today),
+        last7: num((totalsRow as any)?.gen_week),
+        last30: genMonth,
+        avgPerDay: Math.round((genMonth / 30) * 10) / 10,
+      },
+      perDay,
+      perPartner: (perPartnerRows as any[]).map((r) => ({ partner: r.partner, count: Number(r.n) })),
+      perTemplate: (perTemplateRows as any[]).map((r) => ({ template: r.template, count: Number(r.n) })),
+      topGenerators: (topGenRows as any[]).map((r) => ({ email: r.email, count: Number(r.n) })),
+      awaiting: {
+        total: (awaitingRows as any[]).length,
+        ready: awReady,
+        needsInfo: awNeeds,
+        readyWithInvoice,
+        readyNoInvoice,
+        missing: miss,
+      },
+      awaitingByPartner,
     };
   });
 
@@ -121,7 +350,7 @@ router.get("/check", requireAuth, requireRole(ROLE_GROUPS.CERT_ACCESS), async (r
             start_date, end_date, loan_duration_years, imei_1, imei_2, tracker_no_1, tracker_no_2,
             additional_devices_json, chassis_number, engine_number, partner_bank, created_at
      FROM certificates
-     WHERE REPLACE(UPPER(car_registration),' ','') = UPPER(?) AND UPPER(system_type) = UPPER(?)
+     WHERE REPLACE(UPPER(car_registration),' ','') = UPPER(?) AND UPPER(system_type) = UPPER(?) AND deleted_at IS NULL
      ORDER BY created_at DESC LIMIT 1`,
     [normReg, normSystemType]
   ));
@@ -165,17 +394,43 @@ router.post("/", requireAuth, requireRole(ROLE_GROUPS.CERT_ACCESS), async (req: 
     authorizedByName, authorizedByRole, authorizedBySignatureUrl,
     pdfBase64,
   } = parsed.data;
-  const normCarReg = carRegistration.replace(/\s+/g, '').toUpperCase();
+  const normCarReg    = (carRegistration || "").replace(/\s+/g, '').toUpperCase();
+  const normCarRegKey = normCarReg.replace(/-/g, '');
+  const normChassisKey = (chassisNumber || "").replace(/\s+/g, '').toUpperCase();
+
+  // ── Registry-only enforcement ─────────────────────────────────────────────
+  // A certificate may only be generated for a vehicle already registered in the
+  // system and linked to a customer. Resolve that vehicle by registration or
+  // chassis; if none exists, reject with a clear, actionable message. The
+  // resolved customer/vehicle are stored on the certificate so it stays mapped.
+  const linkConds: string[] = [];
+  const linkParams: any[] = [];
+  if (normCarRegKey)  { linkConds.push("UPPER(REPLACE(REPLACE(registration,' ',''),'-','')) = ?"); linkParams.push(normCarRegKey); }
+  if (normChassisKey) { linkConds.push("UPPER(REPLACE(chassis_number,' ','')) = ?");               linkParams.push(normChassisKey); }
+  const linkedVehicle = linkConds.length
+    ? await pgGet(
+        `SELECT id, customer_id FROM crm_customer_vehicles
+         WHERE (${linkConds.join(" OR ")}) AND customer_id IS NOT NULL AND deleted_at IS NULL
+         ORDER BY created_at DESC LIMIT 1`,
+        linkParams
+      )
+    : null;
+  if (!linkedVehicle) {
+    return errorResponse(res, 422, "VEHICLE_NOT_REGISTERED",
+      "Certificates can only be generated for a vehicle registered in the system and linked to a customer. Register the vehicle under its customer in Customer 360, then generate again.");
+  }
+
   const now = new Date().toISOString();
   const id = uuidv4();
   try {
     await pgRun(
-      `INSERT INTO certificates (id, serial_no, template, system_type, car_registration, model, date, name, color, phone, start_date, end_date, loan_duration_years, imei_1, imei_2, tracker_no_1, tracker_no_2, additional_devices_json, chassis_number, engine_number, partner_bank, printed_by_user_id, printed_by_name, printed_by_signature_url, authorized_by_name, authorized_by_role, authorized_by_signature_url, pdf_base64, created_by_user_id, created_by_email, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO certificates (id, serial_no, template, system_type, car_registration, model, date, name, color, phone, start_date, end_date, loan_duration_years, imei_1, imei_2, tracker_no_1, tracker_no_2, additional_devices_json, chassis_number, engine_number, partner_bank, customer_id, crm_vehicle_id, printed_by_user_id, printed_by_name, printed_by_signature_url, authorized_by_name, authorized_by_role, authorized_by_signature_url, pdf_base64, created_by_user_id, created_by_email, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [id, serialNo, template, systemType || null, normCarReg, model || null, date || null, name || null, color || null, phone || null,
        startDate || null, endDate || null, loanDurationYears ?? null, imei1 || null, imei2 || null, trackerNo1 || null, trackerNo2 || null,
        additionalDevices?.length ? JSON.stringify(additionalDevices) : null,
        chassisNumber || null, engineNumber || null, partnerBank || null,
+       linkedVehicle.customer_id, linkedVehicle.id,
        printedByUserId || null, printedByName || null, printedBySignatureUrl || null,
        authorizedByName || null, authorizedByRole || null, authorizedBySignatureUrl || null,
        pdfBase64, req.user?.id, req.user?.email, now, now]
@@ -196,7 +451,7 @@ router.get("/", requireAuth, requireRole(ROLE_GROUPS.CERT_ACCESS), async (req, r
   const page = Number(parsed.data.page || 1);
   const pageSize = Number(parsed.data.pageSize || 20);
   const offset = (page - 1) * pageSize;
-  const where: string[] = [];
+  const where: string[] = ["deleted_at IS NULL"];
   const params: any[] = [];
   if (search) {
     where.push(`(serial_no ILIKE ? OR REPLACE(car_registration,' ','') ILIKE ? OR name ILIKE ? OR phone ILIKE ? OR imei_1 ILIKE ? OR imei_2 ILIKE ?)`);
@@ -213,9 +468,9 @@ router.get("/", requireAuth, requireRole(ROLE_GROUPS.CERT_ACCESS), async (req, r
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
   const cacheKey = `certificates:list:${JSON.stringify({ search: search || "", from: from || "", to: to || "", page, pageSize })}`;
   const payload = await cacheGetOrSet(cacheKey, CERT_LIST_TTL_MS, async () => {
-    const rows = await pgAll(`SELECT id, serial_no, template, car_registration, model, name, phone, start_date, end_date, created_at FROM certificates ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`, [...params, pageSize, offset]);
+    const rows = await pgAll(`SELECT id, serial_no, template, car_registration, model, name, phone, start_date, end_date, created_at, is_extension, extension_no, root_cert_id, extended_from_cert_id, prior_start_date, prior_end_date FROM certificates ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`, [...params, pageSize, offset]);
     const totalRow = await pgGet(`SELECT COUNT(*) as total FROM certificates ${whereSql}`, params);
-    const data = rows.map((row) => ({ id: row.id, serialNo: row.serial_no, template: row.template || "finemark", carRegistration: row.car_registration, model: row.model, name: row.name, phone: row.phone, startDate: row.start_date, endDate: row.end_date, createdAt: row.created_at }));
+    const data = rows.map((row) => ({ id: row.id, serialNo: row.serial_no, template: row.template || "finemark", carRegistration: row.car_registration, model: row.model, name: row.name, phone: row.phone, startDate: row.start_date, endDate: row.end_date, createdAt: row.created_at, isExtension: !!row.is_extension, extensionNo: Number(row.extension_no || 0), rootCertId: row.root_cert_id || null, extendedFromCertId: row.extended_from_cert_id || null, priorStartDate: row.prior_start_date || null, priorEndDate: row.prior_end_date || null }));
     return { data, meta: { total: Number(totalRow?.total || 0) } };
   });
   return ok(res, payload);
@@ -233,7 +488,7 @@ router.get("/verify/:serialNo", (req, res, next) => {
     return res.status(400).json({ valid: false, error: "Invalid serial number." });
   }
   const row = await pgGet(
-    "SELECT id, serial_no, car_registration, model, system_type, date, start_date, end_date, created_at FROM certificates WHERE serial_no = ?",
+    "SELECT id, serial_no, car_registration, model, system_type, date, start_date, end_date, created_at FROM certificates WHERE serial_no = ? AND deleted_at IS NULL",
     [serialNo.toUpperCase()]
   );
   if (!row) {
@@ -326,10 +581,28 @@ router.put("/signatories/:roleTitle", requireAuth, requireRole(ROLE_GROUPS.ADMIN
 // ── Per-bank certificate policy — which template + fields a bank's paper ────
 // gets. Read by CERT_ACCESS roles (needed by create-certificate.html to drive
 // its category auto-detect); written by Admin only, same split as signatories.
+// Resolve the shared partner master id from a bank's full name (normalised:
+// uppercase, alphanumeric only), so cert configs link to the same partner_id
+// that pricing / doc-config / bank-accounts use. Returns null when no partner
+// exists (a cert-only bank).
+async function resolvePartnerIdByName(name: string | null | undefined): Promise<string | null> {
+  const n = String(name || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (!n) return null;
+  const row = await pgGet<any>(
+    `SELECT id::text AS id FROM partners
+      WHERE deleted_at IS NULL AND regexp_replace(upper(name), '[^A-Z0-9]', '', 'g') = ?
+      ORDER BY created_at LIMIT 1`,
+    [n],
+  ).catch(() => null);
+  return row?.id ?? null;
+}
+
 const mapBankConfig = (r: any) => ({
   id: r.id,
   bankName: r.bank_name,
   fullName: r.full_name,
+  partnerId: r.partner_id || null,
+  partnerName: r.partner_name || null,
   template: r.template,
   showChassis: !!r.show_chassis,
   showEngine: !!r.show_engine,
@@ -343,7 +616,12 @@ const mapBankConfig = (r: any) => ({
 });
 
 router.get("/bank-configs", requireAuth, requireRole(ROLE_GROUPS.CERT_ACCESS), async (_req, res) => {
-  const rows = await pgAll("SELECT * FROM cert_bank_configs ORDER BY sort_order, bank_name");
+  const rows = await pgAll(
+    `SELECT c.*, p.name AS partner_name
+     FROM cert_bank_configs c
+     LEFT JOIN partners p ON p.id::text = c.partner_id
+     ORDER BY c.sort_order, c.bank_name`,
+  );
   return ok(res, { data: rows.map(mapBankConfig) });
 });
 
@@ -354,11 +632,13 @@ router.post("/bank-configs", requireAuth, requireRole(ROLE_GROUPS.CERT_ACCESS), 
   const now = new Date().toISOString();
   const id = uuidv4();
   const maxSort = await pgGet("SELECT COALESCE(MAX(sort_order), 0) as m FROM cert_bank_configs");
+  // Link to the partner master: explicit partnerId wins, else auto-resolve by name.
+  const partnerId = (d as any).partnerId ?? await resolvePartnerIdByName(d.fullName);
   try {
     await pgRun(
-      `INSERT INTO cert_bank_configs (id, bank_name, full_name, template, show_chassis, show_engine, show_imei, show_tracker, max_imei, max_tracker, sort_order, is_default, updated_by_user_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, false, ?, ?, ?)`,
-      [id, d.bankName.trim(), d.fullName.trim(), d.template, d.showChassis, d.showEngine, d.showImei, d.showTracker,
+      `INSERT INTO cert_bank_configs (id, bank_name, full_name, partner_id, template, show_chassis, show_engine, show_imei, show_tracker, max_imei, max_tracker, sort_order, is_default, updated_by_user_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, false, ?, ?, ?)`,
+      [id, d.bankName.trim(), d.fullName.trim(), partnerId || null, d.template, d.showChassis, d.showEngine, d.showImei, d.showTracker,
        d.maxImei, d.maxTracker, d.sortOrder ?? (Number((maxSort as any)?.m || 0) + 10), req.user?.id, now, now]
     );
   } catch (error: any) {
@@ -367,7 +647,7 @@ router.post("/bank-configs", requireAuth, requireRole(ROLE_GROUPS.CERT_ACCESS), 
   }
   invalidateCertificateCaches();
   auditLog(req, "CERT_BANK_CONFIG_CREATED", `cert_bank_config:${id}`, "Info", { bankName: d.bankName }).catch(console.error);
-  const row = await pgGet("SELECT * FROM cert_bank_configs WHERE id = ?", [id]);
+  const row = await pgGet("SELECT c.*, p.name AS partner_name FROM cert_bank_configs c LEFT JOIN partners p ON p.id::text = c.partner_id WHERE c.id = ?", [id]);
   return created(res, mapBankConfig(row), "Bank configuration added.");
 });
 
@@ -391,6 +671,10 @@ router.patch("/bank-configs/:id", requireAuth, requireRole(ROLE_GROUPS.CERT_ACCE
   maybeSet("max_imei", d.maxImei);
   maybeSet("max_tracker", d.maxTracker);
   maybeSet("sort_order", d.sortOrder);
+  // Keep the partner-master link in sync: explicit partnerId wins; otherwise
+  // re-resolve from the (possibly changed) full name.
+  if ((d as any).partnerId !== undefined) maybeSet("partner_id", (d as any).partnerId || null);
+  else if (d.fullName !== undefined) maybeSet("partner_id", await resolvePartnerIdByName(d.fullName));
   if (!setClauses.length) return errorResponse(res, 400, "VALIDATION_ERROR", "No fields to update.");
   setClauses.push("updated_by_user_id = ?", "updated_at = ?");
   params.push(req.user?.id, now, req.params.id);
@@ -402,7 +686,7 @@ router.patch("/bank-configs/:id", requireAuth, requireRole(ROLE_GROUPS.CERT_ACCE
   }
   invalidateCertificateCaches();
   auditLog(req, "CERT_BANK_CONFIG_UPDATED", `cert_bank_config:${req.params.id}`, "Info", d).catch(console.error);
-  const row = await pgGet("SELECT * FROM cert_bank_configs WHERE id = ?", [req.params.id]);
+  const row = await pgGet("SELECT c.*, p.name AS partner_name FROM cert_bank_configs c LEFT JOIN partners p ON p.id::text = c.partner_id WHERE c.id = ?", [req.params.id]);
   return ok(res, mapBankConfig(row), "Bank configuration updated.");
 });
 
@@ -416,6 +700,84 @@ router.delete("/bank-configs/:id", requireAuth, requireRole(ROLE_GROUPS.CERT_ACC
   return ok(res, { id: req.params.id }, "Bank configuration removed.");
 });
 
+// ══════════════════════════════════════════════════════════════════════════════
+// ── Recycle Bin: soft-deleted certificates ──────────────────────────────────────
+// A certificate with a non-null deleted_at lives in the recycle bin — excluded from
+// every live view/count, and restorable or (Admin) purgeable. Declared BEFORE the
+// GET /:id route so the literal "/recycle-bin" path is not captured as an :id.
+// ══════════════════════════════════════════════════════════════════════════════
+router.get("/recycle-bin", requireAuth, requireRole(ROLE_GROUPS.CERT_ACCESS), async (req, res) => {
+  const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+  const where: string[] = ["deleted_at IS NOT NULL"];
+  const params: any[] = [];
+  if (search) {
+    where.push(`(serial_no ILIKE ? OR REPLACE(car_registration,' ','') ILIKE ? OR name ILIKE ? OR phone ILIKE ? OR imei_1 ILIKE ? OR chassis_number ILIKE ?)`);
+    const like = `%${search}%`;
+    const regLike = `%${search.replace(/\s+/g, '')}%`;
+    params.push(like, regLike, like, like, like, like);
+  }
+  const rows = await pgAll(
+    `SELECT id, serial_no, template, system_type, car_registration, chassis_number, model, name, phone,
+            imei_1, start_date, end_date, created_at, created_by_email,
+            deleted_at, deleted_by_email, deleted_reason
+     FROM certificates
+     WHERE ${where.join(" AND ")}
+     ORDER BY deleted_at DESC
+     LIMIT 500`,
+    params
+  );
+  const data = rows.map((r) => ({
+    id: r.id, serialNo: r.serial_no, template: r.template || "finemark", systemType: r.system_type,
+    carRegistration: r.car_registration, chassisNumber: r.chassis_number, model: r.model,
+    name: r.name, phone: r.phone, imei1: r.imei_1, startDate: r.start_date, endDate: r.end_date,
+    createdAt: r.created_at, createdByEmail: r.created_by_email,
+    deletedAt: r.deleted_at, deletedByEmail: r.deleted_by_email, deletedReason: r.deleted_reason,
+  }));
+  return ok(res, { data, meta: { total: data.length } });
+});
+
+// ── Soft-delete a certificate (move to Recycle Bin) ─────────────────────────────
+router.delete("/:id", requireAuth, requireRole(ROLE_GROUPS.CERT_ACCESS), async (req: AuthRequest, res) => {
+  const row = await pgGet("SELECT id, serial_no, car_registration, deleted_at FROM certificates WHERE id = ?", [req.params.id]);
+  if (!row) return errorResponse(res, 404, "NOT_FOUND", "Certificate not found.");
+  if (row.deleted_at) return errorResponse(res, 400, "ALREADY_DELETED", "Certificate is already in the recycle bin.");
+  const now = new Date().toISOString();
+  const reason = typeof req.body?.reason === "string" && req.body.reason.trim() ? req.body.reason.trim() : "Deleted from register";
+  await pgRun(
+    "UPDATE certificates SET deleted_at = ?, deleted_by_user_id = ?, deleted_by_email = ?, deleted_reason = ?, updated_at = ? WHERE id = ?",
+    [now, req.user?.id || null, req.user?.email || null, reason, now, row.id]
+  );
+  invalidateCertificateCaches();
+  auditLog(req, "CERTIFICATE_SOFT_DELETED", `certificate:${row.id}`, "Warning", { serialNo: row.serial_no, carRegistration: row.car_registration, reason }).catch(console.error);
+  return ok(res, { id: row.id, deletedAt: now }, "Certificate moved to recycle bin.");
+});
+
+// ── Restore a certificate from the Recycle Bin ──────────────────────────────────
+router.post("/:id/restore", requireAuth, requireRole(ROLE_GROUPS.CERT_ACCESS), async (req: AuthRequest, res) => {
+  const row = await pgGet("SELECT id, serial_no, car_registration, deleted_at FROM certificates WHERE id = ?", [req.params.id]);
+  if (!row) return errorResponse(res, 404, "NOT_FOUND", "Certificate not found.");
+  if (!row.deleted_at) return errorResponse(res, 400, "NOT_DELETED", "Certificate is not in the recycle bin.");
+  const now = new Date().toISOString();
+  await pgRun(
+    "UPDATE certificates SET deleted_at = NULL, deleted_by_user_id = NULL, deleted_by_email = NULL, deleted_reason = NULL, updated_at = ? WHERE id = ?",
+    [now, row.id]
+  );
+  invalidateCertificateCaches();
+  auditLog(req, "CERTIFICATE_RESTORED", `certificate:${row.id}`, "Info", { serialNo: row.serial_no, carRegistration: row.car_registration }).catch(console.error);
+  return ok(res, { id: row.id, restoredAt: now }, "Certificate restored.");
+});
+
+// ── Permanently delete a recycle-bin certificate (Admin / CertAdmin only) ────────
+router.post("/:id/purge", requireAuth, requireRole(["Admin", "CertAdmin"]), async (req: AuthRequest, res) => {
+  const row = await pgGet("SELECT id, serial_no, car_registration, deleted_at FROM certificates WHERE id = ?", [req.params.id]);
+  if (!row) return errorResponse(res, 404, "NOT_FOUND", "Certificate not found.");
+  if (!row.deleted_at) return errorResponse(res, 400, "NOT_DELETED", "Only recycle-bin certificates can be permanently deleted. Move it to the bin first.");
+  await pgRun("DELETE FROM certificates WHERE id = ?", [row.id]);
+  invalidateCertificateCaches();
+  auditLog(req, "CERTIFICATE_PURGED", `certificate:${row.id}`, "Warning", { serialNo: row.serial_no, carRegistration: row.car_registration }).catch(console.error);
+  return ok(res, { id: row.id }, "Certificate permanently deleted.");
+});
+
 // ── Get single certificate by ID (all editable fields + linked ticketId) ─────
 router.get("/:id", requireAuth, requireRole(ROLE_GROUPS.CERT_ACCESS), async (req, res) => {
   const row = await pgGet(
@@ -424,6 +786,8 @@ router.get("/:id", requireAuth, requireRole(ROLE_GROUPS.CERT_ACCESS), async (req
             additional_devices_json, chassis_number, engine_number, partner_bank,
             printed_by_user_id, printed_by_name, printed_by_signature_url,
             authorized_by_name, authorized_by_role, authorized_by_signature_url,
+            is_extension, extension_no, root_cert_id, extended_from_cert_id, extension_request_id,
+            prior_start_date, prior_end_date, extended_at, extension_approved_by_name,
             created_at, updated_at
      FROM certificates WHERE id = ?`,
     [req.params.id]
@@ -472,6 +836,15 @@ router.get("/:id", requireAuth, requireRole(ROLE_GROUPS.CERT_ACCESS), async (req
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     ticketId: ticketRow?.ticket_id || null,
+    isExtension: !!row.is_extension,
+    extensionNo: Number(row.extension_no || 0),
+    rootCertId: row.root_cert_id || null,
+    extendedFromCertId: row.extended_from_cert_id || null,
+    extensionRequestId: row.extension_request_id || null,
+    priorStartDate: row.prior_start_date || null,
+    priorEndDate: row.prior_end_date || null,
+    extendedAt: row.extended_at || null,
+    extensionApprovedByName: row.extension_approved_by_name || null,
   });
 });
 

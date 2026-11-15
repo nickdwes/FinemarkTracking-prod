@@ -23,6 +23,29 @@ export const loginLimiter = rateLimit({
   },
 });
 
+/**
+ * Azure SSO exchange limiter — POST /api/auth/azure/exchange.
+ * Deliberately NOT loginLimiter: by the time this runs Microsoft has already
+ * authenticated the user, and the exchange code is a one-time random UUID with
+ * a 2-minute TTL, so it can't be brute-forced. The office shares one public IP,
+ * so loginLimiter's 2-per-5-minutes bucket 429'd colleagues signing in together.
+ * 30 per minute per IP.
+ */
+export const ssoExchangeLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json({
+      error: {
+        code: "TOO_MANY_REQUESTS",
+        message: "Too many sign-in attempts. Please wait a minute and try again.",
+      },
+    });
+  },
+});
+
 export const authLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 10,

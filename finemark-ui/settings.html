@@ -361,33 +361,53 @@
     lbl.textContent = "Running backup…";
     icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>`;
     banner.className = "px-6 py-3 text-sm font-medium bg-amber-50 text-amber-700 border-b border-amber-100";
-    banner.textContent = "Backup in progress — this may take 30–60 seconds…";
+    banner.textContent = "Backup started — running in the background (a large dump can take a few minutes)…";
 
-    try {
-      const r = await fetch("/api/admin/backup/run", {
-        method: "POST",
-        headers: authHeaders(),
-      });
-      const d = await r.json();
-
-      if (d.ok) {
-        banner.className = "px-6 py-3 text-sm font-medium bg-emerald-50 text-emerald-700 border-b border-emerald-100";
-        banner.textContent = "✓ Both databases backed up successfully to SharePoint.";
-      } else {
-        const msgs = [];
-        if (d.results?.prod?.status === "failed") msgs.push(`Prod: ${d.results.prod.error_message}`);
-        if (d.results?.dev?.status  === "failed") msgs.push(`Dev: ${d.results.dev.error_message}`);
-        banner.className = "px-6 py-3 text-sm font-medium bg-red-50 text-red-700 border-b border-red-100";
-        banner.textContent = "⚠ " + (msgs.join(" | ") || d.error?.message || d.message || "Backup failed");
-      }
-    } catch (e) {
-      banner.className = "px-6 py-3 text-sm font-medium bg-red-50 text-red-700 border-b border-red-100";
-      banner.textContent = "✗ Backup failed: " + e.message;
-    } finally {
+    const restore = () => {
       btn.disabled = false;
       lbl.textContent = "Run Backup Now";
       icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>`;
-      await loadBackupLogs(); // Refresh log table
+    };
+
+    try {
+      const r = await fetch("/api/admin/backup/run", { method: "POST", headers: authHeaders() });
+      const d = await r.json().catch(() => ({}));
+      if (r.status === 409) {
+        banner.textContent = "A backup is already running — please wait for it to finish.";
+        restore(); return;
+      }
+      if (!d.ok) throw new Error(d.message || d.error?.message || "Failed to start backup");
+
+      // The backup runs in the background — poll the status until it finishes, then
+      // report on the latest prod backup from the history.
+      const start = Date.now();
+      const finishUp = async () => {
+        await loadBackupLogs();
+        try {
+          const logs = ((await (await fetch("/api/admin/backup/logs", { headers: authHeaders() })).json()).logs) || [];
+          const latestProd = logs.find(l => l.env === "prod");
+          if (latestProd && latestProd.status === "success") {
+            banner.className = "px-6 py-3 text-sm font-medium bg-emerald-50 text-emerald-700 border-b border-emerald-100";
+            banner.textContent = "✓ Production database backed up to SharePoint.";
+          } else {
+            banner.className = "px-6 py-3 text-sm font-medium bg-red-50 text-red-700 border-b border-red-100";
+            banner.textContent = "⚠ Prod backup failed: " + (latestProd?.error_message || "unknown error");
+          }
+        } catch { /* history already refreshed */ }
+        restore();
+      };
+      const poll = async () => {
+        let running = true;
+        try { running = (await (await fetch("/api/admin/backup/status", { headers: authHeaders() })).json()).running; }
+        catch { /* transient — keep polling */ }
+        if (running && Date.now() - start < 15 * 60 * 1000) { setTimeout(poll, 5000); return; }
+        finishUp();
+      };
+      setTimeout(poll, 4000);
+    } catch (e) {
+      banner.className = "px-6 py-3 text-sm font-medium bg-red-50 text-red-700 border-b border-red-100";
+      banner.textContent = "✗ Backup failed to start: " + e.message;
+      restore();
     }
   });
 

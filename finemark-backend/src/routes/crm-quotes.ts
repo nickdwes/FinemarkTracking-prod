@@ -7,6 +7,10 @@ import { ok, created, errorResponse } from "../utils/responses.js";
 import { auditLog } from "../services/auditService.js";
 import { renderCommercialPdf } from "../utils/commercialPdfTemplate.js";
 import { renderQuotePdf } from "../utils/quoteTemplate.js";
+import { inclusiveBreakdown } from "../utils/vat.js";
+import { autoFulfilPartnerQuote } from "../services/partnerQuoteFulfilment.js";
+import { buildPaymentDetails } from "../utils/paymentDetails.js";
+import { resolveDocBrand } from "../utils/docBrand.js";
 import { decryptField } from "../services/cryptoService.js";
 import { sendMail } from "../utils/mailer.js";
 import { buildQuoteEmail } from "../utils/emailTemplates.js";
@@ -16,36 +20,6 @@ const router = Router();
 const QUOTE_HOLD_MS = 24 * 60 * 60 * 1000;
 
 // ── Payment options builder ───────────────────────────────────────────────────
-async function buildPaymentOptions(
-  partnerName: string | null,
-  vehicleReg: string | null,
-): Promise<Array<{ label: string; value: string }>> {
-  const reg = (vehicleReg || "").trim() || "(Vehicle Reg.)";
-  const opts: Array<{ label: string; value: string }> = [
-    { label: "MPESA PAYBILL",    value: `Paybill: 4048569 | Account: ${reg}` },
-    { label: "MPESA TILL NUMBER", value: "Till: 5620852" },
-  ];
-  if (partnerName) {
-    // Use the first significant word as the search key (e.g. "NCBA" from "NCBA Bank Kenya PLC")
-    const key = partnerName.trim().split(/\s+/)[0];
-    if (key) {
-      const bankRow = await pgGet(
-        `SELECT account_name, bank_name, account_number FROM bank_accounts
-         WHERE is_active = true AND LOWER(bank_name) LIKE LOWER(?) ORDER BY created_at LIMIT 1`,
-        [`%${key}%`]
-      ).catch(() => null);
-      if (bankRow) {
-        opts.push({
-          label: bankRow.bank_name
-            ? `${bankRow.bank_name} — ${bankRow.account_name}`
-            : bankRow.account_name,
-          value: String(bankRow.account_number),
-        });
-      }
-    }
-  }
-  return opts;
-}
 
 // ── Table bootstrap ──────────────────────────────────────────────────────────
 pgRun(`
@@ -143,6 +117,13 @@ setTimeout(async () => {
   // Bill-to toggle — when true, print/PDF uses the linked bank partner's name
   // + bank_financed_pricing.bank_address instead of the customer's own details.
   await pgRun(`ALTER TABLE crm_quotes ADD COLUMN IF NOT EXISTS bill_to_bank INTEGER NOT NULL DEFAULT 0`, []).catch(() => {});
+  // VAT-inclusive pricing — partner/bank pricing already includes VAT, so the stored
+  // total IS the gross; documents back out the embedded VAT instead of adding it on top.
+  await pgRun(`ALTER TABLE crm_quotes ADD COLUMN IF NOT EXISTS vat_inclusive INTEGER NOT NULL DEFAULT 0`, []).catch(() => {});
+  await pgRun(`ALTER TABLE crm_proforma_invoices ADD COLUMN IF NOT EXISTS vat_inclusive INTEGER NOT NULL DEFAULT 0`, []).catch(() => {});
+  // Manual per-document brand override ('finemark' | 'unique' | NULL = use the partner-bank config)
+  await pgRun(`ALTER TABLE crm_quotes ADD COLUMN IF NOT EXISTS template_override TEXT`, []).catch(() => {});
+  await pgRun(`ALTER TABLE crm_proforma_invoices ADD COLUMN IF NOT EXISTS template_override TEXT`, []).catch(() => {});
 }, 1500);
 
 function calcTotal(installCost: number, subFee: number, taxRate: number, discount: number, qty = 1) {
@@ -154,6 +135,18 @@ function calcTotal(installCost: number, subFee: number, taxRate: number, discoun
 
 function nextQuoteNo(): string {
   return IdGenerator.generateId("quote");
+}
+
+// Partner-priced quotes are auto-generated from the partner/bank agreement and are
+// LOCKED — the sales team cannot change the agreed pricing. Only Admin/Finance may
+// override. A quote is partner-priced ONLY when it carries a partner_id (a real
+// partner/bank agreement). VAT-inclusive alone is NOT a lock reason: private /
+// non-bank-financed leads have no partner agreement, so Sales must be free to
+// create and price their quotations. (Earlier this also locked on vat_inclusive,
+// which wrongly froze private auto-drafts that had been flagged VAT-inclusive.)
+const QUOTE_EDIT_OVERRIDE_ROLES = ["Admin", "Finance"];
+function partnerQuoteLocked(q: any, role: string): boolean {
+  return !!q.partner_id && !QUOTE_EDIT_OVERRIDE_ROLES.includes(role);
 }
 
 // ── ABAC: row-level ownership check ──────────────────────────────────────────
@@ -206,6 +199,8 @@ function mapQuote(row: any, items: any[] = []) {
     parentQuoteId: row.parent_quote_id,
     installationCost: row.installation_cost, subscriptionFee: row.subscription_fee,
     taxRate: row.tax_rate, discountAmount: row.discount_amount, totalAmount: row.total_amount,
+    vatInclusive: !!row.vat_inclusive,
+    pricingMissing: !!row.pricing_missing,
     expiryDate: row.expiry_date, notes: row.notes,
     approvedAt: row.approved_at, approvedBy: row.approved_by, rejectedReason: row.rejected_reason,
     createdByUserId: row.created_by_user_id,
@@ -224,6 +219,9 @@ function collectStockIds(items: any[] = []): string[] {
 }
 
 async function ensureDevicesReservable(stockIds: string[], quoteId?: string) {
+  // Reservation feature disabled — quotes no longer hold/reserve devices, so device
+  // availability never blocks quote create/edit. No-op (kept to preserve call sites).
+  return;
   if (!stockIds.length) return;
   const placeholders = stockIds.map(() => "?").join(",");
   const rows = await pgAll(
@@ -237,8 +235,14 @@ async function ensureDevicesReservable(stockIds: string[], quoteId?: string) {
     throw new Error(`Selected device(s) not found: ${missing.join(", ")}`);
   }
 
+  // A device that has already progressed to a consumed/terminal state (e.g. Installed
+  // for this quote's own job) is no longer reservable stock — it must neither block a
+  // quote edit nor be re-reserved. Only genuine conflicts (not in stock, or reserved by
+  // another quote) should block.
+  const CONSUMED = new Set(["Installed", "In Use", "InUse", "Assigned", "Deployed", "Sold"]);
   const blocked = stockIds.filter((id) => {
     const row: any = rowMap.get(id);
+    if (CONSUMED.has(row.status)) return false;
     const isHeldByThisQuote = quoteId && row.status === "Reserved" && row.reservation_quote_id === quoteId;
     return !(row.status === "In Stock" || isHeldByThisQuote);
   });
@@ -256,14 +260,20 @@ async function reserveDevicesForQuote(
   userEmail: string,
   nowIso: string,
 ) {
+  // Reservation feature disabled — no-op.
+  return;
   if (!stockIds.length) return;
   const reservedUntil = new Date(new Date(nowIso).getTime() + QUOTE_HOLD_MS).toISOString();
 
   for (const devId of stockIds) {
+    // Only reserve devices still in stock — one already consumed (e.g. Installed for
+    // this quote's own job) must never be flipped back to Reserved.
+    const cur = await pgGet<any>(`SELECT status FROM inv_items WHERE id=? AND deleted_at IS NULL`, [devId]);
+    if (!cur || cur.status !== "In Stock") continue;
     await pgRun(
       `UPDATE inv_items
        SET status='Reserved', reserved_until=?, reservation_quote_id=?, updated_at=?
-       WHERE id=? AND deleted_at IS NULL`,
+       WHERE id=? AND status='In Stock' AND deleted_at IS NULL`,
       [reservedUntil, quoteId, nowIso, devId]
     );
     await pgRun(
@@ -320,6 +330,8 @@ async function refreshQuoteReservations(
   userEmail: string,
   nowIso: string,
 ) {
+  // Reservation feature disabled — no-op.
+  return;
   const currentRows = await pgAll(
     `SELECT id FROM inv_items WHERE reservation_quote_id=? AND status='Reserved' AND deleted_at IS NULL`,
     [quoteId]
@@ -352,7 +364,7 @@ async function refreshQuoteReservations(
 }
 
 // ── GET / ─────────────────────────────────────────────────────────────────────
-router.get("/", requireAuth, requireRole(["Admin","Finance","BDM", "BDMCorporate","CorporateSales","Sales","Telesales","FieldSales","Technical"]), async (req: AuthRequest, res) => {
+router.get("/", requireAuth, requireRole(["Admin","CertAdmin","Finance","BDM", "BDMCorporate","CorporateSales","Sales","Telesales","FieldSales","Technical"]), async (req: AuthRequest, res) => {
   const { customerId, leadId, status, q, dateFrom, dateTo, rep, page = "1", pageSize = "50" } = req.query as any;
   const pageNum = Math.max(parseInt(page, 10) || 1, 1);
   const sizeNum = Math.min(parseInt(pageSize, 10) || 50, 200);
@@ -453,16 +465,41 @@ router.post("/", requireAuth, requireRole(["Admin","Finance","BDM", "BDMCorporat
     if (lead?.partner_id) effectivePartnerId = String(lead.partner_id);
   }
 
+  // Auto-link to the originating retail lead when the caller didn't specify one
+  // explicitly — the generic "New Quote" modal (customer-360, crm-quotes.html)
+  // only ever sends vehicleId, never leadId, so a quote raised there for a
+  // customer with an open retail lead was previously left permanently
+  // unlinked: retail_leads.quote_id stayed NULL forever, so the quote (and its
+  // real amount) never surfaced in the Retail Leads report, whose join is
+  // `LEFT JOIN crm_quotes q ON q.id = l.quote_id`. Only auto-links a lead that
+  // doesn't already have a quote, so this can't steal/overwrite another lead's link.
+  let resolvedRetailLeadId: string | null = null;
+  if (!leadId && vehicleId) {
+    const retailLead = await pgGet(
+      `SELECT rl.id FROM retail_lead_vehicles rlv
+       JOIN retail_leads rl ON rl.id = rlv.lead_id
+       WHERE rlv.vehicle_id = ? AND rl.quote_id IS NULL AND rl.deleted_at IS NULL
+       ORDER BY rl.created_at DESC LIMIT 1`,
+      [vehicleId]
+    ).catch(() => null);
+    resolvedRetailLeadId = retailLead?.id || null;
+  }
+  const effectiveLeadId = leadId || resolvedRetailLeadId;
+
   await pgRun(
     `INSERT INTO crm_quotes
        (id,quote_no,customer_id,lead_id,sales_rep_id,sales_rep_email,service_type,status,revision_no,
         installation_cost,subscription_fee,tax_rate,discount_amount,total_amount,expiry_date,notes,
         vehicle_id,vehicle_registration,partner_id,loan_term_months,created_by_user_id,created_at,updated_at)
      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    [id,quoteNo,customerId,leadId||null,req.user!.id,req.user!.email,serviceType||null,"Draft",1,
+    [id,quoteNo,customerId,effectiveLeadId||null,req.user!.id,req.user!.email,serviceType||null,"Draft",1,
      effectiveInstallCost,effectiveSubFee,taxRate,discountAmount,total,expiryDate||null,notes||null,
      vehicleId||null,vehicleRegistration,effectivePartnerId,effectiveLoanTermMonths,req.user!.id,now,now]
   );
+
+  if (resolvedRetailLeadId) {
+    await pgRun(`UPDATE retail_leads SET quote_id = ?, updated_at = ? WHERE id = ?`, [id, now, resolvedRetailLeadId]);
+  }
 
   // Insert line items + reserve devices
   for (const item of items) {
@@ -521,7 +558,7 @@ router.get("/:id", requireAuth, requireRole(["Admin","Finance","BDM", "BDMCorpor
             c.type as customer_type,
             u.name AS sales_rep_name,
             p.name AS partner_name,
-            bfp.bank_address AS bank_address,
+            COALESCE(p.postal_address, bfp.bank_address) AS bank_address,
             v.make AS vehicle_make, v.model AS vehicle_model
      FROM crm_quotes q
      JOIN crm_customers c ON c.id = q.customer_id
@@ -545,7 +582,15 @@ router.get("/:id", requireAuth, requireRole(["Admin","Finance","BDM", "BDMCorpor
   const customerAddress = row.customer_type === 'individual'
     ? (decryptField(row.ind_address_enc) || null)
     : (row.corp_address || null);
-  return ok(res, { data: { ...mapQuote(row, items), customerName: row.customer_name, customerKraPin, customerPhone, customerEmail, customerAddress, bankAddress: row.bank_address || null } });
+  // Resolve the same partner-linked bank / M-Pesa payment rows the PDF uses, so the
+  // client-side print page (crm-quote-print.html) renders identical payment details.
+  const paymentOptions = await buildPaymentDetails({
+    partnerId: row.partner_id || null,
+    partnerName: row.partner_name || null,
+    vehicleReg: row.vehicle_registration || null,
+  });
+  const qBrand = await resolveDocBrand(row.partner_id || null, row.template_override);
+  return ok(res, { data: { ...mapQuote(row, items), customerName: row.customer_name, customerKraPin, customerPhone, customerEmail, customerAddress, bankAddress: row.bank_address || null, paymentOptions, template: qBrand.template, vatDisplay: qBrand.vatDisplay, brandProfile: qBrand.brand, templateOverride: row.template_override || null } });
 });
 
 router.get("/:id/history", requireAuth, requireRole(["Admin","Finance","BDM", "BDMCorporate","CorporateSales","Sales","Telesales","FieldSales"]), async (req: AuthRequest, res) => {
@@ -575,7 +620,7 @@ router.get("/:id/pdf", requireAuth, requireRole(["Admin","Finance","BDM", "BDMCo
             c.type as customer_type,
             u.name AS sales_rep_name,
             p.name AS partner_name,
-            bfp.bank_address AS bank_address
+            COALESCE(p.postal_address, bfp.bank_address) AS bank_address
      FROM crm_quotes q
      JOIN crm_customers c ON c.id = q.customer_id
      LEFT JOIN crm_individual_profiles i ON i.customer_id = c.id
@@ -643,10 +688,11 @@ router.get("/:id/pdf", requireAuth, requireRole(["Admin","Finance","BDM", "BDMCo
   }
 
   // Build M-Pesa + partner-matched bank payment options
-  const paymentOptions = await buildPaymentOptions(
-    row.partner_name || null,
-    vehicle?.registration || row.vehicle_registration || null,
-  );
+  const paymentOptions = await buildPaymentDetails({
+    partnerId: row.partner_id || null,
+    partnerName: row.partner_name || null,
+    vehicleReg: vehicle?.registration || row.vehicle_registration || null,
+  });
 
   // Decrypt customer KRA PIN
   const customerKraPin = decryptField(row.customer_kra_pin_enc) || null;
@@ -699,10 +745,15 @@ router.get("/:id/pdf", requireAuth, requireRole(["Admin","Finance","BDM", "BDMCo
   const rawSub    = items.reduce((s: number, i: any) => s + Number(i.unit_price || 0) * Number(i.quantity || 1), 0)
                     || (Number(row.installation_cost || 0) + Number(row.subscription_fee || 0));
   const discTotal = Number(row.discount_amount || 0);
-  const subtotal  = rawSub - discTotal;
-  const vatTotal  = subtotal * (taxRate / 100);
-  const grandTotal = subtotal + vatTotal;
+  // VAT-inclusive (partner) pricing: the stored total IS the gross — back out the
+  // embedded VAT for display. Otherwise VAT is added on top of the net subtotal.
+  const inc = row.vat_inclusive ? inclusiveBreakdown(Number(row.total_amount || 0)) : null;
+  const subtotal   = inc ? inc.subtotal   : rawSub - discTotal;
+  const vatTotal   = inc ? inc.vatTotal   : (rawSub - discTotal) * (taxRate / 100);
+  const grandTotal = inc ? inc.grandTotal : subtotal + vatTotal;
+  const effTaxRate = inc ? inc.taxRate    : taxRate;
 
+  const docBrand = await resolveDocBrand(row.partner_id, row.template_override);
   const pdfBytes = await renderQuotePdf({
     documentNo:        row.quote_no,
     issueDate:         row.created_at,
@@ -723,7 +774,10 @@ router.get("/:id/pdf", requireAuth, requireRole(["Admin","Finance","BDM", "BDMCo
     vatTotal,
     grandTotal,
     discountTotal:     discTotal > 0 ? discTotal : undefined,
-    taxRate,
+    taxRate:           effTaxRate,
+    vatInclusive:      !!row.vat_inclusive,
+    brand:             docBrand.brand,
+    vatDisplay:        docBrand.vatDisplay,
     vehicle,
     paymentOptions,
     lineItems,
@@ -744,12 +798,19 @@ router.patch("/:id", requireAuth, requireRole(["Admin","Finance","BDM", "BDMCorp
   if (!(await assertQuoteAccess(req.user!.role, req.user!.id, quote))) {
     return errorResponse(res, 403, "FORBIDDEN", "You do not have access to this quote.");
   }
+  if (partnerQuoteLocked(quote, req.user!.role)) {
+    return errorResponse(res, 403, "PARTNER_QUOTE_LOCKED", "This is a partner-priced quotation — the pricing is set by the partner agreement and cannot be edited.");
+  }
   if (!["Draft","Sent"].includes(quote.status))
     return errorResponse(res, 409, "INVALID_STATE", "Only Draft/Sent quotes can be edited.");
 
   const { serviceType, installationCost, subscriptionFee, taxRate, discountAmount,
-          expiryDate, notes, items, loanTermMonths, billToBank } = req.body;
+          expiryDate, notes, items, loanTermMonths, billToBank, templateOverride } = req.body;
   const now = new Date().toISOString();
+  // Manual document-brand override ('finemark' | 'unique' | null/'' = auto per partner-bank config)
+  const to = templateOverride !== undefined
+    ? (templateOverride === "finemark" || templateOverride === "unique" ? templateOverride : null)
+    : quote.template_override;
 
   const ic = installationCost !== undefined ? Number(installationCost) : quote.installation_cost;
   const sf = subscriptionFee  !== undefined ? Number(subscriptionFee)  : quote.subscription_fee;
@@ -774,11 +835,13 @@ router.patch("/:id", requireAuth, requireRole(["Admin","Finance","BDM", "BDMCorp
   if (billToBank       !== undefined && btb         !== quote.bill_to_bank)        changes.push(`Bill to: ${quote.bill_to_bank ? "Bank Partner" : "Customer"} → ${btb ? "Bank Partner" : "Customer"}`);
   if (items)                                                                      changes.push(`Line items replaced (${items.length} item${items.length !== 1 ? "s" : ""})`);
 
+  if (templateOverride !== undefined && to !== quote.template_override) changes.push(`Document template: ${quote.template_override || "auto"} → ${to || "auto"}`);
+
   await pgRun(
     `UPDATE crm_quotes SET service_type=?,installation_cost=?,subscription_fee=?,tax_rate=?,
-      discount_amount=?,total_amount=?,expiry_date=?,notes=?,loan_term_months=?,bill_to_bank=?,updated_at=? WHERE id=?`,
+      discount_amount=?,total_amount=?,expiry_date=?,notes=?,loan_term_months=?,bill_to_bank=?,template_override=?,updated_at=? WHERE id=?`,
     [serviceType??quote.service_type,ic,sf,tr,da,total,
-     expiryDate??quote.expiry_date,notes??quote.notes,ltm,btb,now,req.params.id]
+     expiryDate??quote.expiry_date,notes??quote.notes,ltm,btb,to,now,req.params.id]
   );
 
   if (items) {
@@ -844,6 +907,9 @@ router.post("/:id/items", requireAuth, requireRole(["Admin","Finance","BDM", "BD
   if (!quote) return errorResponse(res, 404, "NOT_FOUND", "Quote not found.");
   if (!(await assertQuoteAccess(req.user!.role, req.user!.id, quote))) {
     return errorResponse(res, 403, "FORBIDDEN", "You do not have access to this quote.");
+  }
+  if (partnerQuoteLocked(quote, req.user!.role)) {
+    return errorResponse(res, 403, "PARTNER_QUOTE_LOCKED", "This is a partner-priced quotation — its line items are set by the partner agreement and cannot be changed.");
   }
   if (!["Draft","Sent"].includes(quote.status))
     return errorResponse(res, 409, "INVALID_STATE", "Only Draft/Sent quotes can have items added.");
@@ -931,10 +997,11 @@ router.post("/:id/send", requireAuth, requireRole(["Admin","Finance","BDM", "BDM
     } else if (row.vehicle_registration) {
       vehicle = { registration: row.vehicle_registration };
     }
-    const paymentOptions = await buildPaymentOptions(
-      row.partner_name || null,
-      vehicle?.registration || row.vehicle_registration || null,
-    );
+    const paymentOptions = await buildPaymentDetails({
+      partnerId: row.partner_id || null,
+      partnerName: row.partner_name || null,
+      vehicleReg: vehicle?.registration || row.vehicle_registration || null,
+    });
 
     const lineItems = items.length
       ? items.map((item: any, idx: number) => {
@@ -948,15 +1015,20 @@ router.post("/:id/send", requireAuth, requireRole(["Admin","Finance","BDM", "BDM
 
     const rawSub    = items.reduce((s: number, i: any) => s + Number(i.unit_price||0)*Number(i.quantity||1), 0) || (Number(row.installation_cost||0)+Number(row.subscription_fee||0));
     const discTotal = Number(row.discount_amount || 0);
-    const subtotal  = rawSub - discTotal;
-    const vatTotal  = subtotal * (taxRate / 100);
-    const grandTotal = subtotal + vatTotal;
+    const inc        = row.vat_inclusive ? inclusiveBreakdown(Number(row.total_amount || 0)) : null;
+    const subtotal   = inc ? inc.subtotal   : rawSub - discTotal;
+    const vatTotal   = inc ? inc.vatTotal   : (rawSub - discTotal) * (taxRate / 100);
+    const grandTotal = inc ? inc.grandTotal : subtotal + vatTotal;
+    const effTaxRate = inc ? inc.taxRate    : taxRate;
 
+    const docBrand = await resolveDocBrand(row.partner_id, row.template_override);
     const pdfBytes = await renderQuotePdf({
       documentNo: row.quote_no, issueDate: row.created_at, expiryDate: row.expiry_date,
       customerName: row.customer_name || row.customer_id, salesRep: row.sales_rep_name || req.user?.email,
       notes: row.notes || "", subtotal, vatTotal, grandTotal, discountTotal: discTotal > 0 ? discTotal : undefined,
-      taxRate, vehicle, paymentOptions, lineItems,
+      taxRate: effTaxRate, vatInclusive: !!row.vat_inclusive,
+      brand: docBrand.brand, vatDisplay: docBrand.vatDisplay,
+      vehicle, paymentOptions, lineItems,
     });
 
     const customer = row.customer_name || "Customer";
@@ -997,11 +1069,17 @@ router.post("/:id/accept", requireAuth, requireRole(["Admin","Finance","BDM", "B
     return errorResponse(res, 403, "FORBIDDEN", "You do not have access to this quote.");
   }
   if (quote.status !== "Sent") return errorResponse(res, 409, "INVALID_STATE", "Only Sent quotes can be accepted.");
+  if (quote.pricing_missing) {
+    return errorResponse(res, 409, "PRICING_MISSING", "This quotation still has no price set — edit it to set the amount before it can be accepted.");
+  }
 
   await pgRun(`UPDATE crm_quotes SET status='Accepted', approved_at=?, approved_by=?, updated_at=? WHERE id=?`,
     [new Date().toISOString(), req.user!.email, new Date().toISOString(), req.params.id]);
   auditLog(req, "QUOTE_ACCEPTED", "crm_quotes", "Info", { quoteId: req.params.id }).catch(console.error);
-  return ok(res, { message: "Quote accepted." });
+  // Partner-priced quotes fulfil automatically: proforma → auto-approve → invoice.
+  const autoFulfilled = await autoFulfilPartnerQuote(req.params.id, { id: req.user!.id, email: req.user!.email })
+    .catch((e) => { console.error("[quote/accept] auto-fulfil failed:", e?.message); return null; });
+  return ok(res, { message: "Quote accepted.", autoFulfilled: autoFulfilled || undefined });
 });
 
 // ── POST /:id/bdm-approve ──────────────────────────────────────────────────────
@@ -1018,11 +1096,22 @@ router.post("/:id/bdm-approve", requireAuth, requireRole(["Admin", "BDM", "BDMCo
   if (!["Draft", "Sent"].includes(quote.status)) {
     return errorResponse(res, 409, "INVALID_STATE", "Only Draft or Sent quotes can be BDM-approved.");
   }
+  if (quote.pricing_missing) {
+    return errorResponse(res, 409, "PRICING_MISSING", "This quotation still has no price set — edit it to set the amount before it can be approved.");
+  }
 
   await pgRun(`UPDATE crm_quotes SET status='Accepted', approved_at=?, approved_by=?, updated_at=? WHERE id=?`,
     [new Date().toISOString(), `${req.user!.email} (BDM approval, not sent to customer)`, new Date().toISOString(), req.params.id]);
   auditLog(req, "QUOTE_BDM_APPROVED", "crm_quotes", "Info", { quoteId: req.params.id }).catch(console.error);
-  return ok(res, { message: "Quote approved internally — ready to convert to proforma." });
+  // Partner-priced quotes fulfil automatically on approval: proforma → auto-approve → invoice.
+  const autoFulfilled = await autoFulfilPartnerQuote(req.params.id, { id: req.user!.id, email: req.user!.email })
+    .catch((e) => { console.error("[quote/bdm-approve] auto-fulfil failed:", e?.message); return null; });
+  return ok(res, {
+    message: autoFulfilled?.invoiceNumber
+      ? `Quote approved — proforma auto-approved and invoice ${autoFulfilled.invoiceNumber} created.`
+      : "Quote approved internally — ready to convert to proforma.",
+    autoFulfilled: autoFulfilled || undefined,
+  });
 });
 
 // ── POST /:id/reject ──────────────────────────────────────────────────────────
@@ -1109,10 +1198,15 @@ router.post("/:id/convert-to-proforma", requireAuth, requireRole(["Admin","Finan
 
   const now = new Date().toISOString();
   const pfId = uuidv4();
-  const lastPF = await pgGet(`SELECT proforma_no FROM crm_proforma_invoices ORDER BY created_at DESC LIMIT 1`, []).catch(() => null);
-  let pfSeq = 1;
-  if (lastPF?.proforma_no) { const m = lastPF.proforma_no.match(/-(\d+)$/); if (m) pfSeq = parseInt(m[1],10)+1; }
-  const proformaNo = `PF-${String(pfSeq).padStart(5,"0")}`;
+  // Number the proforma off the quote (QTE-XXXX → PFI-XXXX), matching the rest of the
+  // system (1,000+ existing proformas use this scheme). The old "last proforma's numeric
+  // suffix + 1" logic broke once proforma numbers became mostly PFI-* — with no trailing
+  // digits the regex never matched, so it kept regenerating PF-00001 and colliding on the
+  // unique proforma_no. The per-quote check above already guarantees this isn't a re-issue;
+  // fall back to a unique id only if the quote somehow has no QTE- number.
+  const proformaNo = quote.quote_no && /^QTE-/i.test(quote.quote_no)
+    ? String(quote.quote_no).replace(/^QTE-/i, "PFI-")
+    : IdGenerator.generateId("proforma");
 
   await pgRun(
     `INSERT INTO crm_proforma_invoices

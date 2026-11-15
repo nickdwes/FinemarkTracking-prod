@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Sales Commission</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+    .fade-in{animation:fadeIn .2s ease;}
+    table{border-collapse:collapse;width:100%;}
+    th{text-align:left;font-size:.72rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.04em;padding:.5rem .75rem;border-bottom:1px solid #e2e8f0;white-space:nowrap;}
+    td{font-size:.82rem;padding:.55rem .75rem;border-bottom:1px solid #f1f5f9;color:#334155;vertical-align:middle;white-space:nowrap;}
+    tr:hover td{background:#f8fafc;}
+    .badge{display:inline-flex;align-items:center;border-radius:9999px;padding:.15rem .6rem;font-size:.68rem;font-weight:600;border-width:1px;}
+    .subtab-btn{padding:.4rem .95rem;font-size:.8rem;font-weight:600;border-radius:9999px;color:#64748b;background:#f1f5f9;transition:all .15s;white-space:nowrap;}
+    .subtab-btn:hover{background:#e2e8f0;color:#334155;}
+    .subtab-btn.active{background:#2563eb;color:#fff;}
+    .fltr{border-radius:.5rem;border:1px solid #e2e8f0;font-size:.82rem;padding:.5rem .65rem;color:#334155;background:#fff;}
+    .fltr:focus{outline:none;box-shadow:0 0 0 2px rgba(59,130,246,.25);border-color:#60a5fa;}
+    .fltr-label{display:block;font-size:.7rem;font-weight:600;color:#64748b;margin-bottom:.25rem;text-transform:uppercase;letter-spacing:.03em;}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-4 md:p-6 max-w-[1400px] mx-auto space-y-6">
+
+    <!-- Page Header -->
+    <div class="flex flex-wrap items-center gap-3 justify-between">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Sales Commission</h1>
+        <p class="text-sm text-slate-500 mt-0.5">Sales-people commission on amounts retained, set by bank and loan years, with withholding tax.</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button onclick="dlScCsv()"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
+          Download CSV
+        </button>
+        <button onclick="dlScExtract()" title="One CSV in the finance-sheet layout: tier sections, subtotals, by-salesperson &amp; pay summary"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6M9 8h6M5 4h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z"/></svg>
+          Full Extract (CSV)
+        </button>
+      </div>
+    </div>
+
+    <!-- Date range filter -->
+    <div class="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap items-end gap-3">
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1" for="rep-from">Payment Date From</label>
+        <input id="rep-from" type="date"
+               class="rounded-lg border border-slate-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1" for="rep-to">Payment Date To</label>
+        <input id="rep-to" type="date"
+               class="rounded-lg border border-slate-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400" />
+      </div>
+      <button onclick="loadSalesComm()"
+              class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition">Apply</button>
+      <button onclick="clearRange()"
+              class="px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition">Clear</button>
+      <span class="text-xs text-slate-400 ml-auto self-center">Filters by when the payment was received. Leave blank for all-time.</span>
+    </div>
+
+    <div id="sc-status" class="text-sm text-slate-400">Loading…</div>
+
+    <!-- Rate parameters (read-only summary; edited via the Set Bank Rates popup) -->
+    <details id="sc-config" class="bg-white rounded-xl border border-slate-200" open>
+      <summary class="px-4 py-3 text-sm font-semibold text-slate-700 cursor-pointer select-none">⚙️ Commission Rate Parameters <span class="font-normal text-slate-400">— fallback flat %, private %, withholding tax</span></summary>
+      <div class="px-4 pb-4 border-t border-slate-100 pt-3 space-y-3">
+        <div id="sc-config-view" class="flex flex-wrap gap-1.5"></div>
+        <button type="button" id="sc-edit-rates" onclick="openScModal()" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition">⚙ Set Bank Rates</button>
+      </div>
+    </details>
+
+    <!-- Commission structure (bank × loan years) — editable configuration -->
+    <details id="sc-matrix" class="bg-white rounded-xl border border-slate-200" open>
+      <summary class="px-4 py-3 text-sm font-semibold text-slate-700 cursor-pointer select-none">📊 Commission Structure <span class="font-normal text-slate-400">— sales commission per vehicle by bank &amp; loan years</span></summary>
+      <div class="px-4 pb-4 border-t border-slate-100 pt-3 space-y-3">
+        <p class="text-xs text-slate-500 leading-relaxed">
+          Each deal is paid from the cell that matches its bank and loan length (months rounded up to whole years).
+          Payout per receipt = amount retained × (sales commission ÷ (price − bank commission)). A deal paid in full at the listed price earns exactly the listed commission, and part-payments earn a proportional share.
+          If a deal's bank or loan length isn't in this table, the flat rate from <em>Commission Rate Parameters</em> applies instead.
+          Leave all three boxes in a year empty to mean "no tier for that year".
+        </p>
+        <div id="sc-mx-meta" class="text-xs text-slate-400"></div>
+        <div class="overflow-x-auto border border-slate-200 rounded-lg">
+          <table id="sc-mx-table" class="min-w-[900px]"></table>
+        </div>
+        <div id="sc-mx-actions" class="flex flex-wrap items-center gap-2">
+          <input id="sc-mx-newbank" placeholder="Add bank / SACCO…" class="fltr uppercase w-56"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();mxAddBank();}" />
+          <button type="button" onclick="mxAddBank()" class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-blue-600 text-xs font-semibold hover:bg-blue-50 transition">+ Add Bank</button>
+          <span id="sc-mx-msg" class="text-xs text-slate-400 ml-auto"></span>
+          <button type="button" id="sc-mx-discard" onclick="mxDiscard()" class="px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition">Discard Changes</button>
+          <button type="button" id="sc-mx-save" onclick="mxSave()" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition">Save Structure</button>
+        </div>
+      </div>
+    </details>
+
+    <div id="sc-filters" class="hidden flex flex-wrap items-end gap-3 bg-white rounded-xl border border-slate-200 p-3">
+      <div><label class="fltr-label">Sales Person</label><select id="sc-f-sp" onchange="renderSalesComm()" class="fltr"><option value="">All</option></select></div>
+      <div><label class="fltr-label">Bank</label><select id="sc-f-bank" onchange="renderSalesComm()" class="fltr"><option value="">All</option></select></div>
+      <div class="flex-1 min-w-[180px]"><label class="fltr-label">Search</label><input id="sc-f-q" oninput="renderSalesComm()" placeholder="Client, reg, ref, invoice…" class="fltr w-full" /></div>
+      <button onclick="clearScFilters()" class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:bg-slate-50 transition">Reset</button>
+    </div>
+    <div id="sc-kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
+    <div id="sc-content" class="space-y-6"></div>
+
+  </main>
+</div>
+<div id="fm-footer"></div>
+
+<!-- Set Bank Rates popup — one independent rate per bank; blank = follows the default rate -->
+<div id="sc-modal" class="hidden fixed inset-0 z-40 bg-black/40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col fade-in">
+    <div class="px-5 py-4 border-b border-slate-100 flex items-start justify-between gap-3">
+      <div>
+        <h3 class="text-base font-bold text-slate-900">Bank Commission Rates</h3>
+        <p class="text-xs text-slate-500 mt-0.5">Set an independent rate for each bank. Leave a bank blank to follow the default rate.</p>
+      </div>
+      <button type="button" onclick="closeScModal()" class="text-slate-400 hover:text-slate-600 text-2xl leading-none" title="Close">&times;</button>
+    </div>
+    <div class="px-5 py-4 space-y-4 overflow-y-auto">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div><label class="fltr-label">Default rate % <span class="normal-case font-normal">(unlisted banks)</span></label>
+          <input id="sc-m-default" type="number" min="0" max="100" step="0.01" oninput="scModalSetPlaceholders()" class="fltr w-full" /></div>
+        <div><label class="fltr-label">Private rate % <span class="normal-case font-normal">(non-bank-financed)</span></label>
+          <input id="sc-m-private" type="number" min="0" max="100" step="0.01" class="fltr w-full" /></div>
+        <div><label class="fltr-label">Withholding tax %</label>
+          <input id="sc-m-wht" type="number" min="0" max="100" step="0.01" class="fltr w-full" /></div>
+      </div>
+      <div>
+        <label class="fltr-label">Rate per bank</label>
+        <div id="sc-m-banks" class="space-y-1.5"></div>
+        <div class="flex items-center gap-2 mt-2">
+          <input id="sc-m-newbank" placeholder="Add another bank…" class="fltr flex-1 uppercase"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();scModalAddBank();}" />
+          <button type="button" onclick="scModalAddBank()" class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-blue-600 text-xs font-semibold hover:bg-blue-50 transition whitespace-nowrap">+ Add</button>
+        </div>
+      </div>
+    </div>
+    <div class="px-5 py-4 border-t border-slate-100 flex items-center justify-between gap-3">
+      <span id="sc-m-msg" class="text-xs text-slate-400"></span>
+      <div class="flex gap-2">
+        <button type="button" onclick="closeScModal()" class="px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition">Cancel</button>
+        <button type="button" id="sc-m-save" onclick="saveScModal()" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition">Save Rates</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="hidden fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg text-sm font-medium shadow-lg fade-in"></div>
+
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+  const APP = window.FINEMARK_APP;
+  APP && APP.requirePageAccess && APP.requirePageAccess();
+
+  /* ---------- helpers ---------- */
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (m) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+  const kes = (v) => 'KES ' + Number(v || 0).toLocaleString('en-KE', { maximumFractionDigits: 0 });
+  /* Money with cents — sales commission math produces figures like 2,136.28. */
+  const kes2 = (v) => 'KES ' + Number(v || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const num = (v) => Number(v || 0).toLocaleString('en-KE');
+  const pct = (v) => (Number(v) % 1 === 0 ? String(Number(v)) : Number(v).toFixed(2)) + '%';
+
+  function fmtDate(v){
+    if (!v) return '—';
+    const d = new Date(v);
+    if (isNaN(d)) return esc(v);
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  function toast(msg, ok){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg text-sm font-medium shadow-lg fade-in ' + (ok ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white');
+    t.classList.remove('hidden');
+    setTimeout(() => t.classList.add('hidden'), 3200);
+  }
+
+  function kpiCard(label, value, accent){
+    return '<div class="bg-white rounded-xl border border-slate-200 p-4">'
+      + '<div class="text-xs font-medium text-slate-500 uppercase tracking-wide">' + esc(label) + '</div>'
+      + '<div class="text-2xl font-bold mt-1 ' + (accent || 'text-slate-900') + '">' + value + '</div>'
+      + '</div>';
+  }
+
+  function card(title, tableHtml){
+    return '<div class="bg-white rounded-xl border border-slate-200 overflow-hidden">'
+      + (title ? '<div class="px-4 py-3 border-b border-slate-100 text-sm font-semibold text-slate-700">' + esc(title) + '</div>' : '')
+      + '<div class="overflow-x-auto">' + tableHtml + '</div>'
+      + '</div>';
+  }
+
+  /* Build query string from the date range. */
+  function qs(){
+    const from = (document.getElementById('rep-from').value || '').trim();
+    const to   = (document.getElementById('rep-to').value || '').trim();
+    const p = [];
+    if (from) p.push('from=' + encodeURIComponent(from));
+    if (to)   p.push('to='   + encodeURIComponent(to));
+    return p.length ? '?' + p.join('&') : '';
+  }
+
+  function clearRange(){
+    document.getElementById('rep-from').value = '';
+    document.getElementById('rep-to').value = '';
+    loadSalesComm();
+  }
+
+  /* Client-side CSV. */
+  function csvCell(v){
+    const s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function downloadCsv(filename, headers, rows){
+    const lines = [headers.join(',')];
+    rows.forEach((r) => lines.push(headers.map((h) => csvCell(r[h])).join(',')));
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
+  function setStatus(mode, msg){
+    const el = document.getElementById('sc-status');
+    if (mode === 'hide') { el.classList.add('hidden'); return; }
+    el.classList.remove('hidden');
+    el.className = 'text-sm ' + (mode === 'error' ? 'text-red-500' : 'text-slate-400');
+    el.textContent = msg;
+  }
+
+  /* Populate a <select> with distinct values, preserving the current selection if still present. */
+  function fillSelect(id, values){
+    const el = document.getElementById(id);
+    if (!el) return;
+    const cur = el.value;
+    el.innerHTML = '<option value="">All</option>' + values.map((v) => '<option value="' + esc(v) + '">' + esc(v) + '</option>').join('');
+    if (values.indexOf(cur) !== -1) el.value = cur;
+  }
+
+  const EMPTY = '<div class="text-center text-slate-400 py-10">No records for this period.</div>';
+  const NOMATCH = '<div class="text-center text-slate-400 py-10">No records match these filters.</div>';
+
+  /* ---------- state ---------- */
+  let _scData = null;   // report payload (config+summary+rows)
+  let _scSub = 'deals'; // sub-tab: 'deals' | 'sp' | 'summary'
+
+  function switchScSub(sub){
+    _scSub = sub;
+    document.querySelectorAll('#sc-content .subtab-btn').forEach((b) => b.classList.toggle('active', b.dataset.sub === sub));
+    ['deals','sp','summary'].forEach((s) => {
+      const el = document.getElementById('sc-sub-' + s);
+      if (el) el.classList.toggle('hidden', s !== sub);
+    });
+  }
+
+  function scCanEdit(){
+    const role = (APP.getSession && APP.getSession()?.user?.role) || '';
+    return role === 'Admin' || role === 'Finance';
+  }
+
+  async function loadSalesComm(){
+    setStatus('loading', 'Loading…');
+    document.getElementById('sc-filters').classList.add('hidden');
+    document.getElementById('sc-kpis').innerHTML = '';
+    document.getElementById('sc-content').innerHTML = '';
+    _scData = null;
+    try {
+      const r = await APP.apiFetch('/reports/sales-commission' + qs());
+      _scData = (r && r.data) || null;
+      setStatus('hide');
+      if (_scData) { fillScConfig(_scData.config); renderMatrix(_scData.config); }
+      if (!_scData || !_scData.rows || !_scData.rows.length){
+        document.getElementById('sc-content').innerHTML = EMPTY;
+        return;
+      }
+      fillSelect('sc-f-sp', [...new Set(_scData.rows.map((x) => x.salesPerson || '—'))].sort());
+      fillSelect('sc-f-bank', [...new Set(_scData.rows.map((x) => x.bank || '—'))].sort());
+      document.getElementById('sc-filters').classList.remove('hidden');
+      renderSalesComm();
+    } catch (e) {
+      document.getElementById('sc-filters').classList.add('hidden');
+      setStatus('error', 'Failed to load sales commission report.');
+    }
+  }
+
+  /* ---- rate parameters: read-only summary + "Set Bank Rates" popup ---- */
+  function fillScConfig(cfg){
+    if (!cfg) return;
+    const chip = (label, cls) => '<span class="badge ' + cls + '">' + label + '</span>';
+    document.getElementById('sc-config-view').innerHTML =
+        chip('Default ' + pct(cfg.defaultPct), 'bg-slate-100 border-slate-200 text-slate-600')
+      + chip('Private ' + pct(cfg.privatePct), 'bg-blue-50 border-blue-200 text-blue-700')
+      + chip('WHT ' + pct(cfg.whtPct), 'bg-rose-50 border-rose-200 text-rose-600')
+      + (cfg.banks || []).map((b) => chip(esc(b.bank) + ' · ' + pct(b.ratePct), 'bg-emerald-50 border-emerald-200 text-emerald-700')).join('')
+      + ((cfg.banks || []).length ? '' : '<span class="text-xs text-slate-400 self-center">No bank-specific rates yet — every bank uses the default.</span>');
+    document.getElementById('sc-edit-rates').classList.toggle('hidden', !scCanEdit());
+  }
+
+  /* ---- Commission structure grid (bank × loan years) ---- */
+  let _mx = null;        // working copy: [{bank, aliases[], tiers:{[y]:{price,bankCommission,salesCommission}}}]
+  let _mxDirty = false;
+  let _mxYears = 6;
+  const MX_LINES = [
+    ['price', 'Price charged'],
+    ['bankCommission', 'Bank commission'],
+    ['salesCommission', 'Sales commission'],
+  ];
+
+  function mxFromConfig(cfg){
+    _mxYears = (cfg && cfg.maxYears) || 6;
+    return ((cfg && cfg.matrix) || []).map((b) => {
+      const tiers = {};
+      (b.tiers || []).forEach((t) => { tiers[t.years] = { price: t.price, bankCommission: t.bankCommission, salesCommission: t.salesCommission }; });
+      return { bank: b.bank, aliases: (b.aliases || []).slice(), tiers };
+    });
+  }
+
+  function mxSetDirty(d){
+    _mxDirty = d;
+    const msg = document.getElementById('sc-mx-msg');
+    msg.className = 'text-xs ml-auto ' + (d ? 'text-amber-600 font-semibold' : 'text-slate-400');
+    msg.textContent = d ? '● Unsaved changes' : '';
+    document.getElementById('sc-mx-discard').classList.toggle('hidden', !d);
+  }
+
+  function mxEffective(t){
+    if (!t) return '';
+    const p = Number(t.price), c = Number(t.bankCommission || 0), s = Number(t.salesCommission);
+    if (!(p > 0) || t.salesCommission === '' || t.salesCommission == null || p - c <= 0) return '';
+    return (s / (p - c) * 100).toFixed(2) + '%';
+  }
+
+  function renderMatrix(cfg, force){
+    if (_mxDirty && !force) return;           // never clobber unsaved edits on a report reload
+    if (cfg) _mx = mxFromConfig(cfg);
+    if (!_mx) return;
+    const edit = scCanEdit();
+    const dis = edit ? '' : ' disabled';
+    const Y = Array.from({ length: _mxYears }, (_, i) => i + 1);
+    let h = '<thead><tr><th class="sticky left-0 bg-white">Bank</th><th></th>'
+      + Y.map((y) => '<th class="text-right">' + y + ' Year' + (y > 1 ? 's' : '') + '</th>').join('')
+      + '</tr></thead><tbody>';
+    _mx.forEach((b, bi) => {
+      const span = MX_LINES.length + 1;
+      MX_LINES.forEach(([field, label], li) => {
+        h += '<tr class="' + (field === 'salesCommission' ? 'bg-emerald-50/40' : '') + '">';
+        if (li === 0){
+          h += '<td rowspan="' + span + '" class="align-top sticky left-0 bg-white border-r border-slate-100 min-w-[180px]">'
+            + '<div class="font-semibold text-slate-800">' + esc(b.bank) + '</div>'
+            + '<label class="block text-[0.65rem] text-slate-400 mt-1">Also matches (comma-separated)</label>'
+            + '<input class="fltr w-full text-xs uppercase mt-0.5" data-bi="' + bi + '" data-alias="1" value="' + esc((b.aliases || []).join(', ')) + '" placeholder="e.g. CO-OP, COOP"' + dis + ' oninput="mxAliasInput(this)" />'
+            + (edit ? '<button type="button" class="text-[0.7rem] text-red-500 hover:underline mt-1.5" onclick="mxRemoveBank(' + bi + ')">Remove bank</button>' : '')
+            + '</td>';
+        }
+        h += '<td class="text-xs ' + (field === 'salesCommission' ? 'text-emerald-700 font-semibold' : 'text-slate-500') + '">' + label + '</td>';
+        Y.forEach((y) => {
+          const t = b.tiers[y];
+          const v = t && t[field] !== '' && t[field] != null ? t[field] : '';
+          h += '<td class="text-right px-1.5"><input type="number" min="0" step="0.01" class="fltr w-28 text-right ' + (field === 'salesCommission' ? 'font-semibold text-emerald-700' : '') + '"'
+            + ' data-bi="' + bi + '" data-y="' + y + '" data-f="' + field + '" value="' + esc(v) + '"' + dis + ' oninput="mxCellInput(this)" /></td>';
+        });
+        h += '</tr>';
+      });
+      h += '<tr class="border-b-2 border-slate-200"><td class="text-xs text-slate-400">Effective rate on retained</td>'
+        + Y.map((y) => '<td class="text-right text-xs text-slate-500 px-3" data-eff="' + bi + '-' + y + '">' + mxEffective(b.tiers[y]) + '</td>').join('')
+        + '</tr>';
+    });
+    if (!_mx.length) h += '<tr><td colspan="' + (Y.length + 2) + '" class="text-center text-slate-400 py-6">No banks in the commission structure — every deal uses the flat rates.</td></tr>';
+    h += '</tbody>';
+    document.getElementById('sc-mx-table').innerHTML = h;
+    document.getElementById('sc-mx-actions').classList.toggle('hidden', !edit);
+    const meta = cfg || (_scData && _scData.config) || {};
+    document.getElementById('sc-mx-meta').textContent = meta.matrixUpdatedAt
+      ? 'Last updated ' + fmtDate(meta.matrixUpdatedAt) + (meta.matrixUpdatedBy ? ' by ' + meta.matrixUpdatedBy : '') + (edit ? '' : ' · read-only (Finance/Admin can edit)')
+      : (edit ? '' : 'Read-only (Finance/Admin can edit)');
+    if (force || cfg) mxSetDirty(false);
+  }
+
+  function mxCellInput(el){
+    const b = _mx[+el.dataset.bi], y = +el.dataset.y, f = el.dataset.f;
+    if (!b.tiers[y]) b.tiers[y] = { price: '', bankCommission: '', salesCommission: '' };
+    b.tiers[y][f] = el.value === '' ? '' : Number(el.value);
+    const eff = document.querySelector('[data-eff="' + el.dataset.bi + '-' + y + '"]');
+    if (eff) eff.textContent = mxEffective(b.tiers[y]);
+    mxSetDirty(true);
+  }
+
+  function mxAliasInput(el){
+    _mx[+el.dataset.bi].aliases = el.value.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
+    mxSetDirty(true);
+  }
+
+  function mxAddBank(){
+    const inp = document.getElementById('sc-mx-newbank');
+    const name = inp.value.trim().toUpperCase();
+    if (!name) return;
+    if (_mx.some((b) => b.bank === name)){ toast('That bank is already in the structure.', false); return; }
+    _mx.push({ bank: name, aliases: [], tiers: {} });
+    inp.value = '';
+    renderMatrix(null, true);
+    mxSetDirty(true);
+  }
+
+  function mxRemoveBank(bi){
+    if (!confirm('Remove ' + _mx[bi].bank + ' from the commission structure? Its deals will fall back to the flat rate once you save.')) return;
+    _mx.splice(bi, 1);
+    renderMatrix(null, true);
+    mxSetDirty(true);
+  }
+
+  function mxDiscard(){
+    _mxDirty = false;
+    renderMatrix(_scData && _scData.config, true);
+  }
+
+  async function mxSave(){
+    const msg = document.getElementById('sc-mx-msg');
+    const fail = (t) => { msg.className = 'text-xs ml-auto text-red-500'; msg.textContent = t; };
+    const banks = [];
+    for (const b of _mx){
+      const tiers = [];
+      for (const y of Object.keys(b.tiers).map(Number).sort((a, c) => a - c)){
+        const t = b.tiers[y];
+        const blank = (v) => v === '' || v == null;
+        if (blank(t.price) && blank(t.bankCommission) && blank(t.salesCommission)) continue;   // no tier this year
+        if (blank(t.price) || blank(t.salesCommission)) return fail(b.bank + ' ' + y + ' yr: enter both a price and a sales commission (bank commission may be 0).');
+        const price = Number(t.price), bc = blank(t.bankCommission) ? 0 : Number(t.bankCommission), scm = Number(t.salesCommission);
+        if (!(price > 0)) return fail(b.bank + ' ' + y + ' yr: price must be greater than 0.');
+        if (bc < 0 || bc >= price) return fail(b.bank + ' ' + y + ' yr: bank commission must be at least 0 and less than the price.');
+        if (scm < 0 || scm > price - bc) return fail(b.bank + ' ' + y + ' yr: sales commission cannot exceed price − bank commission.');
+        tiers.push({ years: y, price, bankCommission: bc, salesCommission: scm });
+      }
+      banks.push({ bank: b.bank, aliases: b.aliases || [], tiers });
+    }
+    const btn = document.getElementById('sc-mx-save');
+    btn.disabled = true;
+    msg.className = 'text-xs ml-auto text-slate-400'; msg.textContent = 'Saving…';
+    try {
+      await APP.apiFetch('/reports/sales-commission/matrix', { method: 'PUT', body: { banks } });
+      _mxDirty = false;
+      toast('✓ Commission structure saved, report recalculated.', true);
+      await loadSalesComm();
+    } catch (e) {
+      fail('Save failed: ' + (e.message || 'error'));
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  /* One row per bank in the popup — its rate is independent; blank follows the default. */
+  function scModalBankRow(bank, ratePct){
+    const row = document.createElement('div');
+    row.className = 'sc-m-row flex items-center gap-2';
+    row.dataset.bank = bank;
+    const nm = document.createElement('span');
+    nm.className = 'flex-1 text-sm text-slate-700 font-medium truncate';
+    nm.title = bank; nm.textContent = bank;
+    const inp = document.createElement('input');
+    inp.type = 'number'; inp.min = '0'; inp.max = '100'; inp.step = '0.01';
+    inp.className = 'sc-m-pct fltr w-28';
+    inp.value = ratePct == null ? '' : ratePct;
+    const sym = document.createElement('span');
+    sym.className = 'text-xs text-slate-400 w-3'; sym.textContent = '%';
+    row.append(nm, inp, sym);
+    return row;
+  }
+
+  /* Blank inputs show what they'd inherit; keep in sync as the default changes. */
+  function scModalSetPlaceholders(){
+    const d = document.getElementById('sc-m-default').value;
+    document.querySelectorAll('#sc-m-banks .sc-m-pct').forEach((i) => { i.placeholder = (d === '' ? '—' : d) + ' (default)'; });
+  }
+
+  function openScModal(){
+    if (!_scData) return;
+    const cfg = _scData.config || {};
+    document.getElementById('sc-m-default').value = cfg.defaultPct;
+    document.getElementById('sc-m-private').value = cfg.privatePct;
+    document.getElementById('sc-m-wht').value = cfg.whtPct;
+    const box = document.getElementById('sc-m-banks');
+    box.innerHTML = '';
+    // Every bank gets its own row: configured rates first, then banks seen in the data.
+    const configured = new Map((cfg.banks || []).map((b) => [b.bank, b.ratePct]));
+    const seen = (_scData.rows || []).map((r) => String(r.bank || '').trim().toUpperCase()).filter((b) => b && b !== 'PRIVATE');
+    const all = [...new Set([...configured.keys(), ...seen])].sort();
+    all.forEach((b) => box.appendChild(scModalBankRow(b, configured.has(b) ? configured.get(b) : null)));
+    scModalSetPlaceholders();
+    document.getElementById('sc-m-newbank').value = '';
+    document.getElementById('sc-m-msg').textContent = '';
+    document.getElementById('sc-modal').classList.remove('hidden');
+  }
+
+  function closeScModal(){ document.getElementById('sc-modal').classList.add('hidden'); }
+
+  function scModalAddBank(){
+    const inp = document.getElementById('sc-m-newbank');
+    const name = inp.value.trim().toUpperCase();
+    if (!name) return;
+    const exists = [...document.querySelectorAll('#sc-m-banks .sc-m-row')].some((r) => r.dataset.bank === name);
+    if (exists){ toast('That bank is already in the list.', false); return; }
+    const row = scModalBankRow(name, null);
+    document.getElementById('sc-m-banks').appendChild(row);
+    scModalSetPlaceholders();
+    inp.value = '';
+    row.querySelector('.sc-m-pct').focus();
+  }
+
+  async function saveScModal(){
+    const msg = document.getElementById('sc-m-msg');
+    const n = (id) => Number(document.getElementById(id).value);
+    const pctOk = (v) => v >= 0 && v <= 100;
+    const banks = [];
+    for (const row of document.querySelectorAll('#sc-m-banks .sc-m-row')){
+      const v = row.querySelector('.sc-m-pct').value;
+      if (v === '') continue;                       // blank = follow the default rate
+      const ratePct = Number(v);
+      if (!pctOk(ratePct)){ msg.className = 'text-xs text-red-500'; msg.textContent = 'Invalid rate for "' + row.dataset.bank + '" (0–100).'; return; }
+      banks.push({ bank: row.dataset.bank, ratePct });
+    }
+    if (!pctOk(n('sc-m-default')) || !pctOk(n('sc-m-private')) || !pctOk(n('sc-m-wht'))){
+      msg.className = 'text-xs text-red-500'; msg.textContent = 'Default, private and WHT rates are required (0–100).'; return;
+    }
+    const btn = document.getElementById('sc-m-save');
+    btn.disabled = true;
+    msg.className = 'text-xs text-slate-400'; msg.textContent = 'Saving…';
+    try {
+      await APP.apiFetch('/reports/sales-commission/config', { method: 'PUT', body: {
+        defaultPct: n('sc-m-default'), privatePct: n('sc-m-private'), whtPct: n('sc-m-wht'), banks
+      }});
+      btn.disabled = false;
+      closeScModal();
+      toast('✓ Commission rates saved — report recalculated.', true);
+      await loadSalesComm();   // recompute the report with the new rates
+    } catch (e) {
+      btn.disabled = false;
+      msg.className = 'text-xs text-red-500';
+      msg.textContent = 'Save failed: ' + (e.message || 'error');
+    }
+  }
+
+  /* ---- report rendering ---- */
+  /* Group key: structure deals group per bank, fallback deals per flat rate. */
+  function scGroupKey(r){
+    return r.rateSource === 'structure' ? (r.structureBank + ' · commission structure') : (r.tierLabel || ('Flat ' + pct(r.ratePct)));
+  }
+  function scGroups(rows){
+    const m = new Map();
+    rows.forEach((r) => {
+      const k = scGroupKey(r);
+      let g = m.get(k);
+      if (!g) { g = { key: k, structure: r.rateSource === 'structure', banks: new Set(), rows: [], deals: 0, retained: 0, commission: 0 }; m.set(k, g); }
+      g.banks.add(r.bank); g.rows.push(r); g.deals++; g.retained += Number(r.retained || 0); g.commission += Number(r.salesCommission || 0);
+    });
+    return [...m.values()].sort((a, b) => (b.structure - a.structure) || (b.commission - a.commission));
+  }
+  function scRateCell(r){
+    if (r.rateSource === 'structure')
+      return pct(r.ratePct) + ' <span class="text-[0.62rem] text-emerald-600" title="Listed commission ' + esc(kes(r.scheduleCommission)) + ' per vehicle">(' + esc(r.loanYears) + ' yr)</span>';
+    const why = r.fallbackReason ? ' title="' + esc(r.fallbackReason) + '"' : '';
+    return pct(r.ratePct) + ' <span class="text-[0.62rem] text-amber-600"' + why + '>(' + esc(r.rateSource === 'private' ? 'private' : r.rateSource === 'default' ? 'default' : 'flat') + (r.fallbackReason ? ' ⓘ' : '') + ')</span>';
+  }
+  function scFilteredRows(){
+    if (!_scData) return [];
+    const sp = document.getElementById('sc-f-sp').value;
+    const bk = document.getElementById('sc-f-bank').value;
+    const q  = (document.getElementById('sc-f-q').value || '').trim().toLowerCase();
+    return (_scData.rows || []).filter((r) => {
+      if (sp && (r.salesPerson || '—') !== sp) return false;
+      if (bk && (r.bank || '—') !== bk) return false;
+      if (q && ((r.customer || '') + ' ' + (r.vehicleReg || '') + ' ' + (r.paymentRef || '') + ' ' + (r.invoiceNumber || '') + ' ' + (r.bank || '')).toLowerCase().indexOf(q) === -1) return false;
+      return true;
+    });
+  }
+
+  function renderSalesComm(){
+    const d = _scData; if (!d) return;
+    const whtPct = d.config.whtPct;
+    const rows = scFilteredRows();
+    const gross = rows.reduce((s, r) => s + Number(r.salesCommission || 0), 0);
+    const retained = rows.reduce((s, r) => s + Number(r.retained || 0), 0);
+    const wht = gross * whtPct / 100;
+    document.getElementById('sc-kpis').innerHTML = [
+      kpiCard('Amount Retained', kes(retained)),
+      kpiCard('Gross Pay', kes2(gross), 'text-slate-900'),
+      kpiCard('WHT (' + pct(whtPct) + ')', kes2(wht), 'text-rose-600'),
+      kpiCard('Net Pay', kes2(gross - wht), 'text-emerald-600')
+    ].join('');
+    if (!rows.length){ document.getElementById('sc-content').innerHTML = NOMATCH; return; }
+
+    // Group: one card per structure bank, then flat-rate fallbacks.
+    const groups = scGroups(rows);
+
+    const dealRow = (r) =>
+      '<tr class="fade-in">'
+      + '<td class="text-slate-500">' + fmtDate(r.installationDate || r.date) + '</td>'
+      + '<td>' + esc(r.customer || '—') + '</td>'
+      + '<td class="text-slate-500">' + esc(r.salesPerson || '—') + '</td>'
+      + '<td class="font-mono text-xs">' + esc(r.vehicleReg || '—') + '</td>'
+      + '<td>' + esc(r.bank || '—') + '</td>'
+      + '<td class="text-center">' + (r.loanDuration != null ? esc(r.loanDuration) : '—') + '</td>'
+      + '<td class="font-mono text-xs">' + esc(r.paymentRef || '—') + '</td>'
+      + '<td class="text-slate-700">' + kes(r.amountPaid) + '</td>'
+      + '<td class="text-amber-600">' + (Number(r.dealerCommission) ? kes(r.dealerCommission) : '—') + '</td>'
+      + '<td class="font-semibold text-slate-800">' + kes(r.retained) + '</td>'
+      + '<td class="text-center text-slate-500">' + scRateCell(r) + '</td>'
+      + '<td class="font-semibold text-emerald-600">' + kes2(r.salesCommission) + '</td>'
+      + '</tr>';
+    const head = '<thead><tr><th>Installation Date</th><th>Client</th><th>Sales Person</th><th>Vehicle Reg</th><th>Bank</th><th>Loan (mo)</th><th>Payment Ref</th><th>Amount Paid</th><th>Banker/Dealer Comm</th><th>Amount Retained</th><th>Rate</th><th>Commission</th></tr></thead>';
+
+    const groupCards = groups.map((g) => {
+      const bankList = [...g.banks].sort();
+      const label = g.key + ' — ' + (bankList.length > 4 ? bankList.slice(0, 4).join(', ') + ' +' + (bankList.length - 4) + ' more' : bankList.join(', '));
+      const body = g.rows.map(dealRow).join('')
+        + '<tr class="bg-slate-50"><td colspan="9" class="text-right font-semibold text-slate-600">Subtotal</td>'
+        + '<td class="font-bold text-slate-800">' + kes(g.retained) + '</td><td></td>'
+        + '<td class="font-bold text-emerald-700">' + kes2(g.commission) + '</td></tr>';
+      return card(label, '<table>' + head + '<tbody>' + body + '</tbody></table>');
+    }).join('');
+
+    // Per salesperson: gross → WHT → net (recomputed over the filtered rows).
+    const spMap = new Map();
+    rows.forEach((r) => {
+      const k = r.salesPerson || '—';
+      let s = spMap.get(k);
+      if (!s) { s = { sp: k, deals: 0, retained: 0, gross: 0 }; spMap.set(k, s); }
+      s.deals++; s.retained += Number(r.retained || 0); s.gross += Number(r.salesCommission || 0);
+    });
+    const spRows = [...spMap.values()].sort((a, b) => b.gross - a.gross);
+    const spBody = spRows.map((s) =>
+      '<tr><td class="font-medium text-slate-700">' + esc(s.sp) + '</td>'
+      + '<td>' + num(s.deals) + '</td>'
+      + '<td>' + kes(s.retained) + '</td>'
+      + '<td class="font-semibold text-slate-800">' + kes2(s.gross) + '</td>'
+      + '<td class="text-rose-600">' + kes2(s.gross * whtPct / 100) + '</td>'
+      + '<td class="font-semibold text-emerald-600">' + kes2(s.gross * (100 - whtPct) / 100) + '</td></tr>').join('');
+    const spTable = '<table><thead><tr><th>Sales Person</th><th>Deals</th><th>Amount Retained</th><th>Gross</th><th>WHT (' + pct(whtPct) + ')</th><th>Net Pay</th></tr></thead><tbody>' + spBody + '</tbody></table>';
+
+    // Bottom summary — mirrors the sheet: per-tier totals, GROSS PAY, WHT, NET PAY.
+    const sumBody = groups.map((g) =>
+      '<tr><td class="text-slate-600">' + esc(g.key) + '</td>'
+      + '<td>' + kes(g.retained) + '</td><td class="font-semibold">' + kes2(g.commission) + '</td></tr>').join('')
+      + '<tr class="bg-slate-50"><td class="font-bold text-slate-800">GROSS PAY</td><td></td><td class="font-bold text-slate-900">' + kes2(gross) + '</td></tr>'
+      + '<tr><td class="text-slate-600">' + pct(whtPct) + ' WHT</td><td></td><td class="text-rose-600">' + kes2(wht) + '</td></tr>'
+      + '<tr class="bg-emerald-50"><td class="font-bold text-emerald-800">NET PAY</td><td></td><td class="font-bold text-emerald-700">' + kes2(gross - wht) + '</td></tr>';
+    const sumTable = '<table><thead><tr><th>Tier</th><th>Amount Retained</th><th>Commission</th></tr></thead><tbody>' + sumBody + '</tbody></table>';
+
+    document.getElementById('sc-content').innerHTML =
+        '<div class="flex flex-wrap gap-2">'
+      +   '<button class="subtab-btn" data-sub="deals"   onclick="switchScSub(\'deals\')">Deals by Rate Tier</button>'
+      +   '<button class="subtab-btn" data-sub="sp"      onclick="switchScSub(\'sp\')">By Sales Person</button>'
+      +   '<button class="subtab-btn" data-sub="summary" onclick="switchScSub(\'summary\')">Pay Summary</button>'
+      + '</div>'
+      + '<div id="sc-sub-deals" class="space-y-6">' + groupCards + '</div>'
+      + '<div id="sc-sub-sp">' + card('By Sales Person', spTable) + '</div>'
+      + '<div id="sc-sub-summary">' + card('Pay Summary', sumTable) + '</div>';
+    switchScSub(_scSub);
+  }
+
+  function clearScFilters(){
+    document.getElementById('sc-f-sp').value = '';
+    document.getElementById('sc-f-bank').value = '';
+    document.getElementById('sc-f-q').value = '';
+    renderSalesComm();
+  }
+
+  /* CSV follows the active sub-tab: deal detail, per-salesperson payout, or tier summary. */
+  function dlScCsv(){
+    const rows = scFilteredRows();
+    if (!rows.length){ toast('Nothing to download for these filters.', false); return; }
+    const rnd2 = (v) => Math.round(v * 100) / 100;
+    const whtPct = (_scData && _scData.config && _scData.config.whtPct) || 0;
+    if (_scSub === 'sp'){
+      const spMap = new Map();
+      rows.forEach((r) => {
+        const k = r.salesPerson || '—';
+        let s = spMap.get(k);
+        if (!s) { s = { salesPerson: k, deals: 0, retained: 0, gross: 0 }; spMap.set(k, s); }
+        s.deals++; s.retained += Number(r.retained || 0); s.gross += Number(r.salesCommission || 0);
+      });
+      const out = [...spMap.values()].sort((a, b) => b.gross - a.gross).map((s) => ({
+        salesPerson: s.salesPerson, deals: s.deals, retained: s.retained,
+        gross: rnd2(s.gross), wht: rnd2(s.gross * whtPct / 100), net: rnd2(s.gross * (100 - whtPct) / 100)
+      }));
+      downloadCsv('sales-commission-by-salesperson.csv', ['salesPerson','deals','retained','gross','wht','net'], out);
+    } else if (_scSub === 'summary'){
+      const gross = rows.reduce((s, r) => s + Number(r.salesCommission || 0), 0);
+      const out = scGroups(rows).map((g) => ({
+        tier: g.key, deals: g.deals, retained: g.retained, commission: rnd2(g.commission)
+      }));
+      out.push({ tier: 'GROSS PAY', deals: '', retained: '', commission: rnd2(gross) });
+      out.push({ tier: 'WHT ' + whtPct + '%', deals: '', retained: '', commission: rnd2(gross * whtPct / 100) });
+      out.push({ tier: 'NET PAY', deals: '', retained: '', commission: rnd2(gross * (100 - whtPct) / 100) });
+      downloadCsv('sales-commission-summary.csv', ['tier','deals','retained','commission'], out);
+    } else {
+      downloadCsv('sales-commission.csv',
+        ['installationDate','date','customer','salesPerson','vehicleReg','bank','loanDuration','loanYears','structureBank','paymentRef','invoiceNumber','amountPaid','dealerCommission','retained','ratePct','rateSource','scheduleCommission','salesCommission','fallbackReason'],
+        rows);
+    }
+  }
+
+  /* Full Extract — ONE CSV laid out like the finance department's manual sheet:
+     a section per rate tier (rows + subtotal), then By Sales Person, then the
+     GROSS PAY → WHT → NET PAY summary. Honours the current filters & date range. */
+  function dlScExtract(){
+    const rows = scFilteredRows();
+    if (!rows.length){ toast('Nothing to extract for these filters.', false); return; }
+    const rnd2 = (v) => Math.round(v * 100) / 100;
+    const whtPct = (_scData && _scData.config && _scData.config.whtPct) || 0;
+    const from = (document.getElementById('rep-from').value || '').trim();
+    const to   = (document.getElementById('rep-to').value || '').trim();
+    const line = (...cells) => cells.map(csvCell).join(',');
+    const L = [];
+
+    L.push(line('FINEMARK — SALES COMMISSION EXTRACT'));
+    L.push(line('Period', (from || 'All time') + (to ? ' to ' + to : '')));
+    L.push('');
+
+    // Tier sections (mirrors "OTHER BANKS 10% / NCBA-STANBIC 4%")
+    const groups = scGroups(rows);
+    const HDR = ['INSTALLATION DATE','CLIENT_NAME','SALES_PERSON','VEHICLE_REG','BANK','LOAN_DURATION','LOAN_YEARS','PAYMENT REFERENCE','AMOUNT PAID','BANKER/DEALER COMMISSION','AMOUNT RETAINED','RATE','LISTED COMMISSION','COMMISSION'];
+    groups.forEach((g) => {
+      L.push(line(g.key + ' — ' + [...g.banks].sort().join(', ')));
+      L.push(line(...HDR));
+      g.rows.forEach((r) => {
+        L.push(line(
+          r.installationDate || r.date || '', r.customer || '', r.salesPerson || '',
+          r.vehicleReg || '', r.bank || '', r.loanDuration != null ? r.loanDuration : '', r.loanYears != null ? r.loanYears : '',
+          r.paymentRef || '', r.amountPaid, r.dealerCommission || 0, r.retained,
+          pct(r.ratePct), r.scheduleCommission != null ? r.scheduleCommission : '', rnd2(r.salesCommission)
+        ));
+      });
+      L.push(line('', '', '', '', '', '', '', '', 'SUBTOTAL', '', g.retained, '', '', rnd2(g.commission)));
+      L.push('');
+    });
+
+    // By Sales Person (commission is paid to individuals)
+    L.push(line('BY SALES PERSON'));
+    L.push(line('SALES_PERSON','DEALS','AMOUNT RETAINED','GROSS','WHT ' + pct(whtPct),'NET PAY'));
+    const spMap = new Map();
+    rows.forEach((r) => {
+      const k = r.salesPerson || '—';
+      let s = spMap.get(k);
+      if (!s) { s = { sp: k, deals: 0, retained: 0, gross: 0 }; spMap.set(k, s); }
+      s.deals++; s.retained += Number(r.retained || 0); s.gross += Number(r.salesCommission || 0);
+    });
+    [...spMap.values()].sort((a, b) => b.gross - a.gross).forEach((s) => {
+      L.push(line(s.sp, s.deals, s.retained, rnd2(s.gross), rnd2(s.gross * whtPct / 100), rnd2(s.gross * (100 - whtPct) / 100)));
+    });
+    L.push('');
+
+    // Pay summary (bottom of the sheet)
+    const gross = rows.reduce((s, r) => s + Number(r.salesCommission || 0), 0);
+    L.push(line('PAY SUMMARY'));
+    L.push(line('TIER','AMOUNT RETAINED','COMMISSION'));
+    groups.forEach((g) => L.push(line(g.key, g.retained, rnd2(g.commission))));
+    L.push(line('GROSS PAY', '', rnd2(gross)));
+    L.push(line(pct(whtPct) + ' WTH', '', rnd2(gross * whtPct / 100)));
+    L.push(line('NET PAY', '', rnd2(gross * (100 - whtPct) / 100)));
+
+    const blob = new Blob([L.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sales-commission-extract_' + (from || 'all') + '_to_' + (to || 'all') + '.csv';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    toast('✓ Full extract downloaded.', true);
+  }
+
+  /* ---------- init ---------- */
+  (function init(){
+    if (!APP || !APP.apiFetch || !APP.getSession) { return setTimeout(init, 200); }
+    loadSalesComm();
+  })();
+</script>
+</body>
+</html>

@@ -78,6 +78,7 @@
     <!-- Tabs -->
     <div class="bg-slate-100 rounded-xl p-1 flex flex-wrap gap-1">
       <button class="tab-btn active" data-tab="custody" onclick="switchTab('custody',this)">In Custody</button>
+      <button class="tab-btn" data-tab="returns" onclick="switchTab('returns',this)">Awaiting Return</button>
       <button class="tab-btn" data-tab="pending-ack" onclick="switchTab('pending-ack',this)">Pending Acknowledgement</button>
       <button class="tab-btn" data-tab="transfers" onclick="switchTab('transfers',this)">Transfers</button>
       <button class="tab-btn" data-tab="sims" onclick="switchTab('sims',this)">My SIMs</button>
@@ -128,6 +129,30 @@
           </thead>
           <tbody id="custody-tbody">
             <tr><td colspan="9" class="text-center py-8 text-slate-400">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── TAB: Awaiting Return (recovered from uninstall) ──────────────── -->
+    <div id="tab-returns" class="tab-pane fade-in hidden">
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-xs text-amber-800">
+        <strong>Gadgets recovered from uninstallations</strong> are held in your custody until you hand them back to the store.
+        Use <em>Return to Inventory</em> once a device is physically returned — it then becomes available for re-issuance.
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 overflow-x-auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Serial / IMEI</th>
+              <th>Product</th>
+              <th>Recovered</th>
+              <th>Vehicle / Ticket / Notes</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="returns-tbody">
+            <tr><td colspan="5" class="text-center py-8 text-slate-400">Loading…</td></tr>
           </tbody>
         </table>
       </div>
@@ -496,12 +521,101 @@
     document.getElementById(`tab-${name}`)?.classList.remove('hidden');
     btn.classList.add('active');
     if (name === 'custody') loadCustody();
+    if (name === 'returns') loadAwaitingReturn();
     if (name === 'pending-ack') loadPendingAck();
     if (name === 'transfers') loadTransfers();
     if (name === 'sims') loadMySims();
     if (name === 'defects') loadDefectReports();
     if (name === 'history') loadHistory();
   }
+
+  // ── Awaiting Return (gadgets retrieved from vehicles) ───────────────────
+  // Grouped by how the device was retrieved (uninstallation / swap / support
+  // ticket), cross-referenced with the device_retrievals audit records.
+  const RET_BUCKETS = [
+    { key: 'Uninstallation', label: 'Removed during vehicle uninstallation' },
+    { key: 'Swap', label: 'Removed during device swap' },
+    { key: 'Support', label: 'Retrieved from support tickets' },
+    { key: 'Other', label: 'Other equipment held' },
+  ];
+  function retBucketOf(type) {
+    if (type === 'Uninstallation') return 'Uninstallation';
+    if (type === 'Swap') return 'Swap';
+    if (type === 'GadgetIssue' || type === 'Other') return 'Support';
+    return 'Other';
+  }
+  async function loadAwaitingReturn() {
+    const tbody = document.getElementById('returns-tbody');
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400">Loading…</td></tr>`;
+    try {
+      const [data, retRes] = await Promise.all([
+        APP.apiFetch(`/inventory/items?issuedToId=${encodeURIComponent(myId)}&status=Awaiting%20Return&pageSize=200`),
+        APP.apiFetch(`/device-retrievals?technicianId=${encodeURIComponent(myId)}&currentStatus=In%20Custody&pageSize=500`).catch(() => ({})),
+      ]);
+      const rows = data?.data || [];
+      const retByDevice = {};
+      (retRes?.data || []).forEach(r => { if (r.deviceItemId) retByDevice[r.deviceItemId] = r; });
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400">No devices awaiting return.</td></tr>`;
+        return;
+      }
+      // Group by bucket
+      const grouped = {};
+      rows.forEach(d => {
+        const ret = retByDevice[d.id];
+        const bucket = ret ? retBucketOf(ret.retrievalType) : 'Other';
+        (grouped[bucket] = grouped[bucket] || []).push({ d, ret });
+      });
+      const deviceRow = ({ d, ret }) => {
+        const serial = d.serialNumber || d.serial_number || d.imei || d.id;
+        const model  = custodyModelOf(d);
+        const when   = fmtDate(d.issuedAt || d.issued_at);
+        const safeSerial = String(serial).replace(/'/g, "\\'");
+        const ctxBits = [];
+        if (ret?.vehicleRegistration) ctxBits.push(`Veh: ${String(ret.vehicleRegistration).replace(/</g,'&lt;')}`);
+        if (ret?.mountPosition) ctxBits.push(`Pos: ${String(ret.mountPosition).replace(/</g,'&lt;')}`);
+        if (ret?.installationLocation) ctxBits.push(`Loc: ${String(ret.installationLocation).replace(/</g,'&lt;')}`);
+        if (ret?.ticketNo) ctxBits.push(ret.supportTicketId ? `<a href="crm-ticket-detail.html?id=${ret.supportTicketId}" class="text-blue-600 hover:underline">${String(ret.ticketNo).replace(/</g,'&lt;')}</a>` : String(ret.ticketNo).replace(/</g,'&lt;'));
+        const ctx = ctxBits.length ? ctxBits.join(' · ') : (d.notes || '—').replace(/</g, '&lt;');
+        return `<tr>
+          <td class="font-mono text-xs">${serial}</td>
+          <td>${model}</td>
+          <td class="text-xs text-slate-500">${when}</td>
+          <td class="text-xs text-slate-500 max-w-[320px] truncate" title="${ctx.replace(/"/g,'&quot;')}">${ctx}</td>
+          <td class="text-right">
+            <button onclick="returnRecovered('${d.id}','${safeSerial}')"
+              class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition">
+              Return to Inventory
+            </button>
+          </td>
+        </tr>`;
+      };
+      let html = '';
+      for (const b of RET_BUCKETS) {
+        const items = grouped[b.key];
+        if (!items || !items.length) continue;
+        html += `<tr class="bg-slate-50"><td colspan="5" class="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">${b.label} <span class="text-slate-400 font-normal">(${items.length})</span></td></tr>`;
+        html += items.map(deviceRow).join('');
+      }
+      tbody.innerHTML = html || `<tr><td colspan="5" class="text-center py-8 text-slate-400">No devices awaiting return.</td></tr>`;
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-red-500">Failed to load.</td></tr>`;
+    }
+  }
+
+  async function returnRecovered(deviceId, serial) {
+    if (!confirm(`Return "${serial}" to inventory? It will leave your custody and become available for re-issuance.`)) return;
+    const notes = prompt('Optional note (condition, store received it, etc.):') || undefined;
+    try {
+      await APP.apiFetch('/device-custody/return-recovered', { method: 'POST', body: { deviceId, notes } });
+      toast(`${serial} returned to inventory`, 'success');
+      loadAwaitingReturn();
+      loadStats();
+    } catch (err) {
+      toast(err?.message || 'Failed to return device', 'error');
+    }
+  }
+  window.returnRecovered = returnRecovered;
 
   // ── SIMs in my custody ─────────────────────────────────────────────────
   function fmtDateLocal(d) {

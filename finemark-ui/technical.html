@@ -22,6 +22,7 @@
     .cx-low{background:#d1fae5;color:#065f46;border-color:#a7f3d0;}
     .cx-med{background:#fef9c3;color:#713f12;border-color:#fde68a;}
     .cx-high{background:#fee2e2;color:#991b1b;border-color:#fca5a5;}
+    .cat-badge{background:#eef2ff;color:#4338ca;border-color:#c7d2fe;}
     .comp-beginner{background:#e0f2fe;color:#0369a1;}
     .comp-pro{background:#fef3c7;color:#b45309;}
     .comp-expert{background:#dcfce7;color:#15803d;}
@@ -70,20 +71,22 @@
 
     <!-- Section Nav -->
     <nav class="flex items-center gap-1 overflow-x-auto bg-slate-100 rounded-xl px-2 py-1.5">
-      <button class="tab-btn active" data-sec="pipeline">Pipeline</button>
+      <button class="tab-btn" data-sec="pipeline">Pipeline</button>
+      <button class="tab-btn active" data-sec="dashboard">Dashboard</button>
       <button class="tab-btn" data-sec="team">Field Team</button>
       <button class="tab-btn" data-sec="chart">Installations</button>
-      <button class="tab-btn" data-sec="post">Post-Installation Support</button>
+      <button class="tab-btn" data-sec="post">Technical Installation Support</button>
       <button class="tab-btn" data-sec="competency">Competency</button>
       <button class="tab-btn" data-sec="devices">Devices</button>
       <button class="tab-btn" data-sec="job-exec">Job Execution</button>
+      <button class="tab-btn" data-sec="reports">Reports</button>
       <button class="tab-btn hidden" id="nav-perf" data-sec="performance">Performance</button>
       <button class="tab-btn hidden" id="nav-sla" data-sec="sla-config">SLA Config</button>
       <button class="tab-btn" data-sec="kb">Knowledge Base</button>
     </nav>
 
     <!-- ═══ PIPELINE ═══ -->
-    <section id="sec-pipeline" class="section-anchor space-y-4 fade-in">
+    <section id="sec-pipeline" class="section-anchor hidden space-y-4 fade-in">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 class="font-bold text-slate-900 text-lg">Installation Requests</h2>
@@ -106,6 +109,7 @@
                 <th class="px-3 py-3 text-left w-32">Ticket / Age</th>
                 <th class="px-3 py-3 text-left">Customer / Sales</th>
                 <th class="px-3 py-3 text-left">Vehicle</th>
+                <th class="px-3 py-3 text-left">Product Category</th>
                 <th class="px-3 py-3 text-left">Install Location</th>
                 <th class="px-3 py-3 text-left">Financing Partner</th>
                 <th class="px-3 py-3 text-left">Technician / Location</th>
@@ -656,18 +660,21 @@
     <section id="sec-post" class="section-anchor hidden space-y-4 fade-in">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 class="font-bold text-slate-900 text-lg">Post-Installation Support</h2>
-          <p class="text-xs text-slate-500">Tickets awaiting confirmation, rescheduled or flagged for re-installation</p>
+          <h2 class="font-bold text-slate-900 text-lg">Technical Installation Support</h2>
+          <p class="text-xs text-slate-500">Support requests routed to the Technical team, plus installs awaiting confirmation, rescheduled or flagged for re-installation</p>
         </div>
         <input id="post-search" type="search" placeholder="Search customer, ticket…" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40 w-52" />
       </div>
       <div class="flex items-center gap-1 overflow-x-auto bg-white border border-slate-200 rounded-xl px-2 py-1.5 shadow-sm">
-        <button class="tab-btn active" data-post-stage="Awaiting Confirmation">Awaiting Confirmation</button>
+        <button class="tab-btn active" data-post-stage="Support Requests">Support Requests</button>
+        <button class="tab-btn" data-post-stage="Awaiting Confirmation">Awaiting Confirmation</button>
         <button class="tab-btn" data-post-stage="Failed / Rescheduled">Failed / Rescheduled</button>
         <button class="tab-btn" data-post-stage="Re-Installation Required">Re-Install Required</button>
       </div>
       <div id="post-count" class="text-xs text-slate-500"></div>
-      <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+
+      <!-- Installation lifecycle table (Awaiting Confirmation / Failed / Re-Install) -->
+      <div id="post-install-wrap" class="hidden bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full text-sm min-w-[1100px]">
             <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
@@ -675,6 +682,7 @@
                 <th class="px-3 py-3 text-left w-32">Ticket / Age</th>
                 <th class="px-3 py-3 text-left">Customer / Sales</th>
                 <th class="px-3 py-3 text-left">Vehicle</th>
+                <th class="px-3 py-3 text-left">Product Category</th>
                 <th class="px-3 py-3 text-left">Install Location</th>
                 <th class="px-3 py-3 text-left">Technician / Location</th>
                 <th class="px-3 py-3 text-left">ISO</th>
@@ -689,6 +697,105 @@
         </div>
         <div id="post-empty" class="hidden py-14 text-center text-sm text-slate-400">No tickets in this stage.</div>
         <div id="post-loading" class="py-10 text-center text-sm text-slate-400">Loading…</div>
+      </div>
+
+      <!-- Support-request tickets routed to the Technical team (crm_tickets) -->
+      <div id="post-support-wrap" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm min-w-[900px]">
+            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+              <tr>
+                <th class="px-3 py-3 text-left w-28">Ticket #</th>
+                <th class="px-3 py-3 text-left">Customer</th>
+                <th class="px-3 py-3 text-left">Subject</th>
+                <th class="px-3 py-3 text-left">Category</th>
+                <th class="px-3 py-3 text-left">Priority</th>
+                <th class="px-3 py-3 text-left">Status</th>
+                <th class="px-3 py-3 text-left">Assignee</th>
+                <th class="px-3 py-3 text-left">SLA Breach</th>
+                <th class="px-3 py-3 text-left">Opened</th>
+              </tr>
+            </thead>
+            <tbody id="post-support-body" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+        <div id="post-support-empty" class="hidden py-14 text-center text-sm text-slate-400">No support requests routed to the Technical team yet.</div>
+        <div id="post-support-loading" class="py-10 text-center text-sm text-slate-400">Loading…</div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ DASHBOARD ═══════════════ -->
+    <section id="sec-dashboard" class="section-anchor space-y-6 fade-in">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="font-bold text-slate-900 text-lg">Operations Dashboard</h2>
+          <p class="text-xs text-slate-500">Installations · ISO performance · Technician performance</p>
+        </div>
+        <select id="dash-range" class="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white">
+          <option value="0">All time</option>
+          <option value="7">Last 7 days</option>
+          <option value="30" selected>Last 30 days</option>
+          <option value="90">Last 90 days</option>
+          <option value="365">Last 12 months</option>
+        </select>
+      </div>
+      <div id="dash-kpis" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"></div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="bg-white rounded-xl border border-slate-200 p-4">
+          <h3 class="font-semibold text-slate-900 mb-3 text-sm">Status breakdown</h3>
+          <div class="relative h-56"><canvas id="dash-status-chart"></canvas></div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4">
+          <h3 class="font-semibold text-slate-900 mb-3 text-sm">Installations over time</h3>
+          <div class="relative h-56"><canvas id="dash-trend-chart"></canvas></div>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="bg-white rounded-xl border border-slate-200 p-4">
+          <h3 class="font-semibold text-slate-900 mb-3 text-sm">By financing partner</h3>
+          <div id="dash-financing" class="space-y-2"></div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4">
+          <h3 class="font-semibold text-slate-900 mb-3 text-sm">SLA compliance</h3>
+          <div id="dash-sla" class="space-y-2"></div>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+          <h3 class="font-semibold text-slate-900 text-sm">ISO performance</h3>
+          <span class="text-[11px] text-slate-400">activation approvals &amp; turnaround</span>
+        </div>
+        <div class="overflow-x-auto"><table class="w-full text-sm min-w-[820px]"><thead id="dash-iso-head" class="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500"></thead><tbody id="dash-iso-body" class="divide-y divide-slate-100"></tbody></table></div>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+          <h3 class="font-semibold text-slate-900 text-sm">Technician performance</h3>
+          <span class="text-[11px] text-slate-400">throughput, duration, CSAT &amp; rework</span>
+        </div>
+        <div class="overflow-x-auto"><table class="w-full text-sm min-w-[960px]"><thead id="dash-tech-head" class="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500"></thead><tbody id="dash-tech-body" class="divide-y divide-slate-100"></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ REPORTS (configurable columns) ═══════════════ -->
+    <section id="sec-reports" class="section-anchor hidden space-y-4 fade-in">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="font-bold text-slate-900 text-lg">Report Builder</h2>
+          <p class="text-xs text-slate-500"><span id="rep-count">0</span> rows · choose columns, filter and export</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <input id="rep-search" placeholder="Search…" class="text-xs border border-slate-200 rounded-lg px-2 py-1.5 w-44" />
+          <select id="rep-preset" class="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white"><option value="">Presets…</option></select>
+          <button id="rep-save-btn" class="text-xs border border-slate-200 rounded-lg px-3 py-1.5 bg-white hover:bg-slate-50 font-medium">Save</button>
+          <button id="rep-columns-btn" class="text-xs border border-slate-200 rounded-lg px-3 py-1.5 bg-white hover:bg-slate-50 font-medium">Columns</button>
+          <button id="rep-reset-btn" class="text-xs border border-slate-200 rounded-lg px-3 py-1.5 bg-white hover:bg-slate-50 font-medium">Reset</button>
+          <button id="rep-export-btn" class="text-xs rounded-lg px-3 py-1.5 bg-slate-900 text-white hover:bg-slate-800 font-medium">Export CSV</button>
+        </div>
+      </div>
+      <div id="rep-filters" class="flex flex-wrap items-end gap-2"></div>
+      <div id="rep-columns-panel" class="hidden bg-white rounded-xl border border-slate-200 p-4"></div>
+      <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div class="overflow-auto max-h-[70vh]"><table class="w-full text-xs whitespace-nowrap"><thead id="rep-head" class="sticky top-0 bg-slate-50 z-10 text-left text-[11px] uppercase tracking-wide text-slate-500"></thead><tbody id="rep-body" class="divide-y divide-slate-100"></tbody></table></div>
       </div>
     </section>
 
@@ -1122,6 +1229,39 @@ function guessCategory(reg="",make="",model="") {
   return "Vehicle Tracking";
 }
 
+// Product-category pill: per-category colour + icon, no awkward wrapping.
+function catStyle(cat){
+  const t=(cat||"").toLowerCase();
+  const I=(p)=>`<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">${p}</svg>`;
+  if(t.includes("fuel"))
+    return {bg:"#fffbeb",fg:"#b45309",bd:"#fde68a",icon:I('<path stroke-linecap="round" stroke-linejoin="round" d="M4 21V5a2 2 0 012-2h6a2 2 0 012 2v16m-10 0h10m-10 0H3m11 0h1m0-11h2.5A1.5 1.5 0 0121 11.5V17a1.5 1.5 0 003 0V9l-3-3M7 8h6"/>')};
+  if(t.includes("dash")||t.includes("cam"))
+    return {bg:"#faf5ff",fg:"#7c3aed",bd:"#e9d5ff",icon:I('<path stroke-linecap="round" stroke-linejoin="round" d="M6.8 6.2a2.3 2.3 0 01-1.64 1.05l-1.13.18C2.99 7.58 2.25 8.5 2.25 9.57V18A2.25 2.25 0 004.5 20.25h15A2.25 2.25 0 0021.75 18V9.57c0-1.06-.75-1.99-1.8-2.16l-1.13-.18a2.3 2.3 0 01-1.64-1.05l-.82-1.32a2.2 2.2 0 00-1.74-1.04 48.8 48.8 0 00-5.23 0 2.2 2.2 0 00-1.74 1.04L6.8 6.2z"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/>')};
+  if(t.includes("cargo")||t.includes("container"))
+    return {bg:"#ecfdf5",fg:"#047857",bd:"#a7f3d0",icon:I('<path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9"/>')};
+  if(t.includes("anti")||t.includes("theft")||t.includes("alarm"))
+    return {bg:"#fff1f2",fg:"#be123c",bd:"#fecdd3",icon:I('<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 5.25-4.5 8.25-9 9.75C7.5 20.25 3 17.25 3 12V5.25l9-3 9 3V12z"/>')};
+  if(t.includes("governor")||t.includes("speed"))
+    return {bg:"#f1f5f9",fg:"#475569",bd:"#e2e8f0",icon:I('<path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>')};
+  // Vehicle Tracking / default
+  return {bg:"#eef2ff",fg:"#4338ca",bd:"#c7d2fe",icon:I('<path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.14-7.5 11.25-7.5 11.25S4.5 17.64 4.5 10.5a7.5 7.5 0 1115 0z"/>')};
+}
+function catBadge(cat){
+  if(!cat) return '<span class="text-slate-300 text-xs">—</span>';
+  const s=catStyle(cat);
+  // Soft pill + a solid colour "coin" holding a white glyph — a clean, app-like tag.
+  return `<span class="inline-flex items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-2.5 text-[11px] font-semibold whitespace-nowrap"
+      style="background:${s.bg};color:${s.fg};border:1px solid ${s.bd};box-shadow:0 1px 2px rgba(15,23,42,.06)">
+      <span class="inline-flex items-center justify-center rounded-full" style="width:18px;height:18px;background:${s.fg};color:#fff">${s.icon}</span>
+      <span>${cat}</span>
+    </span>`;
+}
+function complexityChip(cx){
+  const map={"cx-low":["#ecfdf5","#047857"],"cx-med":["#fffbeb","#b45309"],"cx-high":["#fef2f2","#b91c1c"]};
+  const [bg,fg]=map[cx.cls]||["#f1f5f9","#475569"];
+  return `<span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap" style="background:${bg};color:${fg}"><span class="inline-block w-1.5 h-1.5 rounded-full" style="background:${fg}"></span>${cx.level}</span>`;
+}
+
 function stageBadge(s) {
   const map={"Pending":"badge-new","Assigned":"badge-assigned","In Progress":"badge-progress",
     "Awaiting Confirmation":"badge-await","Completed":"badge-done",
@@ -1265,10 +1405,16 @@ function renderExecTracking() {
     (j.vehicleModel || '').toLowerCase().includes(q)
   );
 
-  // Populate tech filter dropdown
+  // Populate tech filter dropdown — from the technical team roster (source of truth),
+  // not from currently-loaded jobs, so technicians with only old/infrequent jobs still appear.
   const techSel = $('exec-filter-tech');
   if (techSel) {
-    const techNames = [...new Set(_jobs.map(j => j.technicianName).filter(Boolean))].sort();
+    const techNames = [...new Set(
+      _employees
+        .filter(e => (e.memberRole||"").toLowerCase()==="technician" || (e.memberRole===undefined && (e.jobRoleTitle||"").toLowerCase().trim()==="technician"))
+        .map(e => e.fullName)
+        .filter(Boolean)
+    )].sort();
     const prev = techSel.value;
     techSel.innerHTML = `<option value="">All Technicians</option>` +
       techNames.map(n => `<option value="${n}"${n === prev ? ' selected' : ''}>${n}</option>`).join('');
@@ -1527,23 +1673,45 @@ function saveIsoProfiles() { localStorage.setItem("fm_iso_profiles", JSON.string
 // ═══════════════════════════════════════════════════════════════
 // LOAD
 // ═══════════════════════════════════════════════════════════════
+// Fetch every page of a paginated /inventory endpoint. The device/SIM custody
+// lists can exceed a single page (e.g. 600+ issued devices, 600+ issued SIMs),
+// which silently dropped the oldest-issued records from the custody view.
+// The server may cap pageSize below what we request (items→500, sims→200), so we
+// learn the effective page size from the first page and page until a short page.
+async function fetchAllPages(path, requestedPageSize = 500) {
+  const sep = path.includes("?") ? "&" : "?";
+  let page = 1, all = [], effPageSize = null;
+  for (;;) {
+    const res = await apiFetch(`${path}${sep}page=${page}&pageSize=${requestedPageSize}`);
+    const rows = res?.data || res || [];
+    all = all.concat(rows);
+    if (effPageSize === null) effPageSize = rows.length;      // server's real page size
+    if (rows.length === 0 || rows.length < effPageSize || page >= 100) break;
+    page++;
+  }
+  return all;
+}
+
 async function loadAll() {
   const [ir, tmR, inv, tr, custR, itR, simR] = await Promise.allSettled([
-    apiFetch("/vehicle-installations?pageSize=200"),
+    fetchAllPages("/vehicle-installations"),
     apiFetch("/technical-team/members"),
     apiFetch("/inventory/items?pageSize=200&status=Available"),
     apiFetch("/crm/tickets?category=Installation&pageSize=200"),
-    apiFetch("/inventory/items?status=Issued%20for%20Installation&pageSize=500"),
-    apiFetch("/installation-tickets?pageSize=200"),
-    apiFetch("/inventory/sims?status=issued&pageSize=500"),
+    fetchAllPages("/inventory/items?status=Issued%20for%20Installation"),
+    fetchAllPages("/installation-tickets", 1000),
+    fetchAllPages("/inventory/sims?status=issued"),
   ]);
-  if (ir.status==="fulfilled")   _jobs         = ir.value?.data  || [];
+  // fetchAllPages returns the concatenated array directly (not a {data} envelope);
+  // the plain apiFetch calls still return { data }. Handle both shapes.
+  const rowsOf = (v) => Array.isArray(v) ? v : (v?.data ?? v ?? []);
+  if (ir.status==="fulfilled")   _jobs         = rowsOf(ir.value);
   if (inv.status==="fulfilled")  _inventory    = inv.value?.data || inv.value || [];
   if (tr.status==="fulfilled")   _crmTickets   = tr.value?.data  || tr.value || [];
   if (tmR.status==="fulfilled")  _employees    = tmR.value?.data || [];
-  if (custR.status==="fulfilled") _custodyItems = custR.value?.data ?? [];
-  if (itR.status==="fulfilled")  _itTickets    = itR.value?.data  || [];
-  if (simR.status==="fulfilled") _custodySims  = simR.value?.data ?? [];
+  if (custR.status==="fulfilled") _custodyItems = rowsOf(custR.value);
+  if (itR.status==="fulfilled")  _itTickets    = rowsOf(itR.value);
+  if (simR.status==="fulfilled") _custodySims  = rowsOf(simR.value);
 
   enrichJobs();
   renderAll();
@@ -1551,7 +1719,7 @@ async function loadAll() {
 
 function renderAll() {
   renderPipeline();
-  renderPostPipeline();
+  renderPostSection();
   renderTeam();
   renderInstChart();
   renderCompetency();
@@ -1559,6 +1727,7 @@ function renderAll() {
   renderExecTracking();
   renderPerformance();
   renderKB();
+  if (window.renderDashboard) window.renderDashboard(); // Dashboard is the default landing tab
   applyRoleUI();
   activateFromHash();
 }
@@ -1613,7 +1782,8 @@ function enrichJobs() {
       status: effectiveStatus,
       ticketNo: ct?.ticketNo || j.ticketRef || j.ticketNo,
       priority: ct?.priority || j.priority || 'Medium',
-      product_category: ct?.category || guessCategory(j.registration, j.vehicleMake, j.vehicleModel),
+      product_category: it.productCategory || ct?.category || guessCategory(j.registration, j.vehicleMake, j.vehicleModel),
+      lead_product_category: it.leadProductCategory || null,
       technicianName: mergedTechName,
       assignedTechnicianId: mergedTechId,
       assignedTechnicianEmail: j.assignedTechnicianEmail || it.assignedToEmail || null,
@@ -1636,6 +1806,8 @@ function enrichJobs() {
       customerOtpVerifiedAt:     it.customerOtpVerifiedAt       || null,
       itId:                       it.id                          || null,
       partnerName:                it.partnerName                 || null,
+      loanTermMonths:             it.loanTermMonths              ?? j.loanTermMonths ?? null,
+      retailLeadId:               it.retailLeadId                || j.retailLeadId || null,
     };
   });
 }
@@ -1663,7 +1835,7 @@ window.addEventListener('hashchange',activateFromHash);
 // ═══════════════════════════════════════════════════════════════
 // NAV
 // ═══════════════════════════════════════════════════════════════
-const SECS=["pipeline","team","chart","post","competency","devices","job-exec","performance","sla-config","kb"];
+const SECS=["pipeline","dashboard","team","chart","post","competency","devices","job-exec","reports","performance","sla-config","kb"];
 document.querySelectorAll("[data-sec]").forEach(btn=>{
   btn.addEventListener("click",()=>{
     document.querySelectorAll("[data-sec]").forEach(b=>b.classList.remove("active"));
@@ -1673,6 +1845,8 @@ document.querySelectorAll("[data-sec]").forEach(btn=>{
     const el=$(`sec-${btn.dataset.sec}`);
     if(el){el.classList.remove("hidden");el.classList.add("fade-in");}
     if(btn.dataset.sec==="chart")       renderInstChart();
+    if(btn.dataset.sec==="dashboard")   renderDashboard();
+    if(btn.dataset.sec==="reports")     renderReports();
     if(btn.dataset.sec==="performance") renderPerformance();
     if(btn.dataset.sec==="job-exec")    renderExecTracking();
     if(btn.dataset.sec==="sla-config")  slaCfgLoad();
@@ -1766,7 +1940,7 @@ function renderPipeline() {
     const s=j.status||"Pending";
     if(s!==_activeStage) return false;
     if(role==="Technician"&&j.assignedTechnicianId&&j.assignedTechnicianId!==uid) return false;
-    if(q){const h=`${j.id} ${j.customerName||""} ${j.registration||""}`.toLowerCase();if(!h.includes(q))return false;}
+    if(q){const h=`${j.id} ${j.ticketNo||""} ${j.customerName||""} ${j.registration||""}`.toLowerCase();if(!h.includes(q))return false;}
     return true;
   });
   $("pipeline-loading").classList.add("hidden");
@@ -1834,15 +2008,15 @@ function renderPipeline() {
         ${salesHtml}
       </td>
       <td class="px-3 py-3">
-        <div class="text-xs text-slate-700 whitespace-nowrap">${j.vehicleMake||""} ${j.vehicleModel||""}</div>
-        <span class="badge ${cx.cls} mt-0.5">${cx.level}</span>
-        <div class="text-[11px] text-slate-400 mt-0.5">${cat}</div>
+        <div class="text-xs font-medium text-slate-700 whitespace-nowrap">${(j.vehicleMake||j.vehicleModel) ? `${j.vehicleMake||""} ${j.vehicleModel||""}`.trim() : '<span class="text-slate-300">—</span>'}</div>
+        <div class="mt-1">${complexityChip(cx)}</div>
       </td>
+      <td class="px-3 py-3">${catBadge(j.lead_product_category || cat)}</td>
       <td class="px-3 py-3 text-xs text-slate-600 max-w-[140px]">
         <span class="line-clamp-2">${instLoc}</span>${locMapLink}
       </td>
       <td class="px-3 py-3 text-xs text-slate-600 max-w-[140px]">
-        <span class="line-clamp-2">${j.partnerName || '<span class="text-slate-300">—</span>'}</span>
+        <span class="line-clamp-2">${j.partnerName || (j.retailLeadId ? 'Private' : '<span class="text-slate-300">—</span>')}</span>
       </td>
       <td class="px-3 py-3">${techLocationCell(j)}</td>
       <td class="px-3 py-3">${isoHtml}</td>
@@ -1884,16 +2058,81 @@ async function openQuoteEdit(proformaId) {
 // ═══════════════════════════════════════════════════════════════
 // POST-INSTALLATION SUPPORT PIPELINE
 // ═══════════════════════════════════════════════════════════════
-let _activePostStage = "Awaiting Confirmation";
+let _activePostStage = "Support Requests";
+let _techSupportTickets = null; // lazy-loaded crm_tickets (team=Technical)
 document.querySelectorAll("[data-post-stage]").forEach(btn => {
   btn.addEventListener("click", () => {
     document.querySelectorAll("[data-post-stage]").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     _activePostStage = btn.dataset.postStage;
-    renderPostPipeline();
+    renderPostSection();
   });
 });
-$$("post-search") && $$("post-search").addEventListener("input", renderPostPipeline);
+$$("post-search") && $$("post-search").addEventListener("input", renderPostSection);
+
+// Branch between the Technical support-request queue (crm_tickets) and the
+// installation lifecycle stages, toggling which table is visible.
+function renderPostSection() {
+  const isSupport = _activePostStage === "Support Requests";
+  const installWrap = $("post-install-wrap");
+  const supportWrap = $("post-support-wrap");
+  if (installWrap) installWrap.classList.toggle("hidden", isSupport);
+  if (supportWrap) supportWrap.classList.toggle("hidden", !isSupport);
+  if (isSupport) renderTechSupportTickets();
+  else renderPostPipeline();
+}
+
+// Support requests routed to the Technical team, from the Support Request module
+// (crm_tickets). Lazily fetched once, then filtered client-side by the search box.
+async function renderTechSupportTickets() {
+  const body = $("post-support-body");
+  if (!body) return;
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const q = ($("post-search")?.value || "").toLowerCase();
+
+  if (_techSupportTickets === null) {
+    $("post-support-loading")?.classList.remove("hidden");
+    try {
+      const res = await apiFetch("/crm/tickets?team=Technical&pageSize=200");
+      _techSupportTickets = res?.data || [];
+    } catch {
+      _techSupportTickets = [];
+    }
+  }
+  $("post-support-loading")?.classList.add("hidden");
+
+  const now = new Date();
+  const rows = (_techSupportTickets || []).filter(t => {
+    if (!q) return true;
+    const h = `${t.ticketNo || ""} ${t.customerName || ""} ${t.subject || ""} ${t.category || ""}`.toLowerCase();
+    return h.includes(q);
+  });
+  $("post-count").textContent = `${rows.length} support request${rows.length !== 1 ? "s" : ""}`;
+  if (!rows.length) { body.innerHTML = ""; $("post-support-empty")?.classList.remove("hidden"); return; }
+  $("post-support-empty")?.classList.add("hidden");
+
+  const statusCls = s => ({
+    "Open": "text-amber-700 bg-amber-50 border-amber-200",
+    "In Progress": "text-blue-700 bg-blue-50 border-blue-200",
+    "Resolved": "text-green-700 bg-green-50 border-green-200",
+    "Closed": "text-slate-600 bg-slate-50 border-slate-200",
+  }[s] || "text-slate-600 bg-slate-50 border-slate-200");
+
+  body.innerHTML = rows.map(t => {
+    const breached = t.slaBreachAt && new Date(t.slaBreachAt) < now && !["Resolved", "Closed", "Merged"].includes(t.status);
+    return `<tr class="hover:bg-slate-50/60 transition cursor-pointer" onclick="location.href='crm-ticket-detail.html?id=${encodeURIComponent(t.id)}'">
+      <td class="px-3 py-3 font-mono text-xs font-bold text-blue-700 whitespace-nowrap">${esc(t.ticketNo || "")}</td>
+      <td class="px-3 py-3 text-xs text-slate-700 max-w-[160px] truncate">${esc(t.customerName || "—")}</td>
+      <td class="px-3 py-3 text-xs font-medium text-slate-900 max-w-[220px] truncate">${esc(t.subject || "")}</td>
+      <td class="px-3 py-3 text-xs text-slate-600 whitespace-nowrap">${esc(t.category || "—")}</td>
+      <td class="px-3 py-3">${priorityBadge(t.priority || "Normal")}</td>
+      <td class="px-3 py-3"><span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusCls(t.status)}">${esc(t.status || "Open")}</span></td>
+      <td class="px-3 py-3 text-xs text-slate-500">${t.assigneeEmail ? esc(t.assigneeEmail) : '<span class="text-slate-300 italic">Unassigned</span>'}</td>
+      <td class="px-3 py-3 text-xs ${breached ? "text-red-600 font-semibold" : "text-slate-500"} whitespace-nowrap">${t.slaBreachAt ? t.slaBreachAt.slice(0, 16).replace("T", " ") : "—"}</td>
+      <td class="px-3 py-3 text-xs text-slate-400 whitespace-nowrap">${t.openedAt ? t.openedAt.slice(0, 10) : "—"}</td>
+    </tr>`;
+  }).join("");
+}
 
 function renderPostPipeline() {
   if(!$("post-body")) return;
@@ -1903,7 +2142,7 @@ function renderPostPipeline() {
   const rows=_jobs.filter(j=>{
     const s=j.status||"Pending";
     if(s!==_activePostStage) return false;
-    if(q){const h=`${j.id} ${j.customerName||""} ${j.registration||""}`.toLowerCase();if(!h.includes(q))return false;}
+    if(q){const h=`${j.id} ${j.ticketNo||""} ${j.customerName||""} ${j.registration||""}`.toLowerCase();if(!h.includes(q))return false;}
     return true;
   });
   $("post-loading").classList.add("hidden");
@@ -1942,10 +2181,10 @@ function renderPostPipeline() {
         ${salesHtml}
       </td>
       <td class="px-3 py-3">
-        <div class="text-xs text-slate-700 whitespace-nowrap">${j.vehicleMake||""} ${j.vehicleModel||""}</div>
-        <span class="badge ${cx.cls} mt-0.5">${cx.level}</span>
-        <div class="text-[11px] text-slate-400 mt-0.5">${cat}</div>
+        <div class="text-xs font-medium text-slate-700 whitespace-nowrap">${(j.vehicleMake||j.vehicleModel) ? `${j.vehicleMake||""} ${j.vehicleModel||""}`.trim() : '<span class="text-slate-300">—</span>'}</div>
+        <div class="mt-1">${complexityChip(cx)}</div>
       </td>
+      <td class="px-3 py-3">${catBadge(j.lead_product_category || cat)}</td>
       <td class="px-3 py-3 text-xs text-slate-600 max-w-[140px]"><span class="line-clamp-2">${instLoc}</span>${locMapLink}</td>
       <td class="px-3 py-3">${techLocationCell(j)}</td>
       <td class="px-3 py-3">${isoHtml}</td>
@@ -2943,15 +3182,15 @@ async function renderDevices() {
   $('custody-body').innerHTML = `<tr><td colspan="8" class="py-10 text-center text-xs text-slate-400">Loading custody…</td></tr>`;
   $('custody-cards-view').innerHTML = '';
   try {
-    const [rIssued, rInstalled, rSims] = await Promise.all([
+    const [rIssued, rSims] = await Promise.all([
       apiFetch("/inventory/items?status=Issued%20for%20Installation&pageSize=500"),
-      apiFetch("/inventory/items?status=Installed&pageSize=500"),
       apiFetch("/inventory/sims?status=issued&pageSize=500"),
     ]);
-    const devices = [
-      ...(rIssued.data ?? []).map(d => ({ ...d, _type: 'device' })),
-      ...(rInstalled.data ?? []).map(d => ({ ...d, _type: 'device' })),
-    ];
+    // Custody = devices a technician is actually holding (Issued for Installation).
+    // Installed devices are no longer in anyone's custody — they live on the vehicle /
+    // Customer 360 — so they're intentionally excluded here (they used to show up as a
+    // technician still "holding" an installed device).
+    const devices = (rIssued.data ?? []).map(d => ({ ...d, _type: 'device' }));
     const sims = (rSims.data ?? [])
       .filter(s => s.issued_to_id)
       .map(s => ({
@@ -3594,6 +3833,424 @@ function refreshAll() {
 }
 
 loadAll();
+</script>
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   Operations Dashboard + configurable Report Builder.
+   Reads the already-loaded window._itTickets (installation tickets) and _jobs.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  const $ = id => document.getElementById(id);
+  // NB: _itTickets/_jobs/_employees are `let` globals in the main script, so they are NOT
+  // on window — read them by bare name (shared classic-script global scope), guarded.
+  const T     = () => { try { return _itTickets || []; } catch { return []; } };
+  const GJOBS = () => { try { return _jobs || []; } catch { return []; } };
+  const GEMP  = () => { try { return _employees || []; } catch { return []; } };
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const parseD = x => { if (!x) return null; const d = new Date(x); return isNaN(d.getTime()) ? null : d; };
+  const fmtDate = x => { const d = parseD(x); return d ? d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) + ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''; };
+  const hoursBetween = (a, b) => { const d1 = parseD(a), d2 = parseD(b); if (!d1 || !d2) return null; return (d2 - d1) / 3.6e6; };
+  const fmtH = h => h == null ? '' : (h < 0 ? '' : (h < 48 ? h.toFixed(1) + 'h' : (h / 24).toFixed(1) + 'd'));
+  const pct = (n, d) => d ? Math.round((n / d) * 100) : 0;
+  const DONE = ['Completed', 'Closed'], BAD = ['Cancelled', 'Defaulted'], HOLD = ['On Hold', 'Rescheduled'];
+  const isDone = t => DONE.includes(t.status), isBad = t => BAD.includes(t.status), isHold = t => HOLD.includes(t.status);
+  const isActive = t => !isDone(t) && !isBad(t);
+  const completedAt = t => t.engineerSignedOffAt || t.technicianSignedOffAt || t.customerOtpVerifiedAt || (isDone(t) ? t.updatedAt : null);
+  // Financing partner: show the explicit financer ("Bank Financed"/"Private") or the
+  // named partner. For a retail install with neither, it's self-funded → "Private"
+  // (was a blank "—"). Corporate/non-retail tickets keep "—" (the concept is retail).
+  const financer = t => {
+    const ft = (t.installationFinancer || '').trim();
+    if (ft) return ft;
+    if (t.partnerName) return t.partnerName;
+    return t.retailLeadId ? 'Private' : '—';
+  };
+  // Prefer the central registry (t.vehicleMake/Model from crm_customer_vehicles) so the
+  // Reports tab reflects Customer 360 edits; fall back to the ticket snapshot.
+  const mk = t => t.vehicleMake || (t.vehicleDetails && t.vehicleDetails.make) || '';
+  const md = t => t.vehicleModel || (t.vehicleDetails && t.vehicleDetails.model) || '';
+  const avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+
+  function nameMap() {
+    const m = {};
+    // Roster is the authoritative email→name source (technicians + ISOs).
+    GEMP().forEach(e => {
+      const em = (e.email || e.workEmail || '').toLowerCase();
+      const nm = e.fullName || e.name || e.technicianName;
+      if (em && nm) m[em] = nm;
+    });
+    GJOBS().forEach(j => { if (j.technicianEmail && j.technicianName && !m[j.technicianEmail.toLowerCase()]) m[j.technicianEmail.toLowerCase()] = j.technicianName; });
+    T().forEach(t => {
+      if (t.coTechnicianEmail && t.coTechnicianName && !m[t.coTechnicianEmail.toLowerCase()]) m[t.coTechnicianEmail.toLowerCase()] = t.coTechnicianName;
+      if (t.isoEmail && t.isoName && !m[t.isoEmail.toLowerCase()]) m[t.isoEmail.toLowerCase()] = t.isoName;
+    });
+    return m;
+  }
+  const nameOf = (email, m) => !email ? '—' : (m[email.toLowerCase()] || email.split('@')[0]);
+
+  /* ═══════════════ DASHBOARD ═══════════════ */
+  let _dc = {};
+  function dashRows() {
+    const days = Number($('dash-range') && $('dash-range').value || 0);
+    let rows = T().slice();
+    if (days > 0) { const cut = Date.now() - days * 864e5; rows = rows.filter(t => { const d = parseD(t.createdAt); return d && d.getTime() >= cut; }); }
+    return rows;
+  }
+  function kpiCard(label, value, sub, tone) {
+    const c = { cyan: 'text-blue-600', green: 'text-emerald-600', amber: 'text-amber-600', red: 'text-red-600', slate: 'text-slate-900' }[tone] || 'text-slate-900';
+    return `<div class="bg-white rounded-xl border border-slate-200 p-3">
+      <div class="text-2xl font-bold ${c}">${esc(value)}</div>
+      <div class="text-[11px] text-slate-500 mt-0.5">${esc(label)}</div>
+      ${sub ? `<div class="text-[10px] text-slate-400 mt-0.5">${esc(sub)}</div>` : ''}</div>`;
+  }
+  function bar(label, count, max, tone) {
+    const w = max ? Math.max(2, Math.round((count / max) * 100)) : 2;
+    const col = tone || '#3b82f6';
+    return `<div class="flex items-center gap-2 text-xs">
+      <div class="w-28 shrink-0 text-slate-600 truncate" title="${esc(label)}">${esc(label)}</div>
+      <div class="flex-1 h-3 bg-slate-100 rounded"><div class="h-3 rounded" style="width:${w}%;background:${col}"></div></div>
+      <div class="w-10 text-right font-semibold text-slate-700">${count}</div></div>`;
+  }
+
+  window.renderDashboard = function () {
+    const rows = dashRows(), m = nameMap();
+    if (!rows.length) { $('dash-kpis').innerHTML = `<div class="col-span-full text-sm text-slate-400 py-6 text-center">No installation data yet.</div>`; }
+
+    // KPIs
+    const total = rows.length;
+    const done = rows.filter(isDone).length;
+    const inProg = rows.filter(t => isActive(t) && (t.assignedToEmail || t.acknowledgedAt) && !isHold(t)).length;
+    const pending = rows.filter(t => t.status === 'Pending').length;
+    const held = rows.filter(isHold).length;
+    const bad = rows.filter(isBad).length;
+    const noIso = rows.filter(t => isActive(t) && !t.isoEmail).length;
+    const noTech = rows.filter(t => isActive(t) && !t.assignedToEmail).length;
+    const cycle = rows.filter(isDone).map(t => hoursBetween(t.createdAt, completedAt(t))).filter(x => x != null);
+    const avgCycle = avg(cycle);
+    const csats = rows.map(t => Number(t.csatScore)).filter(x => !isNaN(x) && x > 0);
+    const avgCsat = avg(csats);
+    $('dash-kpis').innerHTML = [
+      kpiCard('Total installs', total, '', 'slate'),
+      kpiCard('Completed', done, pct(done, total) + '% completion', 'green'),
+      kpiCard('In progress', inProg, '', 'cyan'),
+      kpiCard('Pending / on hold', pending + held, held + ' on hold', 'amber'),
+      kpiCard('Avg cycle time', avgCycle == null ? '—' : (avgCycle / 24).toFixed(1) + 'd', 'create → sign-off', 'slate'),
+      kpiCard('Avg CSAT', avgCsat == null ? '—' : avgCsat.toFixed(1) + '/5', csats.length + ' rated', 'green'),
+      kpiCard('No ISO', noIso, 'active tickets', noIso ? 'red' : 'slate'),
+      kpiCard('No technician', noTech, 'active tickets', noTech ? 'red' : 'slate'),
+      kpiCard('Cancelled / defaulted', bad, '', bad ? 'red' : 'slate'),
+    ].join('');
+
+    // Status donut
+    const statuses = ['Pending', 'Assigned', 'InProgress', 'On Hold', 'Rescheduled', 'Completed', 'Closed', 'Cancelled', 'Defaulted'];
+    const sColors = { Pending: '#94a3b8', Assigned: '#38bdf8', InProgress: '#6366f1', 'On Hold': '#f59e0b', Rescheduled: '#f59e0b', Completed: '#10b981', Closed: '#059669', Cancelled: '#ef4444', Defaulted: '#dc2626' };
+    const sCounts = statuses.map(s => rows.filter(t => t.status === s).length);
+    if (window.Chart) {
+      _dc.status && _dc.status.destroy();
+      _dc.status = new Chart($('dash-status-chart'), {
+        type: 'doughnut',
+        data: { labels: statuses, datasets: [{ data: sCounts, backgroundColor: statuses.map(s => sColors[s]) }] },
+        options: { plugins: { legend: { position: 'right', labels: { font: { size: 10 }, boxWidth: 10 } } }, cutout: '62%' }
+      });
+      // Trend (installs created per bucket)
+      const days = Number($('dash-range') && $('dash-range').value || 30) || 90;
+      const buckets = {}, fmtB = d => d.toISOString().slice(0, 10);
+      rows.forEach(t => { const d = parseD(t.createdAt); if (d) { const k = fmtB(d); buckets[k] = (buckets[k] || 0) + 1; } });
+      const doneB = {}; rows.filter(isDone).forEach(t => { const d = parseD(completedAt(t)); if (d) { const k = fmtB(d); doneB[k] = (doneB[k] || 0) + 1; } });
+      const keys = Object.keys(Object.assign({}, buckets, doneB)).sort().slice(-45);
+      _dc.trend && _dc.trend.destroy();
+      _dc.trend = new Chart($('dash-trend-chart'), {
+        data: {
+          labels: keys.map(k => k.slice(5)),
+          datasets: [
+            { type: 'bar', label: 'Created', data: keys.map(k => buckets[k] || 0), backgroundColor: '#93c5fd' },
+            { type: 'line', label: 'Completed', data: keys.map(k => doneB[k] || 0), borderColor: '#10b981', tension: .3, pointRadius: 0 }
+          ]
+        },
+        options: { plugins: { legend: { labels: { font: { size: 10 }, boxWidth: 10 } } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } }, x: { ticks: { font: { size: 9 }, maxRotation: 0, autoSkip: true } } } }
+      });
+    }
+
+    // Financing partner
+    const fin = {}; rows.forEach(t => { const f = financer(t); fin[f] = (fin[f] || 0) + 1; });
+    const finArr = Object.entries(fin).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const finMax = finArr.length ? finArr[0][1] : 1;
+    $('dash-financing').innerHTML = finArr.length ? finArr.map(([k, v]) => bar(k, v, finMax, '#6366f1')).join('') : '<div class="text-xs text-slate-400">No data.</div>';
+
+    // SLA compliance
+    const slaRow = (label, ok, tot) => {
+      const p = pct(ok, tot);
+      const col = p >= 90 ? '#10b981' : p >= 70 ? '#f59e0b' : '#ef4444';
+      return `<div class="flex items-center gap-2 text-xs"><div class="w-32 shrink-0 text-slate-600">${label}</div>
+        <div class="flex-1 h-3 bg-slate-100 rounded"><div class="h-3 rounded" style="width:${p}%;background:${col}"></div></div>
+        <div class="w-20 text-right font-semibold text-slate-700">${p}% <span class="text-slate-400 font-normal">(${ok}/${tot})</span></div></div>`;
+    };
+    const within = (a, b, lim) => { const h = hoursBetween(a, b); return h != null && h <= lim; };
+    const ackSet = rows.filter(t => t.acknowledgedAt), startSet = rows.filter(t => t.arrivedAt), signSet = rows.filter(t => t.technicianSignedOffAt), isoSet = rows.filter(t => t.activationApprovedAt && t.activationRequestedAt);
+    $('dash-sla').innerHTML = [
+      slaRow('Acknowledged', ackSet.filter(t => within(t.createdAt, t.acknowledgedAt, t.slaAckHours || 4)).length, ackSet.length),
+      slaRow('On-site (start)', startSet.filter(t => within(t.createdAt, t.arrivedAt, t.slaStartHours || 24)).length, startSet.length),
+      slaRow('Sign-off', signSet.filter(t => within(t.createdAt, t.technicianSignedOffAt, t.slaSignoffHours || 48)).length, signSet.length),
+      slaRow('ISO activation', isoSet.filter(t => within(t.activationRequestedAt, t.activationApprovedAt, t.slaIsoHours || 8)).length, isoSet.length),
+    ].join('') || '<div class="text-xs text-slate-400">No data.</div>';
+
+    // ISO performance
+    const isoG = {};
+    rows.forEach(t => { if (!t.isoEmail) return; const k = t.isoEmail.toLowerCase(); (isoG[k] = isoG[k] || []).push(t); });
+    $('dash-iso-head').innerHTML = `<tr>${['ISO', 'Assigned', 'Active', 'Completed', 'Activations', 'Avg turnaround', 'Avg cycle'].map(h => `<th class="px-4 py-2">${h}</th>`).join('')}</tr>`;
+    $('dash-iso-body').innerHTML = Object.entries(isoG).sort((a, b) => b[1].length - a[1].length).map(([k, ts]) => {
+      const turn = ts.map(t => hoursBetween(t.activationRequestedAt, t.activationApprovedAt)).filter(x => x != null);
+      const cyc = ts.filter(isDone).map(t => hoursBetween(t.createdAt, completedAt(t))).filter(x => x != null);
+      return `<tr class="hover:bg-slate-50"><td class="px-4 py-2 font-medium text-slate-800">${esc(nameOf(ts[0].isoEmail, m))}</td>
+        <td class="px-4 py-2">${ts.length}</td><td class="px-4 py-2">${ts.filter(isActive).length}</td>
+        <td class="px-4 py-2 text-emerald-700 font-semibold">${ts.filter(isDone).length}</td>
+        <td class="px-4 py-2">${ts.filter(t => t.activationApprovedAt).length}</td>
+        <td class="px-4 py-2">${avg(turn) == null ? '—' : fmtH(avg(turn))}</td>
+        <td class="px-4 py-2">${avg(cyc) == null ? '—' : (avg(cyc) / 24).toFixed(1) + 'd'}</td></tr>`;
+    }).join('') || `<tr><td colspan="7" class="px-4 py-6 text-center text-slate-400">No ISO-assigned tickets.</td></tr>`;
+
+    // Technician performance
+    const techG = {};
+    rows.forEach(t => { if (!t.assignedToEmail) return; const k = t.assignedToEmail.toLowerCase(); (techG[k] = techG[k] || []).push(t); });
+    $('dash-tech-head').innerHTML = `<tr>${['Technician', 'Assigned', 'In progress', 'Completed', 'On hold', 'Avg install', 'Avg CSAT', 'Rework', 'Completion'].map(h => `<th class="px-4 py-2">${h}</th>`).join('')}</tr>`;
+    $('dash-tech-body').innerHTML = Object.entries(techG).sort((a, b) => b[1].length - a[1].length).map(([k, ts]) => {
+      const inst = ts.map(t => hoursBetween(t.arrivedAt, t.technicianSignedOffAt)).filter(x => x != null && x >= 0);
+      const cs = ts.map(t => Number(t.csatScore)).filter(x => !isNaN(x) && x > 0);
+      const rework = ts.filter(t => t.status === 'Rescheduled' || t.status === 'Defaulted' || t.rescheduledTo).length;
+      const cr = pct(ts.filter(isDone).length, ts.length);
+      return `<tr class="hover:bg-slate-50"><td class="px-4 py-2 font-medium text-slate-800">${esc(nameOf(ts[0].assignedToEmail, m))}</td>
+        <td class="px-4 py-2">${ts.length}</td><td class="px-4 py-2">${ts.filter(t => isActive(t) && !isHold(t)).length}</td>
+        <td class="px-4 py-2 text-emerald-700 font-semibold">${ts.filter(isDone).length}</td>
+        <td class="px-4 py-2">${ts.filter(isHold).length}</td>
+        <td class="px-4 py-2">${avg(inst) == null ? '—' : fmtH(avg(inst))}</td>
+        <td class="px-4 py-2">${avg(cs) == null ? '—' : avg(cs).toFixed(1)}</td>
+        <td class="px-4 py-2 ${rework ? 'text-amber-600' : ''}">${rework}</td>
+        <td class="px-4 py-2"><span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold ${cr >= 70 ? 'bg-emerald-50 text-emerald-700' : cr >= 40 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'}">${cr}%</span></td></tr>`;
+    }).join('') || `<tr><td colspan="9" class="px-4 py-6 text-center text-slate-400">No technician-assigned tickets.</td></tr>`;
+  };
+  $('dash-range') && $('dash-range').addEventListener('change', () => window.renderDashboard());
+
+  /* ═══════════════ REPORT BUILDER ═══════════════ */
+  const dateCol = (k, l, g, f) => ({ k, l, g, v: t => fmtDate(t[f]), n: t => parseD(t[f]) ? parseD(t[f]).getTime() : -1 });
+  const durCol = (k, l, g, fn) => ({ k, l, g, v: t => { const h = fn(t); return h == null || h < 0 ? '' : fmtH(h); }, n: t => { const h = fn(t); return h == null ? -1 : h; } });
+
+  // Installed devices + paired SIMs come from inv_items (installation_id = ticket id),
+  // loaded lazily the first time the Reports tab is opened so the page load stays fast.
+  let _devByTicket = null, _devLoading = false;
+  const devFor = t => (_devByTicket && _devByTicket[t.id]) || [];
+  async function loadDeviceMap() {
+    if (_devLoading || _devByTicket !== null) return; _devLoading = true;
+    try {
+      // Installed (completed jobs) + Issued for Installation (in-progress jobs) → covers every
+      // installation that has a device on it, so the columns populate for active jobs too.
+      const results = await Promise.all([
+        fetchAllPages('/inventory/items?status=Installed'),
+        fetchAllPages('/inventory/items?status=Issued%20for%20Installation'),
+      ]);
+      const map = {};
+      results.forEach(items => {
+        const arr = Array.isArray(items) ? items : (items && items.data) || [];
+        arr.forEach(it => { const k = it.installation_id; if (k) (map[k] = map[k] || []).push({ imei: it.imei || it.serial_number, sim: it.sim_phone, status: it.status }); });
+      });
+      _devByTicket = map;
+    } catch (e) { _devByTicket = {}; }
+    finally { _devLoading = false; if ($('sec-reports') && !$('sec-reports').classList.contains('hidden')) drawReport(); }
+  }
+  const loadingCell = () => _devByTicket === null ? '…' : '';
+
+  const COLS = [
+    { k: 'ticketNo', l: 'Ticket', g: 'Ticket', v: t => t.ticketNo },
+    { k: 'status', l: 'Status', g: 'Ticket', v: t => t.status },
+    { k: 'stage', l: 'Stage', g: 'Ticket', v: t => t.stage, n: t => Number(t.stage) || 0 },
+    { k: 'customerName', l: 'Customer', g: 'Customer', v: t => t.customerName },
+    { k: 'contactName', l: 'Site contact', g: 'Customer', v: t => t.installationContactName },
+    { k: 'contactPhone', l: 'Site phone', g: 'Customer', v: t => t.installationContactPhone },
+    { k: 'reg', l: 'Vehicle reg', g: 'Vehicle', v: t => t.vehicleRegistration },
+    { k: 'make', l: 'Make', g: 'Vehicle', v: mk },
+    { k: 'model', l: 'Model', g: 'Vehicle', v: md },
+    { k: 'partner', l: 'Partner', g: 'Vehicle', v: t => financer(t) },
+    { k: 'loanTerm', l: 'Loan term', g: 'Vehicle', v: t => t.loanTermMonths != null ? t.loanTermMonths + ' mo' : '—' },
+    { k: 'expected', l: 'Expected devices', g: 'Devices & SIMs', v: t => t.expectedGadgetCount == null ? '' : t.expectedGadgetCount, n: t => Number(t.expectedGadgetCount) || 0 },
+    { k: 'installedCount', l: 'Installed devices', g: 'Devices & SIMs', v: t => _devByTicket === null ? '…' : devFor(t).filter(x => x.status === 'Installed').length, n: t => devFor(t).filter(x => x.status === 'Installed').length },
+    { k: 'deviceCount', l: 'Devices on job', g: 'Devices & SIMs', v: t => _devByTicket === null ? '…' : devFor(t).length, n: t => devFor(t).length },
+    { k: 'deviceImeis', l: 'Devices (IMEI)', g: 'Devices & SIMs', v: t => { const d = devFor(t).map(x => x.imei).filter(Boolean); return d.length ? d.join(', ') : loadingCell(); } },
+    { k: 'pairedSims', l: 'Paired SIMs', g: 'Devices & SIMs', v: t => { const s = devFor(t).map(x => x.sim).filter(Boolean); return s.length ? s.join(', ') : loadingCell(); } },
+    { k: 'technician', l: 'Technician', g: 'Assignment', v: t => nameOf(t.assignedToEmail, _repNames) },
+    { k: 'technicianEmail', l: 'Technician email', g: 'Assignment', v: t => t.assignedToEmail },
+    { k: 'coTech', l: 'Co-technician', g: 'Assignment', v: t => t.coTechnicianName },
+    { k: 'iso', l: 'ISO', g: 'Assignment', v: t => t.isoName || t.isoEmail },
+    { k: 'raisedBy', l: 'Raised by', g: 'Assignment', v: t => t.createdByName },
+    { k: 'financer', l: 'Financing partner', g: 'Financing / Location', v: t => financer(t) },
+    { k: 'location', l: 'Install location', g: 'Financing / Location', v: t => t.installationLocation },
+    dateCol('created', 'Created', 'Timeline', 'createdAt'),
+    dateCol('assigned', 'Assigned', 'Timeline', 'assignedAt'),
+    dateCol('isoAssigned', 'ISO assigned', 'Timeline', 'isoAssignedAt'),
+    dateCol('acknowledged', 'Acknowledged', 'Timeline', 'acknowledgedAt'),
+    dateCol('travelStarted', 'Travel started', 'Timeline', 'travelStartedAt'),
+    dateCol('arrived', 'Arrived', 'Timeline', 'arrivedAt'),
+    dateCol('activationRequested', 'Activation req.', 'Timeline', 'activationRequestedAt'),
+    dateCol('activationApproved', 'Activation appr.', 'Timeline', 'activationApprovedAt'),
+    dateCol('techSignoff', 'Tech sign-off', 'Timeline', 'technicianSignedOffAt'),
+    dateCol('isoSignoff', 'ISO sign-off', 'Timeline', 'engineerSignedOffAt'),
+    dateCol('customerOtp', 'Customer OTP', 'Timeline', 'customerOtpVerifiedAt'),
+    dateCol('rescheduledTo', 'Rescheduled to', 'Timeline', 'rescheduledTo'),
+    dateCol('updated', 'Updated', 'Timeline', 'updatedAt'),
+    durCol('ackHrs', 'Ack time', 'Durations', t => hoursBetween(t.createdAt, t.acknowledgedAt)),
+    durCol('startHrs', 'Time to on-site', 'Durations', t => hoursBetween(t.createdAt, t.arrivedAt)),
+    durCol('installHrs', 'Install duration', 'Durations', t => hoursBetween(t.arrivedAt, t.technicianSignedOffAt)),
+    durCol('isoTurn', 'ISO turnaround', 'Durations', t => hoursBetween(t.activationRequestedAt, t.activationApprovedAt)),
+    durCol('cycleHrs', 'Cycle time', 'Durations', t => hoursBetween(t.createdAt, completedAt(t))),
+    { k: 'slaAck', l: 'SLA ack (h)', g: 'SLA', v: t => t.slaAckHours, n: t => Number(t.slaAckHours) || 0 },
+    { k: 'slaStart', l: 'SLA start (h)', g: 'SLA', v: t => t.slaStartHours, n: t => Number(t.slaStartHours) || 0 },
+    { k: 'slaSignoff', l: 'SLA sign-off (h)', g: 'SLA', v: t => t.slaSignoffHours, n: t => Number(t.slaSignoffHours) || 0 },
+    { k: 'slaIso', l: 'SLA ISO (h)', g: 'SLA', v: t => t.slaIsoHours, n: t => Number(t.slaIsoHours) || 0 },
+    { k: 'ackBreach', l: 'Ack breach', g: 'SLA', v: t => { const h = hoursBetween(t.createdAt, t.acknowledgedAt); return h == null ? '' : (h > (t.slaAckHours || 4) ? 'Yes' : 'No'); } },
+    { k: 'statusReason', l: 'Status reason', g: 'Lifecycle', v: t => t.statusReason },
+    { k: 'statusChangedBy', l: 'Status changed by', g: 'Lifecycle', v: t => t.statusChangedBy },
+    dateCol('statusChangedAt', 'Status changed at', 'Lifecycle', 'statusChangedAt'),
+    { k: 'rejectionReason', l: 'Rejection reason', g: 'Lifecycle', v: t => t.rejectionReason },
+    { k: 'csat', l: 'CSAT', g: 'Feedback', v: t => t.csatScore, n: t => Number(t.csatScore) || 0 },
+    { k: 'csatComment', l: 'CSAT comment', g: 'Feedback', v: t => t.csatComment },
+    { k: 'retailLeadId', l: 'Retail lead', g: 'Links', v: t => t.retailLeadId },
+    { k: 'invoiceId', l: 'Invoice', g: 'Links', v: t => t.invoiceId },
+    { k: 'proformaId', l: 'Proforma', g: 'Links', v: t => t.proformaId },
+  ];
+  const DEFAULT_COLS = ['ticketNo', 'status', 'customerName', 'reg', 'technician', 'iso', 'financer', 'location', 'created', 'arrived', 'techSignoff', 'cycleHrs', 'csat'];
+  let _repNames = {};
+  let _visible = (() => { try { const s = JSON.parse(localStorage.getItem('fm_tech_report_cols')); return Array.isArray(s) && s.length ? s : DEFAULT_COLS.slice(); } catch { return DEFAULT_COLS.slice(); } })();
+  let _sortKey = 'created', _sortDir = -1;
+  const _filters = { status: '', technician: '', iso: '', financer: '', from: '', to: '' };
+  const saveCols = () => { try { localStorage.setItem('fm_tech_report_cols', JSON.stringify(_visible)); } catch {} };
+
+  function repFilteredRows() {
+    let rows = T().slice();
+    const f = _filters;
+    if (f.status) rows = rows.filter(t => t.status === f.status);
+    if (f.technician) rows = rows.filter(t => (t.assignedToEmail || '') === f.technician);
+    if (f.iso) rows = rows.filter(t => (t.isoEmail || '') === f.iso);
+    if (f.financer) rows = rows.filter(t => financer(t) === f.financer);
+    if (f.from) { const c = new Date(f.from).getTime(); rows = rows.filter(t => { const d = parseD(t.createdAt); return d && d.getTime() >= c; }); }
+    if (f.to) { const c = new Date(f.to).getTime() + 864e5; rows = rows.filter(t => { const d = parseD(t.createdAt); return d && d.getTime() <= c; }); }
+    const q = ($('rep-search') && $('rep-search').value || '').trim().toLowerCase();
+    if (q) rows = rows.filter(t => _visible.some(k => { const c = COLS.find(x => x.k === k); return c && String(c.v(t) || '').toLowerCase().includes(q); }) || String(t.ticketNo || '').toLowerCase().includes(q) || String(t.customerName || '').toLowerCase().includes(q) || String(t.vehicleRegistration || '').toLowerCase().includes(q));
+    const col = COLS.find(c => c.k === _sortKey);
+    if (col) rows.sort((a, b) => { const va = col.n ? col.n(a) : String(col.v(a) || '').toLowerCase(), vb = col.n ? col.n(b) : String(col.v(b) || '').toLowerCase(); return (va < vb ? -1 : va > vb ? 1 : 0) * _sortDir; });
+    return rows;
+  }
+
+  function uniq(getter) { const s = new Set(); T().forEach(t => { const v = getter(t); if (v) s.add(v); }); return [...s].sort(); }
+  function buildFilters() {
+    const opt = (v, l) => `<option value="${esc(v)}">${esc(l)}</option>`;
+    const sel = (id, label, options, val) => `<div><label class="block text-[10px] uppercase tracking-wide text-slate-500 mb-1">${label}</label>
+      <select id="${id}" class="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white min-w-[130px]">${options}</select></div>`;
+    const statuses = uniq(t => t.status);
+    const techs = uniq(t => t.assignedToEmail);
+    const isos = uniq(t => t.isoEmail);
+    const fins = uniq(t => financer(t));
+    $('rep-filters').innerHTML =
+      sel('rf-status', 'Status', opt('', 'All') + statuses.map(s => opt(s, s)).join(''), _filters.status) +
+      sel('rf-tech', 'Technician', opt('', 'All') + techs.map(s => opt(s, nameOf(s, _repNames))).join(''), _filters.technician) +
+      sel('rf-iso', 'ISO', opt('', 'All') + isos.map(s => opt(s, nameOf(s, _repNames))).join(''), _filters.iso) +
+      sel('rf-fin', 'Financing', opt('', 'All') + fins.map(s => opt(s, s)).join(''), _filters.financer) +
+      `<div><label class="block text-[10px] uppercase tracking-wide text-slate-500 mb-1">Created from</label><input type="date" id="rf-from" class="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white"></div>` +
+      `<div><label class="block text-[10px] uppercase tracking-wide text-slate-500 mb-1">to</label><input type="date" id="rf-to" class="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white"></div>`;
+    $('rf-status').value = _filters.status; $('rf-tech').value = _filters.technician; $('rf-iso').value = _filters.iso; $('rf-fin').value = _filters.financer;
+    $('rf-from').value = _filters.from; $('rf-to').value = _filters.to;
+    const bind = (id, key) => $(id).addEventListener('change', () => { _filters[key] = $(id).value; drawReport(); });
+    bind('rf-status', 'status'); bind('rf-tech', 'technician'); bind('rf-iso', 'iso'); bind('rf-fin', 'financer'); bind('rf-from', 'from'); bind('rf-to', 'to');
+  }
+
+  function buildColumnPanel() {
+    const groups = {};
+    COLS.forEach(c => { (groups[c.g] = groups[c.g] || []).push(c); });
+    $('rep-columns-panel').innerHTML = `<div class="flex items-center justify-between mb-3"><span class="text-xs font-semibold text-slate-700">Columns (${_visible.length} shown)</span>
+      <button id="rep-cols-close" class="text-xs text-slate-500 hover:text-slate-800">Done</button></div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-1">` +
+      Object.entries(groups).map(([g, cols]) => `<div><div class="text-[10px] uppercase tracking-wide text-slate-400 font-semibold mt-2 mb-1">${esc(g)}</div>` +
+        cols.map(c => `<label class="flex items-center gap-2 text-xs py-0.5 cursor-pointer"><input type="checkbox" data-col="${c.k}" ${_visible.includes(c.k) ? 'checked' : ''} class="accent-slate-800"> ${esc(c.l)}</label>`).join('') + `</div>`).join('') + `</div>`;
+    $('rep-columns-panel').querySelectorAll('input[data-col]').forEach(cb => cb.addEventListener('change', () => {
+      const k = cb.dataset.col;
+      if (cb.checked) { if (!_visible.includes(k)) _visible.push(k); } else { _visible = _visible.filter(x => x !== k); }
+      saveCols(); drawReport();
+    }));
+    $('rep-cols-close').addEventListener('click', () => $('rep-columns-panel').classList.add('hidden'));
+  }
+
+  function drawReport() {
+    const rows = repFilteredRows();
+    const cols = _visible.map(k => COLS.find(c => c.k === k)).filter(Boolean);
+    $('rep-count').textContent = rows.length;
+    $('rep-head').innerHTML = `<tr>${cols.map(c => `<th class="px-3 py-2 cursor-pointer hover:text-slate-800 select-none" data-sort="${c.k}">${esc(c.l)}${_sortKey === c.k ? (_sortDir === 1 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr>`;
+    const cap = 800;
+    $('rep-body').innerHTML = rows.slice(0, cap).map(t => `<tr class="hover:bg-slate-50">${cols.map(c => `<td class="px-3 py-1.5 text-slate-700">${esc(c.v(t))}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}" class="px-3 py-6 text-center text-slate-400">No rows match the filters.</td></tr>`;
+    if (rows.length > cap) $('rep-body').insertAdjacentHTML('beforeend', `<tr><td colspan="${cols.length}" class="px-3 py-2 text-center text-[11px] text-slate-400">Showing first ${cap} of ${rows.length} — narrow the filters or export to see all.</td></tr>`);
+    $('rep-head').querySelectorAll('[data-sort]').forEach(th => th.addEventListener('click', () => {
+      const k = th.dataset.sort; if (_sortKey === k) _sortDir *= -1; else { _sortKey = k; _sortDir = -1; } drawReport();
+    }));
+  }
+
+  function exportCsv() {
+    const rows = repFilteredRows();
+    const cols = _visible.map(k => COLS.find(c => c.k === k)).filter(Boolean);
+    const q = v => { const s = String(v == null ? '' : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const lines = [cols.map(c => q(c.l)).join(',')];
+    rows.forEach(t => lines.push(cols.map(c => q(c.v(t))).join(',')));
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `technical_report_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(a.href);
+  }
+
+  /* Saved presets (named column + filter sets) */
+  const PRESET_KEY = 'fm_tech_report_presets';
+  const getPresets = () => { try { return JSON.parse(localStorage.getItem(PRESET_KEY)) || {}; } catch { return {}; } };
+  const setPresets = p => { try { localStorage.setItem(PRESET_KEY, JSON.stringify(p)); } catch {} };
+  function refreshPresetSelect() {
+    const sel = $('rep-preset'); if (!sel) return;
+    const names = Object.keys(getPresets()).sort();
+    sel.innerHTML = '<option value="">Presets…</option>' + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('') + (names.length ? '<option value="__del__">— Delete a preset…</option>' : '');
+  }
+  function applyPreset(name) {
+    const p = getPresets()[name]; if (!p) return;
+    _visible = (p.cols && p.cols.length) ? p.cols.slice() : DEFAULT_COLS.slice();
+    Object.assign(_filters, { status: '', technician: '', iso: '', financer: '', from: '', to: '' }, p.filters || {});
+    if (p.sort) { _sortKey = p.sort.key; _sortDir = p.sort.dir; }
+    saveCols();
+    if ($('rep-search')) $('rep-search').value = '';
+    window.renderReports();
+    if ($('rep-preset')) $('rep-preset').value = name;
+  }
+  function savePreset() {
+    const name = (prompt('Save current columns + filters as a preset.\nName:') || '').trim(); if (!name) return;
+    const p = getPresets(); p[name] = { cols: _visible.slice(), filters: Object.assign({}, _filters), sort: { key: _sortKey, dir: _sortDir } };
+    setPresets(p); refreshPresetSelect(); if ($('rep-preset')) $('rep-preset').value = name;
+    if (window.toast) window.toast('Preset "' + name + '" saved', 'success');
+  }
+  function deletePreset() {
+    const p = getPresets(); const names = Object.keys(p); if (!names.length) return;
+    const name = (prompt('Delete which preset?\n\n' + names.join('\n')) || '').trim();
+    if (name && p[name]) { delete p[name]; setPresets(p); refreshPresetSelect(); if (window.toast) window.toast('Preset deleted', 'info'); }
+  }
+
+  window.renderReports = function () {
+    _repNames = nameMap();
+    buildFilters(); buildColumnPanel(); refreshPresetSelect(); drawReport();
+    loadDeviceMap(); // lazy-load installed devices + paired SIMs, then re-draw
+  };
+  $('rep-preset') && $('rep-preset').addEventListener('change', () => {
+    const v = $('rep-preset').value;
+    if (v === '__del__') { deletePreset(); $('rep-preset').value = ''; }
+    else if (v) applyPreset(v);
+  });
+  $('rep-save-btn') && $('rep-save-btn').addEventListener('click', savePreset);
+  $('rep-columns-btn') && $('rep-columns-btn').addEventListener('click', () => $('rep-columns-panel').classList.toggle('hidden'));
+  $('rep-export-btn') && $('rep-export-btn').addEventListener('click', exportCsv);
+  $('rep-search') && $('rep-search').addEventListener('input', () => drawReport());
+  $('rep-reset-btn') && $('rep-reset-btn').addEventListener('click', () => {
+    _visible = DEFAULT_COLS.slice(); saveCols(); Object.keys(_filters).forEach(k => _filters[k] = '');
+    if ($('rep-search')) $('rep-search').value = ''; _sortKey = 'created'; _sortDir = -1;
+    window.renderReports();
+  });
+})();
 </script>
 </body>
 </html>

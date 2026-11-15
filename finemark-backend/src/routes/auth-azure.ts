@@ -21,7 +21,7 @@ import { v4 as uuidv4 } from "uuid";
 import { ConfidentialClientApplication, Configuration, CryptoProvider } from "@azure/msal-node";
 import { pgGet, pgRun } from "../db.js";
 import { signAccessToken, generateRefreshToken, hashRefreshToken } from "../utils/tokens.js";
-import { authLimiter, loginLimiter } from "../middleware/rateLimit.js";
+import { authLimiter, ssoExchangeLimiter } from "../middleware/rateLimit.js";
 import { auditLog } from "../services/auditService.js";
 import { resolveIdentity } from "../services/identityService.js";
 import { getIdleMinutes } from "../services/sessionTimeoutService.js";
@@ -155,6 +155,8 @@ router.get("/callback", async (req, res) => {
 
     if (!email) throw new Error("Azure AD did not return an email address");
   } catch (err: unknown) {
+    console.error("[azure-sso] code exchange failed:", err);
+    auditLog(req, "LOGIN_FAILED", "user:azure-sso", "Warning", { method: "azure", reason: "code_exchange_failed", error: err instanceof Error ? err.message : String(err) }).catch(console.error);
     const msg = encodeURIComponent(
       err instanceof Error ? err.message : "Azure authentication failed"
     );
@@ -225,7 +227,7 @@ router.get("/callback", async (req, res) => {
 
 // ── POST /api/auth/azure/exchange ────────────────────────────────────────────
 // Frontend calls this to exchange a one-time SSO code for the actual tokens
-router.post("/exchange", loginLimiter, (req, res) => {
+router.post("/exchange", ssoExchangeLimiter, (req, res) => {
   const { code } = req.body as { code?: string };
   if (!code) return res.status(400).json({ error: "Missing code" });
 

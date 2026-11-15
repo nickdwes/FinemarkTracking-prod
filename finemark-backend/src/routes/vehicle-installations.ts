@@ -363,7 +363,7 @@ router.get(
        LEFT JOIN users tu ON tu.id = i.assigned_technician_id
        LEFT JOIN hr_employees te ON te.id = i.assigned_technician_id
        ${where}
-       ORDER BY i.created_at DESC LIMIT ? OFFSET ?`,
+       ORDER BY i.created_at DESC, i.id DESC LIMIT ? OFFSET ?`,
       [...params, sizeNum, offset]
     );
     const totalRow = await pgGet(
@@ -371,7 +371,8 @@ router.get(
       params
     );
 
-    auditLog(req, "VI_LIST_VIEWED", "vi_installations", "Info", { customerId, status }).catch(console.error);
+    // Log once per listing, not once per page (the installation dashboard pages through all rows)
+    if (pageNum === 1) auditLog(req, "VI_LIST_VIEWED", "vi_installations", "Info", { customerId, status }).catch(console.error);
 
     return ok(res, {
       data: rows.map(r => ({
@@ -421,12 +422,14 @@ router.get(
 router.get(
   "/:id",
   requireAuth,
-  requireRole(["Admin", ...SALES_ROLES, "Technical", "Technician", "InstallOffice", "Finance"]),
+  // CertAdmin read-only: cert generation reads the installation record to auto-fill details.
+  requireRole(["Admin", ...SALES_ROLES, "Technical", "Technician", "InstallOffice", "Finance", "CertAdmin"]),
   async (req: AuthRequest, res) => {
     const inst = await pgGet(
       `SELECT i.*,
               v.registration, v.make, v.model, v.year_of_manufacture, v.color,
               v.body_type, v.model_number, v.loan_tenure_months, v.loan_start_date,
+              v.chassis_number, v.registration_known,
               c.id as cust_id, c.account_no, c.type as cust_type,
               c.account_manager_id,
               ind.full_name, ind.phone_enc, ind.email_enc,
@@ -451,7 +454,8 @@ router.get(
       }
     }
 
-    const canSeePii = ["Admin", "Technical", ...SALES_ROLES].includes(req.user!.role);
+    // CertAdmin sees PII here because the customer name/phone print on the certificate they generate.
+    const canSeePii = ["Admin", "Technical", "CertAdmin", ...SALES_ROLES].includes(req.user!.role);
     const phone = decryptField(inst.phone_enc);
     const email = decryptField(inst.email_enc);
 
@@ -473,6 +477,8 @@ router.get(
         vehicle: {
           id: inst.vehicle_id,
           registration: inst.registration,
+          registrationKnown: inst.registration_known !== false,
+          chassisNumber: inst.chassis_number || null,
           make: inst.make,
           model: inst.model,
           modelNumber: inst.model_number,
@@ -582,9 +588,11 @@ router.patch(
           msgParts.push("Log in to Finemark portal.");
           const smsBody = msgParts.join(" ").slice(0, 150);
 
-          sendSms([techPhone], smsBody).catch(e =>
-            console.error("[assign] SMS to technician failed:", e)
-          );
+          // A gateway rejection resolves (status "Failed") rather than
+          // throwing, so check the result, not just the .catch().
+          sendSms([techPhone], smsBody)
+            .then(([r]) => { if (r?.status !== "Success") console.error(`[assign] SMS to technician rejected for job ${ticketRef}: ${r?.messageId || r?.statusCode || "no response"}`); })
+            .catch(e => console.error("[assign] SMS to technician failed:", e));
         }
       } catch (e) {
         console.error("[assign] SMS lookup failed:", e);
@@ -873,7 +881,8 @@ router.post(
 router.get(
   "/:id/photos",
   requireAuth,
-  requireRole(["Admin", ...SALES_ROLES, "Technical", "Technician", "InstallOffice", "Finance"]),
+  // CertAdmin read-only: cert generation pulls install site photos for the linked job.
+  requireRole(["Admin", ...SALES_ROLES, "Technical", "Technician", "InstallOffice", "Finance", "CertAdmin"]),
   async (req: AuthRequest, res) => {
     const inst = await assertAccess(req.params.id, req.user!, res);
     if (!inst) return;
@@ -991,11 +1000,14 @@ router.post(
     if (phone) {
       try {
         const customerName = customer.full_name || customer.company_name || "Customer";
-        await sendSms(
+        const [r] = await sendSms(
           [phone],
           `Finemark Installation OTP: ${otp}\nPlease share this code with the technician to confirm your vehicle installation.\nExpires in 10 minutes.`
         );
-        smsSent = true;
+        // Was set true unconditionally, so a rejected OTP still told the
+        // technician it had been sent (and audited smsSent: true).
+        smsSent = r?.status === "Success";
+        if (!smsSent) console.error(`[VI OTP] gateway rejected SMS for installation ${inst.id}: ${r?.messageId || r?.statusCode || "no response"}`);
       } catch (e) {
         console.error("[VI OTP] SMS failed:", e);
       }
@@ -1003,7 +1015,10 @@ router.post(
 
     auditLog(req, "VI_OTP_REQUESTED", `vi_installation:${inst.id}`, "Info", { smsSent }).catch(console.error);
 
-    const response: any = { message: "OTP sent to customer.", data: { expiresAt, smsSent } };
+    const response: any = {
+      message: smsSent ? "OTP sent to customer." : "Could not send the OTP by SMS — please try again.",
+      data: { expiresAt, smsSent },
+    };
     // Expose OTP in non-prod for testing
     if (process.env.NODE_ENV !== "production") response.data.devOtp = otp;
     return res.status(200).json(response);
@@ -1254,7 +1269,7 @@ router.get(
               start_date, end_date, loan_duration_years, imei_1, imei_2, tracker_no_1, tracker_no_2,
               pdf_base64, created_at
        FROM certificates
-       WHERE car_registration = ?
+       WHERE car_registration = ? AND deleted_at IS NULL
        ORDER BY created_at DESC
        LIMIT 1`,
       [inst.registration]

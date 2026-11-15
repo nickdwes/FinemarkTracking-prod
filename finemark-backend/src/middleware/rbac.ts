@@ -132,6 +132,10 @@ export const ROLE_GROUPS = {
   /** Certificate generation, editing, and delivery. */
   CERT_ACCESS: [ROLES.ADMIN, ROLES.CERT_ADMIN],
 
+  /** Document (quote/proforma/invoice) branding + VAT configuration. Lives under
+   *  Finance; shared by Admin, Finance and Certificate Admins. */
+  DOC_CONFIG_ACCESS: [ROLES.ADMIN, ROLES.FINANCE, ROLES.CERT_ADMIN],
+
   /** Certificate read-only (dashboards, completed jobs awaiting cert). */
   CERT_VIEW: [ROLES.ADMIN, ROLES.EXECUTIVE, ROLES.CERT_ADMIN],
 

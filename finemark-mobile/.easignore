@@ -1,0 +1,10 @@
+# Keep the EAS upload archive small and clean.
+node_modules/
+.expo/
+dist/
+web-build/
+ios/
+android/
+export-check/
+*.log
+.DS_Store

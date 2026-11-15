@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finemark | Payment &amp; Tax Reports</title>
+  <link rel="icon" href="assets/finemark-logo.svg" />
+  <link rel="stylesheet" href="assets/tailwind.css" />
+  <style>
+    @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+    .fade-in{animation:fadeIn .2s ease;}
+    table{border-collapse:collapse;width:100%;}
+    th{text-align:left;font-size:.72rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.04em;padding:.5rem .75rem;border-bottom:1px solid #e2e8f0;white-space:nowrap;}
+    td{font-size:.82rem;padding:.55rem .75rem;border-bottom:1px solid #f1f5f9;color:#334155;vertical-align:middle;white-space:nowrap;}
+    tr:hover td{background:#f8fafc;}
+    .badge{display:inline-flex;align-items:center;border-radius:9999px;padding:.15rem .6rem;font-size:.68rem;font-weight:600;border-width:1px;}
+    .tab-btn{padding:.55rem 1rem;font-size:.85rem;font-weight:600;border-bottom:2px solid transparent;color:#64748b;transition:all .15s;white-space:nowrap;}
+    .tab-btn:hover{color:#334155;}
+    .tab-btn.active{color:#2563eb;border-bottom-color:#2563eb;}
+    .subtab-btn{padding:.4rem .95rem;font-size:.8rem;font-weight:600;border-radius:9999px;color:#64748b;background:#f1f5f9;transition:all .15s;white-space:nowrap;}
+    .subtab-btn:hover{background:#e2e8f0;color:#334155;}
+    .subtab-btn.active{background:#2563eb;color:#fff;}
+    .fltr{border-radius:.5rem;border:1px solid #e2e8f0;font-size:.82rem;padding:.5rem .65rem;color:#334155;background:#fff;}
+    .fltr:focus{outline:none;box-shadow:0 0 0 2px rgba(59,130,246,.25);border-color:#60a5fa;}
+    .fltr-label{display:block;font-size:.7rem;font-weight:600;color:#64748b;margin-bottom:.25rem;text-transform:uppercase;letter-spacing:.03em;}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+<div id="fm-header"></div>
+<div class="flex min-h-screen pt-16">
+  <div id="fm-sidebar"></div>
+  <main class="flex-1 p-4 md:p-6 max-w-[1400px] mx-auto space-y-6">
+
+    <!-- Page Header -->
+    <div class="flex flex-wrap items-center gap-3 justify-between">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Payment &amp; Tax Reports</h1>
+        <p class="text-sm text-slate-500 mt-0.5">Invoice revenue, referrer commissions &amp; VAT.</p>
+      </div>
+    </div>
+
+    <!-- Date range filter -->
+    <div class="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap items-end gap-3">
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1" for="rep-from">From</label>
+        <input id="rep-from" type="date"
+               class="rounded-lg border border-slate-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1" for="rep-to">To</label>
+        <input id="rep-to" type="date"
+               class="rounded-lg border border-slate-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400" />
+      </div>
+      <button onclick="applyRange()"
+              class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition">Apply</button>
+      <button onclick="clearRange()"
+              class="px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition">Clear</button>
+      <span class="text-xs text-slate-400 ml-auto self-center">Leave blank for all-time.</span>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-1 border-b border-slate-200 overflow-x-auto">
+      <button data-tab="invoice"     class="tab-btn" onclick="switchTab('invoice')">Invoice Amount</button>
+      <button data-tab="payments"    class="tab-btn" onclick="switchTab('payments')">Invoice Payments</button>
+      <button data-tab="outstanding" class="tab-btn" onclick="switchTab('outstanding')">Outstanding</button>
+      <button data-tab="referrer"    class="tab-btn" onclick="switchTab('referrer')">Referrer Commission</button>
+      <button data-tab="ledger"      class="tab-btn" onclick="switchTab('ledger')">Commission Ledger</button>
+      <button data-tab="comm"        class="tab-btn" onclick="switchTab('comm')">Commission Analytics</button>
+      <button data-tab="advcomm"     class="tab-btn" onclick="switchTab('advcomm')">Advanced Commission</button>
+      <button data-tab="tax"         class="tab-btn" onclick="switchTab('tax')">Tax Report</button>
+    </div>
+
+    <!-- TAB 1: Invoice Amount -->
+    <div id="panel-invoice" class="tab-panel space-y-6">
+      <div class="flex items-center justify-between gap-3">
+        <div id="inv-status" class="text-sm text-slate-400">Loading…</div>
+        <button onclick="dlInvoiceCsv()"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
+          Download CSV
+        </button>
+      </div>
+      <div id="inv-filters" class="hidden flex flex-wrap items-end gap-3 bg-white rounded-xl border border-slate-200 p-3">
+        <div><label class="fltr-label">Sales Person</label><select id="inv-f-sp" onchange="renderInvoice()" class="fltr"><option value="">All</option></select></div>
+        <div><label class="fltr-label">Status</label><select id="inv-f-status" onchange="renderInvoice()" class="fltr"><option value="">All</option></select></div>
+        <div class="flex-1 min-w-[180px]"><label class="fltr-label">Search</label><input id="inv-f-q" oninput="renderInvoice()" placeholder="Invoice no or customer…" class="fltr w-full" /></div>
+        <button onclick="clearInvFilters()" class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:bg-slate-50 transition">Reset</button>
+      </div>
+      <div id="inv-kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
+      <div id="inv-content" class="space-y-6"></div>
+    </div>
+
+    <!-- TAB: Invoice Payments (receipts banked, independent of invoice) -->
+    <div id="panel-payments" class="tab-panel hidden space-y-6">
+      <div class="flex items-center justify-between gap-3">
+        <div id="pmt-status" class="text-sm text-slate-400">Loading…</div>
+        <button onclick="dlPaymentsCsv()"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
+          Download CSV
+        </button>
+      </div>
+      <div id="pmt-filters" class="hidden flex flex-wrap items-end gap-3 bg-white rounded-xl border border-slate-200 p-3">
+        <div><label class="fltr-label">Method</label><select id="pmt-f-method" onchange="renderPayments()" class="fltr"><option value="">All</option></select></div>
+        <div><label class="fltr-label">Bank</label><select id="pmt-f-bank" onchange="renderPayments()" class="fltr"><option value="">All</option></select></div>
+        <div class="flex-1 min-w-[180px]"><label class="fltr-label">Search</label><input id="pmt-f-q" oninput="renderPayments()" placeholder="Ref, invoice, customer…" class="fltr w-full" /></div>
+        <button onclick="clearPmtFilters()" class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:bg-slate-50 transition">Reset</button>
+      </div>
+      <div id="pmt-kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
+      <div id="pmt-content" class="space-y-6"></div>
+    </div>
+
+    <!-- TAB: Outstanding Invoices (issued, not yet fully collected) -->
+    <div id="panel-outstanding" class="tab-panel hidden space-y-6">
+      <div class="flex items-center justify-between gap-3">
+        <div id="out-status" class="text-sm text-slate-400">Loading…</div>
+        <button onclick="dlOutstandingCsv()"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
+          Download CSV
+        </button>
+      </div>
+      <div id="out-filters" class="hidden flex flex-wrap items-end gap-3 bg-white rounded-xl border border-slate-200 p-3">
+        <div><label class="fltr-label">Sales Person</label><select id="out-f-sp" onchange="renderOutstanding()" class="fltr"><option value="">All</option></select></div>
+        <div><label class="fltr-label">Age</label><select id="out-f-age" onchange="renderOutstanding()" class="fltr"><option value="">All</option><option value="0-30">0–30 days</option><option value="31-60">31–60 days</option><option value="61-90">61–90 days</option><option value="90+">90+ days</option></select></div>
+        <div class="flex-1 min-w-[180px]"><label class="fltr-label">Search</label><input id="out-f-q" oninput="renderOutstanding()" placeholder="Invoice no or customer…" class="fltr w-full" /></div>
+        <button onclick="clearOutFilters()" class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:bg-slate-50 transition">Reset</button>
+      </div>
+      <div id="out-kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
+      <div id="out-content" class="space-y-6"></div>
+    </div>
+
+    <!-- TAB 2: Referrer Commission -->
+    <div id="panel-referrer" class="tab-panel hidden space-y-6">
+      <div class="flex items-center justify-between gap-3">
+        <div id="ref-status" class="text-sm text-slate-400">Loading…</div>
+        <button onclick="dlReferrerCsv()"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
+          Download CSV
+        </button>
+      </div>
+      <div id="ref-filters" class="hidden flex flex-wrap items-end gap-3 bg-white rounded-xl border border-slate-200 p-3">
+        <div><label class="fltr-label">Referrer</label><select id="ref-f-name" onchange="renderReferrer()" class="fltr"><option value="">All</option></select></div>
+        <div class="flex-1 min-w-[180px]"><label class="fltr-label">Search</label><input id="ref-f-q" oninput="renderReferrer()" placeholder="Client, reg, bank, invoice, txn…" class="fltr w-full" /></div>
+        <button onclick="clearRefFilters()" class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:bg-slate-50 transition">Reset</button>
+      </div>
+      <div id="ref-kpis" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
+      <div id="ref-content" class="space-y-6"></div>
+    </div>
+
+    <!-- TAB: Commission Ledger (per-deal detail, split out of Referrer Commission) -->
+    <div id="panel-ledger" class="tab-panel hidden space-y-6">
+      <div class="flex items-center justify-between gap-3">
+        <div id="ledger-status" class="text-sm text-slate-400">Loading…</div>
+        <button onclick="dlLedgerCsv()"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
+          Download CSV
+        </button>
+      </div>
+      <div id="ledger-filters" class="hidden flex flex-wrap items-end gap-3 bg-white rounded-xl border border-slate-200 p-3">
+        <div><label class="fltr-label">Referrer</label><select id="ledger-f-name" onchange="renderLedger()" class="fltr"><option value="">All</option></select></div>
+        <div class="flex-1 min-w-[180px]"><label class="fltr-label">Search</label><input id="ledger-f-q" oninput="renderLedger()" placeholder="Client, reg, bank, invoice, txn…" class="fltr w-full" /></div>
+        <button onclick="clearLedgerFilters()" class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:bg-slate-50 transition">Reset</button>
+      </div>
+      <div id="ledger-kpis" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
+      <div id="ledger-content" class="space-y-6"></div>
+    </div>
+
+    <!-- TAB: Commission Analytics (by salesperson / customer, advances, aging) -->
+    <div id="panel-comm" class="tab-panel hidden space-y-6">
+      <div class="flex items-center justify-between gap-3">
+        <div id="comm-status" class="text-sm text-slate-400">Loading…</div>
+        <button onclick="dlCommCsv()"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
+          Download CSV
+        </button>
+      </div>
+      <div id="comm-filters" class="hidden flex flex-wrap items-end gap-3 bg-white rounded-xl border border-slate-200 p-3">
+        <div><label class="fltr-label">Reconciliation</label><select id="comm-f-recon" onchange="renderComm()" class="fltr"><option value="">All</option><option value="Pending">Pending</option><option value="Reconciled">Reconciled</option></select></div>
+        <div class="flex-1 min-w-[180px]"><label class="fltr-label">Search</label><input id="comm-f-q" oninput="renderComm()" placeholder="Referrer, customer, invoice, sales person…" class="fltr w-full" /></div>
+        <button onclick="clearCommFilters()" class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:bg-slate-50 transition">Reset</button>
+      </div>
+      <div id="comm-kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
+      <div id="comm-content" class="space-y-6"></div>
+    </div>
+
+    <!-- TAB: Advanced Commission (commission paid before the invoice was fully
+         paid — its own dedicated, first-class report, not buried inside
+         Commission Analytics) -->
+    <div id="panel-advcomm" class="tab-panel hidden space-y-6">
+      <div class="flex items-center justify-between gap-3">
+        <div id="advcomm-status" class="text-sm text-slate-400">Loading…</div>
+        <button onclick="dlAdvCommCsv()"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
+          Download CSV
+        </button>
+      </div>
+      <div id="advcomm-filters" class="hidden flex flex-wrap items-end gap-3 bg-white rounded-xl border border-slate-200 p-3">
+        <div><label class="fltr-label">Reconciliation</label><select id="advcomm-f-recon" onchange="renderAdvComm()" class="fltr"><option value="">All</option><option value="Pending">Pending (still unreconciled)</option><option value="Reconciled">Reconciled</option></select></div>
+        <div class="flex-1 min-w-[180px]"><label class="fltr-label">Search</label><input id="advcomm-f-q" oninput="renderAdvComm()" placeholder="Referrer, customer, invoice, reason, authorized by…" class="fltr w-full" /></div>
+        <button onclick="clearAdvCommFilters()" class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:bg-slate-50 transition">Reset</button>
+      </div>
+      <div id="advcomm-kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
+      <div id="advcomm-content" class="space-y-6"></div>
+    </div>
+
+    <!-- TAB 3: Tax Report -->
+    <div id="panel-tax" class="tab-panel hidden space-y-6">
+      <div class="flex items-center justify-between gap-3">
+        <div id="tax-status" class="text-sm text-slate-400">Loading…</div>
+        <button onclick="dlTaxCsv()"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
+          Download CSV
+        </button>
+      </div>
+      <div id="tax-filters" class="hidden flex flex-wrap items-end gap-3 bg-white rounded-xl border border-slate-200 p-3">
+        <div><label class="fltr-label">Status</label><select id="tax-f-status" onchange="renderTax()" class="fltr"><option value="">All</option></select></div>
+        <div class="flex-1 min-w-[180px]"><label class="fltr-label">Search</label><input id="tax-f-q" oninput="renderTax()" placeholder="Invoice, customer or eTIMS no…" class="fltr w-full" /></div>
+        <button onclick="clearTaxFilters()" class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:bg-slate-50 transition">Reset</button>
+      </div>
+      <div id="tax-kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
+      <div id="tax-content" class="space-y-6"></div>
+    </div>
+
+  </main>
+</div>
+<div id="fm-footer"></div>
+
+<div id="toast" class="hidden fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg text-sm font-medium shadow-lg fade-in"></div>
+
+<script src="assets/app.js?v=202607011016"></script>
+<script src="assets/layout.js?v=202607011016"></script>
+<script>
+  const APP = window.FINEMARK_APP;
+  APP && APP.requirePageAccess && APP.requirePageAccess();
+
+  /* ---------- helpers ---------- */
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (m) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+  const kes = (v) => 'KES ' + Number(v || 0).toLocaleString('en-KE', { maximumFractionDigits: 0 });
+  const num = (v) => Number(v || 0).toLocaleString('en-KE');
+
+  function fmtDate(v){
+    if (!v) return '—';
+    const d = new Date(v);
+    if (isNaN(d)) return esc(v);
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  function statusBadge(status){
+    const s = String(status || '').toLowerCase();
+    let cls = 'bg-slate-100 border-slate-200 text-slate-500';
+    if (s === 'paid') cls = 'bg-emerald-50 border-emerald-200 text-emerald-600';
+    else if (s === 'unpaid') cls = 'bg-red-50 border-red-200 text-red-600';
+    else if (s === 'partial' || s === 'overdue') cls = 'bg-amber-50 border-amber-200 text-amber-700';
+    else if (s === 'cancelled') cls = 'bg-slate-100 border-slate-200 text-slate-400';
+    return '<span class="badge ' + cls + '">' + esc(status || '—') + '</span>';
+  }
+
+  function reconBadge(status){
+    const s = String(status || '').toLowerCase();
+    let cls = 'bg-slate-100 border-slate-200 text-slate-500';
+    if (s === 'reconciled') cls = 'bg-emerald-50 border-emerald-200 text-emerald-600';
+    else if (s === 'pending') cls = 'bg-rose-50 border-rose-200 text-rose-600';
+    return '<span class="badge ' + cls + '">' + esc(status || '—') + '</span>';
+  }
+
+  const agePill = (bucket) => {
+    const b = String(bucket || '');
+    let cls = 'bg-slate-100 text-slate-500';
+    if (b === '31-60') cls = 'bg-amber-50 text-amber-700';
+    else if (b === '61-90') cls = 'bg-orange-50 text-orange-700';
+    else if (b === '90+') cls = 'bg-red-50 text-red-700';
+    return '<span class="badge ' + cls + ' border-transparent">' + esc(b || '—') + '</span>';
+  };
+
+  function toast(msg, ok){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg text-sm font-medium shadow-lg fade-in ' + (ok ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white');
+    t.classList.remove('hidden');
+    setTimeout(() => t.classList.add('hidden'), 3200);
+  }
+
+  function kpiCard(label, value, accent){
+    return '<div class="bg-white rounded-xl border border-slate-200 p-4">'
+      + '<div class="text-xs font-medium text-slate-500 uppercase tracking-wide">' + esc(label) + '</div>'
+      + '<div class="text-2xl font-bold mt-1 ' + (accent || 'text-slate-900') + '">' + value + '</div>'
+      + '</div>';
+  }
+
+  function card(title, tableHtml){
+    return '<div class="bg-white rounded-xl border border-slate-200 overflow-hidden">'
+      + (title ? '<div class="px-4 py-3 border-b border-slate-100 text-sm font-semibold text-slate-700">' + esc(title) + '</div>' : '')
+      + '<div class="overflow-x-auto">' + tableHtml + '</div>'
+      + '</div>';
+  }
+
+  /* Build query string from the shared date range, plus any extra params. */
+  function qs(extra){
+    const from = (document.getElementById('rep-from').value || '').trim();
+    const to   = (document.getElementById('rep-to').value || '').trim();
+    const p = [];
+    if (from) p.push('from=' + encodeURIComponent(from));
+    if (to)   p.push('to='   + encodeURIComponent(to));
+    (extra || []).forEach((x) => p.push(x));
+    return p.length ? '?' + p.join('&') : '';
+  }
+
+  /* Authed file/CSV download. */
+  async function downloadAuthed(path, filename){
+    const res = await fetch(`${APP.CONFIG.API_BASE_URL}${path}`, {
+      headers: { Authorization: `Bearer ${APP.getSession().accessToken}` }
+    });
+    if (!res.ok) throw new Error('Download failed (' + res.status + ')');
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
+  /* Client-side CSV cell quoting. */
+  function csvCell(v){
+    const s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  function setStatus(id, mode, msg){
+    const el = document.getElementById(id);
+    if (mode === 'hide') { el.classList.add('hidden'); return; }
+    el.classList.remove('hidden');
+    el.className = 'text-sm ' + (mode === 'error' ? 'text-red-500' : 'text-slate-400');
+    el.textContent = msg;
+  }
+
+  /* ---------- tab state ---------- */
+  let _currentTab = 'invoice';
+  const _loaded = { invoice: false, payments: false, outstanding: false, referrer: false, ledger: false, comm: false, advcomm: false, tax: false };
+  let _advCommData = null;
+  let _ledgerRawRows = [];
+  let _ledgerPage = 1;
+  const _ledgerPageSize = 50;
+  let _referrerRows = [];
+  let _invoiceRows = [];
+  let _taxRows = [];
+  let _paymentRows = [];
+  let _outstandingRows = [];
+  let _outBuckets = null;
+  let _commData = null;
+  let _invSub = 'sp';
+  let _commSub = 'sp';
+
+  /* Populate a <select> with distinct values, preserving the current selection if still present. */
+  function fillSelect(id, values){
+    const el = document.getElementById(id);
+    if (!el) return;
+    const cur = el.value;
+    el.innerHTML = '<option value="">All</option>' + values.map((v) => '<option value="' + esc(v) + '">' + esc(v) + '</option>').join('');
+    if (values.indexOf(cur) !== -1) el.value = cur;
+  }
+
+  /* Client-side CSV download from an array of row objects. */
+  function downloadCsv(filename, headers, rows){
+    const lines = [headers.join(',')];
+    rows.forEach((r) => lines.push(headers.map((h) => csvCell(r[h])).join(',')));
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+  const NOMATCH = '<div class="text-center text-slate-400 py-10">No records match these filters.</div>';
+
+  function switchTab(tab){
+    _currentTab = tab;
+    document.querySelectorAll('.tab-panel').forEach((p) => p.classList.add('hidden'));
+    document.getElementById('panel-' + tab).classList.remove('hidden');
+    document.querySelectorAll('.tab-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.tab === tab);
+    });
+    if (!_loaded[tab]) { _loaded[tab] = true; loadTab(tab); }
+  }
+
+  /* Sub-tabs inside the Invoice Amount panel: 'sp' (By Sales Person) | 'det' (Invoice Detail). */
+  function switchInvSub(sub){
+    _invSub = sub;
+    document.querySelectorAll('#inv-content .subtab-btn').forEach((b) => b.classList.toggle('active', b.dataset.sub === sub));
+    const sp = document.getElementById('inv-sub-sp');
+    const det = document.getElementById('inv-sub-det');
+    if (sp)  sp.classList.toggle('hidden', sub !== 'sp');
+    if (det) det.classList.toggle('hidden', sub !== 'det');
+  }
+
+  /* Sub-tabs inside the Commission Analytics panel. */
+  function switchCommSub(sub){
+    _commSub = sub;
+    document.querySelectorAll('#comm-content .subtab-btn').forEach((b) => b.classList.toggle('active', b.dataset.sub === sub));
+    ['sp','cust','adv','pend','age'].forEach((s) => {
+      const el = document.getElementById('comm-sub-' + s);
+      if (el) el.classList.toggle('hidden', s !== sub);
+    });
+  }
+
+  function loadTab(tab){
+    if (tab === 'invoice')     return loadInvoice();
+    if (tab === 'payments')    return loadPayments();
+    if (tab === 'outstanding') return loadOutstanding();
+    if (tab === 'referrer')    return loadReferrer();
+    if (tab === 'ledger')      return loadLedger();
+    if (tab === 'comm')        return loadComm();
+    if (tab === 'advcomm')     return loadAdvComm();
+    if (tab === 'tax')         return loadTax();
+  }
+
+  function applyRange(){
+    Object.keys(_loaded).forEach((k) => { _loaded[k] = false; });
+    _loaded[_currentTab] = true;
+    loadTab(_currentTab);
+  }
+
+  function clearRange(){
+    document.getElementById('rep-from').value = '';
+    document.getElementById('rep-to').value = '';
+    applyRange();
+  }
+
+  const EMPTY = '<div class="text-center text-slate-400 py-10">No records for this period.</div>';
+
+  /* ---------- TAB 1: Invoice Amount ---------- */
+  async function loadInvoice(){
+    setStatus('inv-status', 'loading', 'Loading…');
+    document.getElementById('inv-filters').classList.add('hidden');
+    document.getElementById('inv-kpis').innerHTML = '';
+    document.getElementById('inv-content').innerHTML = '';
+    _invoiceRows = [];
+    try {
+      const r = await APP.apiFetch('/reports/invoice-amount' + qs());
+      const d = (r && r.data) || {};
+      _invoiceRows = d.rows || [];
+      setStatus('inv-status', 'hide');
+
+      if (!_invoiceRows.length){
+        document.getElementById('inv-kpis').innerHTML = '';
+        document.getElementById('inv-content').innerHTML = EMPTY;
+        return;
+      }
+      fillSelect('inv-f-sp', [...new Set(_invoiceRows.map((x) => x.salesPerson || '—'))].sort());
+      fillSelect('inv-f-status', [...new Set(_invoiceRows.map((x) => x.status).filter(Boolean))].sort());
+      document.getElementById('inv-filters').classList.remove('hidden');
+      renderInvoice();
+    } catch (e) {
+      document.getElementById('inv-filters').classList.add('hidden');
+      document.getElementById('inv-kpis').innerHTML = '';
+      document.getElementById('inv-content').innerHTML = '';
+      setStatus('inv-status', 'error', 'Failed to load invoice amount report.');
+    }
+  }
+
+  /* Apply the Invoice-tab filters to the loaded rows. */
+  function invFilteredRows(){
+    const sp = document.getElementById('inv-f-sp').value;
+    const st = (document.getElementById('inv-f-status').value || '').toLowerCase();
+    const q  = (document.getElementById('inv-f-q').value || '').trim().toLowerCase();
+    return _invoiceRows.filter((r) => {
+      if (sp && (r.salesPerson || '—') !== sp) return false;
+      if (st && String(r.status || '').toLowerCase() !== st) return false;
+      if (q && ((r.invoiceNumber || '') + ' ' + (r.customer || '')).toLowerCase().indexOf(q) === -1) return false;
+      return true;
+    });
+  }
+
+  function renderInvoice(){
+    const rows = invFilteredRows();
+    const sum = rows.reduce((a, r) => ({ count: a.count + 1, gross: a.gross + Number(r.total || 0), commission: a.commission + Number(r.commission || 0), net: a.net + Number(r.net || 0) }), { count: 0, gross: 0, commission: 0, net: 0 });
+    document.getElementById('inv-kpis').innerHTML = [
+      kpiCard('Invoices', num(sum.count)),
+      kpiCard('Gross Invoiced', kes(sum.gross)),
+      kpiCard('Referrer Commission', kes(sum.commission), 'text-amber-600'),
+      kpiCard('Net Revenue', kes(sum.net), 'text-emerald-600')
+    ].join('');
+
+    if (!rows.length){ document.getElementById('inv-content').innerHTML = NOMATCH; return; }
+
+    const bySpMap = new Map();
+    rows.forEach((r) => {
+      const k = r.salesPerson || '—';
+      let s = bySpMap.get(k);
+      if (!s) { s = { salesPerson: k, count: 0, gross: 0, commission: 0, net: 0 }; bySpMap.set(k, s); }
+      s.count++; s.gross += Number(r.total || 0); s.commission += Number(r.commission || 0); s.net += Number(r.net || 0);
+    });
+    const bySp = [...bySpMap.values()].sort((a, b) => b.net - a.net);
+
+    const spBody = bySp.map((s) =>
+      '<tr>'
+      + '<td class="font-medium text-slate-700">' + esc(s.salesPerson || '—') + '</td>'
+      + '<td>' + num(s.count) + '</td>'
+      + '<td>' + kes(s.gross) + '</td>'
+      + '<td class="text-amber-600">' + kes(s.commission) + '</td>'
+      + '<td class="text-emerald-600">' + kes(s.net) + '</td>'
+      + '</tr>'
+    ).join('');
+    const spTable = '<table><thead><tr>'
+      + '<th>Sales Person</th><th>Invoices</th><th>Gross</th><th>Commission</th><th>Net</th>'
+      + '</tr></thead><tbody>' + (spBody || '<tr><td colspan="5" class="text-center text-slate-400 py-6">—</td></tr>') + '</tbody></table>';
+
+    const detBody = rows.map((r2) =>
+      '<tr class="fade-in">'
+      + '<td class="font-mono text-xs text-slate-600">' + esc(r2.invoiceNumber || '—') + '</td>'
+      + '<td class="text-slate-500">' + fmtDate(r2.date) + '</td>'
+      + '<td>' + esc(r2.customer || '—') + '</td>'
+      + '<td>' + esc(r2.salesPerson || '—') + '</td>'
+      + '<td>' + kes(r2.subtotal) + '</td>'
+      + '<td>' + kes(r2.vat) + '</td>'
+      + '<td class="font-semibold">' + kes(r2.total) + '</td>'
+      + '<td class="text-amber-600">' + kes(r2.commission) + '</td>'
+      + '<td class="text-emerald-600">' + kes(r2.net) + '</td>'
+      + '<td>' + statusBadge(r2.status) + '</td>'
+      + '</tr>'
+    ).join('');
+    const detTable = '<table><thead><tr>'
+      + '<th>Invoice No</th><th>Date</th><th>Customer</th><th>Sales Person</th>'
+      + '<th>Subtotal</th><th>VAT</th><th>Total</th><th>Commission</th><th>Net</th><th>Status</th>'
+      + '</tr></thead><tbody>' + detBody + '</tbody></table>';
+
+    document.getElementById('inv-content').innerHTML =
+        '<div class="flex flex-wrap gap-2">'
+      +   '<button class="subtab-btn" data-sub="sp"  onclick="switchInvSub(\'sp\')">By Sales Person</button>'
+      +   '<button class="subtab-btn" data-sub="det" onclick="switchInvSub(\'det\')">Invoice Detail</button>'
+      + '</div>'
+      + '<div id="inv-sub-sp">' + card('By Sales Person', spTable) + '</div>'
+      + '<div id="inv-sub-det">' + card('Invoice Detail', detTable) + '</div>';
+    switchInvSub(_invSub);
+  }
+
+  function clearInvFilters(){
+    document.getElementById('inv-f-sp').value = '';
+    document.getElementById('inv-f-status').value = '';
+    document.getElementById('inv-f-q').value = '';
+    renderInvoice();
+  }
+
+  function dlInvoiceCsv(){
+    const rows = invFilteredRows();
+    if (!rows.length){ toast('Nothing to download for these filters.', false); return; }
+    downloadCsv('invoice-amount.csv', ['invoiceNumber','date','customer','salesPerson','subtotal','vat','total','commission','net','status'], rows);
+  }
+
+  /* ---------- TAB 2: Referrer Commission ---------- */
+  async function loadReferrer(){
+    setStatus('ref-status', 'loading', 'Loading…');
+    document.getElementById('ref-filters').classList.add('hidden');
+    document.getElementById('ref-kpis').innerHTML = '';
+    document.getElementById('ref-content').innerHTML = '';
+    _referrerRows = [];
+    try {
+      const detR = await APP.apiFetch('/referrers/payments' + qs(['pageSize=2000']));
+      _referrerRows = (detR && detR.data) || [];
+      setStatus('ref-status', 'hide');
+
+      if (!_referrerRows.length){
+        document.getElementById('ref-kpis').innerHTML = '';
+        document.getElementById('ref-content').innerHTML = EMPTY;
+        return;
+      }
+      fillSelect('ref-f-name', [...new Set(_referrerRows.map((x) => x.referrer_name || '—'))].sort());
+      document.getElementById('ref-filters').classList.remove('hidden');
+      renderReferrer();
+    } catch (e) {
+      document.getElementById('ref-filters').classList.add('hidden');
+      document.getElementById('ref-kpis').innerHTML = '';
+      document.getElementById('ref-content').innerHTML = '';
+      setStatus('ref-status', 'error', 'Failed to load referrer commission report.');
+    }
+  }
+
+  function refFilteredRows(){
+    const rf = document.getElementById('ref-f-name').value;
+    const q  = (document.getElementById('ref-f-q').value || '').trim().toLowerCase();
+    return _referrerRows.filter((r) => {
+      if (rf && (r.referrer_name || '—') !== rf) return false;
+      if (q){
+        const hay = ((r.customer || '') + ' ' + (r.invoice_customer || '') + ' ' + (r.invoice_number || '') + ' '
+          + (r.transaction_code || '') + ' ' + (r.referrer_phone || '') + ' ' + (r.referrer_name || '') + ' '
+          + (r.vehicle_reg || '') + ' ' + (r.sales_person || '') + ' ' + (r.bank || '') + ' ' + (r.pay_ref || '')).toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+  }
+
+  // Collapse commission payouts that belong to the SAME payment/deal into one
+  // ledger row: Commission = sum of payouts; Net to Finemark = Amount Paid − total
+  // commission. Prevents a deal from appearing multiple times and its Amount Paid
+  // from being double-counted when >1 referrer commission is recorded on a payment.
+  function refAggregateDeals(rows){
+    const groups = new Map();
+    const order = [];
+    rows.forEach((r) => {
+      const key = r.payment_id || (r.invoice_id ? r.invoice_id + '|' + (r.amount_paid || '') : r.id);
+      let g = groups.get(key);
+      if (!g) { g = { base: r, commission: 0, refs: new Set(), payees: new Set(), commDate: null, count: 0 }; groups.set(key, g); order.push(key); }
+      g.commission += Number(r.fee_amount || 0);
+      g.count++;
+      if (r.transaction_code) g.refs.add(r.transaction_code);
+      if (r.referrer_name) g.payees.add(r.referrer_name);
+      if (r.payment_date && (!g.commDate || String(r.payment_date) > String(g.commDate))) g.commDate = r.payment_date;
+    });
+    return order.map((k) => {
+      const g = groups.get(k);
+      return { ...g.base,
+        fee_amount: g.commission,
+        net_to_finemark: Number(g.base.amount_paid || 0) - g.commission,
+        transaction_code: [...g.refs].join(', ') || null,
+        payment_date: g.commDate,
+        referrer_name: [...g.payees].join(', '),
+        _payouts: g.count };
+    });
+  }
+
+  function renderReferrer(){
+    const rows = refFilteredRows();
+    const totalPaid = rows.reduce((a, r) => a + Number(r.fee_amount || 0), 0);
+    const byMap = new Map();
+    rows.forEach((r) => {
+      const k = r.referrer_name || '—';
+      let s = byMap.get(k);
+      if (!s) { s = { referrer_name: k, payment_count: 0, total_paid: 0 }; byMap.set(k, s); }
+      s.payment_count++; s.total_paid += Number(r.fee_amount || 0);
+    });
+    const summary = [...byMap.values()].sort((a, b) => b.total_paid - a.total_paid);
+
+    document.getElementById('ref-kpis').innerHTML = [
+      kpiCard('Total Commission Paid', kes(totalPaid), 'text-emerald-600'),
+      kpiCard('Referrers', num(summary.length)),
+      kpiCard('Payouts', num(rows.length))
+    ].join('');
+
+    if (!rows.length){ document.getElementById('ref-content').innerHTML = NOMATCH; return; }
+
+    const sBody = summary.map((s) =>
+      '<tr>'
+      + '<td class="font-medium text-slate-700">' + esc(s.referrer_name || '—') + '</td>'
+      + '<td>' + num(s.payment_count) + '</td>'
+      + '<td class="text-emerald-600">' + kes(s.total_paid) + '</td>'
+      + '</tr>'
+    ).join('');
+    const sTable = '<table><thead><tr>'
+      + '<th>Referrer</th><th>Payouts</th><th>Total Paid</th>'
+      + '</tr></thead><tbody>' + (sBody || '<tr><td colspan="3" class="text-center text-slate-400 py-6">—</td></tr>') + '</tbody></table>';
+
+    document.getElementById('ref-content').innerHTML = card('By Referrer', sTable);
+  }
+
+  function clearRefFilters(){
+    document.getElementById('ref-f-name').value = '';
+    document.getElementById('ref-f-q').value = '';
+    renderReferrer();
+  }
+
+  // Exports what's actually on screen for this tab now — the By Referrer
+  // summary. Full per-deal detail lives on its own Commission Ledger tab.
+  function dlReferrerCsv(){
+    const rows = refFilteredRows();
+    if (!rows.length) { toast('Nothing to download for these filters.', false); return; }
+    const byMap = new Map();
+    rows.forEach((r) => {
+      const k = r.referrer_name || '—';
+      let s = byMap.get(k);
+      if (!s) { s = { referrer: k, payouts: 0, total_paid: 0 }; byMap.set(k, s); }
+      s.payouts++; s.total_paid += Number(r.fee_amount || 0);
+    });
+    const out = [...byMap.values()].sort((a, b) => b.total_paid - a.total_paid);
+    downloadCsv('referrer-commission-summary.csv', Object.keys(out[0]), out);
+  }
+
+  /* ---------- TAB: Commission Ledger (per-deal, paginated) ---------- */
+  async function loadLedger(){
+    setStatus('ledger-status', 'loading', 'Loading…');
+    document.getElementById('ledger-filters').classList.add('hidden');
+    document.getElementById('ledger-kpis').innerHTML = '';
+    document.getElementById('ledger-content').innerHTML = '';
+    _ledgerRawRows = [];
+    _ledgerPage = 1;
+    try {
+      const detR = await APP.apiFetch('/referrers/payments' + qs(['pageSize=2000']));
+      _ledgerRawRows = (detR && detR.data) || [];
+      setStatus('ledger-status', 'hide');
+      if (!_ledgerRawRows.length){
+        document.getElementById('ledger-content').innerHTML = EMPTY;
+        return;
+      }
+      fillSelect('ledger-f-name', [...new Set(_ledgerRawRows.map((x) => x.referrer_name || '—'))].sort());
+      document.getElementById('ledger-filters').classList.remove('hidden');
+      renderLedger();
+    } catch (e) {
+      document.getElementById('ledger-filters').classList.add('hidden');
+      setStatus('ledger-status', 'error', 'Failed to load commission ledger.');
+    }
+  }
+
+  function ledgerFilteredRows(){
+    const rf = document.getElementById('ledger-f-name').value;
+    const q  = (document.getElementById('ledger-f-q').value || '').trim().toLowerCase();
+    return _ledgerRawRows.filter((r) => {
+      if (rf && (r.referrer_name || '—') !== rf) return false;
+      if (q){
+        const hay = ((r.customer || '') + ' ' + (r.invoice_customer || '') + ' ' + (r.invoice_number || '') + ' '
+          + (r.transaction_code || '') + ' ' + (r.referrer_phone || '') + ' ' + (r.referrer_name || '') + ' '
+          + (r.vehicle_reg || '') + ' ' + (r.sales_person || '') + ' ' + (r.bank || '') + ' ' + (r.pay_ref || '')).toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+  }
+
+  function renderLedgerPagination(totalDeals){
+    const pages = Math.max(1, Math.ceil(totalDeals / _ledgerPageSize));
+    if (_ledgerPage > pages) _ledgerPage = pages;
+    const el = document.getElementById('ledger-pagination');
+    if (!el) return;
+    el.innerHTML = `
+      <span class="text-xs text-slate-500">${totalDeals.toLocaleString()} deal${totalDeals === 1 ? '' : 's'} · Page ${_ledgerPage} of ${pages}</span>
+      <div class="flex gap-2">
+        <button id="ledger-pg-prev" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium disabled:opacity-40" ${_ledgerPage <= 1 ? 'disabled' : ''}>Prev</button>
+        <button id="ledger-pg-next" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium disabled:opacity-40" ${_ledgerPage >= pages ? 'disabled' : ''}>Next</button>
+      </div>`;
+    document.getElementById('ledger-pg-prev')?.addEventListener('click', () => { if (_ledgerPage > 1) { _ledgerPage--; renderLedger(); } });
+    document.getElementById('ledger-pg-next')?.addEventListener('click', () => { if (_ledgerPage < pages) { _ledgerPage++; renderLedger(); } });
+  }
+
+  function renderLedger(){
+    const rows = ledgerFilteredRows();
+    const totalPaid = rows.reduce((a, r) => a + Number(r.fee_amount || 0), 0);
+    const referrers = new Set(rows.map((r) => r.referrer_name || '—'));
+    document.getElementById('ledger-kpis').innerHTML = [
+      kpiCard('Total Commission Paid', kes(totalPaid), 'text-emerald-600'),
+      kpiCard('Referrers', num(referrers.size)),
+      kpiCard('Payouts', num(rows.length))
+    ].join('');
+
+    if (!rows.length){ document.getElementById('ledger-content').innerHTML = NOMATCH; return; }
+
+    const allDeals = refAggregateDeals(rows);
+    const pageDeals = allDeals.slice((_ledgerPage - 1) * _ledgerPageSize, _ledgerPage * _ledgerPageSize);
+
+    const dBody = pageDeals.map((r2) => {
+      const retained = Number(r2.net_to_finemark || 0);
+      const multi = r2._payouts > 1 ? ` <span class="text-[0.65rem] text-slate-400" title="${r2._payouts} commission payouts on this payment, combined">(${r2._payouts}×)</span>` : '';
+      return '<tr class="fade-in">'
+      + '<td class="text-slate-500">' + fmtDate(r2.installation_date) + '</td>'
+      + '<td>' + esc(r2.customer || r2.invoice_customer || '—') + '</td>'
+      + '<td class="text-slate-500">' + esc(r2.sales_person || '—') + '</td>'
+      + '<td class="font-mono text-xs">' + esc(r2.vehicle_reg || '—') + '</td>'
+      + '<td>' + esc(r2.bank || '—') + '</td>'
+      + '<td class="text-center">' + (r2.loan_duration != null ? esc(r2.loan_duration) : '—') + '</td>'
+      + '<td>' + esc(r2.technician || '—') + '</td>'
+      + '<td class="text-slate-700">' + kes(r2.amount_quoted) + '</td>'
+      + '<td class="text-slate-500">' + fmtDate(r2.pay_date) + '</td>'
+      + '<td class="font-mono text-xs">' + esc(r2.pay_ref || '—') + '</td>'
+      + '<td class="text-slate-700">' + kes(r2.amount_paid) + '</td>'
+      + '<td class="text-amber-600">' + kes(r2.fee_amount) + multi + '</td>'
+      + '<td class="font-semibold text-slate-800">' + kes(retained) + '</td>'
+      + '<td class="text-emerald-600">' + kes(retained) + '</td>'
+      + '<td class="text-slate-500">' + (r2.transaction_code || r2.payment_date ? fmtDate(r2.payment_date) : '—') + '</td>'
+      + '<td class="font-mono text-xs">' + esc(r2.transaction_code || '—') + '</td>'
+      + '</tr>';
+    }).join('');
+    const dTable = '<table><thead><tr>'
+      + '<th>Installation Date</th><th>Client</th><th>Sales Person</th><th>Vehicle Reg</th><th>Bank</th><th>Loan (mo)</th><th>Technician</th><th>Amount Quoted</th>'
+      + '<th>Payment Date</th><th>Payment Ref</th><th>Amount Paid</th><th>Commission</th><th>Amount Retained</th><th>Net to Finemark</th><th>Comm Paid Date</th><th>Comm Ref</th>'
+      + '</tr></thead><tbody>' + dBody + '</tbody></table>';
+
+    document.getElementById('ledger-content').innerHTML =
+      card('Commission Ledger', dTable)
+      + '<div id="ledger-pagination" class="flex items-center justify-between gap-3 px-1"></div>';
+    renderLedgerPagination(allDeals.length);
+  }
+
+  function clearLedgerFilters(){
+    document.getElementById('ledger-f-name').value = '';
+    document.getElementById('ledger-f-q').value = '';
+    _ledgerPage = 1;
+    renderLedger();
+  }
+
+  // Exports every filtered deal (all pages), not just the page in view.
+  function dlLedgerCsv(){
+    const rows = refAggregateDeals(ledgerFilteredRows());
+    if (!rows.length) { toast('Nothing to download for these filters.', false); return; }
+    const out = rows.map((r) => ({
+      installation_date: r.installation_date, client: r.customer || r.invoice_customer, sales_person: r.sales_person,
+      vehicle_reg: r.vehicle_reg, bank: r.bank, loan_months: r.loan_duration, technician: r.technician,
+      amount_quoted: r.amount_quoted, payment_date: r.pay_date, payment_ref: r.pay_ref, amount_paid: r.amount_paid,
+      referrer: r.referrer_name, commission: r.fee_amount, amount_retained: r.net_to_finemark,
+      net_to_finemark: r.net_to_finemark, comm_paid_date: r.payment_date, comm_ref: r.transaction_code
+    }));
+    downloadCsv('commission-report.csv', Object.keys(out[0]), out);
+  }
+
+  /* ---------- TAB 3: Tax Report ---------- */
+  async function loadTax(){
+    setStatus('tax-status', 'loading', 'Loading…');
+    document.getElementById('tax-filters').classList.add('hidden');
+    document.getElementById('tax-kpis').innerHTML = '';
+    document.getElementById('tax-content').innerHTML = '';
+    _taxRows = [];
+    try {
+      const r = await APP.apiFetch('/reports/tax' + qs());
+      const d = (r && r.data) || {};
+      _taxRows = d.rows || [];
+      setStatus('tax-status', 'hide');
+
+      if (!_taxRows.length){
+        document.getElementById('tax-kpis').innerHTML = '';
+        document.getElementById('tax-content').innerHTML = EMPTY;
+        return;
+      }
+      fillSelect('tax-f-status', [...new Set(_taxRows.map((x) => x.status).filter(Boolean))].sort());
+      document.getElementById('tax-filters').classList.remove('hidden');
+      renderTax();
+    } catch (e) {
+      document.getElementById('tax-filters').classList.add('hidden');
+      document.getElementById('tax-kpis').innerHTML = '';
+      document.getElementById('tax-content').innerHTML = '';
+      setStatus('tax-status', 'error', 'Failed to load tax report.');
+    }
+  }
+
+  function taxFilteredRows(){
+    const st = (document.getElementById('tax-f-status').value || '').toLowerCase();
+    const q  = (document.getElementById('tax-f-q').value || '').trim().toLowerCase();
+    return _taxRows.filter((r) => {
+      if (st && String(r.status || '').toLowerCase() !== st) return false;
+      if (q && ((r.invoiceNumber || '') + ' ' + (r.customer || '') + ' ' + (r.etimsControlNo || '') + ' ' + (r.etimsReceiptNo || '')).toLowerCase().indexOf(q) === -1) return false;
+      return true;
+    });
+  }
+
+  function renderTax(){
+    const rows = taxFilteredRows();
+    const sum = rows.reduce((a, r) => ({ count: a.count + 1, taxable: a.taxable + Number(r.taxable || 0), vat: a.vat + Number(r.vat || 0), gross: a.gross + Number(r.total || 0) }), { count: 0, taxable: 0, vat: 0, gross: 0 });
+    document.getElementById('tax-kpis').innerHTML = [
+      kpiCard('Tax Invoices', num(sum.count)),
+      kpiCard('Taxable Amount', kes(sum.taxable)),
+      kpiCard('VAT Collected', kes(sum.vat), 'text-blue-600'),
+      kpiCard('Gross', kes(sum.gross), 'text-emerald-600')
+    ].join('');
+
+    if (!rows.length){ document.getElementById('tax-content').innerHTML = NOMATCH; return; }
+
+    const tBody = rows.map((r2) =>
+      '<tr class="fade-in">'
+      + '<td class="font-mono text-xs text-slate-600">' + esc(r2.invoiceNumber || '—') + '</td>'
+      + '<td class="text-slate-500">' + fmtDate(r2.date) + '</td>'
+      + '<td>' + esc(r2.customer || '—') + '</td>'
+      + '<td>' + kes(r2.taxable) + '</td>'
+      + '<td class="text-blue-600">' + kes(r2.vat) + '</td>'
+      + '<td class="font-semibold">' + kes(r2.total) + '</td>'
+      + '<td>' + statusBadge(r2.status) + '</td>'
+      + '<td class="font-mono text-xs">' + esc(r2.etimsControlNo || '—') + '</td>'
+      + '<td class="font-mono text-xs">' + esc(r2.etimsReceiptNo || '—') + '</td>'
+      + '</tr>'
+    ).join('');
+    const tTable = '<table><thead><tr>'
+      + '<th>Invoice No</th><th>Date</th><th>Customer</th><th>Taxable</th><th>VAT (16%)</th>'
+      + '<th>Total</th><th>Status</th><th>eTIMS Control No</th><th>eTIMS Receipt No</th>'
+      + '</tr></thead><tbody>' + tBody + '</tbody></table>';
+
+    document.getElementById('tax-content').innerHTML = card('Tax Invoice Detail', tTable);
+  }
+
+  function clearTaxFilters(){
+    document.getElementById('tax-f-status').value = '';
+    document.getElementById('tax-f-q').value = '';
+    renderTax();
+  }
+
+  function dlTaxCsv(){
+    const rows = taxFilteredRows();
+    if (!rows.length){ toast('Nothing to download for these filters.', false); return; }
+    downloadCsv('tax-report.csv', ['invoiceNumber','date','customer','taxable','vat','total','status','etimsControlNo','etimsReceiptNo'], rows);
+  }
+
+  /* ---------- TAB: Invoice Payments ---------- */
+  async function loadPayments(){
+    setStatus('pmt-status', 'loading', 'Loading…');
+    document.getElementById('pmt-filters').classList.add('hidden');
+    document.getElementById('pmt-kpis').innerHTML = '';
+    document.getElementById('pmt-content').innerHTML = '';
+    _paymentRows = [];
+    try {
+      const r = await APP.apiFetch('/reports/invoice-payments' + qs());
+      _paymentRows = ((r && r.data) || {}).rows || [];
+      setStatus('pmt-status', 'hide');
+      if (!_paymentRows.length){ document.getElementById('pmt-content').innerHTML = EMPTY; return; }
+      fillSelect('pmt-f-method', [...new Set(_paymentRows.map((x) => x.method || '—'))].sort());
+      fillSelect('pmt-f-bank', [...new Set(_paymentRows.map((x) => x.bank || '—'))].sort());
+      document.getElementById('pmt-filters').classList.remove('hidden');
+      renderPayments();
+    } catch (e) {
+      document.getElementById('pmt-filters').classList.add('hidden');
+      setStatus('pmt-status', 'error', 'Failed to load invoice payments report.');
+    }
+  }
+
+  function pmtFilteredRows(){
+    const m = document.getElementById('pmt-f-method').value;
+    const bk = document.getElementById('pmt-f-bank').value;
+    const q  = (document.getElementById('pmt-f-q').value || '').trim().toLowerCase();
+    return _paymentRows.filter((r) => {
+      if (m && (r.method || '—') !== m) return false;
+      if (bk && (r.bank || '—') !== bk) return false;
+      if (q && ((r.paymentRef || '') + ' ' + (r.invoiceNumber || '') + ' ' + (r.customer || '')).toLowerCase().indexOf(q) === -1) return false;
+      return true;
+    });
+  }
+
+  function renderPayments(){
+    const rows = pmtFilteredRows();
+    const sum = rows.reduce((a, r) => ({ count: a.count + 1, total: a.total + Number(r.amount || 0), commission: a.commission + Number(r.commission || 0), net: a.net + Number(r.net || 0) }), { count: 0, total: 0, commission: 0, net: 0 });
+    document.getElementById('pmt-kpis').innerHTML = [
+      kpiCard('Receipts', num(sum.count)),
+      kpiCard('Total Banked', kes(sum.total), 'text-emerald-600'),
+      kpiCard('Referrer Commission', kes(sum.commission), 'text-amber-600'),
+      kpiCard('Net of Commission', kes(sum.net), 'text-slate-900')
+    ].join('');
+    if (!rows.length){ document.getElementById('pmt-content').innerHTML = NOMATCH; return; }
+    const body = rows.map((r) =>
+      '<tr class="fade-in">'
+      + '<td class="font-mono text-xs text-slate-600">' + esc(r.paymentRef || '—') + '</td>'
+      + '<td class="text-slate-500">' + fmtDate(r.date) + '</td>'
+      + '<td class="font-mono text-xs">' + esc(r.invoiceNumber || '—') + '</td>'
+      + '<td>' + esc(r.customer || '—') + '</td>'
+      + '<td class="text-slate-500">' + esc(r.salesPerson || '—') + '</td>'
+      + '<td>' + esc(r.method || '—') + '</td>'
+      + '<td>' + esc(r.bank || '—') + '</td>'
+      + '<td class="font-semibold text-slate-800">' + kes(r.amount) + '</td>'
+      + '<td class="text-amber-600">' + (Number(r.commission) ? kes(r.commission) : '—') + '</td>'
+      + '<td class="text-emerald-600">' + kes(r.net) + '</td>'
+      + '<td>' + statusBadge(r.status) + '</td>'
+      + '</tr>'
+    ).join('');
+    const tbl = '<table><thead><tr>'
+      + '<th>Payment Ref</th><th>Date</th><th>Invoice No</th><th>Customer</th><th>Sales Person</th>'
+      + '<th>Method</th><th>Bank</th><th>Amount</th><th>Commission</th><th>Net</th><th>Status</th>'
+      + '</tr></thead><tbody>' + body + '</tbody></table>';
+    document.getElementById('pmt-content').innerHTML = card('Payment Receipts', tbl);
+  }
+
+  function clearPmtFilters(){
+    document.getElementById('pmt-f-method').value = '';
+    document.getElementById('pmt-f-bank').value = '';
+    document.getElementById('pmt-f-q').value = '';
+    renderPayments();
+  }
+
+  function dlPaymentsCsv(){
+    const rows = pmtFilteredRows();
+    if (!rows.length){ toast('Nothing to download for these filters.', false); return; }
+    downloadCsv('invoice-payments.csv', ['paymentRef','date','invoiceNumber','customer','salesPerson','method','bank','amount','commission','net','status'], rows);
+  }
+
+  /* ---------- TAB: Outstanding Invoices ---------- */
+  async function loadOutstanding(){
+    setStatus('out-status', 'loading', 'Loading…');
+    document.getElementById('out-filters').classList.add('hidden');
+    document.getElementById('out-kpis').innerHTML = '';
+    document.getElementById('out-content').innerHTML = '';
+    _outstandingRows = []; _outBuckets = null;
+    try {
+      const r = await APP.apiFetch('/reports/outstanding' + qs());
+      const d = (r && r.data) || {};
+      _outstandingRows = d.rows || [];
+      _outBuckets = d.buckets || null;
+      setStatus('out-status', 'hide');
+      if (!_outstandingRows.length){ document.getElementById('out-content').innerHTML = '<div class="text-center text-slate-400 py-10">No outstanding invoices for this period. 🎉</div>'; return; }
+      fillSelect('out-f-sp', [...new Set(_outstandingRows.map((x) => x.salesPerson || '—'))].sort());
+      document.getElementById('out-filters').classList.remove('hidden');
+      renderOutstanding();
+    } catch (e) {
+      document.getElementById('out-filters').classList.add('hidden');
+      setStatus('out-status', 'error', 'Failed to load outstanding invoices report.');
+    }
+  }
+
+  function outFilteredRows(){
+    const sp = document.getElementById('out-f-sp').value;
+    const age = document.getElementById('out-f-age').value;
+    const q  = (document.getElementById('out-f-q').value || '').trim().toLowerCase();
+    return _outstandingRows.filter((r) => {
+      if (sp && (r.salesPerson || '—') !== sp) return false;
+      if (age && r.ageBucket !== age) return false;
+      if (q && ((r.invoiceNumber || '') + ' ' + (r.customer || '')).toLowerCase().indexOf(q) === -1) return false;
+      return true;
+    });
+  }
+
+  function renderOutstanding(){
+    const rows = outFilteredRows();
+    const sum = rows.reduce((a, r) => ({ count: a.count + 1, invoiced: a.invoiced + Number(r.invoiceAmount || 0), paid: a.paid + Number(r.paid || 0), outstanding: a.outstanding + Number(r.outstanding || 0) }), { count: 0, invoiced: 0, paid: 0, outstanding: 0 });
+    document.getElementById('out-kpis').innerHTML = [
+      kpiCard('Open Invoices', num(sum.count)),
+      kpiCard('Invoiced', kes(sum.invoiced)),
+      kpiCard('Collected', kes(sum.paid), 'text-emerald-600'),
+      kpiCard('Outstanding', kes(sum.outstanding), 'text-rose-600')
+    ].join('');
+    if (!rows.length){ document.getElementById('out-content').innerHTML = NOMATCH; return; }
+
+    // Aging summary from the filtered rows (so it tracks the current filters).
+    const buckets = { '0-30': 0, '31-60': 0, '61-90': 0, '90+': 0 };
+    rows.forEach((r) => { buckets[r.ageBucket] = (buckets[r.ageBucket] || 0) + Number(r.outstanding || 0); });
+    const ageRow = ['0-30','31-60','61-90','90+'].map((b) =>
+      '<td>' + agePill(b) + ' <span class="font-semibold text-slate-800">' + kes(buckets[b]) + '</span></td>').join('');
+    const ageTable = '<table><thead><tr><th>0–30 days</th><th>31–60 days</th><th>61–90 days</th><th>90+ days</th></tr></thead>'
+      + '<tbody><tr>' + ageRow + '</tr></tbody></table>';
+
+    const body = rows.map((r) =>
+      '<tr class="fade-in">'
+      + '<td class="font-mono text-xs text-slate-600">' + esc(r.invoiceNumber || '—') + '</td>'
+      + '<td class="text-slate-500">' + fmtDate(r.date) + '</td>'
+      + '<td class="text-slate-500">' + fmtDate(r.dueOn) + '</td>'
+      + '<td>' + esc(r.customer || '—') + '</td>'
+      + '<td class="text-slate-500">' + esc(r.salesPerson || '—') + '</td>'
+      + '<td>' + kes(r.invoiceAmount) + '</td>'
+      + '<td class="text-emerald-600">' + kes(r.paid) + '</td>'
+      + '<td class="font-semibold text-rose-600">' + kes(r.outstanding) + '</td>'
+      + '<td class="text-center text-slate-500">' + num(r.ageDays) + '</td>'
+      + '<td>' + agePill(r.ageBucket) + '</td>'
+      + '<td>' + statusBadge(r.status) + '</td>'
+      + '</tr>'
+    ).join('');
+    const tbl = '<table><thead><tr>'
+      + '<th>Invoice No</th><th>Date</th><th>Due</th><th>Customer</th><th>Sales Person</th>'
+      + '<th>Invoice Amount</th><th>Paid</th><th>Outstanding</th><th>Age (days)</th><th>Bucket</th><th>Status</th>'
+      + '</tr></thead><tbody>' + body + '</tbody></table>';
+    document.getElementById('out-content').innerHTML = card('Outstanding by Age', ageTable) + card('Outstanding Invoices', tbl);
+  }
+
+  function clearOutFilters(){
+    document.getElementById('out-f-sp').value = '';
+    document.getElementById('out-f-age').value = '';
+    document.getElementById('out-f-q').value = '';
+    renderOutstanding();
+  }
+
+  function dlOutstandingCsv(){
+    const rows = outFilteredRows();
+    if (!rows.length){ toast('Nothing to download for these filters.', false); return; }
+    downloadCsv('outstanding-invoices.csv', ['invoiceNumber','date','dueOn','customer','salesPerson','invoiceAmount','paid','outstanding','ageDays','ageBucket','status'], rows);
+  }
+
+  /* ---------- TAB: Commission Analytics ---------- */
+  async function loadComm(){
+    setStatus('comm-status', 'loading', 'Loading…');
+    document.getElementById('comm-filters').classList.add('hidden');
+    document.getElementById('comm-kpis').innerHTML = '';
+    document.getElementById('comm-content').innerHTML = '';
+    _commData = null;
+    try {
+      const r = await APP.apiFetch('/reports/commission-analytics' + qs());
+      _commData = (r && r.data) || null;
+      setStatus('comm-status', 'hide');
+      if (!_commData || !_commData.summary || !_commData.summary.txnCount){
+        document.getElementById('comm-content').innerHTML = EMPTY; return;
+      }
+      document.getElementById('comm-filters').classList.remove('hidden');
+      renderComm();
+    } catch (e) {
+      document.getElementById('comm-filters').classList.add('hidden');
+      setStatus('comm-status', 'error', 'Failed to load commission analytics.');
+    }
+  }
+
+  function commSearchMatch(hay){
+    const q = (document.getElementById('comm-f-q').value || '').trim().toLowerCase();
+    if (!q) return true;
+    return String(hay || '').toLowerCase().indexOf(q) !== -1;
+  }
+
+  function renderComm(){
+    const d = _commData; if (!d) return;
+    const s = d.summary;
+    document.getElementById('comm-kpis').innerHTML = [
+      kpiCard('Commission Paid', kes(s.totalPaid), 'text-emerald-600'),
+      kpiCard('Advanced', kes(s.advancedTotal) + ' <span class="text-sm font-medium text-slate-400">/ ' + num(s.advancedCount) + '</span>', 'text-amber-600'),
+      kpiCard('Pending Exposure', kes(s.pendingExposure) + ' <span class="text-sm font-medium text-slate-400">/ ' + num(s.pendingCount) + '</span>', 'text-rose-600'),
+      kpiCard('Reconciled', kes(s.reconciledTotal) + ' <span class="text-sm font-medium text-slate-400">/ ' + num(s.reconciledCount) + '</span>', 'text-slate-900')
+    ].join('');
+
+    const recon = document.getElementById('comm-f-recon').value;
+
+    // By Salesperson
+    const spRows = (d.bySalesperson || []).filter((x) => commSearchMatch(x.salesPerson));
+    const spBody = spRows.map((x) =>
+      '<tr><td class="font-medium text-slate-700">' + esc(x.salesPerson || '—') + '</td>'
+      + '<td>' + num(x.count) + '</td><td class="text-emerald-600">' + kes(x.total) + '</td>'
+      + '<td class="text-amber-600">' + (x.advanced ? kes(x.advanced) : '—') + '</td></tr>').join('');
+    const spTable = '<table><thead><tr><th>Sales Person</th><th>Payouts</th><th>Total</th><th>of which Advanced</th></tr></thead><tbody>'
+      + (spBody || '<tr><td colspan="4" class="text-center text-slate-400 py-6">—</td></tr>') + '</tbody></table>';
+
+    // By Customer
+    const custRows = (d.byCustomer || []).filter((x) => commSearchMatch(x.customer));
+    const custBody = custRows.map((x) =>
+      '<tr><td class="font-medium text-slate-700">' + esc(x.customer || '—') + '</td>'
+      + '<td>' + num(x.count) + '</td><td class="text-emerald-600">' + kes(x.total) + '</td>'
+      + '<td class="text-amber-600">' + (x.advanced ? kes(x.advanced) : '—') + '</td></tr>').join('');
+    const custTable = '<table><thead><tr><th>Customer</th><th>Payouts</th><th>Total</th><th>of which Advanced</th></tr></thead><tbody>'
+      + (custBody || '<tr><td colspan="4" class="text-center text-slate-400 py-6">—</td></tr>') + '</tbody></table>';
+
+    // An advance is HELD until a second person releases it: whoever raised it
+    // cannot, so the buttons only show to Admin/Executive on someone else's.
+    const canDecideAdvance = ['Admin', 'Executive'].includes(
+      (window.FINEMARK_APP.getSession() || {}).user?.role);
+    const myEmail = ((window.FINEMARK_APP.getSession() || {}).user?.email || '').toLowerCase();
+    function approvalCell(r) {
+      const st = r.approvalStatus || 'NotRequired';
+      if (st === 'Approved')  return '<span class="text-emerald-600 text-xs font-semibold">Approved</span>'
+        + (r.approvedBy ? '<div class="text-[11px] text-slate-400">' + esc(r.approvedBy.split('@')[0]) + '</div>' : '');
+      if (st === 'Rejected')  return '<span class="text-rose-600 text-xs font-semibold">Refused</span>';
+      if (st !== 'Pending')   return '<span class="text-slate-400 text-xs">—</span>';
+      const mine = (r.authorizedBy || '').toLowerCase() === myEmail;
+      if (!canDecideAdvance || mine) {
+        return '<span class="text-amber-700 text-xs font-semibold">Awaiting approval</span>'
+          + (mine ? '<div class="text-[11px] text-slate-400">you raised this</div>' : '');
+      }
+      return '<div class="flex gap-1"><button data-adv-approve="' + esc(r.id) + '" class="rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100">Approve</button>'
+        + '<button data-adv-reject="' + esc(r.id) + '" class="rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 hover:bg-rose-100">Refuse</button></div>';
+    }
+
+    // Advanced Commissions
+    const advRows = (d.advanced || []).filter((r) => (!recon || r.reconciliationStatus === recon)
+      && commSearchMatch((r.referrerName || '') + ' ' + (r.customer || '') + ' ' + (r.invoiceNumber || '') + ' ' + (r.advanceReason || '') + ' ' + (r.authorizedBy || '')));
+    const advBody = advRows.map((r) =>
+      '<tr class="fade-in">'
+      + '<td class="text-slate-500">' + fmtDate(r.date) + '</td>'
+      + '<td class="font-medium text-slate-700">' + esc(r.referrerName || '—') + '</td>'
+      + '<td>' + esc(r.customer || '—') + '</td>'
+      + '<td class="font-mono text-xs">' + esc(r.invoiceNumber || '—') + '</td>'
+      + '<td class="text-amber-600 font-semibold">' + kes(r.amount) + '</td>'
+      + '<td>' + esc(r.advanceReason || '—') + '</td>'
+      + '<td>' + reconBadge(r.reconciliationStatus) + '</td>'
+      + '<td class="text-slate-500">' + fmtDate(r.reconciledAt) + '</td>'
+      + '<td class="text-slate-500 text-xs">' + esc(r.authorizedBy || '—') + '</td>'
+      + '<td>' + approvalCell(r) + '</td>'
+      + '<td class="text-center">' + num(r.ageDays) + ' ' + agePill(r.ageBucket) + '</td>'
+      + '</tr>').join('');
+    const advTable = '<table><thead><tr><th>Paid On</th><th>Referrer</th><th>Customer</th><th>Invoice</th><th>Amount</th><th>Reason</th><th>Reconciliation</th><th>Reconciled On</th><th>Raised By</th><th>Approval</th><th>Age</th></tr></thead><tbody>'
+      + (advBody || '<tr><td colspan="11" class="text-center text-slate-400 py-6">No advanced commissions.</td></tr>') + '</tbody></table>';
+
+    // Pending (partial) payouts
+    const pendRows = (d.pending || []).filter((r) => commSearchMatch((r.referrerName || '') + ' ' + (r.customer || '') + ' ' + (r.invoiceNumber || '')));
+    const pendBody = pendRows.map((r) =>
+      '<tr class="fade-in">'
+      + '<td class="text-slate-500">' + fmtDate(r.date) + '</td>'
+      + '<td class="font-medium text-slate-700">' + esc(r.referrerName || '—') + '</td>'
+      + '<td>' + esc(r.customer || '—') + '</td>'
+      + '<td class="font-mono text-xs">' + esc(r.invoiceNumber || '—') + '</td>'
+      + '<td>' + kes(r.pledged) + '</td>'
+      + '<td class="text-emerald-600">' + kes(r.paid) + '</td>'
+      + '<td class="font-semibold text-rose-600">' + kes(r.shortfall) + '</td>'
+      + '</tr>').join('');
+    const pendTable = '<table><thead><tr><th>Paid On</th><th>Referrer</th><th>Customer</th><th>Invoice</th><th>Pledged</th><th>Paid</th><th>Shortfall</th></tr></thead><tbody>'
+      + (pendBody || '<tr><td colspan="7" class="text-center text-slate-400 py-6">No under-paid commissions.</td></tr>') + '</tbody></table>';
+
+    // Aging of unreconciled advances
+    const ab = d.agingBuckets || { '0-30': 0, '31-60': 0, '61-90': 0, '90+': 0 };
+    const ageRow = ['0-30','31-60','61-90','90+'].map((b) =>
+      '<td>' + agePill(b) + ' <span class="font-semibold text-slate-800">' + kes(ab[b] || 0) + '</span></td>').join('');
+    const ageTable = '<table><thead><tr><th>0–30 days</th><th>31–60 days</th><th>61–90 days</th><th>90+ days</th></tr></thead><tbody><tr>' + ageRow + '</tr></tbody></table>';
+
+    document.getElementById('comm-content').innerHTML =
+        '<div class="flex flex-wrap gap-2">'
+      +   '<button class="subtab-btn" data-sub="sp"   onclick="switchCommSub(\'sp\')">By Sales Person</button>'
+      +   '<button class="subtab-btn" data-sub="cust" onclick="switchCommSub(\'cust\')">By Customer</button>'
+      +   '<button class="subtab-btn" data-sub="adv"  onclick="switchCommSub(\'adv\')">Advanced &amp; Reconciliation</button>'
+      +   '<button class="subtab-btn" data-sub="pend" onclick="switchCommSub(\'pend\')">Pending (Partial)</button>'
+      +   '<button class="subtab-btn" data-sub="age"  onclick="switchCommSub(\'age\')">Aging</button>'
+      + '</div>'
+      + '<div id="comm-sub-sp">'   + card('Commission by Sales Person', spTable) + '</div>'
+      + '<div id="comm-sub-cust">' + card('Commission by Customer', custTable) + '</div>'
+      + '<div id="comm-sub-adv">'  + card('Advanced Commissions', advTable) + '</div>'
+      + '<div id="comm-sub-pend">' + card('Pending / Partially-Paid Commissions', pendTable) + '</div>'
+      + '<div id="comm-sub-age">'  + card('Unreconciled Advance Exposure by Age', ageTable) + '</div>';
+    switchCommSub(_commSub);
+    wireAdvanceDecisions();
+  }
+
+  // Approve / refuse a held advance. The server re-checks the role and blocks
+  // self-approval, so this is convenience, not the control itself.
+  function wireAdvanceDecisions(){
+    document.querySelectorAll('[data-adv-approve]').forEach((b) => {
+      b.onclick = async () => {
+        if (!confirm('Approve this advance? It will then count as commission paid.')) return;
+        b.disabled = true;
+        try {
+          const r = await window.FINEMARK_APP.apiFetch('/referrers/payments/' + b.dataset.advApprove + '/approve', { method: 'POST', body: {} });
+          toast(r?.message || 'Advance approved.', true);
+          await loadComm();
+        } catch (e) { b.disabled = false; toast(e?.message || 'Could not approve.', false); }
+      };
+    });
+    document.querySelectorAll('[data-adv-reject]').forEach((b) => {
+      b.onclick = async () => {
+        const reason = prompt('Why is this advance being refused?');
+        if (!reason || !reason.trim()) return;
+        b.disabled = true;
+        try {
+          const r = await window.FINEMARK_APP.apiFetch('/referrers/payments/' + b.dataset.advReject + '/reject', { method: 'POST', body: { reason: reason.trim() } });
+          toast(r?.message || 'Advance refused.', true);
+          await loadComm();
+        } catch (e) { b.disabled = false; toast(e?.message || 'Could not refuse.', false); }
+      };
+    });
+  }
+
+  function clearCommFilters(){
+    document.getElementById('comm-f-recon').value = '';
+    document.getElementById('comm-f-q').value = '';
+    renderComm();
+  }
+
+  function dlCommCsv(){
+    const d = _commData; if (!d){ toast('Nothing to download.', false); return; }
+    if (_commSub === 'sp'){
+      downloadCsv('commission-by-salesperson.csv', ['salesPerson','count','total','advanced'], d.bySalesperson || []);
+    } else if (_commSub === 'cust'){
+      downloadCsv('commission-by-customer.csv', ['customer','count','total','advanced'], d.byCustomer || []);
+    } else if (_commSub === 'adv'){
+      downloadCsv('advanced-commissions.csv', ['date','referrerName','customer','invoiceNumber','amount','advanceReason','approvalStatus','approvedBy','approvedAt','reconciliationStatus','reconciledAt','authorizedBy','ageDays','ageBucket'], d.advanced || []);
+    } else if (_commSub === 'pend'){
+      downloadCsv('pending-commissions.csv', ['date','referrerName','customer','invoiceNumber','pledged','paid','shortfall'], d.pending || []);
+    } else {
+      const ab = d.agingBuckets || {};
+      downloadCsv('advance-aging.csv', ['bucket','exposure'], ['0-30','31-60','61-90','90+'].map((b) => ({ bucket: b, exposure: ab[b] || 0 })));
+    }
+  }
+
+  /* ---------- TAB: Advanced Commission ---------- */
+  /* Same source data as Commission Analytics' "advanced" set — reused here as
+     its own first-class report so advanced-commission exposure doesn't have
+     to be found by digging into a sub-tab. */
+  async function loadAdvComm(){
+    setStatus('advcomm-status', 'loading', 'Loading…');
+    document.getElementById('advcomm-filters').classList.add('hidden');
+    document.getElementById('advcomm-kpis').innerHTML = '';
+    document.getElementById('advcomm-content').innerHTML = '';
+    _advCommData = null;
+    try {
+      const r = await APP.apiFetch('/reports/commission-analytics' + qs());
+      _advCommData = (r && r.data) || null;
+      setStatus('advcomm-status', 'hide');
+      if (!_advCommData || !(_advCommData.advanced || []).length){
+        document.getElementById('advcomm-content').innerHTML = '<div class="text-center text-slate-400 py-10">No advanced commissions in this period. 🎉</div>';
+        return;
+      }
+      document.getElementById('advcomm-filters').classList.remove('hidden');
+      renderAdvComm();
+    } catch (e) {
+      document.getElementById('advcomm-filters').classList.add('hidden');
+      setStatus('advcomm-status', 'error', 'Failed to load advanced commission report.');
+    }
+  }
+
+  function advCommFilteredRows(){
+    if (!_advCommData) return [];
+    const recon = document.getElementById('advcomm-f-recon').value;
+    const q = (document.getElementById('advcomm-f-q').value || '').trim().toLowerCase();
+    return (_advCommData.advanced || []).filter((r) => {
+      if (recon && r.reconciliationStatus !== recon) return false;
+      if (q){
+        const hay = ((r.referrerName || '') + ' ' + (r.customer || '') + ' ' + (r.invoiceNumber || '') + ' ' + (r.advanceReason || '') + ' ' + (r.authorizedBy || '')).toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+  }
+
+  function renderAdvComm(){
+    const rows = advCommFilteredRows();
+    const outstanding = rows.filter((r) => r.reconciliationStatus !== 'Reconciled').reduce((s, r) => s + Number(r.amount || 0), 0);
+    const outstandingCount = rows.filter((r) => r.reconciliationStatus !== 'Reconciled').length;
+    const reconciled = rows.filter((r) => r.reconciliationStatus === 'Reconciled').reduce((s, r) => s + Number(r.amount || 0), 0);
+    const total = rows.reduce((s, r) => s + Number(r.amount || 0), 0);
+    document.getElementById('advcomm-kpis').innerHTML = [
+      kpiCard('Total Advanced', kes(total), 'text-amber-600'),
+      kpiCard('Count', num(rows.length)),
+      kpiCard('Still Unreconciled', kes(outstanding) + ' <span class="text-sm font-medium text-slate-400">/ ' + num(outstandingCount) + '</span>', 'text-rose-600'),
+      kpiCard('Reconciled', kes(reconciled), 'text-emerald-600'),
+    ].join('');
+    if (!rows.length){ document.getElementById('advcomm-content').innerHTML = NOMATCH; return; }
+
+    const body = rows.map((r) =>
+      '<tr class="fade-in">'
+      + '<td class="text-slate-500">' + fmtDate(r.date) + '</td>'
+      + '<td class="font-medium text-slate-700">' + esc(r.referrerName || '—') + '</td>'
+      + '<td>' + esc(r.customer || '—') + '</td>'
+      + '<td class="font-mono text-xs">' + esc(r.invoiceNumber || '—') + '</td>'
+      + '<td class="text-amber-600 font-semibold">' + kes(r.amount) + '</td>'
+      + '<td>' + esc(r.advanceReason || '—') + '</td>'
+      + '<td>' + reconBadge(r.reconciliationStatus) + '</td>'
+      + '<td class="text-slate-500">' + fmtDate(r.reconciledAt) + '</td>'
+      + '<td class="text-slate-500 text-xs">' + esc(r.authorizedBy || '—') + '</td>'
+      + '<td class="text-center">' + num(r.ageDays) + ' ' + agePill(r.ageBucket) + '</td>'
+      + '</tr>').join('');
+    const table = '<table><thead><tr><th>Paid On</th><th>Referrer</th><th>Customer</th><th>Invoice</th><th>Amount</th><th>Reason</th><th>Reconciliation</th><th>Reconciled On</th><th>Authorized By</th><th>Age</th></tr></thead><tbody>' + body + '</tbody></table>';
+
+    // Aging of the currently-unreconciled portion (recomputed from the filtered set).
+    const ab = { '0-30': 0, '31-60': 0, '61-90': 0, '90+': 0 };
+    rows.filter((r) => r.reconciliationStatus !== 'Reconciled').forEach((r) => { ab[r.ageBucket] = (ab[r.ageBucket] || 0) + Number(r.amount || 0); });
+    const ageRow = ['0-30','31-60','61-90','90+'].map((b) =>
+      '<td>' + agePill(b) + ' <span class="font-semibold text-slate-800">' + kes(ab[b]) + '</span></td>').join('');
+    const ageTable = '<table><thead><tr><th>0–30 days</th><th>31–60 days</th><th>61–90 days</th><th>90+ days</th></tr></thead><tbody><tr>' + ageRow + '</tr></tbody></table>';
+
+    document.getElementById('advcomm-content').innerHTML = card('Advanced Commissions', table) + card('Unreconciled Exposure by Age', ageTable);
+  }
+
+  function clearAdvCommFilters(){
+    document.getElementById('advcomm-f-recon').value = '';
+    document.getElementById('advcomm-f-q').value = '';
+    renderAdvComm();
+  }
+
+  function dlAdvCommCsv(){
+    const rows = advCommFilteredRows();
+    if (!rows.length){ toast('Nothing to download for these filters.', false); return; }
+    downloadCsv('advanced-commissions.csv',
+      ['date','referrerName','customer','invoiceNumber','amount','advanceReason','reconciliationStatus','reconciledAt','authorizedBy','ageDays','ageBucket'],
+      rows);
+  }
+
+  /* ---------- init ---------- */
+  (function init(){
+    if (!APP || !APP.apiFetch || !APP.getSession) { return setTimeout(init, 200); }
+    switchTab('invoice');
+  })();
+</script>
+</body>
+</html>

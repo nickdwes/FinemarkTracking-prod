@@ -6,6 +6,8 @@ import { requireRole, ROLE_GROUPS } from "../middleware/rbac.js";
 import { ok, created, errorResponse } from "../utils/responses.js";
 import { auditLog } from "../services/auditService.js";
 import { nextDatedBatchNumber } from "../utils/batchNumber.js";
+import { closeOpenCheckouts } from "./inventory-items.js";
+import { recordRetrieval } from "./device-retrievals.js";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -27,7 +29,12 @@ const router = Router();
 // request was only for ticket access, so it's scoped to the ticket role sets
 // plus callerTeam() below (which maps it to the Technical team).
 const TICKET_MANAGER = "technical_manager";
-const TICKET_VIEW_ROLES = Array.from(new Set(["Admin", "Sales", "Support", "Operations", "Finance", TICKET_MANAGER, ...ROLE_GROUPS.TEAM_TECHNICAL]));
+// Non-team roles that may raise & track tickets but only ever see the ones they
+// opened (they aren't part of any resolving team, so there's no team inbox to
+// scope them to). BDMCorporate raises support cases for its corporate customers
+// and tracks them to resolution — same treatment as Sales.
+const TICKET_SELF_SCOPE_ROLES = ["Sales", "BDMCorporate"];
+const TICKET_VIEW_ROLES = Array.from(new Set(["Admin", "Support", "Operations", "Finance", TICKET_MANAGER, ...TICKET_SELF_SCOPE_ROLES, ...ROLE_GROUPS.TEAM_TECHNICAL]));
 const TICKET_TEAM_ROLES = Array.from(new Set(["Admin", "Support", "Operations", "Finance", TICKET_MANAGER, ...ROLE_GROUPS.TEAM_TECHNICAL]));
 const TICKET_CONSULT_ROLES = Array.from(new Set(["Admin", "Support", "Operations", TICKET_MANAGER, ...ROLE_GROUPS.TEAM_TECHNICAL]));
 
@@ -194,7 +201,7 @@ router.get(
       if (myTeam) {
         filters.push("t.team = ?");
         params.push(myTeam);
-      } else if (req.user!.role === "Sales") {
+      } else if (TICKET_SELF_SCOPE_ROLES.includes(req.user!.role)) {
         filters.push("t.created_by_user_id = ?");
         params.push(req.user!.id);
       }
@@ -311,6 +318,114 @@ router.get(
   }
 );
 
+// ── Ticket context — full vehicle + job card + installed devices + gadget location
+// Powers the Uninstallation / Gadget Issue detail view: everything the technician
+// needs to see the physical vehicle, its job card, the devices on it, and where the
+// target gadget sits. The ticket's linked_device_item_ids are flagged as targets.
+router.get(
+  "/:id/context",
+  requireAuth,
+  requireRole(TICKET_VIEW_ROLES),
+  async (req: AuthRequest, res) => {
+    const ticket = await pgGet("SELECT * FROM crm_tickets WHERE id = ?", [req.params.id]);
+    if (!ticket) return errorResponse(res, 404, "NOT_FOUND", "Ticket not found.");
+
+    const targetDeviceIds = safeJsonArray(ticket.linked_device_item_ids);
+    const targetSimIds = safeJsonArray(ticket.linked_sim_ids);
+
+    let vehicle: any = null;
+    let installation: any = null;
+    let devices: any[] = [];
+    let sims: any[] = [];
+
+    if (ticket.vehicle_id) {
+      vehicle = await pgGet(`SELECT * FROM crm_customer_vehicles WHERE id = ? AND deleted_at IS NULL`, [ticket.vehicle_id]);
+      installation = await pgGet(
+        `SELECT it.*, u.email AS assigned_to_email_resolved
+         FROM installation_tickets it
+         LEFT JOIN users u ON u.id = it.assigned_to_user_id
+         WHERE it.vehicle_id = ? AND it.status = 'Completed' AND it.deleted_at IS NULL
+         ORDER BY it.created_at DESC LIMIT 1`,
+        [ticket.vehicle_id]
+      );
+      if (installation) {
+        devices = await pgAll(
+          `SELECT i.id, i.imei, i.serial_number, i.status, i.sim_serial, i.sim_phone, p.product_name, p.device_model
+           FROM inv_items i LEFT JOIN inv_product_catalog p ON p.id = i.product_id
+           WHERE i.installation_id = ? AND i.deleted_at IS NULL`,
+          [installation.id]
+        ).catch(() => []);
+        const deviceIds = devices.map((d: any) => d.id);
+        sims = await pgAll(
+          `SELECT id, iccid, msisdn, status, device_item_id FROM inv_sims
+           WHERE installation_id = ? OR device_item_id = ANY(?::text[])`,
+          [installation.id, deviceIds.length ? deviceIds : [""]]
+        ).catch(() => []);
+      }
+    }
+
+    // Per-device mounting position, captured in the job card (Step 4) and stored on
+    // the installation ticket as device_install_json keyed by inv_items.id.
+    let deviceInstall: Record<string, any> = {};
+    try { deviceInstall = installation?.device_install_json ? JSON.parse(installation.device_install_json) : {}; } catch { deviceInstall = {}; }
+    const mountOf = (id: string) => {
+      const rec = deviceInstall[id];
+      if (!rec) return null;
+      return [rec.mountLocation, rec.mountDescription].filter(Boolean).join(" · ") || null;
+    };
+
+    // The ticket's linked devices, resolved to their current state (may include
+    // devices already swapped out / removed — surfaced with their live status).
+    const linkedDevices = targetDeviceIds.length
+      ? await pgAll(
+          `SELECT i.id, i.imei, i.serial_number, i.status, i.issued_to_id, i.issued_to_name, p.product_name, p.device_model
+           FROM inv_items i LEFT JOIN inv_product_catalog p ON p.id = i.product_id
+           WHERE i.id = ANY(?::text[]) AND i.deleted_at IS NULL`,
+          [targetDeviceIds]
+        ).catch(() => [])
+      : [];
+
+    return ok(res, {
+      data: {
+        ticket: {
+          id: ticket.id, ticketNo: ticket.ticket_no, category: ticket.category,
+          vehicleId: ticket.vehicle_id, linkedDeviceItemIds: targetDeviceIds, linkedSimIds: targetSimIds,
+        },
+        vehicle: vehicle ? {
+          id: vehicle.id, registration: vehicle.registration, make: vehicle.make, model: vehicle.model,
+          modelNumber: vehicle.model_number, bodyType: vehicle.body_type, color: vehicle.color,
+          yearOfManufacture: vehicle.year_of_manufacture, chassisNumber: vehicle.chassis_number,
+          engineNumber: vehicle.engine_number, vehicleCategory: vehicle.vehicle_category,
+          vin: vehicle.vin, vehicleNo: vehicle.vehicle_no, fleetNumber: vehicle.fleet_number,
+        } : null,
+        installation: installation ? {
+          id: installation.id, jobCardRef: installation.ticket_no, status: installation.status,
+          installationLocation: installation.installation_location || null,
+          lat: installation.installation_location_lat, lng: installation.installation_location_lng,
+          jobCardPhotoUrl: installation.job_card_photo_url || null,
+          completedAt: installation.updated_at,
+          technicianEmail: installation.assigned_to_email || installation.assigned_to_email_resolved || null,
+          technicianUserId: installation.assigned_to_user_id || null,
+        } : null,
+        devicesOnVehicle: devices.map((d: any) => ({
+          id: d.id, imei: d.imei, serialNumber: d.serial_number, status: d.status,
+          productName: d.product_name, deviceModel: d.device_model,
+          simSerial: d.sim_serial, simPhone: d.sim_phone,
+          mountPosition: mountOf(d.id),
+          isTarget: targetDeviceIds.includes(d.id),
+        })),
+        sims: sims.map((s: any) => ({ id: s.id, iccid: s.iccid, msisdn: s.msisdn, status: s.status, deviceItemId: s.device_item_id, isTarget: targetSimIds.includes(s.id) })),
+        linkedDevices: linkedDevices.map((d: any) => ({
+          id: d.id, imei: d.imei, serialNumber: d.serial_number, status: d.status,
+          productName: d.product_name, deviceModel: d.device_model,
+          mountPosition: mountOf(d.id),
+          issuedToId: d.issued_to_id, issuedToName: d.issued_to_name,
+        })),
+      },
+    });
+  }
+);
+
 // ── Last invoice lookup — powers ticket-creation auto-population ───────────
 router.get(
   "/lookup/customer/:customerId/last-invoice",
@@ -338,7 +453,7 @@ router.post(
   async (req: AuthRequest, res) => {
     const {
       customerId, subject, description, categoryId, category: categoryNameRaw, priority, assignedToUserId,
-      vehicleIds, linkedInstallationId, linkedDeviceItemIds, linkedSimIds, linkedInvoiceId,
+      vehicleIds, linkedInstallationId, linkedDeviceItemIds, linkedSimIds, linkedInvoiceId, team: teamRaw,
     } = req.body;
 
     if (!subject) return errorResponse(res, 400, "VALIDATION_ERROR", "subject is required");
@@ -350,6 +465,13 @@ router.post(
     if (categoryId) categoryRow = await pgGet(`SELECT * FROM ticket_categories WHERE id = ? AND is_active = TRUE`, [categoryId]);
     else if (categoryNameRaw) categoryRow = await pgGet(`SELECT * FROM ticket_categories WHERE name = ? AND is_active = TRUE`, [categoryNameRaw]);
     if (!categoryRow) return errorResponse(res, 400, "VALIDATION_ERROR", "A valid category is required.");
+
+    // Team routing: the category implies a default team, but the requester/admin
+    // may explicitly assign a different responsible team on the form. Accept only
+    // the known teams (DB CHECK constrains ticket_categories.team to these);
+    // anything else falls back to the category's team.
+    const ALLOWED_TEAMS = ["Technical", "Finance", "Support"];
+    const team = teamRaw && ALLOWED_TEAMS.includes(teamRaw) ? teamRaw : categoryRow.team;
 
     if (categoryRow.requires_customer && !customerId) {
       return errorResponse(res, 400, "VALIDATION_ERROR", "customerId is required for this category.");
@@ -375,7 +497,7 @@ router.post(
           assigned_to_user_id, sla_hours, sla_breach_at, opened_at, assigned_at, created_by_user_id, created_at, updated_at,
           vehicle_id, linked_installation_id, linked_device_item_ids, linked_sim_ids, linked_invoice_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, ticketNo, customerId || null, subject, description || null, categoryRow.name, categoryRow.team, priority || "Normal",
+      [id, ticketNo, customerId || null, subject, description || null, categoryRow.name, team, priority || "Normal",
        assignedToUserId || null, slaHours, slaBreachAt, now, assignedToUserId ? now : null, req.user!.id, now, now,
        primaryVehicleId, linkedInstallationId || null,
        JSON.stringify(Array.isArray(linkedDeviceItemIds) ? linkedDeviceItemIds : []),
@@ -402,7 +524,7 @@ router.post(
            (id, ticket_no, customer_id, subject, description, category, team, priority, status,
             sla_hours, sla_breach_at, opened_at, created_by_user_id, created_at, updated_at, vehicle_id, parent_ticket_id)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Merged', ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [childId, childTicketNo, customerId || null, subject, description || null, categoryRow.name, categoryRow.team,
+        [childId, childTicketNo, customerId || null, subject, description || null, categoryRow.name, team,
          priority || "Normal", slaHours, slaBreachAt, now, req.user!.id, now, now, vehId, id]
       );
       await pgRun(
@@ -413,7 +535,7 @@ router.post(
       childTicketIds.push(childId);
     }
 
-    auditLog(req, "CRM_TICKET_CREATED", `crm_ticket:${id}`, "Info", { ticketNo, customerId, priority, category: categoryRow.name, team: categoryRow.team }).catch(console.error);
+    auditLog(req, "CRM_TICKET_CREATED", `crm_ticket:${id}`, "Info", { ticketNo, customerId, priority, category: categoryRow.name, team }).catch(console.error);
     const row = await pgGet("SELECT * FROM crm_tickets WHERE id = ?", [id]);
     return created(res, { ...mapTicket(row), childTicketIds }, "Ticket created");
   }
@@ -632,12 +754,36 @@ router.post(
 // (possibly locked/Completed) installation_tickets row itself — only the
 // devices' own FKs are repointed, so the vehicle->device resolution join
 // (GET /lookup/vehicle/:vehicleId above) keeps working unchanged.
+// Extract a device's mounting position from an installation ticket's
+// device_install_json (keyed by inv_items.id) — e.g. "Roof Lining · left side".
+function mountFromInstall(instRow: any, deviceId: string): string | null {
+  if (!instRow?.device_install_json) return null;
+  try {
+    const rec = JSON.parse(instRow.device_install_json)?.[deviceId];
+    return rec ? ([rec.mountLocation, rec.mountDescription].filter(Boolean).join(" · ") || null) : null;
+  } catch { return null; }
+}
+
+// A SIM pulled off a vehicle alongside its device is retained in the recovering
+// technician's custody (status 'issued') — not freed straight back to the pool —
+// so it shows under the technician's "My SIMs" until physically handed back.
+async function retainSimToCustody(sim: any, custodianId: string, custodianName: string, actor: { id: string; email: string }, now: string) {
+  await pgRun(
+    `UPDATE inv_sims SET status = 'issued', issued_to_id = ?, issued_to_name = ?, issued_at = ?, acknowledged_at = ?, installation_id = NULL, device_item_id = NULL, updated_at = ? WHERE id = ?`,
+    [custodianId, custodianName, now, now, now, sim.id]
+  );
+  await pgRun(
+    `INSERT INTO inv_sim_ledger (id, sim_id, action, from_status, to_status, actor_id, actor_email, notes, created_at) VALUES (?, ?, 'RETAINED_TO_CUSTODY', ?, 'issued', ?, ?, ?, ?)`,
+    [uuidv4(), sim.id, sim.status || null, actor.id, actor.email, `Retained by ${custodianName} on retrieval`, now]
+  );
+}
+
 router.post(
   "/:id/swap-device",
   requireAuth,
   requireRole(ROLE_GROUPS.TEAM_TECHNICAL),
   async (req: AuthRequest, res) => {
-    const { oldDeviceItemId, newDeviceItemId, reason, oldSimId, newSimId } = req.body || {};
+    const { oldDeviceItemId, newDeviceItemId, reason, oldSimId, newSimId, custodianUserId } = req.body || {};
     if (!oldDeviceItemId || !newDeviceItemId) {
       return errorResponse(res, 400, "VALIDATION_ERROR", "oldDeviceItemId and newDeviceItemId are required.");
     }
@@ -703,6 +849,18 @@ router.post(
     const priorCustomerId = oldDevice.customer_id;
     const defectReportId = uuidv4();
     const reinstallationId = uuidv4();
+    // Custody recipient for the removed device = the ticket's technician (ISO can
+    // override via custodianUserId). The swapped-out gadget is retrieved into THEIR
+    // custody and flows through the retrieval lifecycle (not straight to Defective).
+    const custodianId = custodianUserId || ticket.assigned_to_user_id || req.user!.id;
+    const custodianRow = await pgGet("SELECT id, name, email FROM users WHERE id = ?", [custodianId]);
+    const custodianName = custodianRow?.name || custodianRow?.email || req.user!.email;
+    const oldInst = installationId
+      ? await pgGet("SELECT ticket_no, installation_location, vehicle_registration, device_install_json FROM installation_tickets WHERE id = ?", [installationId])
+      : null;
+    const swapVehicle = ticket.vehicle_id
+      ? await pgGet("SELECT registration FROM crm_customer_vehicles WHERE id = ?", [ticket.vehicle_id])
+      : null;
     // Trackers are sometimes catalogued with only an IMEI and no serial_number
     // — di_defect_reports.device_serial is NOT NULL, so fall back the same way
     // the rest of the app treats IMEI as the effective identifier when absent.
@@ -720,14 +878,37 @@ router.post(
        `Swapped out via ticket ${ticket.ticket_no}: ${reason.trim()}`, now, now]
     );
 
-    // 2. Old device: Defective, unlinked from the job/customer, points at its replacement
+    // 2. Old device: retrieved into the technician's custody (Awaiting Return),
+    //    unlinked from the job/customer, still pointing at its replacement + defect
+    //    report for traceability. The Repair/Dispose/Restock decision is made later
+    //    at the retrieval "Return to Inventory" step.
     await pgRun(
       `UPDATE inv_items
-       SET status = 'Defective', installation_id = NULL, customer_id = NULL,
+       SET status = 'Awaiting Return', issued_to_id = ?, issued_to_name = ?, issued_at = ?, acknowledged_at = ?,
+           installation_id = NULL, customer_id = NULL,
            replaced_by_item_id = ?, defect_ticket_id = ?, updated_at = ?
        WHERE id = ?`,
-      [newDevice.id, defectReportId, now, oldDevice.id]
+      [custodianId, custodianName, now, now, newDevice.id, defectReportId, now, oldDevice.id]
     );
+    await pgRun(
+      `INSERT INTO inv_movements (id, item_id, product_id, action, from_status, to_status, performed_by_user_id, performed_by_email, notes, created_at)
+       VALUES (?, ?, ?, 'SWAPPED_TO_CUSTODY', 'Installed', 'Awaiting Return', ?, ?, ?, ?)`,
+      [uuidv4(), oldDevice.id, oldDevice.product_id, req.user!.id, req.user!.email,
+       `Swapped out via ticket ${ticket.ticket_no} into ${custodianName}'s custody: ${reason.trim()}`, now]
+    );
+    await recordRetrieval({
+      device: oldDevice, sim: oldSim,
+      vehicleId: ticket.vehicle_id || null,
+      vehicleRegistration: oldInst?.vehicle_registration || swapVehicle?.registration || null,
+      installationId, jobCardRef: oldInst?.ticket_no || null,
+      installationLocation: oldInst?.installation_location || null,
+      mountPosition: mountFromInstall(oldInst, oldDevice.id),
+      supportTicketId: ticket.id, ticketNo: ticket.ticket_no,
+      retrievalType: "Swap", reason: reason.trim(),
+      previousStatus: "Installed", newStatus: "Awaiting Return",
+      technicianId: custodianId, technicianName: custodianName,
+      processedByUserId: req.user!.id, processedByEmail: req.user!.email,
+    }).catch((e) => console.error("[swap-device] recordRetrieval failed", e));
 
     // 3. New device: Installed, takes over the old device's job/customer link
     await pgRun(
@@ -736,13 +917,13 @@ router.post(
        WHERE id = ?`,
       [installationId, priorCustomerId, now, now, newDevice.id]
     );
+    // Custody ends at install — clear any open checkout on the newly-installed device.
+    await closeOpenCheckouts(newDevice.id, "system: closed on install", now);
 
-    // 4. Optional SIM swap, same repoint pattern
+    // 4. Optional SIM swap, same repoint pattern — the removed SIM is retained in
+    //    the technician's custody (like the removed device), not freed to the pool.
     if (oldSim && newSim) {
-      await pgRun(
-        `UPDATE inv_sims SET status = 'available', installation_id = NULL, device_item_id = NULL, updated_at = ? WHERE id = ?`,
-        [now, oldSim.id]
-      );
+      await retainSimToCustody(oldSim, custodianId, custodianName, { id: req.user!.id, email: req.user!.email }, now);
       await pgRun(
         `UPDATE inv_sims SET status = 'installed', installation_id = ?, device_item_id = ?, installed_at = ?, updated_at = ? WHERE id = ?`,
         [installationId, newDevice.id, now, now, newSim.id]
@@ -787,7 +968,94 @@ router.post(
       reinstallationId, defectReportId,
       oldDeviceSerial: oldDeviceLabel,
       newDeviceSerial: newDeviceLabel,
-    }, "Device swapped — old device reported defective and queued for warranty processing.");
+      custodian: custodianName,
+    }, `Device swapped — removed device retrieved into ${custodianName}'s custody.`);
+  }
+);
+
+// ── Retrieve a device into custody without a swap (Gadget Issue tickets) ──────
+router.post(
+  "/:id/retrieve-device",
+  requireAuth,
+  requireRole(ROLE_GROUPS.TEAM_TECHNICAL),
+  async (req: AuthRequest, res) => {
+    const { deviceItemId, reason, custodianUserId } = req.body || {};
+    if (!deviceItemId) return errorResponse(res, 400, "VALIDATION_ERROR", "deviceItemId is required.");
+
+    const ticket = await pgGet("SELECT * FROM crm_tickets WHERE id = ?", [req.params.id]);
+    if (!ticket) return errorResponse(res, 404, "NOT_FOUND", "Ticket not found");
+    if (req.user!.role !== "Admin") {
+      const team = callerTeam(req.user!.role);
+      if (team && ticket.team !== team) return errorResponse(res, 403, "FORBIDDEN", "Not your team's ticket");
+    }
+
+    const device = await pgGet(
+      `SELECT i.*, p.device_model, p.product_name FROM inv_items i
+       JOIN inv_product_catalog p ON p.id = i.product_id
+       WHERE i.id = ? AND i.deleted_at IS NULL`,
+      [deviceItemId]
+    );
+    if (!device) return errorResponse(res, 404, "NOT_FOUND", "Device not found.");
+    if (device.status !== "Installed" && !device.installation_id) {
+      return errorResponse(res, 409, "CONFLICT", `Device is not currently installed on a vehicle (status: ${device.status}).`);
+    }
+
+    const now = new Date().toISOString();
+    const custodianId = custodianUserId || ticket.assigned_to_user_id || req.user!.id;
+    const custodianRow = await pgGet("SELECT id, name, email FROM users WHERE id = ?", [custodianId]);
+    const custodianName = custodianRow?.name || custodianRow?.email || req.user!.email;
+    const inst = device.installation_id
+      ? await pgGet("SELECT ticket_no, installation_location, vehicle_registration, device_install_json FROM installation_tickets WHERE id = ?", [device.installation_id])
+      : null;
+    const retVehicle = ticket.vehicle_id
+      ? await pgGet("SELECT registration FROM crm_customer_vehicles WHERE id = ?", [ticket.vehicle_id])
+      : null;
+    const pairedSim = await pgGet("SELECT * FROM inv_sims WHERE device_item_id = ? AND deleted_at IS NULL", [device.id]).catch(() => null);
+    const prevInstallationId = device.installation_id;
+
+    await pgRun(
+      `UPDATE inv_items
+         SET status = 'Awaiting Return', issued_to_id = ?, issued_to_name = ?, issued_at = ?, acknowledged_at = ?,
+             installation_id = NULL, customer_id = NULL, updated_at = ?
+       WHERE id = ?`,
+      [custodianId, custodianName, now, now, now, device.id]
+    );
+    if (pairedSim) {
+      await retainSimToCustody(pairedSim, custodianId, custodianName, { id: req.user!.id, email: req.user!.email }, now);
+    }
+    await pgRun(
+      `INSERT INTO inv_movements (id, item_id, product_id, action, from_status, to_status, performed_by_user_id, performed_by_email, notes, created_at)
+       VALUES (?, ?, ?, 'RETRIEVED_TO_CUSTODY', 'Installed', 'Awaiting Return', ?, ?, ?, ?)`,
+      [uuidv4(), device.id, device.product_id, req.user!.id, req.user!.email,
+       `Retrieved via ${ticket.ticket_no} into ${custodianName}'s custody${reason ? `: ${reason}` : ""}`, now]
+    );
+    const retrieval = await recordRetrieval({
+      device, sim: pairedSim,
+      vehicleId: ticket.vehicle_id || null,
+      vehicleRegistration: inst?.vehicle_registration || retVehicle?.registration || null,
+      installationId: prevInstallationId, jobCardRef: inst?.ticket_no || null,
+      installationLocation: inst?.installation_location || null,
+      mountPosition: mountFromInstall(inst, device.id),
+      supportTicketId: ticket.id, ticketNo: ticket.ticket_no,
+      retrievalType: "GadgetIssue", reason: reason?.trim() || `Retrieved via ${ticket.ticket_no}`,
+      previousStatus: "Installed", newStatus: "Awaiting Return",
+      technicianId: custodianId, technicianName: custodianName,
+      processedByUserId: req.user!.id, processedByEmail: req.user!.email,
+    }).catch((e) => { console.error("[retrieve-device] recordRetrieval failed", e); return null; });
+
+    const deviceLabel = device.serial_number || device.imei || device.id;
+    await pgRun(
+      `INSERT INTO crm_ticket_actions (id, ticket_id, action_type, comment, by_user_id, by_user_email, created_at)
+       VALUES (?, ?, 'Comment', ?, ?, ?, ?)`,
+      [uuidv4(), ticket.id, `Retrieved device ${deviceLabel} into ${custodianName}'s custody${reason ? `: ${reason.trim()}` : ""}`, req.user!.id, req.user!.email, now]
+    );
+    auditLog(req, "CRM_TICKET_DEVICE_RETRIEVED", `crm_ticket:${ticket.id}`, "Warning", { deviceItemId: device.id, custodianId }).catch(console.error);
+
+    return created(res, {
+      retrievalNo: retrieval?.retrieval_no || null,
+      deviceSerial: deviceLabel,
+      custodian: custodianName,
+    }, `Device retrieved into ${custodianName}'s custody.`);
   }
 );
 
@@ -948,7 +1216,7 @@ router.post(
   requireAuth,
   requireRole(ROLE_GROUPS.TEAM_TECHNICAL),
   async (req: AuthRequest, res) => {
-    const { deviceItemIds, simIds, notes } = req.body || {};
+    const { deviceItemIds, simIds, notes, custodianUserId } = req.body || {};
 
     const ticket = await pgGet("SELECT * FROM crm_tickets WHERE id = ?", [req.params.id]);
     if (!ticket) return errorResponse(res, 404, "NOT_FOUND", "Ticket not found");
@@ -1004,20 +1272,69 @@ router.post(
 
     const now = new Date().toISOString();
 
-    // 1. Devices: Returned, unlinked from job/customer, freed back to inventory
+    // Custody recipient = the technician who performs the uninstall — the ticket's
+    // assigned technician, else the staff member completing the action. The gadget
+    // is retrieved into THEIR custody first; it only reaches inventory after a
+    // separate "Return to Inventory" step (device-custody /return-recovered).
+    const custodianId = custodianUserId || ticket.assigned_to_user_id || req.user!.id;
+    const custodian = await pgGet("SELECT id, name, email FROM users WHERE id = ?", [custodianId]);
+    const custodianName = custodian?.name || custodian?.email || req.user!.email;
+    const ticketVehicle = ticket.vehicle_id
+      ? await pgGet("SELECT registration FROM crm_customer_vehicles WHERE id = ?", [ticket.vehicle_id])
+      : null;
+
+    // 1. Devices: retrieved from the vehicle into the uninstalling technician's
+    //    custody (status 'Awaiting Return') — NOT straight back to stock. The
+    //    original installing technician is recorded on the item note + movement
+    //    ledger for traceability.
     for (const d of devices) {
+      let installerNote = "";
+      let inst: any = null;
+      if (d.installation_id) {
+        inst = await pgGet(
+          "SELECT id, ticket_no, installation_location, vehicle_registration, assigned_to_email, device_install_json FROM installation_tickets WHERE id = ?",
+          [d.installation_id]
+        );
+        if (inst?.assigned_to_email) installerNote = ` Originally installed by ${inst.assigned_to_email}.`;
+      }
+      const prevInstallationId = d.installation_id;
+      const recoveryNote = `Recovered via uninstall ticket ${ticket.ticket_no} on ${now}; held by ${custodianName}.${installerNote}`;
       await pgRun(
-        `UPDATE inv_items SET status = 'Returned', installation_id = NULL, customer_id = NULL, updated_at = ? WHERE id = ?`,
-        [now, d.id]
+        `UPDATE inv_items
+           SET status = 'Awaiting Return',
+               issued_to_id = ?, issued_to_name = ?, issued_at = ?, acknowledged_at = ?,
+               installation_id = NULL, customer_id = NULL,
+               notes = COALESCE(NULLIF(notes,''),'') || CASE WHEN notes IS NOT NULL AND notes <> '' THEN ' | ' ELSE '' END || ?,
+               updated_at = ?
+         WHERE id = ?`,
+        [custodianId, custodianName, now, now, recoveryNote, now, d.id]
       );
+      await pgRun(
+        `INSERT INTO inv_movements (id, item_id, product_id, action, from_status, to_status, performed_by_user_id, performed_by_email, notes, created_at)
+         VALUES (?, ?, ?, 'UNINSTALLED_TO_CUSTODY', 'Installed', 'Awaiting Return', ?, ?, ?, ?)`,
+        [uuidv4(), d.id, d.product_id, req.user!.id, req.user!.email, recoveryNote, now]
+      );
+      const pairedSim = sims.find((s) => s.device_item_id === d.id) || null;
+      await recordRetrieval({
+        device: d, sim: pairedSim,
+        vehicleId: ticket.vehicle_id || null,
+        vehicleRegistration: inst?.vehicle_registration || ticketVehicle?.registration || null,
+        installationId: prevInstallationId || null,
+        jobCardRef: inst?.ticket_no || null,
+        installationLocation: inst?.installation_location || null,
+        mountPosition: mountFromInstall(inst, d.id),
+        supportTicketId: ticket.id, ticketNo: ticket.ticket_no,
+        retrievalType: "Uninstallation",
+        reason: notes?.trim() || `Uninstallation via ${ticket.ticket_no}`,
+        previousStatus: "Installed", newStatus: "Awaiting Return",
+        technicianId: custodianId, technicianName: custodianName,
+        processedByUserId: req.user!.id, processedByEmail: req.user!.email,
+      }).catch((e) => console.error("[complete-uninstallation] recordRetrieval failed", e));
     }
 
-    // 2. SIMs: available, unlinked from job/device
+    // 2. SIMs: retained in the recovering technician's custody, unlinked from job/device
     for (const s of sims) {
-      await pgRun(
-        `UPDATE inv_sims SET status = 'available', installation_id = NULL, device_item_id = NULL, updated_at = ? WHERE id = ?`,
-        [now, s.id]
-      );
+      await retainSimToCustody(s, custodianId, custodianName, { id: req.user!.id, email: req.user!.email }, now);
     }
 
     // 3. Queue row -> Completed (best-effort link; a missing link doesn't
@@ -1038,8 +1355,8 @@ router.post(
     // 4. Ticket resolution + timeline entry
     const deviceLabels = devices.map((d) => d.serial_number || d.imei || d.id);
     const simLabels = sims.map((s) => s.iccid);
-    const summary = `Uninstallation completed — removed ${deviceLabels.join(", ")}` +
-      (simLabels.length ? ` (SIM${simLabels.length > 1 ? "s" : ""} ${simLabels.join(", ")})` : "") +
+    const summary = `Uninstallation completed — ${deviceLabels.join(", ")} retrieved into ${custodianName}'s custody, awaiting return to inventory` +
+      (simLabels.length ? ` (SIM${simLabels.length > 1 ? "s" : ""} ${simLabels.join(", ")} retained in custody)` : "") +
       (notes?.trim() ? `. ${notes.trim()}` : "");
 
     await pgRun(`UPDATE crm_tickets SET status = 'Resolved', resolved_at = ?, updated_at = ? WHERE id = ?`, [now, now, ticket.id]);
@@ -1132,12 +1449,17 @@ router.delete("/:id/attachments/:attachmentId", requireAuth, requireRole(TICKET_
 });
 
 // ── Ticket stats ───────────────────────────────────────────────────────────────
-router.get("/stats/summary", requireAuth, requireRole(TICKET_TEAM_ROLES), async (_req, res) => {
+router.get("/stats/summary", requireAuth, requireRole(TICKET_VIEW_ROLES), async (req: AuthRequest, res) => {
+  // Self-scope roles (Sales, BDMCorporate) see counts for the tickets THEY raised,
+  // matching their self-scoped list; team roles & Admin keep the global pulse.
+  const selfScope = TICKET_SELF_SCOPE_ROLES.includes(req.user!.role);
+  const s = selfScope ? " AND created_by_user_id = ?" : "";
+  const p = selfScope ? [req.user!.id] : [];
   const [open, inProgress, resolved, breached] = await Promise.all([
-    pgGet("SELECT COUNT(*) AS n FROM crm_tickets WHERE status = 'Open'", []),
-    pgGet("SELECT COUNT(*) AS n FROM crm_tickets WHERE status = 'In Progress'", []),
-    pgGet("SELECT COUNT(*) AS n FROM crm_tickets WHERE status = 'Resolved'", []),
-    pgGet(`SELECT COUNT(*) AS n FROM crm_tickets WHERE status NOT IN ('Closed','Resolved','Merged') AND sla_breach_at < ?`, [new Date().toISOString()]),
+    pgGet(`SELECT COUNT(*) AS n FROM crm_tickets WHERE status = 'Open'${s}`, [...p]),
+    pgGet(`SELECT COUNT(*) AS n FROM crm_tickets WHERE status = 'In Progress'${s}`, [...p]),
+    pgGet(`SELECT COUNT(*) AS n FROM crm_tickets WHERE status = 'Resolved'${s}`, [...p]),
+    pgGet(`SELECT COUNT(*) AS n FROM crm_tickets WHERE status NOT IN ('Closed','Resolved','Merged') AND sla_breach_at < ?${s}`, [new Date().toISOString(), ...p]),
   ]);
   return ok(res, {
     open: Number(open?.n ?? 0),
@@ -1147,30 +1469,43 @@ router.get("/stats/summary", requireAuth, requireRole(TICKET_TEAM_ROLES), async 
   });
 });
 
-// ── Support team dashboard — single aggregate call for support-dashboard.html
-router.get("/stats/support-dashboard", requireAuth, requireRole(TICKET_TEAM_ROLES), async (_req, res) => {
+// ── Ticket dashboard — single aggregate call for support-dashboard.html.
+// Scoped to the caller's team (callerTeam): a team member sees their own team's
+// tickets; Admin / oversight roles (callerTeam === null) see ALL teams. Previously
+// this was hardcoded to team='Support', so it read 0 for everyone whenever the
+// active tickets lived on the Technical/Finance queues.
+router.get("/stats/support-dashboard", requireAuth, requireRole(TICKET_TEAM_ROLES), async (req: AuthRequest, res) => {
   const now = new Date();
   const nowIso = now.toISOString();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 86400_000).toISOString();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400_000).toISOString();
 
+  const team = callerTeam(req.user!.role); // null = Admin / oversight → all teams
+  // team clause used in each query; `t.` prefixed variant for the aliased queries.
+  const tf  = team ? "team = ?"   : "TRUE";
+  const tfT = team ? "t.team = ?" : "TRUE";
+  const tp  = team ? [team] : [];
+
   const [open, inProgress, resolvedThisWeek, breached, avgResolution, volumeRows, statusRows, categoryRows, oldestOpen, workloadRows] = await Promise.all([
-    pgGet(`SELECT COUNT(*) AS n FROM crm_tickets WHERE team = 'Support' AND status = 'Open'`, []),
-    pgGet(`SELECT COUNT(*) AS n FROM crm_tickets WHERE team = 'Support' AND status = 'In Progress'`, []),
-    pgGet(`SELECT COUNT(*) AS n FROM crm_tickets WHERE team = 'Support' AND status = 'Resolved' AND resolved_at >= ?`, [sevenDaysAgo]),
-    pgGet(`SELECT COUNT(*) AS n FROM crm_tickets WHERE team = 'Support' AND status NOT IN ('Closed','Resolved','Merged') AND sla_breach_at < ?`, [nowIso]),
+    // "Open" = awaiting first action (unassigned); "In Progress" = being worked
+    // on (assigned) — matches the card subtitles. crm_tickets has no distinct
+    // 'In Progress' status, so the assigned/unassigned split is what's meaningful.
+    pgGet(`SELECT COUNT(*) AS n FROM crm_tickets WHERE ${tf} AND status = 'Open' AND assigned_to_user_id IS NULL`, [...tp]),
+    pgGet(`SELECT COUNT(*) AS n FROM crm_tickets WHERE ${tf} AND status = 'Open' AND assigned_to_user_id IS NOT NULL`, [...tp]),
+    pgGet(`SELECT COUNT(*) AS n FROM crm_tickets WHERE ${tf} AND status = 'Resolved' AND resolved_at >= ?`, [...tp, sevenDaysAgo]),
+    pgGet(`SELECT COUNT(*) AS n FROM crm_tickets WHERE ${tf} AND status NOT IN ('Closed','Resolved','Merged') AND sla_breach_at < ?`, [...tp, nowIso]),
     pgGet(
       `SELECT AVG(EXTRACT(EPOCH FROM (resolved_at::timestamptz - opened_at::timestamptz)) / 3600) AS avg_hours
-       FROM crm_tickets WHERE team = 'Support' AND resolved_at IS NOT NULL AND resolved_at >= ?`,
-      [thirtyDaysAgo]
+       FROM crm_tickets WHERE ${tf} AND resolved_at IS NOT NULL AND resolved_at >= ?`,
+      [...tp, thirtyDaysAgo]
     ),
     pgAll(
       `SELECT TO_CHAR(opened_at::timestamptz, 'YYYY-MM-DD') AS day, COUNT(*) AS n
-       FROM crm_tickets WHERE team = 'Support' AND opened_at >= ? GROUP BY day ORDER BY day`,
-      [thirtyDaysAgo]
+       FROM crm_tickets WHERE ${tf} AND opened_at >= ? GROUP BY day ORDER BY day`,
+      [...tp, thirtyDaysAgo]
     ),
-    pgAll(`SELECT status, COUNT(*) AS n FROM crm_tickets WHERE team = 'Support' GROUP BY status`, []),
-    pgAll(`SELECT category, COUNT(*) AS n FROM crm_tickets WHERE team = 'Support' GROUP BY category`, []),
+    pgAll(`SELECT status, COUNT(*) AS n FROM crm_tickets WHERE ${tf} GROUP BY status`, [...tp]),
+    pgAll(`SELECT category, COUNT(*) AS n FROM crm_tickets WHERE ${tf} GROUP BY category`, [...tp]),
     pgAll(
       `SELECT t.id, t.ticket_no, t.subject, t.category, t.priority, t.status, t.opened_at, t.sla_breach_at,
               u.email AS assignee_email,
@@ -1179,16 +1514,16 @@ router.get("/stats/support-dashboard", requireAuth, requireRole(TICKET_TEAM_ROLE
        LEFT JOIN users u ON u.id = t.assigned_to_user_id
        LEFT JOIN crm_individual_profiles ind ON ind.customer_id = t.customer_id
        LEFT JOIN crm_corporate_profiles corp ON corp.customer_id = t.customer_id
-       WHERE t.team = 'Support' AND t.status NOT IN ('Resolved','Closed','Merged')
+       WHERE ${tfT} AND t.status NOT IN ('Resolved','Closed','Merged')
        ORDER BY t.opened_at ASC LIMIT 10`,
-      []
+      [...tp]
     ),
     pgAll(
       `SELECT u.email AS assignee_email, COUNT(*) AS n
        FROM crm_tickets t LEFT JOIN users u ON u.id = t.assigned_to_user_id
-       WHERE t.team = 'Support' AND t.status NOT IN ('Resolved','Closed','Merged')
+       WHERE ${tfT} AND t.status NOT IN ('Resolved','Closed','Merged')
        GROUP BY u.email ORDER BY n DESC`,
-      []
+      [...tp]
     ),
   ]);
 
@@ -1202,6 +1537,7 @@ router.get("/stats/support-dashboard", requireAuth, requireRole(TICKET_TEAM_ROLE
   }
 
   return ok(res, {
+    scope: team || "All teams",
     cards: {
       open: Number(open?.n ?? 0),
       inProgress: Number(inProgress?.n ?? 0),

@@ -62,6 +62,7 @@ export const createEmployeeSchema = z.object({
   cadreId: z.string().uuid().optional(),
   benefitPlanId: z.string().uuid().optional(),
   employmentType: z.enum(["Permanent", "Contractor", "Casual", "Intern"]),
+  gender: z.enum(["M", "F"]).optional(),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}/),
   salary: z.number().nonnegative().optional(),
   status: z.enum(["Active", "Inactive", "Terminated"]).default("Active"),

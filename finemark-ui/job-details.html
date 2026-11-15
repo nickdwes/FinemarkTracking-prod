@@ -78,6 +78,10 @@
               <div><p class="text-xs text-slate-400">Stage</p><p id="stage-name" class="font-medium text-slate-800">—</p></div>
               <div><p class="text-xs text-slate-400">Assigned</p><p id="assigned-at" class="text-slate-700">—</p></div>
               <div class="col-span-2"><p class="text-xs text-slate-400">Technician</p><p id="tech-name" class="text-slate-700">—</p></div>
+              <div id="svc-row" class="col-span-2 hidden flex items-center gap-2">
+                <div class="flex-1"><p class="text-xs text-slate-400">Job Type</p><p id="svc-label" class="text-slate-700">—</p></div>
+                <button id="btn-svc-toggle" type="button" class="hidden rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-100"></button>
+              </div>
               <div class="col-span-2 flex items-center gap-2">
                 <div class="flex-1"><p class="text-xs text-slate-400">ISO Officer</p><p id="iso-name" class="text-slate-700">—</p></div>
                 <button id="btn-iso-claim" type="button" class="hidden rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100">Claim as ISO</button>
@@ -95,6 +99,7 @@
             <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Vehicle</h2>
             <div class="grid grid-cols-2 gap-3 text-sm">
               <div><p class="text-xs text-slate-400">Registration</p><p id="veh-reg" class="font-mono font-bold text-slate-900">—</p></div>
+              <div><p class="text-xs text-slate-400">Chassis / VIN</p><p id="veh-chassis" class="font-mono font-semibold text-slate-800">—</p></div>
               <div><p class="text-xs text-slate-400">Make / Model</p><p id="veh-make-model" class="text-slate-700">—</p></div>
               <div><p class="text-xs text-slate-400">Color</p><p id="veh-color" class="text-slate-700">—</p></div>
               <div><p class="text-xs text-slate-400">Year</p><p id="veh-year" class="text-slate-700">—</p></div>
@@ -579,7 +584,7 @@
 
       // Header
       $("header-customer").textContent  = c.name || "—";
-      $("header-vehicle").textContent   = [v.registration, v.make, v.model].filter(Boolean).join(" – ");
+      $("header-vehicle").textContent   = [v.registration || (v.chassisNumber ? `Chassis ${v.chassisNumber}` : null), v.make, v.model].filter(Boolean).join(" – ");
       $("header-schedule").textContent  = inst.assignedAt ? `Assigned ${fmt(inst.assignedAt)}` : "Not yet assigned";
 
       const badge = $("status-badge");
@@ -593,7 +598,8 @@
       $("tech-name").textContent   = tech.name || inst.assignedTechnicianEmail || "—";
 
       // Vehicle
-      $("veh-reg").textContent        = v.registration || "—";
+      $("veh-reg").textContent        = v.registration || (v.registrationKnown === false ? "Not registered" : "—");
+      $("veh-chassis").textContent    = v.chassisNumber || "—";
       $("veh-make-model").textContent = [v.make, v.model].filter(Boolean).join(" ") || "—";
       $("veh-color").textContent      = v.color || "—";
       $("veh-year").textContent       = v.year  || "—";
@@ -639,6 +645,7 @@
         if (tk) {
           installTicketId = tk.id;
           _currentTicketIdForHistory = tk.id;
+          renderServiceOnly(tk);
           $("cust-partner").textContent  = tk.partnerName || "—";
           $("cust-financed").textContent = tk.installationFinancer
             ? (tk.installationFinancer.toLowerCase().includes("bank") ? `Yes (${tk.installationFinancer})` : "No")
@@ -821,6 +828,7 @@
       const tkRes = await APP.apiFetch(`/installation-tickets/${encodeURIComponent(tid)}`);
       const tk = tkRes?.data || tkRes;
       if (!tk) throw { status: 404 };
+      renderServiceOnly(tk);
 
       const vd = tk.vehicleRecord || tk.vehicleDetails || {};
       const STAGE_NAMES = ['Unassigned','Device Selected','Vehicle Confirmed','Pre-Install Done','Electrical Done','Device Installed','Activated','Post-Install Done'];
@@ -830,7 +838,7 @@
 
       // Header
       $("header-customer").textContent = tk.customerName || "—";
-      $("header-vehicle").textContent  = [tk.vehicleRegistration, vd.make, vd.model].filter(Boolean).join(" – ");
+      $("header-vehicle").textContent  = [tk.vehicleRegistration || (vd.chassisNumber ? `Chassis ${vd.chassisNumber}` : null), vd.make, vd.model].filter(Boolean).join(" – ");
       $("header-schedule").textContent = tk.assignedAt ? `Assigned ${fmt(tk.assignedAt)}` : "Not yet assigned";
       const badge = $("status-badge");
       badge.className = `inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border ${STATUS_COLORS[tk.status] || STATUS_COLORS.Pending}`;
@@ -870,7 +878,8 @@
       }
 
       // Vehicle
-      $("veh-reg").textContent        = tk.vehicleRegistration || "—";
+      $("veh-reg").textContent        = tk.vehicleRegistration || (vd.registrationKnown === false ? "Not registered" : "—");
+      $("veh-chassis").textContent    = vd.chassisNumber || "—";
       $("veh-make-model").textContent = [vd.make, vd.model].filter(Boolean).join(" ") || "—";
       $("veh-color").textContent      = vd.color || "—";
       $("veh-year").textContent       = vd.yearOfManufacture || vd.year  || "—";
@@ -1344,6 +1353,42 @@
     }
   }
 
+  // ── Service job (no gadget) ───────────────────────────────────────────────
+  // Detected automatically when everything sold is a service product; can also be
+  // switched by hand (before any gadget is on the job).
+  let _serviceOnly = false;
+  let _svcTicket = null;
+  function renderServiceOnly(tk) {
+    _svcTicket = tk; _serviceOnly = !!tk.serviceOnly;
+    const row = $("svc-row"); if (!row) return;
+    row.classList.remove("hidden");
+    $("svc-label").innerHTML = _serviceOnly
+      ? '<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border border-violet-300 bg-violet-50 text-violet-700">🛠 Service job, no gadget required</span>'
+      : 'Gadget installation';
+    const role = (APP.getSession && APP.getSession()?.user?.role) || "";
+    const canToggle = ["Admin", "Technical", "InstallOffice", "Support", "Sales", "CorporateSales", "BDM", "BDMCorporate"].includes(role) && !tk.isLocked;
+    const btn = $("btn-svc-toggle");
+    btn.classList.toggle("hidden", !canToggle);
+    btn.textContent = _serviceOnly ? "Require a gadget" : "Mark as service job";
+    btn.onclick = toggleServiceOnly;
+  }
+  async function toggleServiceOnly() {
+    if (!_svcTicket) return;
+    const next = !_serviceOnly;
+    const msg = next
+      ? "Mark this as a service job? Device selection, device installation and activation will be skipped on the job card, and any technician can be assigned."
+      : "Require a gadget on this job again? The job card will go back to the full device installation steps.";
+    if (!confirm(msg)) return;
+    const btn = $("btn-svc-toggle"); btn.disabled = true;
+    try {
+      const r = await APP.apiFetch(`/installation-tickets/${encodeURIComponent(_svcTicket.id)}/service-only`, { method: "PATCH", body: { serviceOnly: next } });
+      renderServiceOnly(r?.data || r);
+      showToast(next ? "Marked as a service job, no gadget required." : "Gadget requirement restored.", "bg-emerald-700");
+    } catch (e) {
+      showToast(e.message || "Could not update the job type.", "bg-red-700");
+    } finally { btn.disabled = false; }
+  }
+
   // ── Assign Technician Modal ────────────────────────────────────────────────
   let _assignTicketId = null;
   async function openAssignModal(inst, ticketId) {
@@ -1363,11 +1408,14 @@
 
     try {
       // Only technicians with devices InCustody are eligible for assignment
-      const techRes = await APP.apiFetch("/installation-tickets/available-technicians");
+      // Service jobs need no gadget, so every active technician is eligible.
+      const techRes = await APP.apiFetch("/installation-tickets/available-technicians" + (_serviceOnly ? "?serviceOnly=1" : ""));
       const techs = techRes?.data || [];
 
       if (!techs.length) {
-        $("modal-tech-select").innerHTML = "<option value=''>No technicians with devices in custody</option>";
+        $("modal-tech-select").innerHTML = _serviceOnly
+          ? "<option value=''>No active technicians found</option>"
+          : "<option value=''>No technicians with devices in custody</option>";
       } else {
         $("modal-tech-select").innerHTML =
           "<option value=''>— Select technician —</option>" +

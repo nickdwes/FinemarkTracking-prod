@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finemark | Document Configuration</title>
+    <link rel="icon" href="assets/finemark-logo.svg" />
+    <link rel="stylesheet" href="assets/tailwind.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+    <div id="fm-header"></div>
+    <div class="flex min-h-screen pt-16">
+      <div id="fm-sidebar"></div>
+      <main class="flex-1 p-6">
+        <div class="max-w-6xl mx-auto space-y-6">
+
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Document Configuration</h1>
+              <p class="mt-1 text-sm text-slate-600">
+                Controls the company template (Finemark / Unique Tracking) and how VAT is shown on each
+                partner bank's <strong>quotation, proforma &amp; invoice</strong>. Presentation only — stored
+                amounts never change. Add a row when a new partner bank joins — no code change needed.
+              </p>
+            </div>
+            <a href="certificate-dashboard.html" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+              Back to Certificate Dashboard
+            </a>
+          </div>
+
+          <div id="status-banner" class="hidden rounded-lg border px-4 py-2.5 text-sm"></div>
+
+          <!-- ── Per-partner-bank configuration table ── -->
+          <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <div>
+                <h2 class="text-sm font-semibold text-slate-800">Bank Document Configuration</h2>
+                <p class="text-xs text-slate-500 mt-0.5">Edit a row and click Save. "Auto" VAT keeps the current behaviour; the default row applies to retail / unmatched documents.</p>
+              </div>
+              <button type="button" id="btn-add-bank"
+                class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                Add bank
+              </button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-200">
+                    <th class="px-4 py-2.5 min-w-[220px]">Partner Bank</th>
+                    <th class="px-4 py-2.5 min-w-[180px]">Display Name</th>
+                    <th class="px-4 py-2.5 min-w-[160px]">Template</th>
+                    <th class="px-4 py-2.5 min-w-[190px]">VAT Display</th>
+                    <th class="px-4 py-2.5 min-w-[220px]">Bill-To Address</th>
+                    <th class="px-4 py-2.5 min-w-[240px]">Pay-To Account (Mode of Payments)</th>
+                    <th class="px-4 py-2.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="config-tbody">
+                  <tr><td colspan="7" class="px-4 py-8 text-center text-slate-400">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- ── Brand profiles (letterhead + payment identity) ── -->
+          <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100">
+              <h2 class="text-sm font-semibold text-slate-800">Company Brand Profiles</h2>
+              <p class="text-xs text-slate-500 mt-0.5">The letterhead &amp; payment details drawn on documents for each template. Editable — no deploy needed.</p>
+            </div>
+            <div id="brands" class="grid gap-5 p-5 md:grid-cols-2">
+              <div class="text-sm text-slate-400">Loading…</div>
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+    <div id="fm-footer"></div>
+    <script src="assets/contracts.js"></script>
+    <script src="assets/app.js"></script>
+    <script src="assets/layout.js"></script>
+    <script>
+      const APP = window.FINEMARK_APP;
+      let configs = [];
+      let partners = [];
+      let brands = [];
+      const dirty = {};
+
+      const tbody = document.getElementById("config-tbody");
+      const banner = document.getElementById("status-banner");
+      const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+      function showBanner(message, type) {
+        banner.textContent = message;
+        banner.className = `rounded-lg border px-4 py-2.5 text-sm ${type === "error" ? "bg-rose-50 border-rose-200 text-rose-700" : "bg-emerald-50 border-emerald-200 text-emerald-700"}`;
+        banner.classList.remove("hidden");
+        setTimeout(() => banner.classList.add("hidden"), 4000);
+      }
+
+      const VAT_OPTS = [
+        ["auto", "Auto (per document)"],
+        ["inclusive", "VAT inclusive — show breakdown"],
+        ["inclusive_hidden", "VAT inclusive — final price only (no VAT line)"],
+        ["exclusive", "VAT exclusive (16% on top)"],
+        ["zero_rated", "Zero-rated (VAT 0.00)"],
+        ["none", "No VAT — amount as shown (no VAT line, no calculation)"],
+      ];
+
+      async function loadAll() {
+        try {
+          const [pc, pp] = await Promise.all([
+            APP.apiFetch("/doc-bank-configs"),
+            APP.apiFetch("/doc-bank-configs/partners"),
+          ]);
+          configs = pc?.data ?? [];
+          partners = pp?.data ?? [];
+          render();
+        } catch (err) {
+          tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-rose-600">${esc(err.message || "Failed to load.")}</td></tr>`;
+        }
+        loadBrands();
+      }
+
+      const rowState = (c) => dirty[c.id] || { ...c };
+
+      function partnerSelect(id, current) {
+        const used = new Set(configs.filter((c) => !String(c.id).startsWith("new-")).map((c) => c.partnerId));
+        const opts = partners
+          .filter((p) => p.id === current || !used.has(p.id))
+          .map((p) => `<option value="${esc(p.id)}" ${p.id === current ? "selected" : ""}>${esc(p.name)}</option>`)
+          .join("");
+        return `<select onchange="setField('${id}','partnerId',this.value)" class="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm bg-white">
+          <option value="">— select partner —</option>${opts}</select>`;
+      }
+
+      function render() {
+        if (!configs.length) { tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-slate-400">No configurations yet.</td></tr>`; return; }
+        tbody.innerHTML = configs.map((c) => {
+          const s = rowState(c);
+          const isNew = String(c.id).startsWith("new-");
+          const partnerCell = c.isDefault
+            ? `<span class="text-slate-500 italic">Others (default — retail / unmatched)</span>`
+            : isNew
+              ? partnerSelect(c.id, s.partnerId || "")
+              : `<span class="font-medium text-slate-800">${esc(c.partnerName || s.displayName)}</span>`;
+          return `
+          <tr class="border-b border-slate-100 last:border-0 align-middle" data-row-id="${c.id}">
+            <td class="px-4 py-2">${partnerCell}</td>
+            <td class="px-4 py-2">
+              <input type="text" value="${esc(s.displayName || "")}" oninput="setField('${c.id}','displayName',this.value)"
+                placeholder="e.g. Stanbic Bank" class="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm" />
+            </td>
+            <td class="px-4 py-2">
+              <select onchange="setField('${c.id}','template',this.value)" class="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm bg-white">
+                <option value="finemark" ${s.template === "finemark" ? "selected" : ""}>Finemark</option>
+                <option value="unique" ${s.template === "unique" ? "selected" : ""}>Unique Tracking</option>
+              </select>
+            </td>
+            <td class="px-4 py-2">
+              <select onchange="setField('${c.id}','vatDisplay',this.value)" class="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm bg-white">
+                ${VAT_OPTS.map(([v, l]) => `<option value="${v}" ${s.vatDisplay === v ? "selected" : ""}>${l}</option>`).join("")}
+              </select>
+            </td>
+            <td class="px-4 py-2">
+              ${c.isDefault
+                ? `<span class="text-xs text-slate-400 italic">Uses customer address</span>`
+                : `<input type="text" value="${esc(s.billToAddress || "")}" oninput="setField('${c.id}','billToAddress',this.value)"
+                     placeholder="e.g. P.O Box 30550-00100, Nairobi" class="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm" />`}
+            </td>
+            <td class="px-4 py-2">
+              ${c.isDefault
+                ? `<span class="text-xs text-slate-400 italic">Uses default payment accounts</span>`
+                : `<div class="space-y-1">
+                     <input type="text" value="${esc(s.payToBankName || "")}" oninput="setField('${c.id}','payToBankName',this.value)" placeholder="Bank name" class="w-full rounded-lg border border-slate-200 px-2.5 py-1 text-xs" />
+                     <input type="text" value="${esc(s.payToBranch || "")}" oninput="setField('${c.id}','payToBranch',this.value)" placeholder="Branch" class="w-full rounded-lg border border-slate-200 px-2.5 py-1 text-xs" />
+                     <input type="text" value="${esc(s.payToAccountNo || "")}" oninput="setField('${c.id}','payToAccountNo',this.value)" placeholder="Account no." class="w-full rounded-lg border border-slate-200 px-2.5 py-1 text-xs" />
+                     <input type="text" value="${esc(s.payToPayee || "")}" oninput="setField('${c.id}','payToPayee',this.value)" placeholder="Payee" class="w-full rounded-lg border border-slate-200 px-2.5 py-1 text-xs" />
+                   </div>`}
+            </td>
+            <td class="px-4 py-2 text-right whitespace-nowrap">
+              <button type="button" onclick="saveRow('${c.id}')" class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50" ${dirty[c.id] || isNew ? "" : "disabled"}>${isNew ? "Create" : "Save"}</button>
+              ${c.isDefault
+                ? `<span class="ml-2 text-xs text-slate-400" title="The default catch-all row can't be deleted">Default</span>`
+                : `<button type="button" onclick="deleteRow('${c.id}')" class="ml-2 text-xs text-rose-600 hover:underline">Delete</button>`}
+            </td>
+          </tr>`;
+        }).join("");
+      }
+
+      window.setField = (id, field, value) => {
+        const c = configs.find((x) => x.id === id);
+        if (!c) return;
+        dirty[id] = { ...(dirty[id] || c), [field]: value };
+        const row = tbody.querySelector(`tr[data-row-id="${id}"]`);
+        const saveBtn = row?.querySelector("button");
+        if (saveBtn && !String(id).startsWith("new-")) saveBtn.disabled = false;
+      };
+
+      window.saveRow = async (id) => {
+        const c = configs.find((x) => x.id === id);
+        const isNew = String(id).startsWith("new-");
+        const s = dirty[id] || c;
+        if (isNew && !s.partnerId) { showBanner("Select a partner bank.", "error"); return; }
+        if (!s.displayName?.trim()) { showBanner("Display name is required.", "error"); return; }
+        const payload = { displayName: s.displayName.trim(), template: s.template || "finemark", vatDisplay: s.vatDisplay || "auto", billToAddress: (s.billToAddress ?? "").trim() || null,
+          payToBankName: (s.payToBankName ?? "").trim() || null, payToBranch: (s.payToBranch ?? "").trim() || null,
+          payToAccountNo: (s.payToAccountNo ?? "").trim() || null, payToPayee: (s.payToPayee ?? "").trim() || null };
+        try {
+          if (isNew) {
+            await APP.apiFetch("/doc-bank-configs", { method: "POST", body: { partnerId: s.partnerId, ...payload } });
+            showBanner(`"${payload.displayName}" added.`, "success");
+          } else {
+            await APP.apiFetch(`/doc-bank-configs/${id}`, { method: "PATCH", body: payload });
+            showBanner(`"${payload.displayName}" saved.`, "success");
+          }
+          delete dirty[id];
+          await loadAll();
+        } catch (err) { showBanner(err.message || "Failed to save.", "error"); }
+      };
+
+      window.deleteRow = async (id) => {
+        const c = configs.find((x) => x.id === id);
+        if (String(id).startsWith("new-")) { configs = configs.filter((x) => x.id !== id); delete dirty[id]; render(); return; }
+        if (!confirm(`Remove the document configuration for "${c.displayName}"? Its documents will fall back to the default (Finemark / Auto).`)) return;
+        try {
+          await APP.apiFetch(`/doc-bank-configs/${id}`, { method: "DELETE" });
+          showBanner(`"${c.displayName}" removed.`, "success");
+          await loadAll();
+        } catch (err) { showBanner(err.message || "Failed to delete.", "error"); }
+      };
+
+      let _seq = 0;
+      document.getElementById("btn-add-bank").addEventListener("click", () => {
+        const id = `new-${++_seq}`;
+        const blank = { id, partnerId: "", displayName: "", template: "finemark", vatDisplay: "inclusive", isDefault: false };
+        configs.push(blank);
+        dirty[id] = { ...blank };
+        render();
+      });
+
+      // ── Brand profiles editor ──
+      const BRAND_FIELDS = [
+        ["companyName", "Company name"], ["tagline", "Tagline"], ["address", "Address"],
+        ["phone", "Phone"], ["email", "Email"], ["website", "Website"], ["pin", "KRA PIN"],
+        ["logoFilename", "Logo filename (assets/…)"], ["till", "M-Pesa Till"], ["paybill", "M-Pesa Paybill"],
+        ["bankName", "Bank name"], ["bankBranch", "Bank branch"], ["bankAccountNo", "Bank account no."], ["payee", "Payee name"],
+      ];
+
+      async function loadBrands() {
+        const wrap = document.getElementById("brands");
+        try {
+          const r = await APP.apiFetch("/doc-bank-configs/brand-profiles");
+          brands = r?.data ?? [];
+        } catch (err) { wrap.innerHTML = `<div class="text-sm text-rose-600">${esc(err.message || "Failed to load brand profiles.")}</div>`; return; }
+        wrap.innerHTML = brands.map((b) => {
+          const title = b.key === "unique" ? "Unique Tracking Solutions" : "Finemark Tracking";
+          return `
+          <div class="rounded-xl border border-slate-200 p-4">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-semibold text-slate-800">${esc(title)} <span class="text-xs font-normal text-slate-400">(${esc(b.key)})</span></h3>
+              <button type="button" onclick="saveBrand('${b.key}')" class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800">Save</button>
+            </div>
+            <div class="grid grid-cols-2 gap-2.5">
+              ${BRAND_FIELDS.map(([f, label]) => `
+                <label class="block ${f === "address" ? "col-span-2" : ""}">
+                  <span class="block text-[11px] font-medium text-slate-500 mb-0.5">${label}</span>
+                  <input type="text" data-brand="${b.key}" data-field="${f}" value="${esc(b[f] || "")}"
+                    class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs" />
+                </label>`).join("")}
+            </div>
+          </div>`;
+        }).join("");
+      }
+
+      window.saveBrand = async (key) => {
+        const inputs = document.querySelectorAll(`input[data-brand="${key}"]`);
+        const payload = {};
+        inputs.forEach((el) => { payload[el.dataset.field] = el.value.trim() === "" ? null : el.value.trim(); });
+        try {
+          await APP.apiFetch(`/doc-bank-configs/brand-profiles/${key}`, { method: "PATCH", body: payload });
+          showBanner(`${key === "unique" ? "Unique Tracking" : "Finemark"} brand profile saved.`, "success");
+          await loadBrands();
+        } catch (err) { showBanner(err.message || "Failed to save brand profile.", "error"); }
+      };
+
+      document.addEventListener("DOMContentLoaded", () => {
+        APP?.requirePageAccess?.();
+        loadAll();
+      });
+    </script>
+  </body>
+</html>

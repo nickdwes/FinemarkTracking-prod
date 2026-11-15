@@ -488,8 +488,10 @@ router.get("/removals-log", requireAuth, requireRole(ARCHIVE_ROLES), async (req,
   if (!parsed.success) return errorResponse(res, 400, "VALIDATION_ERROR", "Invalid query params", parsed.error.flatten());
   const clauses: string[] = [];
   const params: any[] = [];
-  if (parsed.data.startDate) { clauses.push("deletion_date >= ?"); params.push(`${parsed.data.startDate} 00:00:00`); }
-  if (parsed.data.endDate) { clauses.push("deletion_date <= ?"); params.push(`${parsed.data.endDate} 23:59:59`); }
+  // deletion_date is a TEXT ISO timestamp ("...T...Z"); a space-separated bound sorts before
+  // any "T" value and drops the whole end day, so use a T-separated end-of-day (and start-of-day).
+  if (parsed.data.startDate) { clauses.push("deletion_date >= ?"); params.push(`${parsed.data.startDate}T00:00:00.000Z`); }
+  if (parsed.data.endDate) { clauses.push("deletion_date <= ?"); params.push(`${parsed.data.endDate}T23:59:59.999Z`); }
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const rows = await archiveAll<any>(`SELECT * FROM archive_removed_installations ${where} ORDER BY deletion_date DESC`, params);
   return res.status(200).json({

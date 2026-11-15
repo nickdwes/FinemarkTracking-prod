@@ -37,6 +37,7 @@ import { materializeRetailQuoteForTicket, materializeBankFinancedQuoteForLead } 
 import { isValidKePhone, isValidEmail } from "../utils/validators.js";
 import { findDuplicateCustomers } from "../services/customerDedupeService.js";
 import { invalidateCustomerCaches } from "../services/customerCacheService.js";
+import { markServiceOnlyIfApplicable } from "../services/nonStockProducts.js";
 
 const router = Router();
 
@@ -158,7 +159,13 @@ setTimeout(async () => {
     "installation_county TEXT",
     "location_description TEXT",
     "bank_partner_name TEXT",
+    "bank_partner_branch TEXT",
     "customer_entity_type TEXT",
+    "product_category_id TEXT",
+    "product_category_name TEXT",
+    // Proposed referrer commission (KES) captured at lead creation; the paid figure
+    // is recorded later at payment time (referrer_payments.fee_amount).
+    "referrer_commission DOUBLE PRECISION",
   ]) {
     await pgRun(`ALTER TABLE retail_leads ADD COLUMN IF NOT EXISTS ${col}`, []).catch(() => {});
   }
@@ -181,10 +188,13 @@ function mapLead(row: any, vehicle?: any, ticket?: any, invoice?: any) {
     secondaryPartnerName: row.secondary_partner_name || null,
     referrerName:         row.referrer_name    || null,
     referrerPhone:        row.referrer_phone   || null,
+    referrerCommission:   row.referrer_commission != null ? Number(row.referrer_commission) : null,
     serviceInterest:      (() => { try { return JSON.parse(row.service_interest || "[]"); } catch { return []; } })(),
     serviceOther:         row.service_other    || null,
     productId:            row.product_id       || null,
     productName:          row.product_name     || null,
+    productCategoryId:    row.product_category_id   || null,
+    productCategoryName:  row.product_category_name || null,
     customerId:           row.customer_id      || null,
     customerName:         row.customer_name,
     customerPhone:        row.customer_phone   || null,
@@ -203,6 +213,7 @@ function mapLead(row: any, vehicle?: any, ticket?: any, invoice?: any) {
     installationCounty:       row.installation_county         || null,
     locationDescription:      row.location_description        || null,
     bankPartnerName:          row.bank_partner_name           || null,
+    bankPartnerBranch:        row.bank_partner_branch         || null,
     installationTicketId: row.installation_ticket_id || null,
     installationTicketNo: row.installation_ticket_no || null,
     installationTicketStatus: ticket?.status || null,
@@ -225,7 +236,13 @@ function mapLead(row: any, vehicle?: any, ticket?: any, invoice?: any) {
       color:             vehicle.color         || null,
       engineNo:        vehicle.engine_no      || null,
       vehicleId:       vehicle.vehicle_id     || null,
-      loanTermMonths:  vehicle.loan_term_months != null ? Number(vehicle.loan_term_months) : null,
+      // Loan term: prefer the lead's captured value, fall back to the linked vehicle record.
+      loanTermMonths:  (vehicle.loan_term_months != null ? Number(vehicle.loan_term_months)
+                        : (vehicle.cv_loan_tenure_months != null ? Number(vehicle.cv_loan_tenure_months) : null)),
+      // Partner attached to THIS vehicle (crm_customer_vehicles.partner_id) — can differ
+      // per vehicle, and from the lead-level source/bank partner.
+      vehiclePartnerId:   vehicle.cv_partner_id   || null,
+      vehiclePartnerName: vehicle.cv_partner_name || null,
       vehicleCategory: vehicle.vehicle_category || "motor_vehicle",
     } : null,
   };
@@ -254,7 +271,7 @@ function nextRetailTicketNo(): string {
 // GET /  – list retail leads
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/", requireAuth, async (req: AuthRequest, res) => {
-  const { status, search, salesRepId, page = "1", pageSize = "50" } = req.query as any;
+  const { status, search, salesRepId, customerId, page = "1", pageSize = "50" } = req.query as any;
   const user = req.user!;
   const isBDM = ["Admin", "BDM", "Finance"].includes(user.role);
 
@@ -294,9 +311,30 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
   }
 
   if (search) {
-    conditions.push("(l.customer_name LIKE ? OR l.lead_no LIKE ? OR l.customer_phone LIKE ?)");
     const q = `%${search}%`;
-    params.push(q, q, q);
+    // Vehicle reg / chassis: match ignoring spaces & case, so "KDY 123A",
+    // "kdy123a" and "KDY123A" all find the same lead. Covers the reg captured on
+    // the lead itself (retail_lead_vehicles) and the linked master vehicle.
+    const regQ = `%${String(search).replace(/\s+/g, "").toUpperCase()}%`;
+    conditions.push(`(
+      l.customer_name ILIKE ? OR l.lead_no ILIKE ? OR l.customer_phone ILIKE ?
+      OR EXISTS (
+        SELECT 1 FROM retail_lead_vehicles rlv
+        LEFT JOIN crm_customer_vehicles cv ON cv.id = rlv.vehicle_id
+        WHERE rlv.lead_id = l.id AND (
+          REPLACE(UPPER(COALESCE(rlv.registration, '')), ' ', '') LIKE ?
+          OR REPLACE(UPPER(COALESCE(rlv.chassis_no, '')), ' ', '') LIKE ?
+          OR REPLACE(UPPER(COALESCE(cv.registration, '')), ' ', '') LIKE ?
+        )
+      )
+    )`);
+    params.push(q, q, q, regQ, regQ, regQ);
+  }
+
+  // Customer 360 "Leads" tab filters by the linked customer record.
+  if (customerId) {
+    conditions.push("l.customer_id = ?");
+    params.push(customerId);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -312,7 +350,14 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
   if (leadIds.length) {
     const placeholders = leadIds.map(() => "?").join(",");
     const vehicles = await pgAll(
-      `SELECT * FROM retail_lead_vehicles WHERE lead_id IN (${placeholders})`,
+      `SELECT rlv.*,
+              cv.partner_id            AS cv_partner_id,
+              pv.name                  AS cv_partner_name,
+              cv.loan_tenure_months    AS cv_loan_tenure_months
+       FROM retail_lead_vehicles rlv
+       LEFT JOIN crm_customer_vehicles cv ON cv.id = rlv.vehicle_id AND cv.deleted_at IS NULL
+       LEFT JOIN partners pv ON pv.id::text = cv.partner_id::text
+       WHERE rlv.lead_id IN (${placeholders})`,
       leadIds
     );
     vehicleMap = Object.fromEntries((vehicles as any[]).map(v => [v.lead_id, v]));
@@ -400,7 +445,63 @@ router.get("/stats", requireAuth, async (req: AuthRequest, res) => {
   stats.Closed = Number(closedRow?.cnt || 0);
   stats.Invoiced = Number(invoicedRow?.cnt || 0);
   stats.Paid = Number(paidRow?.cnt || 0);
+
+  // Ticket-derived pipeline (added, non-breaking): the mobile dashboard buckets by
+  // the linked installation ticket's real state, not the lead's own status field —
+  // completed/closed job card => Completed; any active ticket (in progress OR still
+  // unassigned/pending) => In Progress; no ticket yet => not submitted.
+  const [activeJobsRow, completedJobsRow, notSubmittedRow] = await Promise.all([
+    pgGet<{ cnt: string }>(
+      `SELECT COUNT(*) AS cnt FROM retail_leads l WHERE ${filter}
+       AND EXISTS (SELECT 1 FROM installation_tickets t WHERE t.id = l.installation_ticket_id
+                   AND t.status NOT IN ('Completed', 'Closed', 'Cancelled', 'Defaulted'))`, params
+    ),
+    pgGet<{ cnt: string }>(
+      `SELECT COUNT(*) AS cnt FROM retail_leads l WHERE ${filter}
+       AND EXISTS (SELECT 1 FROM installation_tickets t WHERE t.id = l.installation_ticket_id
+                   AND t.status IN ('Completed', 'Closed'))`, params
+    ),
+    pgGet<{ cnt: string }>(
+      `SELECT COUNT(*) AS cnt FROM retail_leads l WHERE ${filter} AND l.installation_ticket_id IS NULL`, params
+    ),
+  ]);
+  stats.ActiveJobs = Number(activeJobsRow?.cnt || 0);
+  stats.CompletedJobs = Number(completedJobsRow?.cnt || 0);
+  stats.NotSubmitted = Number(notSubmittedRow?.cnt || 0);
+
   return ok(res, { stats });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /pipeline-value  – KES pipeline for the rep: quotation value + invoiced value.
+// Quoted   = open quotes (crm_quotes, excluding rejected/cancelled).
+// Invoiced = invoice totals attributed to the rep via the quote→invoice link.
+// BDM/Admin/Finance see the whole book; everyone else only their own.
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/pipeline-value", requireAuth, async (req: AuthRequest, res) => {
+  const user  = req.user!;
+  const isBDM = ["Admin", "BDM", "Finance"].includes(user.role);
+
+  const quotedRow = await pgGet<{ v: string }>(
+    `SELECT COALESCE(SUM(total_amount), 0) AS v FROM crm_quotes
+     WHERE status NOT IN ('Rejected', 'Cancelled') ${isBDM ? "" : "AND sales_rep_id = ?"}`,
+    isBDM ? [] : [user.id]
+  );
+  const invoicedRow = await pgGet<{ v: string }>(
+    `SELECT COALESCE(SUM(COALESCE(i.total, i.amount)), 0) AS v
+       FROM invoices i JOIN crm_quotes q ON q.id = i.quote_id
+      WHERE i.status IS DISTINCT FROM 'Cancelled' ${isBDM ? "" : "AND q.sales_rep_id = ?"}`,
+    isBDM ? [] : [user.id]
+  );
+
+  const quotedValue   = Number(quotedRow?.v   || 0);
+  const invoicedValue = Number(invoicedRow?.v || 0);
+  return ok(res, {
+    quotedValue,
+    invoicedValue,
+    pipelineValue: quotedValue + invoicedValue,
+    currency: "KES",
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -435,14 +536,14 @@ router.post(
     const {
       customerType, leadSource,
       partnerId, partnerName, secondaryPartnerId, secondaryPartnerName,
-      referrerName, referrerPhone,
+      referrerName, referrerPhone, referrerCommission,
       serviceInterest, serviceOther,
-      productId, productName,
+      productId, productName, productCategoryId, productCategoryName,
       customerName, customerPhone, customerNotes, customerId,
       customerEmail, customerLocation, customerEntityType,
       bdmId, bdmName,
       installationFinancer, installationContactName, installationContactPhone,
-      installationCounty, locationDescription, bankPartnerName,
+      installationCounty, locationDescription, bankPartnerName, bankPartnerBranch,
       vehicle,
     } = req.body || {};
 
@@ -452,6 +553,28 @@ router.post(
     if (!leadSource?.trim()) {
       return errorResponse(res, 400, "VALIDATION_ERROR", "leadSource is required.");
     }
+    // Product category of interest is mandatory — every retail lead must record
+    // which product category it is for (id for a catalogue category, or a name
+    // when "Other" is chosen).
+    if (!productCategoryId && !productCategoryName?.trim()) {
+      return errorResponse(res, 400, "VALIDATION_ERROR", "A product category of interest is required.");
+    }
+    // A bank-financed lead — whether via a Bank Partnership lead source OR an
+    // Installation Financer of "Bank Financed" — must name the partner bank it came
+    // through AND carry a loan term; the two always go together for bank financing,
+    // and capturing one without the other leaves installs with no partner bank downstream.
+    const requiresBank = leadSource.trim() === "Bank Partnership" || installationFinancer === "Bank Financed";
+    if (requiresBank && !partnerId && !(bankPartnerName?.trim() && bankPartnerName.trim().toLowerCase() !== "private")) {
+      return errorResponse(res, 400, "VALIDATION_ERROR", "A partner bank is required for a bank-financed lead.");
+    }
+    if (requiresBank && !(Number(vehicle?.loanTermMonths) > 0)) {
+      return errorResponse(res, 400, "VALIDATION_ERROR", "A loan term (months) is required for a bank-financed lead.");
+    }
+    // Privately-financed leads record their partner bank literally as "Private" so the
+    // financing basis is explicit downstream (reports, installs) rather than blank.
+    const effBankPartnerName = installationFinancer === "Private"
+      ? (bankPartnerName?.trim() || "Private")
+      : (bankPartnerName || null);
     if (customerPhone?.trim() && !isValidKePhone(customerPhone)) {
       return errorResponse(res, 400, "VALIDATION_ERROR", "Customer phone number is not a valid Kenyan mobile number (e.g. 0712 345678 or +254712345678).");
     }
@@ -473,28 +596,31 @@ router.post(
       `INSERT INTO retail_leads
          (id, lead_no, customer_type, lead_source,
           partner_id, partner_name, secondary_partner_id, secondary_partner_name,
-          referrer_name, referrer_phone,
+          referrer_name, referrer_phone, referrer_commission,
           service_interest, service_other, product_id, product_name,
+          product_category_id, product_category_name,
           customer_id, customer_name, customer_phone, customer_notes,
           status, sales_rep_id, sales_rep_name, bdm_id, bdm_name,
           customer_email, customer_location, customer_entity_type,
           installation_financer, installation_contact_name, installation_contact_phone,
-          installation_county, location_description, bank_partner_name,
+          installation_county, location_description, bank_partner_name, bank_partner_branch,
           created_by_user_id, created_at, updated_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         id, leadNo, customerType || "new_customer", leadSource,
         partnerId || null, partnerName || null,
         secondaryPartnerId || null, secondaryPartnerName || null,
         referrerName || null, referrerPhone || null,
+        (referrerCommission != null && referrerCommission !== "" && !isNaN(Number(referrerCommission))) ? Number(referrerCommission) : null,
         JSON.stringify(serviceInterest || []), serviceOther || null,
         productId || null, productName || null,
+        productCategoryId || null, productCategoryName || null,
         customerId || null, customerName.trim(), customerPhone || null, customerNotes || null,
         "New", user.id, user.email || null, bdmId || null, bdmName || null,
         customerEmail || null, customerLocation || null,
         customerEntityType === "corporate" ? "corporate" : "individual",
         installationFinancer || null, installationContactName || null, installationContactPhone || null,
-        installationCounty || null, locationDescription || null, bankPartnerName || null,
+        installationCounty || null, locationDescription || null, effBankPartnerName, bankPartnerBranch || null,
         user.id, now, now,
       ]
     );
@@ -571,6 +697,7 @@ router.patch(
       "secondary_partner_id","secondary_partner_name",
       "referrer_name","referrer_phone",
       "service_interest","service_other","product_id","product_name",
+      "product_category_id","product_category_name",
       "customer_id","customer_name","customer_phone","customer_email","customer_location","customer_notes","customer_entity_type",
       "status","bdm_id","bdm_name",
       "installation_financer","installation_contact_name","installation_contact_phone",
@@ -715,18 +842,32 @@ router.post(
       vehicleCategory: vehicle.vehicle_category || "motor_vehicle",
     }) : null;
 
+    // Seed the ticket's requested-device list from the lead's chosen product /
+    // category so the technician sees what to install and the job card / device
+    // picker pre-fill correctly (previously hardcoded '[]', dropping the choice).
+    const requestedDevices = (lead.product_category_name || lead.product_name || lead.product_id)
+      ? [{
+          category:    lead.product_category_name || null,
+          productId:   lead.product_id || null,
+          productName: lead.product_name || null,
+          quantity:    1,
+          requested:   true,
+        }]
+      : [];
+
     await pgRun(
       `INSERT INTO installation_tickets
          (id, ticket_no, customer_id, customer_name, vehicle_id, vehicle_registration, vehicle_details_json,
           notes, devices_json, status, stage, created_by_user_id, created_at, updated_at,
           retail_lead_id, installation_location, installation_contact_name, installation_contact_phone,
           sales_notes, installation_financer)
-       VALUES (?,?,?,?,?,?,?,?, '[]', 'Pending', 0, ?,?,?,?,?,?,?,?,?)`,
+       VALUES (?,?,?,?,?,?,?,?, ?, 'Pending', 0, ?,?,?,?,?,?,?,?,?)`,
       [
         ticketId, ticketNo,
         lead.customer_id || null, lead.customer_name,
         vehicle?.vehicle_id || null, vehicle?.registration || null, vehicleDetailsJson,
         ticketNotes || null,
+        JSON.stringify(requestedDevices),
         user.id, now, now,
         lead.id,
         installLocation,
@@ -736,6 +877,8 @@ router.post(
         lead.installation_financer || null,
       ]
     );
+    // Lead sold only service products (no-inventory category) → job needs no gadget.
+    await markServiceOnlyIfApplicable(ticketId);
 
     // ── Auto-create CRM customer if lead has no existing customer_id ────────
     // This runs unattended as a side effect of submitting a lead — there's no
@@ -745,9 +888,14 @@ router.post(
     // of creating a new one, rather than blocking the submission.
     let resolvedCustomerId = lead.customer_id || null;
     if (!resolvedCustomerId && lead.customer_name?.trim()) {
-      const dupMatches = await findDuplicateCustomers({
-        name: lead.customer_name, phone: lead.customer_phone, email: lead.customer_email,
-      });
+      const dupMatches = await findDuplicateCustomers(
+        { name: lead.customer_name, phone: lead.customer_phone, email: lead.customer_email },
+        undefined,
+        // Corporate names are specific enough to link on name alone — this is what stops
+        // the same company (repeat leads) creating duplicate customer accounts. Individuals
+        // stay strict (need a phone/email match too) to avoid merging different people.
+        { nameOnly: lead.customer_entity_type === "corporate" },
+      );
       if (dupMatches.length) {
         resolvedCustomerId = dupMatches[0].customerId;
         await pgRun(`UPDATE retail_leads SET customer_id=?, updated_at=? WHERE id=?`, [resolvedCustomerId, now, lead.id]);
@@ -932,6 +1080,22 @@ router.post(
       .then((r) => { if (r) console.log(`[bankFinancedQuoteAuto] Created ${r.quoteNo} for lead ${lead.lead_no}.`); })
       .catch((e: any) => console.error("[bankFinancedQuoteAuto] failed (non-fatal):", e?.message));
 
+    // ── Private-finance reminder ────────────────────────────────────────────────
+    // Private / non-bank-financed leads have no partner agreement, so no partner
+    // pricing is ever resolved automatically — the Sales Rep must create & price the
+    // quotation themselves. Drop a reminder for them (falling back to the Sales role
+    // if the lead has no rep) so a private lead isn't left without a quotation.
+    if (!lead.partner_id) {
+      await createNotification({
+        targetUserId: lead.sales_rep_id || undefined,
+        targetRole:   lead.sales_rep_id ? undefined : "Sales",
+        type: "reminder",
+        title: `Create quotation — ${lead.lead_no} (Private)`,
+        body: `${lead.customer_name} is a private (self-funded) lead with no partner pricing — please create and price the quotation before sending.`,
+        link: `retail-lead-detail.html?id=${lead.id}`,
+      }).catch(console.error);
+    }
+
     // ── Notifications ────────────────────────────────────────────────────────
     const devNote = isDevMode() ? " [DEV MODE — redirected]" : "";
 
@@ -983,7 +1147,10 @@ router.post(
 
     if (salesRep?.phone) {
       if (isAtConfigured()) {
+        // sendSms resolves with status "Failed" instead of throwing, so the
+        // .catch() alone never fired — a rejected alert was invisible.
         sendSms([salesRep.phone], isDevMode() ? `[DEV→${salesRep.phone}] ${smsText}` : smsText)
+          .then(([r]) => { if (r?.status !== "Success") console.error(`[retail] SMS to rep rejected for ${lead.lead_no}: ${r?.messageId || r?.statusCode || "no response"}`); })
           .catch(e => console.error("[retail] SMS:", e));
       } else if (isTwilioConfigured()) {
         sendWhatsApp(salesRep.phone, isDevMode() ? `[DEV→${salesRep.phone}] ${smsText}` : smsText)
@@ -1073,13 +1240,11 @@ router.post(
     if (!lead.installation_ticket_id) {
       return errorResponse(res, 409, "NO_TICKET", "This lead has no installation ticket — it can't be quoted.");
     }
-    // Gated on the ticket's own completion, not lead.status — a lead can be
-    // quote-eligible before anyone has explicitly clicked "Close Lead" on it.
-    const linkedTicket = await pgGet<{ status: string }>(`SELECT status FROM installation_tickets WHERE id = ?`, [lead.installation_ticket_id]);
-    if (!linkedTicket || linkedTicket.status !== "Completed") {
-      return errorResponse(res, 409, "INVALID_STATE", `The installation ticket must be Completed before this lead can be quoted (current status: ${linkedTicket?.status || "unknown"}).`);
-    }
-
+    // Quote creation is decoupled from install completion — same as the
+    // bank-financed auto-quote, which is raised at submission. A device-priced
+    // quote can be raised as soon as the ticket exists; if no device is assigned
+    // yet, it's priced from the lead's chosen product and the serial is filled in
+    // once the device is assigned (the quote re-materializes at completion).
     try {
       const result = await materializeRetailQuoteForTicket(lead.installation_ticket_id, { userId: req.user!.id, email: req.user!.email });
       await auditLog(req, "RETAIL_LEAD_QUOTE_RAISED", `retail_lead:${lead.id}`, "Info", { quoteId: result.quoteId, quoteNo: result.quoteNo, pricingMissing: result.pricingMissing });

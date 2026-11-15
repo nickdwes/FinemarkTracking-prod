@@ -314,9 +314,23 @@
         } catch (err) { errEl.textContent = err?.message || "Failed"; errEl.classList.remove("hidden"); }
       };
       const deleteType = async id => {
-        if (!confirm("Delete this leave type? This cannot be undone.")) return;
-        try { await window.FINEMARK_APP.apiFetch(`/hr/leave/types/${id}`, { method: "DELETE" }); await loadAll(); }
-        catch (err) { alert(err?.message || "Delete failed"); }
+        const t = leaveTypes.find(x => x.id === id);
+        if (!confirm(`Delete "${t?.name || "this leave type"}"? This cannot be undone.`)) return;
+        try {
+          await window.FINEMARK_APP.apiFetch(`/hr/leave/types/${id}`, { method: "DELETE" });
+          await loadAll();
+        } catch (err) {
+          if (err?.code === "CONFIRM_REQUIRED") {
+            const { entitlements, balances } = err.details || {};
+            if (!confirm(`Delete "${t?.name || "this leave type"}"? This will also delete ${entitlements} entitlement rule(s) and ${balances} balance record(s). This cannot be undone.`)) return;
+            try {
+              await window.FINEMARK_APP.apiFetch(`/hr/leave/types/${id}?confirm=true`, { method: "DELETE" });
+              await loadAll();
+            } catch (err2) { alert(err2?.message || "Delete failed"); }
+            return;
+          }
+          alert(err?.message || "Delete failed");
+        }
       };
 
       // ── ENTITLEMENT MODAL ───────────────────────────────────────────────────

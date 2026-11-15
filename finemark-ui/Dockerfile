@@ -51,7 +51,8 @@ RUN apk add --no-cache curl && \
          -o /usr/share/nginx/html/webfonts/fa-v4compatibility.woff2 && \
     apk del curl
 
-# Copy our custom nginx config
+# Copy our custom nginx config + the security-headers snippet it includes
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY security-headers.conf /etc/nginx/snippets/security-headers.conf
 
 EXPOSE 80

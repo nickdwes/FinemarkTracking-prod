@@ -9,12 +9,15 @@ import { requireAuth, AuthRequest } from "../middleware/auth.js";
 import { requireRole, ROLE_GROUPS } from "../middleware/rbac.js";
 import { errorResponse } from "../utils/responses.js";
 import { auditLog } from "../services/auditService.js";
+import { buildPaymentDetails } from "../utils/paymentDetails.js";
 import { listInvoicesQuerySchema, createInvoiceSchema, updateInvoiceSchema } from "../utils/financeValidators.js";
 import { listInvoices, createInvoice, updateInvoice, getArAggregations, updateInvoiceStatusFromPayments, mapInvoice } from "../services/invoiceService.js";
+import { getCommissionContext } from "../services/commissionService.js";
 import { pgGet, pgAll, pgRun } from "../db.js";
 import { sendMail } from "../utils/mailer.js";
 import { buildInvoiceEmail } from "../utils/emailTemplates.js";
 import { renderQuotePdf } from "../utils/quoteTemplate.js";
+import { resolveDocBrand } from "../utils/docBrand.js";
 import { decryptField } from "../services/cryptoService.js";
 import { sendWhatsApp } from "../services/whatsappService.js";
 import { submitToEtims, buildEtimsPayload, isEtimsConfigured } from "../services/etimsService.js";
@@ -24,6 +27,7 @@ import { sendReminderForInvoice } from "../services/reminderService.js";
 const INVOICE_MIGRATIONS = [
   `ALTER TABLE invoices ADD COLUMN IF NOT EXISTS quote_id TEXT`,
   `ALTER TABLE invoices ADD COLUMN IF NOT EXISTS proforma_id TEXT`,
+  `ALTER TABLE invoices ADD COLUMN IF NOT EXISTS template_override TEXT`,
   `ALTER TABLE invoices ADD COLUMN IF NOT EXISTS customer_id TEXT`,
   `ALTER TABLE invoices ADD COLUMN IF NOT EXISTS etims_signed BOOLEAN DEFAULT FALSE`,
   `ALTER TABLE invoices ADD COLUMN IF NOT EXISTS etims_control_no TEXT`,
@@ -61,7 +65,7 @@ for (const sql of REMINDER_MIGRATIONS) pgRun(sql, []).catch(() => {});
 
 const router = Router();
 
-router.get("/", requireAuth, requireRole(["Finance", "Admin", "BDM", "BDMCorporate", "Sales", "Telesales", "FieldSales", "CorporateSales"]), async (req: AuthRequest, res) => {
+router.get("/", requireAuth, requireRole(["Finance", "Admin", "CertAdmin", "BDM", "BDMCorporate", "Sales", "Telesales", "FieldSales", "CorporateSales"]), async (req: AuthRequest, res) => {
   const parsed = listInvoicesQuerySchema.safeParse(req.query);
   if (!parsed.success) return errorResponse(res, 400, "VALIDATION_ERROR", "Invalid query params", parsed.error.flatten());
   const from = parsed.data.startDate || parsed.data.from;
@@ -230,13 +234,14 @@ router.get("/ar-summary", requireAuth, requireRole(ROLE_GROUPS.PROFORMA_APPROVE)
   }
 });
 
-router.get("/:id", requireAuth, requireRole(["Finance", "Admin", "BDM", "BDMCorporate", "Sales", "Telesales", "FieldSales", "Technical"]), async (req, res) => {
+router.get("/:id", requireAuth, requireRole(["Finance", "Admin", "BDM", "BDMCorporate", "Sales", "Telesales", "FieldSales", "Technical", "CertAdmin"]), async (req, res) => {
   const row = await pgGet("SELECT * FROM invoices WHERE id = ?", [req.params.id]);
   if (!row) return errorResponse(res, 404, "NOT_FOUND", "Invoice not found");
   const items = await pgAll("SELECT item, description, qty, rate, amount, vat FROM invoice_items WHERE invoice_id = ?", [req.params.id]);
 
   let bankPartnerName: string | null = null;
   let bankAccountInfo: { bankName: string; accountName: string; accountNumber: string } | null = null;
+  let bankAddress: string | null = null;
   let vehicleInfo: { registration?: string; make?: string; model?: string } | null = null;
   let ticketNoInfo: string | null = null;
   let preparedByInfo: string | null = null;
@@ -245,6 +250,11 @@ router.get("/:id", requireAuth, requireRole(["Finance", "Admin", "BDM", "BDMCorp
   let jobCardStatusInfo: string | null = null;
   let installDateInfo: string | null = null;
   let installTimeInfo: string | null = null;
+  // Referrer carried from the originating retail lead — used to pre-fill the referrer
+  // commission row in Process Payment (name/phone + proposed payout).
+  let referrerNameInfo: string | null = null;
+  let referrerPhoneInfo: string | null = null;
+  let referrerCommissionInfo: number | null = null;
   if (row.proforma_id) {
     const pf = await pgGet("SELECT vehicle_id, vehicle_registration, installation_ticket_id, sales_rep_id FROM crm_proforma_invoices WHERE id = ?", [row.proforma_id]).catch(() => null);
     if (pf) {
@@ -265,14 +275,23 @@ router.get("/:id", requireAuth, requireRole(["Finance", "Admin", "BDM", "BDMCorp
             installTimeInfo = dt.toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit", hour12: true });
           }
           if (it.retail_lead_id) {
-            const rl = await pgGet("SELECT sales_rep_id, bank_partner_name, partner_name FROM retail_leads WHERE id = ?", [it.retail_lead_id]).catch(() => null);
+            const rl = await pgGet("SELECT sales_rep_id, bank_partner_name, partner_name, referrer_name, referrer_phone, referrer_commission FROM retail_leads WHERE id = ?", [it.retail_lead_id]).catch(() => null);
             if (rl?.sales_rep_id) {
               const repUser = await pgGet("SELECT name FROM users WHERE id::text = ?", [String(rl.sales_rep_id)]).catch(() => null);
               if (repUser?.name) salesRepNameInfo = repUser.name;
             }
+            referrerNameInfo = rl?.referrer_name || null;
+            referrerPhoneInfo = rl?.referrer_phone || null;
+            referrerCommissionInfo = rl?.referrer_commission != null ? Number(rl.referrer_commission) : null;
             bankPartnerName = rl?.bank_partner_name || rl?.partner_name || null;
             if (bankPartnerName) {
               const keyword = bankPartnerName.split(" ")[0];
+              // Bill-to the bank partner's billing (postal) address.
+              const partnerRow = await pgGet(
+                "SELECT postal_address FROM partners WHERE name ILIKE ? AND deleted_at IS NULL ORDER BY created_at LIMIT 1",
+                [`%${keyword}%`]
+              ).catch(() => null);
+              if (partnerRow?.postal_address) bankAddress = String(partnerRow.postal_address).replace(/\r?\n/g, ", ").replace(/,\s*$/, "").trim();
               const ba = await pgGet(
                 "SELECT account_name, bank_name, account_number FROM bank_accounts WHERE (bank_name ILIKE ? OR account_name ILIKE ?) AND is_active = true ORDER BY created_at LIMIT 1",
                 [`%${keyword}%`, `%${keyword}%`]
@@ -300,7 +319,122 @@ router.get("/:id", requireAuth, requireRole(["Finance", "Admin", "BDM", "BDMCorp
     }
   }
 
-  return res.status(200).json({ data: { invoice: { id: row.id, invoiceNumber: row.invoice_number, customerId: row.customer_id || null, customer: row.customer, representative: row.representative, vatMode: row.vat_mode, taxDate: row.tax_date || row.issued_on, jobCardNo: row.job_card_no || ticketNoInfo, ticketNo: ticketNoInfo, jobCardStatus: jobCardStatusInfo, installationDate: installDateInfo, installationTime: installTimeInfo, salesRepName: salesRepNameInfo, technicianName: technicianNameInfo, pinNo: row.pin_no || "P051961922E", subtotal: row.subtotal, vatTotal: row.vat_total, total: row.total, currency: row.currency, issuedOn: row.issued_on, dueOn: row.due_on, bank: row.bank, salesPerson: row.sales_person, paymentPaybill: row.payment_paybill, paymentAccountHint: row.payment_account_hint, bankName: row.bank_name, bankAccountNo: row.bank_account_no, bankPartnerName, bankAccount: bankAccountInfo, vehicle: vehicleInfo, preparedBy: preparedByInfo, etrReceiptNo: row.etr_receipt_no || null, etimsSigned: row.etims_signed || false, etimsControlNo: row.etims_control_no || null, etimsReceiptNo: row.etims_receipt_no || null, etimsSignedAt: row.etims_signed_at || null, etimsSignedBy: row.etims_signed_by || null, createdAt: row.created_at, updatedAt: row.updated_at }, items } });
+  // Partner-linked bank / M-Pesa payment rows (same resolver the PDF uses), so the
+  // client-side print page (invoice-print.html) shows identical payment details.
+  const invPartner = row.quote_id
+    ? await pgGet<any>(`SELECT q.partner_id, p.name AS partner_name FROM crm_quotes q LEFT JOIN partners p ON p.id::text = q.partner_id WHERE q.id = ?`, [row.quote_id]).catch(() => null)
+    : null;
+  // Fallback: resolve the referrer via the linked quote's lead when the
+  // proforma → ticket → lead path didn't surface one.
+  if (!referrerNameInfo && row.quote_id) {
+    const ql = await pgGet<any>(
+      "SELECT rl.referrer_name, rl.referrer_phone, rl.referrer_commission FROM crm_quotes q JOIN retail_leads rl ON rl.id = q.lead_id WHERE q.id = ?",
+      [row.quote_id]
+    ).catch(() => null);
+    if (ql) {
+      referrerNameInfo = ql.referrer_name || null;
+      referrerPhoneInfo = ql.referrer_phone || null;
+      referrerCommissionInfo = ql.referrer_commission != null ? Number(ql.referrer_commission) : null;
+    }
+  }
+  // Further fallback: a corporate installation ticket raised from Customer 360 carries
+  // its own referrer/commission (there's no retail lead). It shares this invoice's
+  // quote_id, so resolve the referrer from the ticket for Process Payment.
+  if (!referrerNameInfo && row.quote_id) {
+    const tk = await pgGet<any>(
+      "SELECT referrer_name, referrer_phone, referrer_commission FROM installation_tickets WHERE quote_id = ? AND deleted_at IS NULL AND referrer_name IS NOT NULL ORDER BY created_at DESC LIMIT 1",
+      [row.quote_id]
+    ).catch(() => null);
+    if (tk) {
+      referrerNameInfo = tk.referrer_name || null;
+      referrerPhoneInfo = tk.referrer_phone || null;
+      referrerCommissionInfo = tk.referrer_commission != null ? Number(tk.referrer_commission) : null;
+    }
+  }
+  const paymentOptions = await buildPaymentDetails({
+    partnerId: invPartner?.partner_id || null,
+    partnerName: invPartner?.partner_name || bankPartnerName || null,
+    vehicleReg: (vehicleInfo as any)?.registration || null,
+  });
+  const invDetailBrand = await resolveDocBrand(invPartner?.partner_id || null, row.template_override);
+
+  // Match the server-rendered PDF's "Bill To": bank-financed invoices bill the
+  // BANK at its standard (configured) address; retail invoices show the customer
+  // and their own address. Both were previously missing on the print page.
+  let invCustomerAddress: string | null = null;
+  if (row.customer_id) {
+    const ip = await pgGet<any>("SELECT address_enc FROM crm_individual_profiles WHERE customer_id = ?", [row.customer_id]).catch(() => null);
+    if (ip?.address_enc) invCustomerAddress = decryptField(ip.address_enc) || null;
+    if (!invCustomerAddress) {
+      const corp = await pgGet<any>("SELECT physical_address FROM crm_corporate_profiles WHERE customer_id = ?", [row.customer_id]).catch(() => null);
+      invCustomerAddress = corp?.physical_address || null;
+    }
+  }
+  const effBankPartnerName = invDetailBrand.isBank ? (invDetailBrand.billToName || bankPartnerName) : bankPartnerName;
+  const effBankAddress     = invDetailBrand.isBank ? (invDetailBrand.billToAddress || bankAddress) : bankAddress;
+
+  return res.status(200).json({ data: { invoice: { id: row.id, invoiceNumber: row.invoice_number, template: invDetailBrand.template, vatDisplay: invDetailBrand.vatDisplay, brandProfile: invDetailBrand.brand, templateOverride: row.template_override || null, customerId: row.customer_id || null, customer: row.customer, customerAddress: invCustomerAddress, representative: row.representative, vatMode: row.vat_mode, taxDate: row.tax_date || row.issued_on, jobCardNo: row.job_card_no || ticketNoInfo, ticketNo: ticketNoInfo, jobCardStatus: jobCardStatusInfo, installationDate: installDateInfo, installationTime: installTimeInfo, salesRepName: salesRepNameInfo, technicianName: technicianNameInfo, pinNo: row.pin_no || "P051961922E", subtotal: row.subtotal, vatTotal: row.vat_total, total: row.total, currency: row.currency, issuedOn: row.issued_on, dueOn: row.due_on, bank: row.bank, salesPerson: row.sales_person, paymentPaybill: row.payment_paybill, paymentAccountHint: row.payment_account_hint, bankName: row.bank_name, bankAccountNo: row.bank_account_no, bankPartnerName: effBankPartnerName, bankAddress: effBankAddress, bankAccount: bankAccountInfo, paymentOptions, vehicle: vehicleInfo, preparedBy: preparedByInfo, referrerName: referrerNameInfo, referrerPhone: referrerPhoneInfo, referrerProposedCommission: referrerCommissionInfo, etrReceiptNo: row.etr_receipt_no || null, etimsSigned: row.etims_signed || false, etimsControlNo: row.etims_control_no || null, etimsReceiptNo: row.etims_receipt_no || null, etimsSignedAt: row.etims_signed_at || null, etimsSignedBy: row.etims_signed_by || null, createdAt: row.created_at, updatedAt: row.updated_at }, items } });
+});
+
+// ── GET /invoices/:id/ledger ── unified payment + commission summary + transaction timeline.
+// Invoice payment and commission payout are separate financial records linked by invoice_id;
+// this endpoint reads both and derives the commission lifecycle status (commissionService).
+router.get("/:id/ledger", requireAuth, requireRole(["Finance", "Admin", "BDM", "BDMCorporate", "Sales", "Telesales", "FieldSales", "Technical", "CertAdmin", "Executive"]), async (req, res) => {
+  const inv = await pgGet<any>("SELECT * FROM invoices WHERE id = ?", [req.params.id]);
+  if (!inv) return errorResponse(res, 404, "NOT_FOUND", "Invoice not found");
+  const ctx = await getCommissionContext(req.params.id);
+  if (!ctx) return errorResponse(res, 404, "NOT_FOUND", "Invoice not found");
+
+  const payments = await pgAll<any>(
+    "SELECT id, payment_ref, amount, method, bank, status, paid_at, created_at FROM payments WHERE invoice_id = ? ORDER BY paid_at ASC NULLS LAST, created_at ASC",
+    [req.params.id]
+  ).catch(() => []);
+  const payouts = await pgAll<any>(
+    `SELECT id, referrer_name, fee_amount, proposed_commission, payment_date, transaction_code, commission_mode,
+            is_advance, advance_reason, authorized_by_email, reconciliation_status, reconciled_at,
+            status, reversed_at, reversal_reason, created_by, created_at,
+            approval_status, approved_by_email, approved_at, approval_notes
+     FROM referrer_payments WHERE invoice_id = ? ORDER BY payment_date ASC NULLS LAST, created_at ASC`,
+    [req.params.id]
+  ).catch(() => []);
+
+  const lastCompleted = payments.filter((p) => p.status === "Completed").slice(-1)[0];
+
+  const timeline: any[] = [];
+  timeline.push({ date: inv.created_at, type: "invoice_created", label: "Invoice created", amount: Number(inv.total || inv.amount || 0), ref: inv.invoice_number, user: null, mode: null });
+  for (const p of payments) {
+    timeline.push({ date: p.paid_at || p.created_at, type: "invoice_payment", label: `Invoice payment${p.status && p.status !== "Completed" ? ` (${p.status})` : ""} received`, amount: Number(p.amount || 0), mode: p.method || null, ref: p.payment_ref || null, user: null });
+  }
+  for (const c of payouts) {
+    const reversed = c.status === "Reversed";
+    timeline.push({
+      date: c.payment_date || c.created_at,
+      type: reversed ? "commission_reversed" : (c.is_advance ? "advance_commission" : "commission_payment"),
+      label: `${reversed ? "Commission reversed" : (c.is_advance ? "Advanced commission paid" : "Commission paid")} — ${c.referrer_name}`,
+      amount: Number(c.fee_amount || 0), mode: c.commission_mode || null, ref: c.transaction_code || null, user: c.created_by || null,
+    });
+    if (c.reconciled_at) timeline.push({ date: c.reconciled_at, type: "commission_reconciled", label: `Advanced commission reconciled — ${c.referrer_name}`, amount: Number(c.fee_amount || 0), mode: null, ref: null, user: null });
+    if (c.reversed_at) timeline.push({ date: c.reversed_at, type: "commission_reversed_evt", label: `Commission reversed — ${c.referrer_name}${c.reversal_reason ? `: ${c.reversal_reason}` : ""}`, amount: -Number(c.fee_amount || 0), mode: null, ref: null, user: null });
+  }
+  timeline.sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
+
+  const activeAdvance = payouts.find((c) => c.is_advance && c.status !== "Reversed");
+  return res.status(200).json({ data: {
+    payment: {
+      invoiceAmount: ctx.invoiceTotal, amount: ctx.amount, totalPaid: ctx.totalPaid, outstanding: ctx.outstanding,
+      status: inv.status, lastPaymentDate: lastCompleted?.paid_at || null,
+      payments: payments.map((p) => ({ id: p.id, ref: p.payment_ref, amount: Number(p.amount || 0), method: p.method, bank: p.bank, status: p.status, paidAt: p.paid_at })),
+    },
+    commission: {
+      pledged: ctx.pledged, paid: ctx.commissionPaid, outstanding: ctx.commissionOutstanding,
+      status: ctx.commissionStatus, beneficiary: ctx.beneficiaryName, beneficiaryPhone: ctx.beneficiaryPhone,
+      rate: ctx.pledged && ctx.invoiceTotal ? Math.round((Number(ctx.pledged) / Number(ctx.invoiceTotal)) * 10000) / 100 : null,
+      isAdvance: !!activeAdvance, advanceReason: activeAdvance?.advance_reason || null,
+      reconciliationStatus: activeAdvance ? activeAdvance.reconciliation_status : "NotApplicable",
+      payouts: payouts.map((c) => ({ id: c.id, beneficiary: c.referrer_name, amount: Number(c.fee_amount || 0), payoutDate: c.payment_date, mode: c.commission_mode, ref: c.transaction_code, isAdvance: !!c.is_advance, advanceReason: c.advance_reason, reconciliationStatus: c.reconciliation_status, status: c.status || "Active" })),
+    },
+    timeline,
+  } });
 });
 
 export const renderInvoicePdf = async (invoice: any, items: any[], options: { debug?: boolean; grid?: boolean } = {}, vehicle?: { registration?: string; make?: string; model?: string } | null) => {
@@ -311,24 +445,57 @@ export const renderInvoicePdf = async (invoice: any, items: any[], options: { de
   const paybill    = invoice.paymentPaybill || "4048569";
   const vehicleRef = vehicle?.registration || invoice.paymentAccountHint || "Finemark Tracking";
 
-  // Build payment options in the standard format matching the invoice spec
-  const paymentOptions: Array<{ label: string; value: string }> = [
-    { label: "MPESA PAYBILL",      value: `Paybill: ${paybill} | Account: ${vehicleRef}` },
-    { label: "MPESA TILL NUMBER",  value: `Till: 5620852` },
-  ];
-  // Bank account row: prefer explicit bankName/bankAccountNo, then look up via bankAccount object
-  if (invoice.bankName && invoice.bankAccountNo) {
-    paymentOptions.push({ label: invoice.bankName, value: invoice.bankAccountNo });
-  } else if (invoice.bankAccount) {
-    const ba = invoice.bankAccount;
-    const label = `${ba.bankName} \u2014 ${ba.accountName}`;
-    paymentOptions.push({ label, value: ba.accountNumber });
+  // Prefer payment options resolved by the caller from the partner-linked bank
+  // account / configured M-Pesa (see utils/paymentDetails.ts). Fall back to the
+  // legacy inline format when none were supplied.
+  let paymentOptions: Array<{ label: string; value: string }>;
+  if (Array.isArray(invoice.paymentOptions) && invoice.paymentOptions.length) {
+    paymentOptions = invoice.paymentOptions;
+  } else {
+    paymentOptions = [
+      { label: "MPESA PAYBILL",      value: `Paybill: ${paybill} | Account: ${vehicleRef}` },
+      { label: "MPESA TILL NUMBER",  value: `Till: 5620852` },
+    ];
+    if (invoice.bankName && invoice.bankAccountNo) {
+      paymentOptions.push({ label: invoice.bankName, value: invoice.bankAccountNo });
+    } else if (invoice.bankAccount) {
+      const ba = invoice.bankAccount;
+      paymentOptions.push({ label: `${ba.bankName} \u2014 ${ba.accountName}`, value: ba.accountNumber });
+    }
   }
+
+  // Resolve the document brand (Finemark vs Unique Tracking) + VAT presentation
+  // for this invoice's partner bank. Self-contained: prefer the threaded partnerId,
+  // else look it up from the linked quote (covers all callers of renderInvoicePdf).
+  let invBrandPartnerId: string | null = invoice.partnerId ?? null;
+  let invBrandOverride: string | null = invoice.templateOverride ?? null;
+  if (!invBrandPartnerId && invoice.quoteId) {
+    const q = await pgGet<any>("SELECT partner_id, template_override FROM crm_quotes WHERE id = ?", [invoice.quoteId]).catch(() => null);
+    invBrandPartnerId = q?.partner_id ?? null;
+    invBrandOverride = invBrandOverride ?? q?.template_override ?? null;
+  }
+  const invDocBrand = await resolveDocBrand(invBrandPartnerId, invBrandOverride);
+
+  // Standard "Bill To" for a bank-financed invoice: bill the BANK at its official
+  // (configured) address, consistent across every invoice for that bank. The vehicle
+  // owner is preserved as a reference line so reconciliation isn't lost.
+  const billToBank = !!(invDocBrand.isBank && invDocBrand.billToName);
+  const billToName  = billToBank ? invDocBrand.billToName! : (invoice.customer || "-");
+  const billToAddr  = billToBank ? (invDocBrand.billToAddress || invoice.customerAddress || null) : (invoice.customerAddress || null);
+  const billToPhone = billToBank ? null : (invoice.customerPhone || null);
+  const billToEmail = billToBank ? null : (invoice.customerEmail || null);
+  const billToPin   = billToBank ? null : (invoice.pinNo || null);
+  const billToRefNote = billToBank
+    ? ["Financed for: " + (invoice.customer || "-"), vehicle?.registration ? "Vehicle: " + vehicle.registration : null].filter(Boolean).join("   |   ")
+    : null;
+  const invNotes = [billToRefNote, invoice.notes].filter(Boolean).join("\n") || null;
 
   let pdfBytes = await renderQuotePdf({
     mode: "invoice",
-    documentTitle: vatTotal > 0 ? "TAX INVOICE" : "INVOICE",
+    documentTitle: "INVOICE",
     documentNoLabel: "Invoice No:",
+    brand: invDocBrand.brand,
+    vatDisplay: invDocBrand.vatDisplay,
     documentNo: invoice.invoiceNumber,
     issueDate: invoice.taxDate || invoice.issuedOn,
     expiryDate: invoice.dueOn || invoice.issuedOn,
@@ -336,16 +503,16 @@ export const renderInvoicePdf = async (invoice: any, items: any[], options: { de
     jobCardStatus: invoice.jobCardStatus || null,
     installationDate: invoice.installationDate || null,
     installationTime: invoice.installationTime || null,
-    status: invoice.status || null,
+    status: null,
     preparedBy: invoice.preparedBy || null,
-    customerName: invoice.customer || "-",
-    customerKraPin: invoice.pinNo || null,
-    customerPhone: invoice.customerPhone || null,
-    customerEmail: invoice.customerEmail || null,
-    customerAddress: invoice.customerAddress || null,
+    customerName: billToName,
+    customerKraPin: billToPin,
+    customerPhone: billToPhone,
+    customerEmail: billToEmail,
+    customerAddress: billToAddr,
     salesRep: invoice.salesRepName || invoice.representative || null,
     technicianName: invoice.technicianName || null,
-    notes: invoice.notes || null,
+    notes: invNotes,
     subtotal,
     vatTotal,
     grandTotal,
@@ -413,7 +580,19 @@ export const renderInvoicePdf = async (invoice: any, items: any[], options: { de
   return pdfBytes;
 };
 
-router.get("/:id/pdf", requireAuth, requireRole(["Finance", "Admin", "BDM", "BDMCorporate", "Sales", "Telesales", "FieldSales"]), async (req: any, res) => {
+// A browser loading a PDF in an <iframe>/window.open cannot attach an
+// Authorization header, so the invoice viewers pass the access token as
+// `?token=`. Promote it to a Bearer header here (PDF route only) so the normal
+// requireAuth verification + role check still apply. Header always wins if both
+// are present.
+function allowQueryToken(req: any, _res: any, next: any) {
+  if (!req.headers.authorization && typeof req.query.token === "string" && req.query.token.trim()) {
+    req.headers.authorization = `Bearer ${req.query.token.trim()}`;
+  }
+  next();
+}
+
+router.get("/:id/pdf", allowQueryToken, requireAuth, requireRole(["Finance", "Admin", "BDM", "BDMCorporate", "Sales", "Telesales", "FieldSales", "CertAdmin"]), async (req: any, res) => {
   const row = await pgGet("SELECT * FROM invoices WHERE id = ?", [req.params.id]);
   if (!row) return errorResponse(res, 404, "NOT_FOUND", "Invoice not found");
   const items = await pgAll("SELECT item, description, qty, rate, amount, vat FROM invoice_items WHERE invoice_id = ?", [req.params.id]);
@@ -506,7 +685,21 @@ router.get("/:id/pdf", requireAuth, requireRole(["Finance", "Admin", "BDM", "BDM
     }
   }
 
+  // Partner-linked bank / M-Pesa payment details for the payment table.
+  const invPartner = row.quote_id
+    ? await pgGet<any>(`SELECT q.partner_id, p.name AS partner_name FROM crm_quotes q LEFT JOIN partners p ON p.id::text = q.partner_id WHERE q.id = ?`, [row.quote_id]).catch(() => null)
+    : null;
+  const invPaymentOptions = await buildPaymentDetails({
+    partnerId: invPartner?.partner_id || null,
+    partnerName: invPartner?.partner_name || bankPartnerNameForPdf || null,
+    vehicleReg: vehicleForPdf?.registration || null,
+  });
+
   const inv = {
+    paymentOptions: invPaymentOptions,
+    partnerId: invPartner?.partner_id || null,
+    quoteId: row.quote_id || null,
+    templateOverride: row.template_override || null,
     invoiceNumber: row.invoice_number, customer: row.customer,
     representative: row.representative, vatMode: row.vat_mode,
     taxDate: row.tax_date || row.issued_on, jobCardNo: row.job_card_no, ticketNo: ticketNoForPdf,
@@ -633,7 +826,16 @@ router.post("/:id/email", requireAuth, requireRole(["Finance", "Admin", "BDM", "
     }
   }
 
-  const inv = { invoiceNumber: row.invoice_number, customer: row.customer, representative: row.representative, vatMode: row.vat_mode, taxDate: row.tax_date || row.issued_on, jobCardNo: row.job_card_no, ticketNo: ticketNoForEmail, jobCardStatus: jobCardStatusForEmail, installationDate: installDateForEmail, installationTime: installTimeForEmail, salesRepName: salesRepNameForEmail, technicianName: technicianNameForEmail, pinNo: row.pin_no || "P051961922E", subtotal: row.subtotal, vatTotal: row.vat_total, total: row.total, paymentPaybill: row.payment_paybill, paymentAccountHint: row.payment_account_hint, bankName: row.bank_name, bankAccountNo: row.bank_account_no, bankAccount: bankAccountForEmail, preparedBy: preparedByForEmail, issuedOn: row.issued_on, dueOn: row.due_on, customerPhone: emailCustPhone, customerEmail: emailCustEmail, customerAddress: emailCustAddress,
+  const invPartnerEmail = row.quote_id
+    ? await pgGet<any>(`SELECT q.partner_id, p.name AS partner_name FROM crm_quotes q LEFT JOIN partners p ON p.id::text = q.partner_id WHERE q.id = ?`, [row.quote_id]).catch(() => null)
+    : null;
+  const invPaymentOptionsEmail = await buildPaymentDetails({
+    partnerId: invPartnerEmail?.partner_id || null,
+    partnerName: invPartnerEmail?.partner_name || null,
+    vehicleReg: vehicleForEmail?.registration || null,
+  });
+
+  const inv = { paymentOptions: invPaymentOptionsEmail, partnerId: invPartnerEmail?.partner_id || null, quoteId: row.quote_id || null, templateOverride: row.template_override || null, invoiceNumber: row.invoice_number, customer: row.customer, representative: row.representative, vatMode: row.vat_mode, taxDate: row.tax_date || row.issued_on, jobCardNo: row.job_card_no, ticketNo: ticketNoForEmail, jobCardStatus: jobCardStatusForEmail, installationDate: installDateForEmail, installationTime: installTimeForEmail, salesRepName: salesRepNameForEmail, technicianName: technicianNameForEmail, pinNo: row.pin_no || "P051961922E", subtotal: row.subtotal, vatTotal: row.vat_total, total: row.total, paymentPaybill: row.payment_paybill, paymentAccountHint: row.payment_account_hint, bankName: row.bank_name, bankAccountNo: row.bank_account_no, bankAccount: bankAccountForEmail, preparedBy: preparedByForEmail, issuedOn: row.issued_on, dueOn: row.due_on, customerPhone: emailCustPhone, customerEmail: emailCustEmail, customerAddress: emailCustAddress,
     status: row.status || null,
     etimsControlNo: row.etims_control_no || null,
     etimsReceiptNo: row.etims_receipt_no || null,

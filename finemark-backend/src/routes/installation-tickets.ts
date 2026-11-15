@@ -23,20 +23,25 @@ import { requireRole, ROLE_GROUPS } from "../middleware/rbac.js";
 import { errorResponse } from "../utils/responses.js";
 import { auditLog } from "../services/auditService.js";
 import { pgGet, pgAll, pgRun } from "../db.js";
+import { IdGenerator } from "../utils/idGenerator.js";
+import { closeOpenCheckouts } from "./inventory-items.js";
 import { isGraphConfigured, sendEmailViaGraph, MAILBOXES } from "../services/graphMailService.js";
 import { sendSms, isAtConfigured } from "../services/smsService.js";
 import { sendWhatsApp, isTwilioConfigured } from "../services/whatsappService.js";
+import { encryptField, decryptField } from "../services/cryptoService.js";
 import { createNotification } from "./notifications.js";
 import {
   materializeRetailQuoteForTicket,
   sendProformaApprovalLinkForTicket,
 } from "../services/retailQuoteAutomation.js";
+import { autoApprovePartnerQuoteForCompletedTicket } from "../services/partnerQuoteFulfilment.js";
 import {
   bootstrapHistoryTable,
   recordHistory,
   getTicketHistory,
 } from "../services/ticketHistoryService.js";
 import { computeSla, slaStatusLabel } from "../services/slaEngine.js";
+import { markServiceOnlyIfApplicable } from "../services/nonStockProducts.js";
 
 // ── Schema bootstrap ──────────────────────────────────────────────────────────
 pgRun(`
@@ -142,6 +147,22 @@ pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS installation_lo
 pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS installation_location_lng REAL`, []).catch(() => {});
 // Retail lead linkage columns
 pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS retail_lead_id TEXT`, []).catch(() => {});
+// Confirmed product category (corporate installs have no retail lead to derive it
+// from) + an associated quote when there's no invoice yet.
+pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS product_category TEXT`, []).catch(() => {});
+pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS quote_id TEXT`, []).catch(() => {});
+// Service-only jobs (no gadget): everything sold is a no-inventory product (see
+// services/nonStockProducts.ts). The job card skips device selection, device
+// installation and activation; technician assignment skips the custody check.
+// service_only_locked = a person explicitly switched it off, so auto-detection stays off.
+pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS service_only BOOLEAN NOT NULL DEFAULT false`, []).catch(() => {});
+pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS service_only_locked BOOLEAN NOT NULL DEFAULT false`, []).catch(() => {});
+// Referrer / commission captured when raising the ticket. Deliberately NOT exposed
+// in the ticket DTO/views — it rides the quote → invoice link and surfaces only on
+// the invoice (Process Payment) + finance referrer report, mirroring retail leads.
+pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS referrer_name TEXT`, []).catch(() => {});
+pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS referrer_phone TEXT`, []).catch(() => {});
+pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS referrer_commission DOUBLE PRECISION`, []).catch(() => {});
 pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS installation_location TEXT`, []).catch(() => {});
 pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS installation_contact_name TEXT`, []).catch(() => {});
 pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS installation_contact_phone TEXT`, []).catch(() => {});
@@ -155,6 +176,15 @@ pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS activation_appr
 pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS activation_rejected_at TEXT`, []).catch(() => {});
 pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS activation_rejection_reason TEXT`, []).catch(() => {});
 pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS expected_gadget_count INTEGER`, []).catch(() => {});
+// Lifecycle: pause (On Hold) / Rescheduled / Cancelled / Defaulted — so a job
+// interrupted mid-way isn't left falsely Pending/Assigned nor wrongly Completed.
+// status_before_hold lets a paused/rescheduled job resume to where it was.
+pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS status_reason TEXT`, []).catch(() => {});
+pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS status_evidence_json TEXT NOT NULL DEFAULT '[]'`, []).catch(() => {});
+pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS rescheduled_to TEXT`, []).catch(() => {});
+pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS status_before_hold TEXT`, []).catch(() => {});
+pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS status_changed_by_email TEXT`, []).catch(() => {});
+pgRun(`ALTER TABLE installation_tickets ADD COLUMN IF NOT EXISTS status_changed_at TEXT`, []).catch(() => {});
 // Closed-ticket edit unlocks — an Admin must verify an OTP (emailed to their
 // own account) before they can mutate a ticket that has already been closed.
 pgRun(`CREATE TABLE IF NOT EXISTS installation_ticket_edit_unlocks (
@@ -176,12 +206,19 @@ function mapTicket(row: any) {
   return {
     id: row.id,
     ticketNo: row.ticket_no,
+    serviceOnly: row.service_only === true,
     invoiceId: row.invoice_id || null,
     proformaId: row.proforma_id || null,
     customerId: row.customer_id || null,
     customerName: row.customer_name || null,
     vehicleId: row.vehicle_id || null,
-    vehicleRegistration: row.vehicle_registration || null,
+    // Central registry (crm_customer_vehicles) wins when the query joined it (cv_* columns);
+    // otherwise fall back to the ticket snapshot. Keeps reports showing Customer 360 edits live.
+    vehicleRegistration: row.cv_registration || row.vehicle_registration || null,
+    vehicleMake: row.cv_make || null,
+    vehicleModel: row.cv_model || null,
+    vehicleChassis: row.cv_chassis || null,
+    loanTermMonths: row.cv_loan_tenure != null ? Number(row.cv_loan_tenure) : null,
     notes: row.notes || null,
     devices: (() => { try { return JSON.parse(row.devices_json || "[]"); } catch { return []; } })(),
     assignedToUserId: row.assigned_to_user_id || null,
@@ -192,6 +229,10 @@ function mapTicket(row: any) {
     coTechnicianName: row.co_technician_name || null,
     status: row.status,
     stage: Number(row.stage || 0),
+    productCategory: row.resolved_product_category || null,
+    leadProductCategory: row.lead_product_category || null,
+    ticketProductCategory: row.product_category || null,
+    quoteId: row.quote_id || null,
     viInstallationId: row.vi_installation_id || null,
     assignedDeviceId: row.assigned_device_id || null,
     checklist: (() => { try { return JSON.parse(row.checklist_json || "[]"); } catch { return []; } })(),
@@ -265,6 +306,12 @@ function mapTicket(row: any) {
     activationApprovedData:   (() => { try { return row.activation_approved_json ? JSON.parse(row.activation_approved_json) : null; } catch { return null; } })(),
     activationRejectedAt:     row.activation_rejected_at   || null,
     activationRejectionReason: row.activation_rejection_reason || null,
+    // Lifecycle — pause / reschedule / cancel / default (reason + evidence)
+    statusReason:    row.status_reason || null,
+    statusEvidence:  (() => { try { return row.status_evidence_json ? JSON.parse(row.status_evidence_json) : []; } catch { return []; } })(),
+    rescheduledTo:   row.rescheduled_to || null,
+    statusChangedBy: row.status_changed_by_email || null,
+    statusChangedAt: row.status_changed_at || null,
     // Closed jobs are read-only for everyone except an Admin with a verified OTP unlock.
     isLocked: LOCKED_STATUSES.has(row.status),
     expectedGadgetCount: row.expected_gadget_count != null ? Number(row.expected_gadget_count) : null,
@@ -301,6 +348,58 @@ async function requireTicketUnlocked(req: AuthRequest, res: Response, next: Next
   }
   return next();
 }
+
+// ── Completion readiness ─────────────────────────────────────────────────────
+// Single source of truth for "can this job be closed?". Returns every UNMET hard
+// requirement at once (not one-at-a-time), so the technician sees the whole list
+// and the completion path, the readiness endpoint, and the UI never disagree.
+// An empty array means the job is ready to complete. Add new hard gates here only.
+export type CompletionBlocker = { code: string; message: string; devices?: any[] };
+async function getCompletionBlockers(
+  row: any,
+  opts: { assignedDeviceIdOverride?: string | null; techSignedOff?: boolean; engSignedOff?: boolean } = {},
+): Promise<CompletionBlocker[]> {
+  const blockers: CompletionBlocker[] = [];
+  const assignedDeviceIdOverride = opts.assignedDeviceIdOverride;
+
+  // Gate 0 — both sign-offs must be recorded on the server. The wizard used to be
+  // the only thing enforcing this; a silently-failed sign-off could still enable
+  // the Close button client-side, so the server now verifies it directly. The
+  // effective state ORs in a sign-off set in this same request (defensive).
+  const techSignedOff = opts.techSignedOff ?? !!(row.technician_signed_off_at && String(row.technician_signed_off_at).trim());
+  const engSignedOff  = opts.engSignedOff  ?? !!(row.engineer_signed_off_at   && String(row.engineer_signed_off_at).trim());
+  if (!techSignedOff) blockers.push({ code: "TECH_SIGNOFF_REQUIRED", message: "Technician sign-off is required before this job can be closed." });
+  if (!engSignedOff)  blockers.push({ code: "ENGINEER_SIGNOFF_REQUIRED", message: "ISO / engineer sign-off is required before this job can be closed." });
+
+  // Gate 1 — every SIM-requiring device on the job must have a SIM recorded.
+  // (Accessories that pair over BLE carry requires_sim=false, so they never block.)
+  const legacyDeviceId: string | null =
+    (assignedDeviceIdOverride !== undefined ? assignedDeviceIdOverride : row.assigned_device_id) || null;
+  const simless = await pgAll(
+    `SELECT i.id, i.imei, p.device_model
+     FROM inv_items i
+     LEFT JOIN inv_product_catalog p ON p.id = i.product_id
+     WHERE i.deleted_at IS NULL AND i.status IN ('Issued for Installation', 'Installed')
+       AND (i.installation_id = ? OR i.id = ?)
+       AND p.requires_sim = true
+       AND COALESCE(NULLIF(TRIM(i.sim_serial), ''), '') = ''
+       AND NOT EXISTS (SELECT 1 FROM inv_sims s WHERE s.device_item_id = i.id AND s.deleted_at IS NULL)`,
+    [row.id, legacyDeviceId || row.id]
+  ).catch(() => []);
+  if ((simless as any[]).length) {
+    const list = (simless as any[]).map((d) => `${d.device_model || "device"} (IMEI ${d.imei || d.id})`).join(", ");
+    blockers.push({
+      code: "MISSING_SIM",
+      message: `${(simless as any[]).length} device(s) require a SIM but none is recorded — ${list}. Pair a SIM for each device, or remove it from the job.`,
+      devices: (simless as any[]).map((d) => ({ id: d.id, imei: d.imei, model: d.device_model })),
+    });
+  }
+
+  return blockers;
+}
+
+// Roles allowed to force-complete a job past a soft-blocked gate (with a logged reason).
+const FORCE_COMPLETE_ROLES = new Set(["Admin", "Technical", "InstallOffice"]);
 
 // ── Customer identity resolver ───────────────────────────────────────────────
 /**
@@ -457,7 +556,7 @@ async function nextTicketNo(): Promise<string> {
 interface CreateTicketParams {
   invoiceId?: string; proformaId?: string; customerId?: string; customerName?: string;
   vehicleId?: string; vehicleRegistration?: string; notes?: string; devices?: any[];
-  viInstallationId?: string; crmTicketId?: string;
+  viInstallationId?: string; crmTicketId?: string; serviceOnly?: boolean;
 }
 
 /** Shared row-creation logic behind both POST / (single) and POST /batch. */
@@ -505,6 +604,16 @@ async function createInstallationTicket(params: CreateTicketParams, userId: stri
   // permanently invisible to Technical/Technician users. Only guarded on a
   // resolved customer since vi_installations.customer_id is NOT NULL.
   let finalViInstallationId = viInstallationId || null;
+  // A record already owned by another ticket must not be taken over: that is
+  // how a ticket ends up on someone else's finished installation and can never
+  // reach device selection. Fall through to creating its own instead.
+  if (finalViInstallationId) {
+    const claimed = await pgGet(
+      "SELECT id FROM installation_tickets WHERE vi_installation_id = ? AND deleted_at IS NULL LIMIT 1",
+      [finalViInstallationId]
+    ).catch(() => null);
+    if (claimed) finalViInstallationId = null;
+  }
   if (!finalViInstallationId && canonicalCustomerId) {
     finalViInstallationId = uuidv4();
     await pgRun(
@@ -530,19 +639,21 @@ async function createInstallationTicket(params: CreateTicketParams, userId: stri
      slaDefaults.ackHours, slaDefaults.startHours, slaDefaults.signoffHours, slaDefaults.isoHours,
      now, now]
   );
+  if (params.serviceOnly === true) await pgRun(`UPDATE installation_tickets SET service_only = true WHERE id = ?`, [id]);
+  else await markServiceOnlyIfApplicable(id);
 
   return { id, ticketNo, canonicalCustomerId, canonicalCustomerName };
 }
 
 // ── POST / ── raise a new installation ticket ─────────────────────────────────
 router.post("/", requireAuth, requireRole(["Sales", "Admin", "Finance", "InstallOffice", "Technical", "BDM", "BDMCorporate", "CorporateSales"]), async (req: AuthRequest, res) => {
-  const { invoiceId, proformaId, customerId, customerName, vehicleId, vehicleRegistration, notes, devices, viInstallationId, crmTicketId } = req.body || {};
+  const { invoiceId, proformaId, customerId, customerName, vehicleId, vehicleRegistration, notes, devices, viInstallationId, crmTicketId, serviceOnly } = req.body || {};
   if (!customerId && !customerName && !viInstallationId) {
     return errorResponse(res, 400, "VALIDATION_ERROR", "customerId, customerName, or viInstallationId is required.");
   }
 
   const { id, ticketNo, canonicalCustomerId } = await createInstallationTicket(
-    { invoiceId, proformaId, customerId, customerName, vehicleId, vehicleRegistration, notes, devices, viInstallationId, crmTicketId },
+    { invoiceId, proformaId, customerId, customerName, vehicleId, vehicleRegistration, notes, devices, viInstallationId, crmTicketId, serviceOnly: serviceOnly === true },
     req.user!.id
   );
 
@@ -553,6 +664,110 @@ router.post("/", requireAuth, requireRole(["Sales", "Admin", "Finance", "Install
 
   const ticket = await pgGet("SELECT * FROM installation_tickets WHERE id = ?", [id]);
   return res.status(201).json({ data: mapTicket(ticket), message: "Installation ticket raised." });
+});
+
+// ── POST /corporate ── raise a CRPT installation ticket from Customer 360 ─────
+// Corporate customers raise installation tickets straight from their 360 page: the
+// chosen vehicle's details + the installation location are captured onto a Pending
+// ticket numbered CRPT-… which drops into the SAME Technical installation pipeline
+// as retail (RTL-…) tickets (via a linked vi_installations row).
+router.post("/corporate", requireAuth, requireRole(["Sales", "Admin", "InstallOffice", "Technical", "BDM", "BDMCorporate", "CorporateSales"]), async (req: AuthRequest, res) => {
+  const { customerId, vehicleId, installationLocation, contactName, contactPhone, notes, productCategory, quoteId,
+          referrerName, referrerPhone, commissionAmount, serviceOnly } = req.body || {};
+  if (!customerId) return errorResponse(res, 400, "VALIDATION_ERROR", "customerId is required.");
+
+  const customer = await pgGet<any>(
+    `SELECT c.id, c.type, c.segment, corp.company_name, corp.physical_address
+     FROM crm_customers c
+     LEFT JOIN crm_corporate_profiles corp ON corp.customer_id = c.id
+     WHERE c.id = ? AND c.deleted_at IS NULL`,
+    [customerId]
+  );
+  if (!customer) return errorResponse(res, 404, "NOT_FOUND", "Customer not found.");
+  const isCorporate =
+    String(customer.type || "").toLowerCase() === "corporate" ||
+    String(customer.segment || "").toLowerCase() === "corporate";
+  if (!isCorporate) return errorResponse(res, 400, "NOT_CORPORATE", "This flow is only for corporate customers.");
+
+  let vehicle: any = null;
+  if (vehicleId) {
+    vehicle = await pgGet<any>(
+      `SELECT id, registration, make, model, color, chassis_number, engine_number, registration_known, vehicle_category
+       FROM crm_customer_vehicles WHERE id = ? AND customer_id = ? AND deleted_at IS NULL`,
+      [vehicleId, customerId]
+    );
+    if (!vehicle) return errorResponse(res, 404, "NOT_FOUND", "Vehicle not found for this customer.");
+  }
+
+  const identity = await resolveCustomerIdentity(customerId, customer.company_name || null);
+  const customerName = identity.displayName || customer.company_name || null;
+  const now = new Date().toISOString();
+  const ticketId = uuidv4();
+  const ticketNo = IdGenerator.generateId("crpt");
+
+  const vehicleDetailsJson = vehicle ? JSON.stringify({
+    registration: vehicle.registration || "",
+    regStatus: vehicle.registration_known ? "registered" : "not_registered",
+    make: vehicle.make || "",
+    model: vehicle.model || "",
+    colour: vehicle.color || "",
+    vin: vehicle.chassis_number || "",
+    engineNo: vehicle.engine_number || "",
+    vehicleCategory: vehicle.vehicle_category || "motor_vehicle",
+  }) : null;
+
+  const installLocation = (installationLocation && String(installationLocation).trim()) || customer.physical_address || null;
+  const slaDefaults = await getSlaDefaults();
+
+  // Associate a quote (when there's no invoice yet) — only if it belongs to this customer.
+  let linkedQuoteId: string | null = null;
+  if (quoteId) {
+    const q = await pgGet<any>("SELECT id FROM crm_quotes WHERE id = ? AND customer_id = ? AND deleted_at IS NULL", [quoteId, customerId]).catch(() => null);
+    linkedQuoteId = q?.id || null;
+  }
+  const cleanCategory = (productCategory && String(productCategory).trim()) || null;
+  const cleanReferrerName = (referrerName && String(referrerName).trim()) || null;
+  const cleanReferrerPhone = (referrerPhone && String(referrerPhone).trim()) || null;
+  const cleanCommission = (commissionAmount != null && commissionAmount !== "" && Number.isFinite(Number(commissionAmount)) && Number(commissionAmount) >= 0)
+    ? Number(commissionAmount) : null;
+
+  // vi_installations first so the ticket surfaces in the Technical Pipeline.
+  const viId = uuidv4();
+  await pgRun(
+    `INSERT INTO vi_installations
+       (id, vehicle_id, customer_id, ticket_ref, status, stage, created_by_user_id, created_at, updated_at)
+     VALUES (?,?,?,?, 'Pending', 0, ?,?,?)`,
+    [viId, vehicle?.id || null, customerId, ticketNo, req.user!.id, now, now]
+  ).catch((e: any) => console.error("[installation-tickets/corporate] vi_installations failed:", e?.message));
+
+  await pgRun(
+    `INSERT INTO installation_tickets
+       (id, ticket_no, customer_id, customer_name, vehicle_id, vehicle_registration, vehicle_details_json,
+        notes, devices_json, status, stage, vi_installation_id, created_by_user_id,
+        installation_location, installation_contact_name, installation_contact_phone,
+        sla_ack_hours, sla_start_hours, sla_signoff_hours, sla_iso_hours,
+        product_category, quote_id, referrer_name, referrer_phone, referrer_commission, created_at, updated_at)
+     VALUES (?,?,?,?,?,?,?,?, ?, 'Pending', 0, ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [ticketId, ticketNo, customerId, customerName,
+     vehicle?.id || null, vehicle?.registration ? String(vehicle.registration).replace(/\s+/g, "").toUpperCase() : null, vehicleDetailsJson,
+     notes || null,
+     cleanCategory ? JSON.stringify([{ category: cleanCategory, quantity: 1, requested: true }]) : "[]",
+     viId, req.user!.id,
+     installLocation, contactName || null, contactPhone || null,
+     slaDefaults.ackHours, slaDefaults.startHours, slaDefaults.signoffHours, slaDefaults.isoHours,
+     cleanCategory, linkedQuoteId, cleanReferrerName, cleanReferrerPhone, cleanCommission,
+     now, now]
+  );
+  if (serviceOnly === true) await pgRun(`UPDATE installation_tickets SET service_only = true WHERE id = ?`, [ticketId]);
+  else await markServiceOnlyIfApplicable(ticketId);
+
+  auditLog(req, "INSTALL_TICKET_CREATED", `installation_ticket:${ticketId}`, "Info",
+    { ticketNo, customerId, source: "corporate360", vehicleId: vehicle?.id || null }).catch(console.error);
+  recordHistory(ticketId, "TICKET_CREATED", req, { statusAfter: "Pending", stageAfter: 0,
+    details: { ticketNo, customerId, source: "corporate" } });
+
+  const ticket = await pgGet("SELECT * FROM installation_tickets WHERE id = ?", [ticketId]);
+  return res.status(201).json({ data: mapTicket(ticket), message: `Installation ticket ${ticketNo} raised.` });
 });
 
 // ── POST /batch ── raise installation tickets for multiple vehicles at once ──
@@ -617,7 +832,7 @@ router.post("/batch", requireAuth, requireRole(["Sales", "Admin", "Finance", "In
 router.get("/", requireAuth, requireRole(["Sales", "Admin", "Finance", "Technical", "InstallOffice", "BDMCorporate", "CorporateSales"]), async (req, res) => {
   const { status, assignedTo, customerId, vehicleRegistration: regFilter, page: pageQ, pageSize: sizeQ } = req.query as Record<string, string>;
   const page = Math.max(parseInt(pageQ || "1", 10), 1);
-  const pageSize = Math.min(parseInt(sizeQ || "50", 10), 200);
+  const pageSize = Math.min(parseInt(sizeQ || "50", 10), 1000);
   const offset = (page - 1) * pageSize;
 
   const clauses: string[] = ["it.deleted_at IS NULL"];
@@ -637,16 +852,51 @@ router.get("/", requireAuth, requireRole(["Sales", "Admin", "Finance", "Technica
   const where = `WHERE ${clauses.join(" AND ")}`;
   const rows = await pgAll(
     `SELECT it.*,
+            cv.registration AS cv_registration, cv.make AS cv_make, cv.model AS cv_model, cv.chassis_number AS cv_chassis, cv.loan_tenure_months AS cv_loan_tenure,
             COALESCE(cbe.full_name, cu.name) AS created_by_name,
             COALESCE(ise.full_name, isu.name) AS iso_resolved_name,
             rl.partner_name AS retail_partner_name,
-            rl.secondary_partner_name AS retail_secondary_partner_name
+            rl.secondary_partner_name AS retail_secondary_partner_name,
+            COALESCE(it.product_category, rl.product_category_name) AS lead_product_category,
+            -- Product category. The device_type/device_model columns on quote items are
+            -- used inconsistently (sometimes the category is in one, sometimes the model
+            -- in the other), so we resolve against reference data rather than one column:
+            --   1. the installed device's catalog category (ground truth), else
+            --   2. classify the quote's line items — matching EITHER field against a
+            --      category name OR against a catalog device_model — preferring a
+            --      specific category (Fuel/Dash/Cargo/Anti-Theft) over generic tracking.
+            COALESCE(
+              (SELECT cat.name FROM inv_items ii
+                 JOIN inv_product_catalog pc ON pc.id = ii.product_id
+                 JOIN inv_product_categories cat ON cat.id = pc.category_id
+               WHERE ii.installation_id = it.id AND ii.deleted_at IS NULL
+               GROUP BY cat.name ORDER BY COUNT(*) DESC LIMIT 1),
+              (SELECT cn FROM (
+                 SELECT cat.name AS cn, SUM(qi.quantity) AS qty,
+                        (cat.name ILIKE 'Vehicle Tracking')::int AS generic
+                   FROM crm_quote_items qi
+                   JOIN inv_product_categories cat
+                     ON UPPER(TRIM(cat.name)) IN (UPPER(TRIM(qi.device_type)), UPPER(TRIM(qi.device_model)))
+                  WHERE qi.quote_id = rl.quote_id
+                  GROUP BY cat.name
+                 UNION ALL
+                 SELECT cat.name, SUM(qi.quantity),
+                        (cat.name ILIKE 'Vehicle Tracking')::int
+                   FROM crm_quote_items qi
+                   JOIN inv_product_catalog pc
+                     ON UPPER(REPLACE(pc.device_model,' ','')) IN (UPPER(REPLACE(qi.device_type,' ','')), UPPER(REPLACE(qi.device_model,' ','')))
+                   JOIN inv_product_categories cat ON cat.id = pc.category_id
+                  WHERE qi.quote_id = rl.quote_id
+                  GROUP BY cat.name
+               ) m GROUP BY cn ORDER BY MIN(generic) ASC, SUM(qty) DESC LIMIT 1)
+            ) AS resolved_product_category
      FROM installation_tickets it
      LEFT JOIN users cu  ON cu.id  = it.created_by_user_id
      LEFT JOIN hr_employees cbe ON cbe.user_account_id = it.created_by_user_id
      LEFT JOIN users isu ON isu.id = it.iso_user_id
      LEFT JOIN hr_employees ise ON ise.user_account_id = it.iso_user_id
      LEFT JOIN retail_leads rl ON rl.id = it.retail_lead_id
+     LEFT JOIN crm_customer_vehicles cv ON cv.id = it.vehicle_id
      ${where} ORDER BY it.created_at DESC LIMIT ? OFFSET ?`,
     [...params, pageSize, offset]
   );
@@ -664,7 +914,7 @@ router.get("/for-invoice/:invoiceId", requireAuth, requireRole(["Sales", "Admin"
 });
 
 // ── GET /for-customer/:customerId ─────────────────────────────────────────────
-router.get("/for-customer/:customerId", requireAuth, requireRole(["Sales", "Admin", "Finance", "Technical", "InstallOffice", "BDMCorporate", "CorporateSales"]), async (req, res) => {
+router.get("/for-customer/:customerId", requireAuth, requireRole(["Sales", "Admin", "CertAdmin", "Finance", "Technical", "InstallOffice", "BDMCorporate", "CorporateSales"]), async (req, res) => {
   const cid = req.params.customerId;
   const identity = await resolveCustomerIdentity(cid, null);
   const cName = identity.displayName || '';
@@ -679,7 +929,9 @@ router.get("/for-customer/:customerId", requireAuth, requireRole(["Sales", "Admi
 });
 
 // ── GET /available-technicians ── roster technicians who have devices in custody ──
-router.get("/available-technicians", requireAuth, requireRole([...ROLE_GROUPS.TICKET_MANAGEMENT, "Finance"]), async (_req, res) => {
+router.get("/available-technicians", requireAuth, requireRole([...ROLE_GROUPS.TICKET_MANAGEMENT, "Finance"]), async (req, res) => {
+  // ?serviceOnly=1 — service jobs need no gadget, so every active technician is eligible.
+  const serviceOnly = ["1", "true"].includes(String((req.query as any).serviceOnly || ""));
   // Fetch all active Technicians from roster, joined with device custody count.
   // Counts devices from BOTH di_tracker_devices (new custody system) AND
   // inv_items (Device Ledger issued_to_id — legacy/parallel issuance system).
@@ -720,7 +972,7 @@ router.get("/available-technicians", requireAuth, requireRole([...ROLE_GROUPS.TI
        AND r.duty_status IN ('Active', 'On Leave')
      GROUP BY r.id, r.display_name, r.email, r.user_account_id, r.hr_employee_id,
               r.duty_status, u.name, u.email, e.full_name, e.work_email
-     HAVING COUNT(DISTINCT d.id) + COUNT(DISTINCT inv.id) > 0
+     ${serviceOnly ? "" : "HAVING COUNT(DISTINCT d.id) + COUNT(DISTINCT inv.id) > 0"}
      ORDER BY r.display_name`, []
   ).catch(() => [] as any[]);
 
@@ -767,11 +1019,42 @@ router.get("/my", requireAuth, requireRole(["Technician", "Technical", "Admin", 
 });
 
 // ── GET /:id ──────────────────────────────────────────────────────────────────
-router.get("/:id", requireAuth, requireRole(["Sales", "Admin", "Finance", "Technical", "Technician", "InstallOffice"]), async (req, res) => {
-  let row = await pgGet("SELECT * FROM installation_tickets WHERE id = ? AND deleted_at IS NULL", [req.params.id]);
+// CertAdmin is included read-only: the Generate Manual Certificate page loads the
+// linked job-card/ticket to auto-fill certificate details (see create-certificate.html).
+// Product category columns, mirroring the ticket LIST query — surfaces the retail
+// lead's chosen category (lead_product_category) plus the device/quote-resolved one
+// (resolved_product_category). Query must alias installation_tickets as `it` and
+// LEFT JOIN retail_leads as `rl`. Keep in sync with the SELECT in GET "/" above.
+const CATEGORY_SELECT_SQL = `COALESCE(it.product_category, rl.product_category_name) AS lead_product_category,
+  COALESCE(
+    (SELECT cat.name FROM inv_items ii
+       JOIN inv_product_catalog pc ON pc.id = ii.product_id
+       JOIN inv_product_categories cat ON cat.id = pc.category_id
+     WHERE ii.installation_id = it.id AND ii.deleted_at IS NULL
+     GROUP BY cat.name ORDER BY COUNT(*) DESC LIMIT 1),
+    (SELECT cn FROM (
+       SELECT cat.name AS cn, SUM(qi.quantity) AS qty, (cat.name ILIKE 'Vehicle Tracking')::int AS generic
+         FROM crm_quote_items qi
+         JOIN inv_product_categories cat ON UPPER(TRIM(cat.name)) IN (UPPER(TRIM(qi.device_type)), UPPER(TRIM(qi.device_model)))
+        WHERE qi.quote_id = rl.quote_id GROUP BY cat.name
+       UNION ALL
+       SELECT cat.name, SUM(qi.quantity), (cat.name ILIKE 'Vehicle Tracking')::int
+         FROM crm_quote_items qi
+         JOIN inv_product_catalog pc ON UPPER(REPLACE(pc.device_model,' ','')) IN (UPPER(REPLACE(qi.device_type,' ','')), UPPER(REPLACE(qi.device_model,' ','')))
+         JOIN inv_product_categories cat ON cat.id = pc.category_id
+        WHERE qi.quote_id = rl.quote_id GROUP BY cat.name
+     ) m GROUP BY cn ORDER BY MIN(generic) ASC, SUM(qty) DESC LIMIT 1)
+  ) AS resolved_product_category`;
+
+router.get("/:id", requireAuth, requireRole(["Sales", "Admin", "Finance", "Technical", "Technician", "InstallOffice", "CertAdmin"]), async (req, res) => {
+  const TICKET_DETAIL_SELECT = `SELECT it.*, ${CATEGORY_SELECT_SQL} FROM installation_tickets it LEFT JOIN retail_leads rl ON rl.id = it.retail_lead_id`;
+  let row = await pgGet(`${TICKET_DETAIL_SELECT} WHERE it.id = ? AND it.deleted_at IS NULL`, [req.params.id]);
   // Also accept a vi_installations ID passed via job-details.html
-  if (!row) row = await pgGet("SELECT * FROM installation_tickets WHERE vi_installation_id = ? AND deleted_at IS NULL", [req.params.id]);
+  if (!row) row = await pgGet(`${TICKET_DETAIL_SELECT} WHERE it.vi_installation_id = ? AND it.deleted_at IS NULL`, [req.params.id]);
   if (!row) return errorResponse(res, 404, "NOT_FOUND", "Installation ticket not found.");
+  // A quote/category can be linked after the ticket was raised (retail leads, proforma
+  // approval) — re-check on read so the job card always reflects it. No-op once set.
+  if (row.service_only !== true && !row.assigned_device_id) row.service_only = await markServiceOnlyIfApplicable(row.id);
   const ticket: any = mapTicket(row);
 
   // Attach linked CRM vehicle record (includes loan tenure).
@@ -850,9 +1133,16 @@ router.get("/:id", requireAuth, requireRole(["Sales", "Admin", "Finance", "Techn
   // the CRM customer record's type (individual/corporate) otherwise.
   let partnerName: string | null = null;
   let customerSegment: string | null = null;
+  let customerEmail: string | null = null;
+  // The CUSTOMER's own number, never the job's site contact: this seeded from
+  // installationContactPhone, so the "Share Platform Credentials" form
+  // prefilled whoever was on site and 78 logins went to that number instead of
+  // the customer. The site contact stays available as
+  // ticket.installationContactPhone, and the UI falls back to it explicitly.
+  let customerPhone: string | null = null;
   if (row.retail_lead_id) {
     const rl = await pgGet(
-      "SELECT partner_name, secondary_partner_name, customer_entity_type, installation_financer FROM retail_leads WHERE id = ?",
+      "SELECT partner_name, secondary_partner_name, customer_entity_type, installation_financer, customer_email, customer_phone FROM retail_leads WHERE id = ?",
       [row.retail_lead_id]
     ).catch(() => null);
     if (rl) {
@@ -861,16 +1151,58 @@ router.get("/:id", requireAuth, requireRole(["Sales", "Admin", "Finance", "Techn
         ? (rl.customer_entity_type === "corporate" ? "Corporate" : "Individual")
         : null;
       if (!ticket.installationFinancer) ticket.installationFinancer = rl.installation_financer || null;
+      customerEmail = rl.customer_email || null;
     }
   }
   if (!customerSegment && row.customer_id) {
     const cc = await pgGet("SELECT type FROM crm_customers WHERE id = ? AND deleted_at IS NULL", [row.customer_id]).catch(() => null);
     if (cc?.type) customerSegment = cc.type === "corporate" ? "Corporate" : "Individual";
   }
+  // Customer contact (email/phone) prefilled into the "Share Platform Credentials" form —
+  // from the retail lead, falling back to the CRM primary contact (decrypted). Editable in the UI.
+  if ((!customerEmail || !customerPhone) && row.customer_id) {
+    const contact = await pgGet(
+      "SELECT email_enc, phone_enc FROM crm_contact_persons WHERE customer_id = ? ORDER BY is_primary DESC, created_at ASC LIMIT 1",
+      [row.customer_id]
+    ).catch(() => null);
+    if (contact) {
+      if (!customerEmail && contact.email_enc) { try { customerEmail = decryptField(contact.email_enc); } catch { /* ignore */ } }
+    }
+  }
+  // Customer's registered number(s) only — resolved by the shared helper.
+  const ownPhones = await customerOwnPhones(row);
+  customerPhone = ownPhones[0] ?? null;
+  ticket.customerPhones = ownPhones;
   ticket.partnerName = partnerName;
   ticket.customerSegment = customerSegment;
+  ticket.customerEmail = customerEmail;
+  ticket.customerPhone = customerPhone;
 
   return res.status(200).json({ data: ticket });
+});
+
+// ── PATCH /:id/service-only ── mark a job as needing no gadget (or undo) ──────
+// Auto-detection covers quotes/categories made of service products; this is the
+// manual switch for anything else (e.g. a site survey or relocation raised by hand).
+// Refused once a gadget has been put on the job, since the device flow has started.
+router.patch("/:id/service-only", requireAuth, requireRole([...ROLE_GROUPS.TICKET_MANAGEMENT, "Sales", "CorporateSales", "BDM", "BDMCorporate"]), requireTicketUnlocked, async (req: AuthRequest, res) => {
+  const { serviceOnly } = req.body || {};
+  if (typeof serviceOnly !== "boolean") return errorResponse(res, 400, "VALIDATION_ERROR", "serviceOnly must be true or false.");
+  const row = await pgGet("SELECT * FROM installation_tickets WHERE id = ? AND deleted_at IS NULL", [req.params.id]);
+  if (!row) return errorResponse(res, 404, "NOT_FOUND", "Installation ticket not found.");
+  if (serviceOnly && !row.service_only) {
+    const hasDevice = row.assigned_device_id || await pgGet(
+      "SELECT id FROM inv_items WHERE installation_id = ? AND deleted_at IS NULL LIMIT 1", [row.id]).catch(() => null);
+    if (hasDevice) return errorResponse(res, 409, "DEVICE_ON_JOB", "A gadget is already on this job. Remove it before marking the job as service-only.");
+  }
+  await pgRun(
+    `UPDATE installation_tickets SET service_only = ?, service_only_locked = ?, updated_at = ? WHERE id = ?`,
+    [serviceOnly, !serviceOnly, new Date().toISOString(), row.id]
+  );
+  auditLog(req, "INSTALL_TICKET_SERVICE_ONLY_SET", `installation_ticket:${row.id}`, "Info", { ticketNo: row.ticket_no, serviceOnly }).catch(console.error);
+  recordHistory(row.id, "SERVICE_ONLY_CHANGED", req, { details: { serviceOnly } });
+  const updated = await pgGet("SELECT * FROM installation_tickets WHERE id = ?", [row.id]);
+  return res.status(200).json({ data: mapTicket(updated), message: serviceOnly ? "Marked as a service job (no gadget required)." : "Gadget requirement restored." });
 });
 
 // ── POST /:id/iso-assign ── ISO officer claims or is assigned to a ticket ─────
@@ -993,8 +1325,11 @@ router.patch("/:id/assign", requireAuth, requireRole([...ROLE_GROUPS.TICKET_MANA
     if (!isIso) return errorResponse(res, 403, "FORBIDDEN", "Only the assigned ISO officer can assign a technician to this ticket.");
   }
 
+  // Service-only jobs need no gadget, so the technician needs no custody stock.
+  const serviceOnly = row.service_only === true || await markServiceOnlyIfApplicable(row.id);
+
   // Validate the technician has devices in custody (di_tracker_devices or inv_items)
-  const hasCustodyDI = await pgGet(
+  const hasCustodyDI = serviceOnly ? { id: "service-only" } : await pgGet(
     `SELECT id FROM di_tracker_devices
      WHERE inventory_status = 'InCustody' AND deleted_at IS NULL
        AND (custodian_technician_id = ? OR custodian_technician_email = ?)
@@ -1319,6 +1654,7 @@ router.patch("/:id/status", requireAuth, requireRole(["Technical", "Admin", "Tec
     deviceInstall, activation, postInstallChecklist,
     technicianSignedOff, engineerSignedOff, sitePhotos,
     expectedGadgetCount, jobCardPhotoUrl,
+    forceComplete, overrideReason,
   } = req.body || {};
 
   const row = await pgGet("SELECT * FROM installation_tickets WHERE id = ? AND deleted_at IS NULL", [req.params.id]);
@@ -1356,6 +1692,30 @@ router.patch("/:id/status", requireAuth, requireRole(["Technical", "Admin", "Tec
     if (!isAssignedTech && !isAssistedByThisIso && caller.role !== "Admin") {
       return errorResponse(res, 403, "TECH_SIGNOFF_NOT_ALLOWED",
         "Only the assigned technician may sign off. To sign on their behalf, the ticket's ISO must first enable ISO Assisted mode.");
+    }
+  }
+
+  // ── Completion gate ── A job may only close when every hard requirement is met
+  // (see getCompletionBlockers — the single source of truth). If any are unmet we
+  // return the FULL list at once so the technician can fix everything in one pass,
+  // instead of hitting the guards one-by-one. A supervisor may force past a genuine
+  // edge case by sending forceComplete:true — the overridden blockers + reason are
+  // logged. This is the guaranteed close path for a job whose work is truly done.
+  let forcedBlockers: CompletionBlocker[] = [];
+  if (status === "Completed") {
+    const blockers = await getCompletionBlockers(row, {
+      assignedDeviceIdOverride: assignedDeviceId !== undefined ? assignedDeviceId : undefined,
+      techSignedOff: !!(row.technician_signed_off_at && String(row.technician_signed_off_at).trim()) || technicianSignedOff === true,
+      engSignedOff:  !!(row.engineer_signed_off_at   && String(row.engineer_signed_off_at).trim())   || engineerSignedOff === true,
+    });
+    const canForce = FORCE_COMPLETE_ROLES.has(req.user!.role);
+    if (blockers.length && !(forceComplete === true && canForce)) {
+      return errorResponse(res, 422, "COMPLETION_BLOCKED",
+        `This job can't be closed yet — ${blockers.length} requirement(s) not met. ${blockers.map((b) => b.message).join(" ")}`,
+        { blockers, canForceComplete: canForce });
+    }
+    if (blockers.length && forceComplete === true && canForce) {
+      forcedBlockers = blockers; // recorded to history/audit after the update lands
     }
   }
 
@@ -1470,11 +1830,17 @@ router.patch("/:id/status", requireAuth, requireRole(["Technical", "Admin", "Tec
     }).catch(console.error);
   }
 
-  // ── Auto-mark device(s) — and their paired SIM(s) — as Installed when ticket closes ──
-  // Every device committed to this job (via /device-custody/assign-to-job, which sets
-  // installation_id) is covered here, not just the single legacy assignedDeviceId field,
-  // so multi-device jobs and their SIM pairings both get consumed correctly.
-  if (status === 'Completed') {
+  // ── Auto-mark device(s) — and their paired SIM(s) — as Installed ──
+  // Fires the moment the TECHNICIAN signs off ("device installed correctly, job ready
+  // for handover"), not only when ISO later closes the ticket — so an installed gadget
+  // leaves the technician's custody immediately and shows up in their History, with no
+  // separate manual "Mark Installed" step. Every device committed to this job (via
+  // /device-custody/assign-to-job, which sets installation_id) is covered, not just the
+  // legacy assignedDeviceId field, so multi-device jobs + their SIM pairings are consumed
+  // too. Idempotent: it only ever touches devices still 'Issued for Installation', so
+  // re-running when ISO later closes the ticket is a harmless no-op.
+  const technicianJustSignedOff = technicianSignedOff && !row.technician_signed_off_at;
+  if (status === 'Completed' || technicianJustSignedOff) {
     const legacyDeviceId: string | null = (assignedDeviceId !== undefined ? assignedDeviceId : row.assigned_device_id) || null;
     const deviceRows = await pgAll(
       `SELECT * FROM inv_items
@@ -1486,6 +1852,7 @@ router.patch("/:id/status", requireAuth, requireRole(["Technical", "Admin", "Tec
       await pgRun(
         `UPDATE inv_items
          SET status = 'Installed',
+             issued_to_id    = NULL,
              installation_id = COALESCE(installation_id, ?),
              customer_id     = COALESCE(customer_id, ?),
              deployed_at     = COALESCE(deployed_at, ?),
@@ -1493,6 +1860,11 @@ router.patch("/:id/status", requireAuth, requireRole(["Technical", "Admin", "Tec
          WHERE id = ?`,
         [row.id, row.customer_id || null, now, now, deviceRow.id]
       ).catch(console.error);
+      // Custody ends at install — release the technician-custody link (issued_to_id, above)
+      // and close any open checkout so the installed device doesn't keep showing as "in a
+      // technician's custody" (it lives on the vehicle / Customer 360 from here). The
+      // technician's History still finds it via the persistent inv_checkout_records link.
+      await closeOpenCheckouts(deviceRow.id, "system: closed on install", now).catch(() => {});
       await pgRun(
         `INSERT INTO inv_movements
            (id, item_id, product_id, action, from_status, to_status,
@@ -1556,6 +1928,18 @@ router.patch("/:id/status", requireAuth, requireRole(["Technical", "Admin", "Tec
   auditLog(req, "INSTALL_TICKET_STATUS_UPDATE", `installation_ticket:${req.params.id}`, "Info",
     { ticketNo: row.ticket_no, status, stage, assignedDeviceId }).catch(console.error);
 
+  // Force-complete override: a supervisor closed the job past unmet gates — record
+  // exactly which requirements were overridden and why, so it's auditable.
+  if (forcedBlockers.length) {
+    const reason = typeof overrideReason === "string" && overrideReason.trim() ? overrideReason.trim() : "(no reason given)";
+    auditLog(req, "INSTALL_TICKET_FORCE_COMPLETED", `installation_ticket:${req.params.id}`, "Warning",
+      { ticketNo: row.ticket_no, overriddenBlockers: forcedBlockers.map((b) => b.code), reason }).catch(console.error);
+    recordHistory(req.params.id, "COMPLETION_FORCED", req, {
+      statusBefore: row.status, statusAfter: "Completed",
+      details: { overriddenBlockers: forcedBlockers, reason },
+    });
+  }
+
   // Record history — STATUS_CHANGED covers both status and stage transitions
   const newStatus  = status ?? row.status;
   const newStage   = stage  != null ? Number(stage) : Number(row.stage || 0);
@@ -1606,10 +1990,124 @@ router.patch("/:id/status", requireAuth, requireRole(["Technical", "Admin", "Tec
   if (status === "Completed" && row.retail_lead_id) {
     sendProformaApprovalLinkForTicket(row.id)
       .catch((e: any) => console.error("[retail-auto-quote] approval link failed (non-fatal):", e?.message));
+    // Partner-priced quotes: completing the job card auto-approves the quotation
+    // and generates the invoice (proforma → auto-approve → invoice), no manual step.
+    autoApprovePartnerQuoteForCompletedTicket(
+      { id: row.id, retail_lead_id: row.retail_lead_id },
+      { id: req.user!.id, email: req.user!.email || "" },
+    ).catch((e: any) => console.error("[partner-auto-approve] job-complete auto-approval failed (non-fatal):", e?.message));
   }
 
   const updated = await pgGet("SELECT * FROM installation_tickets WHERE id = ?", [req.params.id]);
   return res.status(200).json({ data: mapTicket(updated), message: "Status updated." });
+});
+
+// ── GET /:id/completion-readiness ── Is this job closable, and if not, what's left? ──
+// Lets the job-card wizard show the technician the exact list of unmet requirements
+// before they press Close, instead of discovering them one 422 at a time. Same
+// getCompletionBlockers() the completion path uses, so UI and server never disagree.
+router.get("/:id/completion-readiness", requireAuth, requireRole(["Technical", "Admin", "Technician", "Support", "InstallOffice"]), async (req: AuthRequest, res) => {
+  const row = await pgGet("SELECT * FROM installation_tickets WHERE id = ? AND deleted_at IS NULL", [req.params.id]);
+  if (!row) return errorResponse(res, 404, "NOT_FOUND", "Installation ticket not found.");
+  const blockers = await getCompletionBlockers(row);
+  return res.status(200).json({
+    data: {
+      ready: blockers.length === 0,
+      blockers,
+      canForceComplete: FORCE_COMPLETE_ROLES.has(req.user!.role),
+    },
+  });
+});
+
+// ── POST /:id/lifecycle ── Pause / reschedule / cancel / default / resume a job ──
+// Records an interrupted job honestly (reason + evidence) instead of leaving it
+// falsely Pending/Assigned or wrongly Completed. Terminal states (Cancelled /
+// Defaulted) require evidence; On Hold / Rescheduled can be resumed to where the
+// job was. Allowed to the assigned party (tech/co-tech/ISO) or a supervisor.
+const LIFECYCLE_ACTIONS: Record<string, { status: string; terminal: boolean; requiresEvidence: boolean }> = {
+  hold:       { status: "On Hold",     terminal: false, requiresEvidence: false },
+  reschedule: { status: "Rescheduled", terminal: false, requiresEvidence: false },
+  // Cancelling no longer forces an attachment (reason is still required); a
+  // customer default still requires evidence for the write-off trail.
+  cancel:     { status: "Cancelled",   terminal: true,  requiresEvidence: false },
+  default:    { status: "Defaulted",   terminal: true,  requiresEvidence: true  },
+};
+const viStatusOf = (s: string): string => (s === "InProgress" ? "In Progress" : s);
+
+router.post("/:id/lifecycle", requireAuth, requireRole(["Technical", "Admin", "Technician", "Support", "InstallOffice"]), requireTicketUnlocked, async (req: AuthRequest, res) => {
+  const { action, reason, evidence, rescheduledTo } = req.body || {};
+  const row = await pgGet("SELECT * FROM installation_tickets WHERE id = ? AND deleted_at IS NULL", [req.params.id]);
+  if (!row) return errorResponse(res, 404, "NOT_FOUND", "Installation ticket not found.");
+
+  const caller = req.user!;
+  const isSupervisor = ["Admin", "Technical", "InstallOffice"].includes(caller.role);
+  const isAssignedParty =
+    row.assigned_to_user_id === caller.id || (row.assigned_to_email && row.assigned_to_email === caller.email) ||
+    row.co_technician_user_id === caller.id || (row.co_technician_email && row.co_technician_email === caller.email) ||
+    row.iso_user_id === caller.id || (row.iso_email && row.iso_email === caller.email);
+  if (!isSupervisor && !isAssignedParty) {
+    return errorResponse(res, 403, "FORBIDDEN", "Only the assigned technician, ISO officer, or a supervisor may change this job's state.");
+  }
+
+  const now = new Date().toISOString();
+  const evidenceUrls: string[] = Array.isArray(evidence) ? evidence.filter((u: any) => typeof u === "string" && u.trim()) : [];
+
+  // ── Resume a paused / rescheduled job back to where it was ──
+  if (action === "resume") {
+    if (!["On Hold", "Rescheduled"].includes(row.status)) {
+      return errorResponse(res, 409, "INVALID_TRANSITION", `Only an On Hold or Rescheduled job can be resumed (this one is '${row.status}').`);
+    }
+    const back = row.status_before_hold || (row.assigned_to_user_id ? "Assigned" : "Pending");
+    await pgRun(
+      `UPDATE installation_tickets SET status=?, status_reason=NULL, rescheduled_to=NULL, status_before_hold=NULL,
+         status_changed_by_email=?, status_changed_at=?, updated_at=? WHERE id=?`,
+      [back, caller.email || null, now, now, row.id],
+    );
+    if (row.vi_installation_id) {
+      await pgRun(`UPDATE vi_installations SET status=?, updated_at=? WHERE id=?`, [viStatusOf(back), now, row.vi_installation_id]).catch(() => {});
+    }
+    recordHistory(row.id, "STATUS_CHANGED", req, { statusBefore: row.status, statusAfter: back, notes: `Resumed${reason ? ": " + reason : ""}` });
+    auditLog(req, "INSTALL_TICKET_RESUMED", `installation_ticket:${row.id}`, "Info", { from: row.status, to: back }).catch(console.error);
+    const updated = await pgGet("SELECT * FROM installation_tickets WHERE id = ?", [row.id]);
+    return res.status(200).json({ data: mapTicket(updated), message: `Job resumed (${back}).` });
+  }
+
+  const def = LIFECYCLE_ACTIONS[action];
+  if (!def) return errorResponse(res, 400, "VALIDATION_ERROR", "action must be one of: hold, reschedule, cancel, default, resume.");
+  if (["Completed", "Cancelled", "Defaulted"].includes(row.status)) {
+    return errorResponse(res, 409, "INVALID_TRANSITION", `A ${row.status} job can't be marked ${def.status}.`);
+  }
+  if (!reason || !String(reason).trim()) {
+    return errorResponse(res, 400, "REASON_REQUIRED", "A reason is required.");
+  }
+  if (def.requiresEvidence && !evidenceUrls.length) {
+    return errorResponse(res, 400, "EVIDENCE_REQUIRED", `Supporting evidence (at least one attachment) is required to mark a job ${def.status}.`);
+  }
+  if (action === "reschedule" && (!rescheduledTo || !String(rescheduledTo).trim())) {
+    return errorResponse(res, 400, "DATE_REQUIRED", "A new scheduled date is required to reschedule.");
+  }
+
+  // Remember the active status so a hold/reschedule can resume to it.
+  const before = ["Pending", "Assigned", "InProgress", "In Progress"].includes(row.status) ? row.status : null;
+  await pgRun(
+    `UPDATE installation_tickets SET status=?, status_reason=?, status_evidence_json=?, rescheduled_to=?,
+       status_before_hold=CASE WHEN ?::boolean THEN ? ELSE status_before_hold END,
+       status_changed_by_email=?, status_changed_at=?, updated_at=? WHERE id=?`,
+    [def.status, String(reason).trim(), JSON.stringify(evidenceUrls),
+     action === "reschedule" ? rescheduledTo : null,
+     !def.terminal, before, caller.email || null, now, now, row.id],
+  );
+  if (row.vi_installation_id) {
+    await pgRun(`UPDATE vi_installations SET status=?, updated_at=? WHERE id=?`, [viStatusOf(def.status), now, row.vi_installation_id]).catch(() => {});
+  }
+  recordHistory(row.id, "STATUS_CHANGED", req, {
+    statusBefore: row.status, statusAfter: def.status, notes: String(reason).trim(),
+    details: { action, evidenceCount: evidenceUrls.length, rescheduledTo: action === "reschedule" ? rescheduledTo : undefined },
+  });
+  auditLog(req, `INSTALL_TICKET_${String(action).toUpperCase()}`, `installation_ticket:${row.id}`,
+    def.terminal ? "Warning" : "Info", { from: row.status, to: def.status, reason: String(reason).trim() }).catch(console.error);
+  const updated = await pgGet("SELECT * FROM installation_tickets WHERE id = ?", [row.id]);
+  return res.status(200).json({ data: mapTicket(updated), message: `Job marked ${def.status}.` });
 });
 
 // ── POST /:id/send-csat ── Send OTP to customer via email, SMS, or WhatsApp ──
@@ -1642,8 +2140,11 @@ router.post("/:id/send-csat", requireAuth, requireRole(["Technical", "Admin", "T
       });
       delivered = true;
     } else if (channel === "sms" && isAtConfigured()) {
-      await sendSms([contact], otpText);
-      delivered = true;
+      // Same as send-credentials: a rejected send returns status "Failed"
+      // rather than throwing, so delivered must come from the result.
+      const [sms] = await sendSms([contact], otpText);
+      delivered = sms?.status === "Success";
+      if (!delivered) console.error(`[CSAT OTP] gateway rejected SMS: ${sms?.messageId || sms?.statusCode || "no response"}`);
     } else if (channel === "whatsapp" && isTwilioConfigured()) {
       await sendWhatsApp(contact, otpText);
       delivered = true;
@@ -1662,6 +2163,137 @@ router.post("/:id/send-csat", requireAuth, requireRole(["Technical", "Admin", "T
     // Return OTP to authenticated staff so they can read it to the customer
     // if the delivery channel is not configured or unreliable.
     otp: delivered ? undefined : otp,
+  });
+});
+
+/**
+ * Every phone number REGISTERED TO THE CUSTOMER on a job, most authoritative
+ * first: retail lead's customer_phone → CRM contact people → individual
+ * profile. Never the installation/site contact or the referrer — they are
+ * other people, and a tracking login must not reach them. Single source of
+ * truth for the credentials form's prefill and the server-side refusal.
+ */
+async function customerOwnPhones(row: any): Promise<string[]> {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const add = (v: string | null | undefined) => {
+    const d = String(v || "").replace(/\D/g, "").replace(/^254/, "0");
+    if (!d || seen.has(d)) return;
+    seen.add(d); out.push(String(v).trim());
+  };
+  if (row.retail_lead_id) {
+    // customer_phone ONLY — the same row also carries referrer_phone and
+    // installation_contact_phone, which belong to other people entirely.
+    const rl = await pgGet("SELECT customer_phone FROM retail_leads WHERE id = ? AND deleted_at IS NULL", [row.retail_lead_id]).catch(() => null);
+    add(rl?.customer_phone);
+  }
+  if (row.customer_id) {
+    const cps = await pgAll<any>(
+      "SELECT phone_enc FROM crm_contact_persons WHERE customer_id = ? ORDER BY is_primary DESC, created_at ASC",
+      [row.customer_id]
+    ).catch(() => []);
+    for (const cp of cps) { if (cp?.phone_enc) { try { add(decryptField(cp.phone_enc)); } catch { /* ignore */ } } }
+    const ind = await pgGet("SELECT phone_enc FROM crm_individual_profiles WHERE customer_id = ?", [row.customer_id]).catch(() => null);
+    if (ind?.phone_enc) { try { add(decryptField(ind.phone_enc)); } catch { /* ignore */ } }
+  }
+  return out;
+}
+
+/** Kenyan numbers are stored as 07…, 2547… and +2547… — compare on digits. */
+const samePhone = (a: string | null, b: string | null) => {
+  const d = (v: string | null) => String(v || "").replace(/\D/g, "").replace(/^254/, "0");
+  return !!d(a) && d(a) === d(b);
+};
+
+// ── POST /:id/send-credentials ── Share the tracking-platform login with the customer ──
+// Delivers the credentials message via the configured SMS gateway (Telkosh) or the
+// customer email mailbox (Graph), and logs it to the customer's communication history so
+// it shows on Customer 360 → Communications. WhatsApp is delivered client-side via a
+// wa.me deep-link, so for that channel this endpoint only records the log.
+router.post("/:id/send-credentials", requireAuth, requireRole(["Technical", "Admin", "Technician", "Support", "InstallOffice"]), async (req: AuthRequest, res) => {
+  const { channel, recipient, message, subject } = req.body || {};
+  const ch = String(channel || "").toLowerCase();
+  if (!["email", "sms", "whatsapp"].includes(ch)) return errorResponse(res, 400, "VALIDATION_ERROR", "channel must be email, sms, or whatsapp.");
+  if (!recipient || !String(recipient).trim()) return errorResponse(res, 400, "VALIDATION_ERROR", "A recipient (email or phone) is required.");
+  if (!message || !String(message).trim()) return errorResponse(res, 400, "VALIDATION_ERROR", "A message is required.");
+
+  const row = await pgGet("SELECT id, ticket_no, customer_id, customer_name, retail_lead_id, installation_contact_phone FROM installation_tickets WHERE id = ? AND deleted_at IS NULL", [req.params.id]);
+  if (!row) return errorResponse(res, 404, "NOT_FOUND", "Installation ticket not found.");
+  if (!row.customer_id) return errorResponse(res, 422, "NO_CUSTOMER", "This job has no linked customer to log the message against.");
+
+  // A tracking login must go to the CUSTOMER. Texting it to whoever was on
+  // site hands a stranger access to the vehicle, which is what happened 80
+  // times while the form prefilled the site contact. Anything other than the
+  // customer's number on file needs a deliberate confirmation, enforced here
+  // rather than only in the browser so every caller is held to it.
+  if (ch !== "email") {
+    const ownPhones = await customerOwnPhones(row);
+    if (!ownPhones.length) {
+      return errorResponse(res, 422, "NO_CUSTOMER_PHONE",
+        "No phone number is registered for this customer. Add it to the customer record, then send.",
+        { recipient });
+    }
+    if (!ownPhones.some((p) => samePhone(p, String(recipient)))) {
+      const isSite = samePhone(row.installation_contact_phone, String(recipient));
+      return errorResponse(res, 422, "RECIPIENT_NOT_CUSTOMER",
+        `${recipient} is ${isSite ? "this job's site contact" : "not registered to this customer"}. A tracking login can only be sent to the customer's registered number (${ownPhones.join(" or ")}).`,
+        { customerPhones: ownPhones, recipient, isSiteContact: isSite });
+    }
+  }
+
+  const subj = String(subject || "Your Vehicle Tracking Platform Access").slice(0, 200);
+  const msg = String(message);
+  let delivered = false;
+
+  try {
+    if (ch === "email") {
+      if (!isGraphConfigured()) return errorResponse(res, 503, "NOT_CONFIGURED", "Email sending is not configured.");
+      const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const htmlBody = msg.split(/\r?\n/).map((l) => `<p style="margin:0 0 8px">${esc(l) || "&nbsp;"}</p>`).join("");
+      await sendEmailViaGraph({ fromMailbox: MAILBOXES.customer, to: recipient, subject: subj, htmlBody, textBody: msg });
+      delivered = true;
+    } else if (ch === "sms") {
+      if (!isAtConfigured()) return errorResponse(res, 503, "NOT_CONFIGURED", "The SMS gateway is not configured.");
+      // sendSms never throws — a gateway rejection (bad credentials, no
+      // balance, bad number) comes back as status "Failed". This used to set
+      // delivered = true regardless, so a rejected send still told the
+      // technician the credentials had gone out, and logged delivered: true.
+      const [sms] = await sendSms([String(recipient)], msg);
+      if (sms?.status !== "Success") {
+        console.error(`[send-credentials] gateway rejected SMS for ticket ${row.ticket_no}: ${sms?.messageId || sms?.statusCode || "no response"}`);
+        return errorResponse(res, 502, "DELIVERY_FAILED", "The SMS gateway rejected the message — nothing was sent. Please try again.");
+      }
+      delivered = true;
+    }
+    // whatsapp → delivered client-side via wa.me; we only record the log below.
+  } catch (e: any) {
+    console.error(`[send-credentials] ${ch} delivery failed:`, e?.message);
+    return errorResponse(res, 502, "DELIVERY_FAILED", `Could not send via ${ch}. ${e?.message || ""}`.trim());
+  }
+
+  // Log to the customer's communication history.
+  const now = new Date().toISOString();
+  const channelLabel = ch === "email" ? "Email" : ch === "sms" ? "SMS" : "WhatsApp";
+  await pgRun(
+    `INSERT INTO crm_communication_logs
+       (id, customer_id, channel, direction, subject, body_enc, by_user_id, by_user_email,
+        contact_name, contacted_at, linked_ticket_id, metadata_json, created_at)
+     VALUES (?, ?, ?, 'Outbound', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      uuidv4(), row.customer_id, channelLabel, subj, encryptField(msg),
+      req.user!.id, req.user!.email || null,
+      row.customer_name || String(recipient),
+      now, row.id,
+      JSON.stringify({ recipient, kind: "platform_credentials", delivered }), now,
+    ]
+  ).catch((e) => console.error("[send-credentials] comm-log insert failed:", e));
+
+  auditLog(req, "PLATFORM_CREDENTIALS_SENT", `installation_ticket:${row.id}`, "Info",
+    { ticketNo: row.ticket_no, channel: channelLabel, customerId: row.customer_id }).catch(console.error);
+
+  return res.status(200).json({
+    data: { delivered, channel: channelLabel },
+    message: delivered ? `Credentials sent to the customer via ${channelLabel} and logged.` : `Logged to the customer's history.`,
   });
 });
 
@@ -2139,5 +2771,105 @@ router.post(
     return res.status(200).json({ data: mapTicket(updated), message: "Activation rejected." });
   }
 );
+
+// ── Admin: swap devices on a (closed) installation ticket ────────────────────
+// Corrects a job completed with the WRONG device — returns the wrong device to
+// stock and installs the correct one, updating the ticket, inventory, movement
+// log, any certificate IMEI, and the ticket history. Admin-only, and deliberately
+// works on Completed/Closed tickets (it bypasses the normal edit lock).
+async function findTicketByIdOrNo(idOrNo: string): Promise<any> {
+  return pgGet(
+    "SELECT * FROM installation_tickets WHERE (id = ? OR ticket_no = ?) AND deleted_at IS NULL LIMIT 1",
+    [idOrNo, idOrNo]
+  );
+}
+
+router.get("/:id/installed-devices", requireAuth, requireRole(["Admin"]), async (req, res) => {
+  const ticket = await findTicketByIdOrNo(req.params.id);
+  if (!ticket) return errorResponse(res, 404, "NOT_FOUND", "Ticket not found.");
+  const devices = await pgAll(
+    `SELECT i.id, i.imei, i.serial_number, i.status, p.device_model, p.product_name
+     FROM inv_items i LEFT JOIN inv_product_catalog p ON p.id = i.product_id
+     WHERE i.installation_id = ? AND i.deleted_at IS NULL
+     ORDER BY (i.id = ?) DESC, i.imei`,
+    [ticket.id, ticket.assigned_device_id || ""]
+  );
+  return res.status(200).json({ data: {
+    ticketId: ticket.id, ticketNo: ticket.ticket_no, vehicle: ticket.vehicle_registration,
+    customer: ticket.customer_name, status: ticket.status,
+    assignedDeviceId: ticket.assigned_device_id || null,
+    devices: (devices as any[]).map((d) => ({
+      id: d.id, imei: d.imei || null, serial: d.serial_number || null, status: d.status,
+      model: d.device_model || d.product_name || null, assigned: d.id === ticket.assigned_device_id,
+    })),
+  }});
+});
+
+router.post("/:id/admin-swap-device", requireAuth, requireRole(["Admin"]), async (req: AuthRequest, res) => {
+  const { oldDeviceId, newDeviceId, newDeviceImei, reason } = req.body || {};
+  if (!oldDeviceId) return errorResponse(res, 400, "VALIDATION_ERROR", "oldDeviceId is required.");
+  if (!newDeviceId && !newDeviceImei) return errorResponse(res, 400, "VALIDATION_ERROR", "newDeviceId or newDeviceImei is required.");
+
+  const ticket = await findTicketByIdOrNo(req.params.id);
+  if (!ticket) return errorResponse(res, 404, "NOT_FOUND", "Ticket not found.");
+
+  const oldDev = await pgGet("SELECT id, imei, status, installation_id, product_id FROM inv_items WHERE id = ? AND deleted_at IS NULL", [oldDeviceId]);
+  if (!oldDev) return errorResponse(res, 404, "NOT_FOUND", "Current device not found.");
+  if (oldDev.installation_id !== ticket.id) return errorResponse(res, 400, "NOT_ON_JOB", "That device is not installed on this ticket.");
+
+  let newDev: any = null;
+  if (newDeviceId) {
+    newDev = await pgGet("SELECT id, imei, status, installation_id FROM inv_items WHERE id = ? AND deleted_at IS NULL", [newDeviceId]);
+  } else {
+    const clean = String(newDeviceImei).replace(/\s+/g, "");
+    newDev = await pgGet("SELECT id, imei, status, installation_id FROM inv_items WHERE REPLACE(imei,' ','') = ? AND deleted_at IS NULL LIMIT 1", [clean]);
+  }
+  if (!newDev) return errorResponse(res, 404, "NOT_FOUND", "Replacement device not found in inventory.");
+  if (newDev.id === oldDev.id) return errorResponse(res, 400, "SAME_DEVICE", "Replacement is the same as the current device.");
+  if (newDev.installation_id && newDev.installation_id !== ticket.id) return errorResponse(res, 409, "DEVICE_IN_USE", "The replacement device is already installed on another job.");
+
+  const now = new Date().toISOString();
+  const actorId = req.user!.id;
+  const actorEmail = req.user!.email || "";
+
+  // Wrong device → back to stock
+  await pgRun("UPDATE inv_items SET status='In Stock', installation_id=NULL, reserved_until=NULL, reservation_quote_id=NULL, updated_at=? WHERE id=?", [now, oldDev.id]);
+  await pgRun(
+    `INSERT INTO inv_movements (id,item_id,product_id,action,from_status,to_status,performed_by_user_id,performed_by_email,notes,created_at)
+     SELECT ?,?,product_id,'ADMIN_DEVICE_SWAP_OUT',status,'In Stock',?,?,?,? FROM inv_items WHERE id=?`,
+    [uuidv4(), oldDev.id, actorId, actorEmail, `Removed from ${ticket.ticket_no} (admin swap${reason ? ": " + reason : ""})`, now, oldDev.id]
+  ).catch(() => {});
+
+  // Correct device → installed on this ticket
+  await pgRun("UPDATE inv_items SET status='Installed', installation_id=?, reserved_until=NULL, reservation_quote_id=NULL, updated_at=? WHERE id=?", [ticket.id, now, newDev.id]);
+  await pgRun(
+    `INSERT INTO inv_movements (id,item_id,product_id,action,from_status,to_status,performed_by_user_id,performed_by_email,notes,created_at)
+     SELECT ?,?,product_id,'ADMIN_DEVICE_SWAP_IN',status,'Installed',?,?,?,? FROM inv_items WHERE id=?`,
+    [uuidv4(), newDev.id, actorId, actorEmail, `Installed on ${ticket.ticket_no} (admin swap${reason ? ": " + reason : ""})`, now, newDev.id]
+  ).catch(() => {});
+
+  // Ticket device references
+  let devicesJson: any[] = [];
+  try { devicesJson = JSON.parse(ticket.devices_json || "[]"); } catch { devicesJson = []; }
+  devicesJson = devicesJson.map((d: any) =>
+    (d && (d.stockItemId === oldDev.id || d.id === oldDev.id || d.imei === oldDev.imei))
+      ? { ...d, stockItemId: newDev.id, id: newDev.id, imei: newDev.imei } : d);
+  const newAssigned = ticket.assigned_device_id === oldDev.id ? newDev.id : ticket.assigned_device_id;
+  await pgRun("UPDATE installation_tickets SET assigned_device_id=?, devices_json=?, updated_at=? WHERE id=?",
+    [newAssigned, JSON.stringify(devicesJson), now, ticket.id]);
+
+  // Any certificate for THIS vehicle that referenced the old device's IMEI
+  if (oldDev.imei) {
+    const regKey = String(ticket.vehicle_registration || "").replace(/\s+/g, "").toUpperCase();
+    await pgRun("UPDATE certificates SET imei_1=?, updated_at=? WHERE imei_1=? AND REPLACE(UPPER(car_registration),' ','')=? AND deleted_at IS NULL", [newDev.imei, now, oldDev.imei, regKey]).catch(() => {});
+    await pgRun("UPDATE certificates SET imei_2=?, updated_at=? WHERE imei_2=? AND REPLACE(UPPER(car_registration),' ','')=? AND deleted_at IS NULL", [newDev.imei, now, oldDev.imei, regKey]).catch(() => {});
+  }
+
+  auditLog(req, "TICKET_ADMIN_DEVICE_SWAP", `installation_ticket:${ticket.id}`, "Warning",
+    { ticketNo: ticket.ticket_no, oldDeviceId: oldDev.id, oldImei: oldDev.imei, newDeviceId: newDev.id, newImei: newDev.imei, reason: reason || null }).catch(console.error);
+  recordHistory(ticket.id, "DEVICE_SWAPPED", req as AuthRequest, { details: { oldImei: oldDev.imei, newImei: newDev.imei, reason: reason || null } });
+
+  return res.status(200).json({ data: { swapped: true, oldImei: oldDev.imei, newImei: newDev.imei }, message: `Device swapped: ${oldDev.imei || oldDev.id} → ${newDev.imei || newDev.id}` });
+});
 
 export default router;

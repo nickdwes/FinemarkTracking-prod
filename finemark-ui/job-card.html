@@ -34,6 +34,8 @@
     .stage-node.done  .sn-label { color:#16a34a; font-weight:600; }
     .stage-node.active .sn-label { color:#2563eb; font-weight:700; }
     .stage-node.clickable { cursor:pointer; }
+    .stage-node.skipped { opacity:.4; }
+    .stage-node.skipped .sn-label { text-decoration:line-through; }
     .stage-node.clickable:hover .sn-dot { transform:scale(1.12); box-shadow:0 0 0 3px rgba(37,99,235,.15); }
     .stage-node.clickable:hover .sn-label { color:#2563eb; }
     /* Closed installations are read-only: block all interaction with the stage
@@ -101,11 +103,16 @@
             <span id="ticket-badge" class="badge border-slate-200 bg-slate-100 text-slate-600"></span>
             <span id="status-badge" class="badge"></span>
             <span id="iso-assist-indicator" class="hidden badge border-amber-300 bg-amber-50 text-amber-800">🧑‍🔧 ISO Assisted</span>
+            <span id="service-only-indicator" class="hidden badge border-violet-300 bg-violet-50 text-violet-700" title="Everything sold on this job is a service. Device selection, device installation and activation are skipped.">🛠 Service job, no gadget</span>
           </div>
           <p id="ticket-sub" class="text-sm text-slate-500"></p>
         </div>
         <a href="job-details.html" id="back-link" class="text-sm text-blue-600 hover:underline">← Back to Job Details</a>
       </div>
+      <!-- Lifecycle state banner (On Hold / Rescheduled / Cancelled / Defaulted) -->
+      <div id="lifecycle-banner" class="hidden mb-4 rounded-xl border p-3 text-sm"></div>
+      <!-- Job actions: pause / reschedule / cancel / default / resume -->
+      <div id="lifecycle-actions" class="hidden flex flex-wrap items-center gap-2 mb-4"></div>
       <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
         <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-3">Installation Progress</p>
         <div class="stage-rail" id="stage-rail"></div>
@@ -281,6 +288,7 @@
             <select id="vd-model" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-white" disabled>
               <option value="">— Select make first</option>
             </select>
+            <p id="vd-model-years" class="hidden text-[11px] text-slate-500 mt-1"></p>
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">Model Number</label>
@@ -552,7 +560,7 @@
           <div id="s8-eng-form" class="rounded-xl border border-slate-200 p-4 space-y-3">
             <label class="flex items-start gap-3 cursor-pointer">
               <input type="checkbox" id="s8-eng-chk" class="mt-0.5 w-4 h-4 accent-purple-600 flex-shrink-0" onchange="updateS8Buttons()" />
-              <p class="text-sm text-slate-700">I (ISO) confirm that the device activation, post-installation checks, and site photos have been reviewed. This installation is complete and satisfactory.</p>
+              <p id="s8-eng-chk-label" class="text-sm text-slate-700">I (ISO) confirm that the device activation, post-installation checks, and site photos have been reviewed. This installation is complete and satisfactory.</p>
             </label>
             <button id="s8-eng-btn" disabled onclick="engineerSignOff()"
               class="w-full py-2.5 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition disabled:opacity-40 disabled:cursor-not-allowed">
@@ -631,6 +639,58 @@
             </div>
           </div>
         </div>
+
+        <!-- 4. Share platform credentials -->
+        <div id="s8-cred-section" class="space-y-3 pt-4 border-t border-slate-100">
+          <h3 class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-bold flex items-center justify-center flex-shrink-0">4</span>
+            Share Platform Credentials
+            <span class="text-xs font-normal text-slate-400">(optional)</span>
+          </h3>
+          <div id="s8-cred-done" class="hidden rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800"></div>
+          <div id="s8-cred-svc-note" class="hidden rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-600">
+            Service job — no gadget was fitted, so no tracking login or certificate is issued.
+            <button type="button" class="ml-1 underline font-semibold text-blue-600" onclick="showCredForm()">Send a login anyway</button>
+          </div>
+          <div id="s8-cred-form" class="rounded-xl border border-slate-200 p-4 space-y-3">
+            <p class="text-xs text-slate-500">Send the customer their tracking-platform login. Contact is prefilled from the customer record — edit anything as needed. The message is logged to the customer's communication history.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <input id="s8-cred-url" type="text" placeholder="Platform URL / link" oninput="composeCredMessage()"
+                class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+              <input id="s8-cred-user" type="text" placeholder="Username" oninput="composeCredMessage()"
+                class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+              <input id="s8-cred-pass" type="text" placeholder="Password" oninput="composeCredMessage()"
+                class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-slate-600 mb-1.5">Send via</p>
+              <div class="flex gap-2">
+                <button type="button" id="cred-ch-email" onclick="setCredChannel('email')"
+                  class="flex-1 py-1.5 px-3 rounded-lg border text-xs font-semibold transition bg-blue-600 text-white border-blue-600">✉ Email</button>
+                <button type="button" id="cred-ch-sms" onclick="setCredChannel('sms')"
+                  class="flex-1 py-1.5 px-3 rounded-lg border text-xs font-semibold transition bg-white text-slate-600 border-slate-300 hover:border-blue-400">📱 SMS</button>
+                <button type="button" id="cred-ch-whatsapp" onclick="setCredChannel('whatsapp')"
+                  class="flex-1 py-1.5 px-3 rounded-lg border text-xs font-semibold transition bg-white text-slate-600 border-slate-300 hover:border-blue-400">💬 WhatsApp</button>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Send to</label>
+              <input id="s8-cred-recipient" type="text" placeholder="Customer email address"
+                oninput="updateCredRecipientHint()"
+                class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+              <p id="s8-cred-recipient-hint" class="mt-1 text-xs text-slate-500"></p>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Message <span class="text-slate-400 font-normal">(editable)</span></label>
+              <textarea id="s8-cred-message" rows="6" oninput="this.dataset.dirty='1'"
+                class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"></textarea>
+            </div>
+            <button id="s8-send-cred-btn" onclick="sendCredentials()"
+              class="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+              Send Credentials
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Close Installation -->
@@ -668,6 +728,35 @@
     </div>
 
   </main>
+</div>
+
+<!-- ── Lifecycle modal: pause / reschedule / cancel / default ── -->
+<div id="lc-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 space-y-4">
+    <h2 id="lc-title" class="text-lg font-bold text-slate-900">Update Job</h2>
+    <p id="lc-desc" class="text-sm text-slate-500 -mt-2"></p>
+    <div id="lc-date-wrap" class="hidden">
+      <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">New scheduled date <span class="text-rose-500">*</span></label>
+      <input id="lc-date" type="date" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+    </div>
+    <div>
+      <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Reason <span class="text-rose-500">*</span></label>
+      <textarea id="lc-reason" rows="3" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Explain why…"></textarea>
+    </div>
+    <div id="lc-evidence-wrap">
+      <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
+        Supporting evidence <span id="lc-evidence-req" class="text-rose-500 hidden">*</span>
+        <span class="text-slate-400 font-normal normal-case">(photo / document)</span>
+      </label>
+      <input id="lc-evidence" type="file" accept="image/*,.pdf" multiple class="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium" />
+      <div id="lc-evidence-list" class="mt-2 space-y-1 text-xs text-slate-500"></div>
+    </div>
+    <p id="lc-error" class="hidden text-sm text-rose-600"></p>
+    <div class="flex items-center justify-end gap-2 pt-1">
+      <button id="lc-cancel" type="button" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
+      <button id="lc-submit" type="button" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Confirm</button>
+    </div>
+  </div>
 </div>
 <div id="fm-footer"></div>
 <div id="toast-root" class="fixed top-4 right-4 z-50 space-y-2 pointer-events-none"></div>
@@ -726,6 +815,10 @@ const PHOTO_SLOTS = [
 ];
 
 const STAGES = ['Check-In','Devices','Vehicle','Pre-Check','Electrical','Install','Activate','Post-Check','Photos','Sign-off'];
+/* Service-only jobs (no gadget): skip Devices, Install and Activate. The ISO signs off
+   at the Sign-off stage instead of during activation. */
+const SERVICE_SKIP_STAGES = [1, 5, 6];
+function isServiceJob() { return !!(ticket && ticket.serviceOnly); }
 
 /* ── State ── */
 let ticket = null;
@@ -799,8 +892,110 @@ function errBanner(msg) {
 function statusBadgeClass(s) {
   return ({ Pending: 'border-slate-200 bg-slate-100 text-slate-600', Assigned: 'border-blue-200 bg-blue-50 text-blue-700',
     InProgress: 'border-yellow-200 bg-yellow-50 text-yellow-700', Completed: 'border-green-200 bg-green-50 text-green-700',
-    Cancelled: 'border-red-200 bg-red-50 text-red-700' })[s] || 'border-slate-200 bg-slate-100 text-slate-500';
+    Cancelled: 'border-red-200 bg-red-50 text-red-700', Defaulted: 'border-red-200 bg-red-50 text-red-700',
+    'On Hold': 'border-orange-200 bg-orange-50 text-orange-700', Rescheduled: 'border-violet-200 bg-violet-50 text-violet-700' })[s]
+    || 'border-slate-200 bg-slate-100 text-slate-500';
 }
+
+// ── Job lifecycle: pause / reschedule / cancel / default / resume ──────────────
+const lcEsc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LC_CONFIG = {
+  hold:       { title:'Pause Job (On Hold)', desc:'Temporarily halt this job. It stays assigned and can be resumed later.', btn:'Put On Hold', btnClass:'bg-orange-600 hover:bg-orange-700', terminal:false, needsDate:false, needsEvidence:false },
+  reschedule: { title:'Reschedule Job',      desc:'Move this job to a future date. It stays assigned.',                     btn:'Reschedule',  btnClass:'bg-violet-600 hover:bg-violet-700', terminal:false, needsDate:true, needsEvidence:false },
+  cancel:     { title:'Cancel Job',          desc:'This job will not proceed. Supporting evidence is optional.',            btn:'Cancel Job',  btnClass:'bg-rose-600 hover:bg-rose-700',     terminal:true,  needsDate:false, needsEvidence:false },
+  default:    { title:'Mark Defaulted',      desc:'Customer defaulted / no-show / abandoned. Supporting evidence is required.', btn:'Mark Defaulted', btnClass:'bg-rose-700 hover:bg-rose-800', terminal:true, needsDate:false, needsEvidence:true },
+};
+let _lcAction = null, _lcEvidenceUrls = [];
+
+function renderLifecycle() {
+  const banner = document.getElementById('lifecycle-banner');
+  const actions = document.getElementById('lifecycle-actions');
+  if (!ticket) { banner.classList.add('hidden'); actions.classList.add('hidden'); return; }
+  const s = ticket.status;
+  const bannerStyle = {
+    'On Hold':'border-orange-200 bg-orange-50 text-orange-800', 'Rescheduled':'border-violet-200 bg-violet-50 text-violet-800',
+    'Cancelled':'border-rose-200 bg-rose-50 text-rose-800', 'Defaulted':'border-rose-200 bg-rose-50 text-rose-800',
+  }[s];
+  if (bannerStyle) {
+    const ev = (ticket.statusEvidence || []).map((u,i)=>`<a href="${u}" target="_blank" class="underline">evidence ${i+1}</a>`).join(' · ');
+    banner.className = `mb-4 rounded-xl border p-3 text-sm ${bannerStyle}`;
+    banner.innerHTML = `<strong>${s}</strong>${ticket.rescheduledTo ? ` — new date: ${lcEsc(ticket.rescheduledTo)}` : ''}`
+      + `${ticket.statusReason ? ` · ${lcEsc(ticket.statusReason)}` : ''}${ev ? ` · ${ev}` : ''}`
+      + `${ticket.statusChangedBy ? ` <span class="opacity-70">(by ${lcEsc(ticket.statusChangedBy)})</span>` : ''}`;
+    banner.classList.remove('hidden');
+  } else { banner.classList.add('hidden'); }
+
+  const mk = (id, label, cls) => `<button data-lc="${id}" class="rounded-lg px-3 py-1.5 text-sm font-semibold text-white ${cls}">${label}</button>`;
+  let btns = [];
+  if (['Pending','Assigned','InProgress'].includes(s)) {
+    btns = [ mk('hold','⏸ Pause','bg-orange-600 hover:bg-orange-700'), mk('reschedule','📅 Reschedule','bg-violet-600 hover:bg-violet-700'),
+             mk('cancel','✕ Cancel','bg-rose-600 hover:bg-rose-700'), mk('default','⚠ Defaulted','bg-rose-700 hover:bg-rose-800') ];
+  } else if (['On Hold','Rescheduled'].includes(s)) {
+    btns = [ mk('resume','▶ Resume','bg-emerald-600 hover:bg-emerald-700'), mk('cancel','✕ Cancel','bg-rose-600 hover:bg-rose-700'),
+             mk('default','⚠ Defaulted','bg-rose-700 hover:bg-rose-800') ];
+  }
+  if (btns.length) {
+    actions.innerHTML = `<span class="text-xs font-semibold uppercase tracking-wide text-slate-400 mr-1">Job actions:</span>` + btns.join('');
+    actions.classList.remove('hidden');
+    actions.querySelectorAll('[data-lc]').forEach(b => b.addEventListener('click', () => onLifecycleAction(b.dataset.lc)));
+  } else { actions.classList.add('hidden'); }
+}
+
+async function onLifecycleAction(action) {
+  if (action === 'resume') {
+    if (!confirm('Resume this job back to its active status?')) return;
+    try {
+      await APP.apiFetch(`/installation-tickets/${realTicketId || jobId}/lifecycle`, { method:'POST', body:{ action:'resume' } });
+      toast('Job resumed', 'success'); location.reload();
+    } catch(e){ toast(e?.message || 'Failed to resume', 'error'); }
+    return;
+  }
+  const cfg = LC_CONFIG[action]; if (!cfg) return;
+  _lcAction = action; _lcEvidenceUrls = [];
+  document.getElementById('lc-title').textContent = cfg.title;
+  document.getElementById('lc-desc').textContent = cfg.desc;
+  document.getElementById('lc-date-wrap').classList.toggle('hidden', !cfg.needsDate);
+  document.getElementById('lc-evidence-req').classList.toggle('hidden', !cfg.needsEvidence);
+  document.getElementById('lc-reason').value = '';
+  document.getElementById('lc-date').value = '';
+  document.getElementById('lc-evidence').value = '';
+  document.getElementById('lc-evidence-list').innerHTML = '';
+  document.getElementById('lc-error').classList.add('hidden');
+  const submit = document.getElementById('lc-submit');
+  submit.textContent = cfg.btn; submit.disabled = false;
+  submit.className = `rounded-lg px-4 py-2 text-sm font-semibold text-white ${cfg.btnClass}`;
+  document.getElementById('lc-modal').classList.remove('hidden');
+}
+
+document.getElementById('lc-cancel')?.addEventListener('click', () => document.getElementById('lc-modal').classList.add('hidden'));
+document.getElementById('lc-evidence')?.addEventListener('change', async (e) => {
+  const files = [...e.target.files];
+  const listEl = document.getElementById('lc-evidence-list');
+  _lcEvidenceUrls = [];
+  listEl.innerHTML = files.length ? 'Uploading…' : '';
+  try {
+    for (const f of files) { const r = await uploadFile(f); if (r?.url) _lcEvidenceUrls.push(r.url); }
+    listEl.innerHTML = _lcEvidenceUrls.map((u,i)=>`✓ evidence ${i+1}`).join('<br>') || 'No files uploaded';
+  } catch(err){ listEl.innerHTML = `<span class="text-rose-600">Upload failed — try again.</span>`; }
+});
+document.getElementById('lc-submit')?.addEventListener('click', async () => {
+  const cfg = LC_CONFIG[_lcAction]; if (!cfg) return;
+  const reason = document.getElementById('lc-reason').value.trim();
+  const rescheduledTo = document.getElementById('lc-date').value;
+  const errEl = document.getElementById('lc-error');
+  const fail = (m) => { errEl.textContent = m; errEl.classList.remove('hidden'); };
+  if (!reason) return fail('A reason is required.');
+  if (cfg.needsDate && !rescheduledTo) return fail('A new scheduled date is required.');
+  if (cfg.needsEvidence && !_lcEvidenceUrls.length) return fail('At least one evidence attachment is required.');
+  const btn = document.getElementById('lc-submit'); btn.disabled = true;
+  try {
+    await APP.apiFetch(`/installation-tickets/${realTicketId || jobId}/lifecycle`, {
+      method:'POST', body:{ action:_lcAction, reason, evidence:_lcEvidenceUrls, rescheduledTo: cfg.needsDate ? rescheduledTo : undefined },
+    });
+    document.getElementById('lc-modal').classList.add('hidden');
+    toast('Job updated', 'success'); location.reload();
+  } catch(e){ btn.disabled = false; fail(e?.message || 'Failed to update job'); }
+});
 
 function getUserRole() {
   const s = APP.getSession?.();
@@ -936,9 +1131,19 @@ async function toggleAssistMode(enabled) {
 }
 
 async function patchTicket(fields) {
-  return APP.apiFetch(`/installation-tickets/${realTicketId || jobId}/status`, {
-    method: 'PATCH', body: fields,
-  }).catch(console.error);
+  // Returns the saved payload on success, or null on failure (after surfacing the
+  // real server error). Callers that gate progress on a successful save MUST check
+  // the return — advancing on a null return is what used to strand jobs (a rejected
+  // save looked like success). See closeInstallation / techSignOff / engineerSignOff.
+  try {
+    return await APP.apiFetch(`/installation-tickets/${realTicketId || jobId}/status`, {
+      method: 'PATCH', body: fields,
+    });
+  } catch (e) {
+    console.error(e);
+    toast(e?.message || 'Could not save — please try again.', 'error');
+    return null;
+  }
 }
 
 /* ── Checklist renderer (reused for stages 2, 3, 6) ── */
@@ -1077,9 +1282,10 @@ function renderRail(active) {
   document.getElementById('stage-rail').innerHTML = STAGES.map((s, i) => {
     const cls = i < active ? 'done' : i === active ? 'active' : '';
     const dot = i < active ? '✓' : i + 1;
-    const reachable = i <= furthestStage && i !== active;
+    const skipped = isServiceJob() && SERVICE_SKIP_STAGES.includes(i);
+    const reachable = !skipped && i <= furthestStage && i !== active;
     const clickAttr = reachable ? ` onclick="goToStage(${i})"` : '';
-    return `<div class="stage-node ${cls}${reachable ? ' clickable' : ''}"${clickAttr}><div class="sn-dot">${dot}</div><div class="sn-label">${s}</div></div>`;
+    return `<div class="stage-node ${cls}${reachable ? ' clickable' : ''}${skipped ? ' skipped' : ''}"${clickAttr}${skipped ? ' title="Not needed: service job, no gadget"' : ''}><div class="sn-dot">${skipped ? '–' : dot}</div><div class="sn-label">${s}</div></div>`;
   }).join('');
 }
 
@@ -1210,6 +1416,7 @@ async function init() {
   document.getElementById('ticket-sub').textContent =
     [ticket.customerName, ticket.vehicleRegistration].filter(Boolean).join(' · ') || 'Installation job';
   document.getElementById('back-link').href = `job-details.html?id=${encodeURIComponent(ticket.viInstallationId || jobId)}`;
+  renderLifecycle();
 
   // Restore devices from draft first (supports multiple), fall back to single assignedDeviceId from ticket
   const draft = loadDraft();
@@ -1305,6 +1512,20 @@ function showAccessDenied(t) {
 
 /* ── Navigation ── */
 function goToStage(n) {
+  // Service-only job: hop over the gadget stages in the direction of travel, and
+  // record the skip on the server when moving forward past them.
+  if (isServiceJob() && SERVICE_SKIP_STAGES.includes(n)) {
+    const back = n < currentStage;
+    while (SERVICE_SKIP_STAGES.includes(n)) n += back ? -1 : 1;
+    if (!back && Number(ticket.stage || 0) < n && !isLocked) {
+      const body = { stage: n };
+      if (!['InProgress', 'Completed'].includes(ticket.status)) body.status = 'InProgress';
+      ticket.stage = n;
+      patchTicket(body).then((r) => { const t = r?.data || r; if (t && t.id) ticket = { ...ticket, ...t }; });
+    }
+  }
+  const svcBadge = document.getElementById('service-only-indicator');
+  if (svcBadge) svcBadge.classList.toggle('hidden', !isServiceJob());
   currentStage = n;
   furthestStage = Math.max(furthestStage, n);
   for (let i = 0; i <= 10; i++) document.getElementById(`stage-${i}`)?.classList.add('hidden');
@@ -1601,51 +1822,98 @@ async function loadMySims() {
     const sourcingForTech = canActAsIso() && !isAssignedTechOrCoTech() && ticket?.assignedToUserId;
     const targetTechId = sourcingForTech ? ticket.assignedToUserId : getUserId();
     const qs = targetTechId ? `&technicianId=${encodeURIComponent(targetTechId)}` : '';
-    const data = await APP.apiFetch(`/inventory/sims?status=issued&pageSize=200${qs}`).catch(() => null);
+    const data = await APP.apiFetch(`/inventory/sims?status=issued&pageSize=500${qs}`).catch(() => null);
     mySims = data?.data || data || [];
     simsLoaded = true;
   } catch { mySims = []; }
 }
 
-function simSelectHtml(deviceId) {
+// ── Searchable SIM picker ───────────────────────────────────────────────────
+// A tech can hold many issued SIMs, so a plain dropdown is slow to scan. This is
+// a search box that matches on the SIM's ICCID (the long number) OR its MSISDN
+// (phone number), keeping the same "one SIM can't be paired to two devices" rule.
+const escSim   = (v) => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const _simNorm = (v) => String(v == null ? '' : v).toLowerCase().replace(/\s+/g, '');
+
+// SIMs still available to THIS device: all of the tech's issued SIMs minus any
+// already paired to another device in this job (this row's own pick stays visible).
+function availableSimsFor(deviceId) {
   const current = imeiSimPairings[deviceId]?.simId || '';
+  const takenByOther = new Set(
+    Object.entries(imeiSimPairings)
+      .filter(([devId, p]) => devId !== deviceId && p?.simId)
+      .map(([, p]) => p.simId)
+  );
+  return mySims.filter(s => s.id === current || !takenByOther.has(s.id));
+}
+
+function simPickerHtml(deviceId) {
   if (!mySims.length) {
     const forTech = canActAsIso() && !isAssignedTechOrCoTech();
     return `<div class="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
       No SIM cards in ${forTech ? "the technician's" : 'your'} custody. Contact inventory to issue SIMs before pairing.
     </div>`;
   }
-  // Exclude SIMs already paired to a different device in this job so the same
-  // physical SIM can't be selected twice — but keep this row's own current pick visible.
-  const takenByOther = new Set(
-    Object.entries(imeiSimPairings)
-      .filter(([devId, p]) => devId !== deviceId && p?.simId)
-      .map(([, p]) => p.simId)
-  );
-  const availableSims = mySims.filter(s => s.id === current || !takenByOther.has(s.id));
-  const opts = availableSims.map(s => {
-    const label = [s.iccid, s.msisdn ? `(${s.msisdn})` : '', s.operator ? `· ${s.operator}` : ''].filter(Boolean).join(' ');
-    return `<option value="${s.id}" data-iccid="${s.iccid}" data-msisdn="${s.msisdn || ''}" ${s.id === current ? 'selected' : ''}>${label}</option>`;
-  }).join('');
-  return `<select id="pair-sim-${deviceId}"
-    onchange="onSimSelect('${deviceId}', this)"
-    class="w-full border border-slate-200 rounded px-2 py-1.5 text-xs font-mono focus:ring-1 focus:ring-blue-400 bg-white">
-    <option value="">— Select SIM card —</option>
-    ${opts}
-  </select>`;
+  const cur = mySims.find(s => s.id === (imeiSimPairings[deviceId]?.simId || ''));
+  return `
+    <div class="relative">
+      <input id="pair-sim-search-${deviceId}" type="text" autocomplete="off"
+        placeholder="Search SIM by number (ICCID) or MSISDN…"
+        oninput="filterSimResults('${deviceId}', this.value)"
+        onfocus="filterSimResults('${deviceId}', this.value)"
+        onblur="hideSimResults('${deviceId}')"
+        class="w-full border border-slate-200 rounded px-2 py-1.5 text-xs font-mono focus:ring-1 focus:ring-blue-400 bg-white" />
+      <div id="pair-sim-results-${deviceId}" class="hidden absolute z-30 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg"></div>
+    </div>
+    ${cur ? `
+      <div class="mt-1.5 flex items-center gap-2 rounded-md bg-emerald-50 border border-emerald-200 px-2 py-1.5">
+        <span class="text-emerald-600">✓</span>
+        <span class="flex-1 text-xs font-mono text-emerald-800">${escSim(cur.iccid || '')}${cur.msisdn ? ` · <span class="text-emerald-600">${escSim(cur.msisdn)}</span>` : ''}${cur.operator ? ` · <span class="text-emerald-500">${escSim(cur.operator)}</span>` : ''}</span>
+        <button type="button" onmousedown="clearSimPick('${deviceId}')" class="shrink-0 text-[11px] text-slate-400 hover:text-red-500" title="Clear selected SIM">Clear ✕</button>
+      </div>`
+    : `<p class="mt-1 text-[11px] text-slate-400">Type the SIM's ICCID (long number) or its phone number to find it.</p>`}
+  `;
 }
 
-function onSimSelect(deviceId, selectEl) {
-  const opt = selectEl.options[selectEl.selectedIndex];
-  const iccid  = opt?.dataset?.iccid  || '';
-  const msisdn = opt?.dataset?.msisdn || '';
-  const simId  = selectEl.value;
-  imeiSimPairings[deviceId] = { ...( imeiSimPairings[deviceId] || {}), simId, simIccid: iccid, msisdn };
-  // Auto-fill MSISDN field
-  const msisdnEl = document.getElementById(`pair-msisdn-${deviceId}`);
-  if (msisdnEl && msisdn) msisdnEl.value = msisdn;
-  // Refresh every row's dropdown so a SIM just picked here disappears from the others.
+function filterSimResults(deviceId, q) {
+  const box = document.getElementById(`pair-sim-results-${deviceId}`);
+  if (!box) return;
+  const nq = _simNorm(q);
+  const list = availableSimsFor(deviceId);
+  const matches = nq ? list.filter(s => _simNorm(s.iccid).includes(nq) || _simNorm(s.msisdn).includes(nq)) : list;
+  const shown = matches.slice(0, 50);
+  const curId = imeiSimPairings[deviceId]?.simId || '';
+  if (!shown.length) {
+    box.innerHTML = `<div class="px-2 py-2 text-xs text-slate-400">No SIM in custody matches “${escSim(q)}”.</div>`;
+  } else {
+    box.innerHTML = shown.map(s => `
+      <button type="button" onmousedown="pickSim('${deviceId}','${escSim(s.id)}')"
+        class="w-full text-left px-2 py-1.5 text-xs font-mono border-b border-slate-100 last:border-0 hover:bg-blue-50 ${s.id === curId ? 'bg-blue-50' : ''}">
+        <span class="text-slate-800">${escSim(s.iccid || '')}</span>${s.msisdn ? ` <span class="text-blue-600">${escSim(s.msisdn)}</span>` : ''}${s.operator ? ` <span class="text-slate-400">· ${escSim(s.operator)}</span>` : ''}
+      </button>`).join('')
+      + (matches.length > shown.length ? `<div class="px-2 py-1 text-[11px] text-slate-400 border-t border-slate-100">Showing ${shown.length} of ${matches.length} — keep typing to narrow.</div>` : '');
+  }
+  box.classList.remove('hidden');
+}
+
+function pickSim(deviceId, simId) {
+  const s = mySims.find(x => x.id === simId);
+  if (!s) return;
+  imeiSimPairings[deviceId] = { ...(imeiSimPairings[deviceId] || {}), simId: s.id, simIccid: s.iccid, msisdn: s.msisdn || '' };
+  const box = document.getElementById(`pair-sim-results-${deviceId}`);
+  if (box) box.classList.add('hidden');
+  // Re-render so this SIM disappears from other rows and the MSISDN auto-fills.
   renderImeiSimPairingRows();
+}
+
+function clearSimPick(deviceId) {
+  imeiSimPairings[deviceId] = { ...(imeiSimPairings[deviceId] || {}), simId: '', simIccid: '', msisdn: '' };
+  renderImeiSimPairingRows();
+}
+
+function hideSimResults(deviceId) {
+  // Delay hiding so a click (mousedown) on a result registers before the list closes.
+  setTimeout(() => { const box = document.getElementById(`pair-sim-results-${deviceId}`); if (box) box.classList.add('hidden'); }, 150);
 }
 
 async function renderImeiSimPairingRows() {
@@ -1686,8 +1954,8 @@ async function renderImeiSimPairingRows() {
             class="w-full border border-slate-100 bg-slate-50 rounded px-2 py-1.5 text-xs font-mono" />
         </div>
         <div>
-          <label class="block text-xs text-slate-500 mb-0.5">SIM Card in Custody <span class="text-red-500">*</span></label>
-          ${simSelectHtml(d.id)}
+          <label class="block text-xs text-slate-500 mb-0.5">SIM Card in Custody — search by ICCID or MSISDN <span class="text-red-500">*</span></label>
+          ${simPickerHtml(d.id)}
         </div>
         <div>
           <label class="block text-xs text-slate-500 mb-0.5">MSISDN (auto-filled)</label>
@@ -1734,9 +2002,8 @@ async function assignDevicesAndAdvance() {
   for (const id of selectedDeviceIds) {
     const dev = myDevices.find(d => d.id === id);
     if (dev?.imei && dev.imei !== '—encrypted—' && dev.requiresSim !== false) {
-      // Read selection from dropdown if not already captured via onSimSelect
-      const selectEl = document.getElementById(`pair-sim-${id}`);
-      if (selectEl?.value) onSimSelect(id, selectEl);
+      // The searchable SIM picker writes straight to imeiSimPairings on select,
+      // so that is the source of truth here.
       if (!imeiSimPairings[id]?.simIccid?.trim()) {
         toast(`${dev.serialNumber || 'Device'}: please select a SIM card before continuing.`, 'warning');
         return;
@@ -1761,16 +2028,23 @@ async function assignDevicesAndAdvance() {
   btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Assigning…';
   for (const deviceId of selectedDeviceIds) {
     const dev = myDevices.find(d => d.id === deviceId);
-    const alreadyThisJob = dev?.inventoryStatus === 'AssignedToJob' && dev?.jobId === ticket.id;
+    // Already linked to THIS job (assigned or installed) → nothing to do.
+    const alreadyThisJob = dev?.jobId === ticket.id;
     if (!alreadyThisJob) {
       const pairing = imeiSimPairings[deviceId];
-      const res = await APP.apiFetch('/device-custody/assign-to-job', {
-        method: 'POST',
-        body: { deviceId, jobId: ticket.id,
-                vehicleId: ticket.vehicleId || undefined, vehicleRegistration: ticket.vehicleRegistration || undefined,
-                simIccid: pairing?.simIccid || undefined, msisdn: pairing?.msisdn || undefined },
-      }).catch(() => null);
-      if (!res) { toast(`Failed to assign device ${dev?.serialNumber || deviceId}`, 'error'); btn.disabled = false; btn.textContent = orig; return; }
+      try {
+        await APP.apiFetch('/device-custody/assign-to-job', {
+          method: 'POST',
+          body: { deviceId, jobId: ticket.id,
+                  vehicleId: ticket.vehicleId || undefined, vehicleRegistration: ticket.vehicleRegistration || undefined,
+                  simIccid: pairing?.simIccid || undefined, msisdn: pairing?.msisdn || undefined },
+        });
+      } catch (e) {
+        // Surface the backend's specific reason (e.g. already installed / not in custody)
+        // instead of a generic failure, and let the user deselect the offending device.
+        toast(`Couldn't assign ${dev?.serialNumber || 'this device'}: ${e?.message || 'assignment failed'}`, 'error');
+        btn.disabled = false; btn.textContent = orig; return;
+      }
       if (dev) dev.inventoryStatus = 'AssignedToJob';
     }
   }
@@ -1819,6 +2093,12 @@ async function vdRefreshModelSelect(make, category) {
 async function vdRefreshModelNumberSelect(make, model, category) {
   const numEl = vdModelNumEl();
   numEl.innerHTML = '<option value="">— None / Not listed</option>';
+  const yrEl = document.getElementById('vd-model-years');
+  if (yrEl) {
+    const yrs = (make && model && typeof vehicleCatalogYears === 'function') ? await vehicleCatalogYears(make, model, category) : null;
+    if (yrs) { yrEl.textContent = '🛈 Model line produced: ' + yrs.label; yrEl.classList.remove('hidden'); }
+    else { yrEl.textContent = ''; yrEl.classList.add('hidden'); }
+  }
   if (!make || !model) { numEl.disabled = true; return; }
   const nums = await vehicleCatalogModelNumbers(make, model, category);
   if (!nums.length) { numEl.disabled = true; return; }
@@ -2089,12 +2369,11 @@ function deviceInstallCardHtml(deviceId) {
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div class="col-span-2">
         <label class="block text-xs font-semibold text-slate-600 mb-1">Location Designation <span class="text-red-500">*</span></label>
-        <select id="s4-location-${deviceId}" onchange="updateDeviceInstallField('${deviceId}','mountLocation',this.value); checkS4Valid();"
-          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-white">
-          <option value="">— Select install location —</option>
-          ${positionOptions}
-          ${customOption}
-        </select>
+        <input id="s4-location-${deviceId}" type="text" list="s4-location-opts-${deviceId}"
+          value="${escAttr(d.mountLocation || '')}" placeholder="e.g. Under Dashboard Right"
+          oninput="updateDeviceInstallField('${deviceId}','mountLocation',this.value); checkS4Valid();"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-white" />
+        <datalist id="s4-location-opts-${deviceId}">${positionOptions}</datalist>
       </div>
       <div class="col-span-2">
         <label class="block text-xs font-semibold text-slate-600 mb-1">Mount Description</label>
@@ -2480,15 +2759,28 @@ async function saveActivationAndAdvance() {
   const btn = document.getElementById('s5-next');
   if (btn) { btn.disabled = true; btn.textContent = 'Approving…'; }
   try {
-    // Record activation details + mark approved
-    await APP.apiFetch(`/installation-tickets/${realTicketId || jobId}/activation-approve`, {
-      method: 'POST',
-      body: { notes: combinedNotes, ignitionOk: true, locationOk: true, platformScreenshotUrl: firstScreenshot },
-    });
-    // Also persist per-device activation details for display
-    await patchTicket({ activation, engineerSignedOff: true, stage: 7 });
+    // Record activation details + mark approved. If a prior (interrupted) attempt
+    // already approved it, the backend returns 409 ALREADY_APPROVED — treat that as
+    // success and STILL run the stage-advance below. Aborting here on the 409 is what
+    // previously deadlocked tickets at the Activate step (approved, but never advanced).
+    try {
+      await APP.apiFetch(`/installation-tickets/${realTicketId || jobId}/activation-approve`, {
+        method: 'POST',
+        body: { notes: combinedNotes, ignitionOk: true, locationOk: true, platformScreenshotUrl: firstScreenshot },
+      });
+    } catch (approveErr) {
+      const code = approveErr?.code || approveErr?.data?.error?.code;
+      const alreadyApproved = code === 'ALREADY_APPROVED' || /already approved/i.test(String(approveErr?.message || ''));
+      if (!alreadyApproved) throw approveErr;
+    }
+    // Persist per-device activation details for display + advance the stage.
+    // Gate the advance (and the implicit engineer sign-off) on a successful save —
+    // otherwise a rejected save would leave the job "signed off" locally but not on
+    // the server, exactly the stranding bug this whole pass is closing.
+    const saved = await patchTicket({ activation, engineerSignedOff: true, stage: 7 });
+    if (!saved) { if (btn) { btn.disabled = false; btn.textContent = 'Confirm Activation →'; } return; }
     ticket.activation = activation;
-    ticket.activationApprovedAt = new Date().toISOString();
+    ticket.activationApprovedAt = ticket.activationApprovedAt || new Date().toISOString();
     ticket.stage = 7; engineerSignedOff = true;
     toast('Activation approved — job advanced to post-install checks');
     goToStage(7);
@@ -2588,7 +2880,9 @@ async function renderStage8() {
     techBtn.textContent = 'Sign on behalf of Technician';
   } else {
     techHeading.textContent = 'Technician Sign-off';
-    techChkLabel.textContent = 'I confirm that the device has been installed correctly and this job is ready for handover.';
+    techChkLabel.textContent = isServiceJob()
+      ? 'I confirm that the service has been carried out correctly and this job is ready for handover.'
+      : 'I confirm that the device has been installed correctly and this job is ready for handover.';
     techBtn.textContent = 'Sign off as Technician';
   }
 
@@ -2633,6 +2927,7 @@ async function renderStage8() {
     document.getElementById('s8-csat-done').classList.remove('hidden');
     document.getElementById('s8-csat-score-display').textContent = `${ticket.csatScore} ★`;
   }
+  initCredSection();
   updateS8CloseBtn(canEngineer);
 }
 
@@ -2762,7 +3057,8 @@ async function techSignOff() {
 async function engineerSignOff() {
   const btn = document.getElementById('s8-eng-btn');
   btn.disabled = true; btn.textContent = 'Signing off…';
-  await patchTicket({ engineerSignedOff: true });
+  const resp = await patchTicket({ engineerSignedOff: true });
+  if (!resp) { btn.disabled = false; btn.textContent = 'Sign off as ISO'; return; } // save failed — don't fake it
   engineerSignedOff = true;
   ticket.engineerSignedOffAt = new Date().toISOString();
   document.getElementById('s8-eng-form').classList.add('hidden');
@@ -2841,10 +3137,183 @@ async function submitCsat() {
   toast('Customer rating submitted');
 }
 
-async function closeInstallation() {
+// ── 4. Share platform credentials ──────────────────────────────────────────
+let credChannel = 'email';
+const credDigits = (v) => String(v || '').replace(/\D/g, '').replace(/^254/, '0');
+// Numbers registered to the customer (lead, contact people, profile) — the
+// only ones a tracking login may go to. The job's site contact is NOT one.
+function credCustomerPhones() {
+  if (typeof ticket === 'undefined' || !ticket) return [];
+  const list = Array.isArray(ticket.customerPhones) ? ticket.customerPhones : [];
+  return (list.length ? list : [ticket.customerPhone]).filter(Boolean);
+}
+function credRecipientDefault(ch) {
+  if (ch === 'email') return (typeof ticket !== 'undefined' && ticket && ticket.customerEmail) || '';
+  return credCustomerPhones()[0] || '';
+}
+
+// Logins used to go to whoever was on site, because that number was prefilled
+// with nothing saying so. Name the number the technician is about to text.
+function credUseNumber(p) {
+  const rec = document.getElementById('s8-cred-recipient');
+  if (rec) { rec.value = p; updateCredRecipientHint(); }
+}
+function updateCredRecipientHint() {
+  const hint = document.getElementById('s8-cred-recipient-hint');
+  const rec = document.getElementById('s8-cred-recipient');
+  const btn = document.getElementById('s8-send-cred-btn');
+  if (!hint || !rec) return;
+  if (credChannel === 'email') {
+    hint.textContent = ''; rec.readOnly = false;
+    if (btn) btn.disabled = false;
+    return;
+  }
+  const nums = credCustomerPhones();
+  const site = credDigits(typeof ticket !== 'undefined' && ticket ? ticket.installationContactPhone : '');
+  // Registered numbers only, so the box is read-only: changing who receives a
+  // login means correcting the customer record, not typing over it here.
+  rec.readOnly = nums.length > 0;
+  if (!nums.length) {
+    hint.className = 'mt-1 text-xs text-red-700';
+    hint.textContent = 'No phone number is registered for this customer. Add it to the customer record, then reload this job — a login cannot be sent to any other number.';
+    if (btn) btn.disabled = true;
+    return;
+  }
+  if (btn) btn.disabled = false;
+  const typed = credDigits(rec.value);
+  if (nums.some((p) => credDigits(p) === typed)) {
+    hint.className = 'mt-1 text-xs text-emerald-700';
+    const others = nums.filter((p) => credDigits(p) !== typed);
+    if (others.length) {
+      // Read-only box, so a second registered number needs a way in.
+      hint.innerHTML = 'Registered to the customer. Also registered: '
+        + others.map((p) => `<button type="button" class="underline font-semibold" onclick="credUseNumber('${String(p).replace(/[^0-9+ ]/g, '')}')">${String(p).replace(/[^0-9+ ]/g, '')}</button>`).join(', ')
+        + '.';
+    } else {
+      hint.textContent = 'Registered to the customer.';
+    }
+  } else {
+    hint.className = 'mt-1 text-xs text-red-700';
+    hint.textContent = typed === site
+      ? `That is this job's site contact. A login can only go to ${nums.join(' or ')}.`
+      : `Not registered to this customer. A login can only go to ${nums.join(' or ')}.`;
+  }
+}
+function setCredChannel(ch) {
+  credChannel = ch;
+  const ids = { email: 'cred-ch-email', sms: 'cred-ch-sms', whatsapp: 'cred-ch-whatsapp' };
+  const on = 'flex-1 py-1.5 px-3 rounded-lg border text-xs font-semibold transition bg-blue-600 text-white border-blue-600';
+  const off = 'flex-1 py-1.5 px-3 rounded-lg border text-xs font-semibold transition bg-white text-slate-600 border-slate-300 hover:border-blue-400';
+  Object.entries(ids).forEach(([k, id]) => { const b = document.getElementById(id); if (b) b.className = (k === ch ? on : off); });
+  const rec = document.getElementById('s8-cred-recipient');
+  if (rec) { rec.placeholder = ch === 'email' ? 'Customer email address' : 'Customer phone number'; rec.value = credRecipientDefault(ch); }
+  updateCredRecipientHint();
+}
+function composeCredMessage() {
+  const ta = document.getElementById('s8-cred-message');
+  if (!ta || ta.dataset.dirty === '1') return; // don't overwrite a hand-edited message
+  const val = id => (document.getElementById(id) || {}).value || '';
+  const url = val('s8-cred-url'), user = val('s8-cred-user'), pass = val('s8-cred-pass');
+  const name = (typeof ticket !== 'undefined' && ticket && ticket.customerName) ? ticket.customerName : 'Customer';
+  const lines = [`Hello ${name},`, '', 'Your Finemark vehicle tracking platform access details:'];
+  if (url) lines.push(`Platform: ${url}`);
+  if (user) lines.push(`Username: ${user}`);
+  if (pass) lines.push(`Password: ${pass}`);
+  lines.push('', 'Log in to track your vehicle. Contact Finemark support if you need any help.');
+  ta.value = lines.join('\n');
+}
+// Service jobs fit no gadget, so there's no login to send: the form starts
+// collapsed and stays one click away for the odd case that needs it.
+function showCredForm() {
+  document.getElementById('s8-cred-svc-note')?.classList.add('hidden');
+  document.getElementById('s8-cred-form')?.classList.remove('hidden');
+}
+function initCredSection() {
+  const svc = isServiceJob();
+  document.getElementById('s8-cred-svc-note')?.classList.toggle('hidden', !svc);
+  document.getElementById('s8-cred-form')?.classList.toggle('hidden', svc);
+  const engLbl = document.getElementById('s8-eng-chk-label');
+  if (engLbl) engLbl.textContent = svc
+    ? 'I (ISO) confirm that the service work, post-checks, and site photos have been reviewed. This job is complete and satisfactory.'
+    : 'I (ISO) confirm that the device activation, post-installation checks, and site photos have been reviewed. This installation is complete and satisfactory.';
+  const rec = document.getElementById('s8-cred-recipient');
+  if (rec && !rec.value) rec.value = credRecipientDefault(credChannel);
+  updateCredRecipientHint();
+  composeCredMessage();
+}
+async function sendCredentials() {
+  const recipient = ((document.getElementById('s8-cred-recipient') || {}).value || '').trim();
+  const message = ((document.getElementById('s8-cred-message') || {}).value || '').trim();
+  const btn = document.getElementById('s8-send-cred-btn');
+  if (!recipient) { toast(`Enter the customer's ${credChannel === 'email' ? 'email' : 'phone number'}.`, 'error'); return; }
+  if (!message) { toast('The message is empty.', 'error'); return; }
+  // A tracking login may only go to a number registered to the customer. The
+  // server refuses anything else (422); this is the same rule, stated early.
+  if (credChannel !== 'email') {
+    const nums = credCustomerPhones();
+    if (!nums.length) {
+      toast('No phone number is registered for this customer. Add it to the customer record first.', 'error');
+      return;
+    }
+    if (!nums.some((p) => credDigits(p) === credDigits(recipient))) {
+      toast(`${recipient} is not registered to this customer. Use ${nums.join(' or ')}.`, 'error');
+      return;
+    }
+  }
+  const orig = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  try {
+    if (credChannel === 'whatsapp') {
+      // Delivered via wa.me (whatsappme) click-to-chat; the server call below only logs it.
+      const phone = recipient.replace(/[^0-9]/g, '').replace(/^0/, '254');
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+    }
+    const resp = await APP.apiFetch(`/installation-tickets/${realTicketId || jobId}/send-credentials`, {
+      method: 'POST', body: { channel: credChannel, recipient, message, subject: 'Your Vehicle Tracking Platform Access' },
+    });
+    const done = document.getElementById('s8-cred-done');
+    if (done) {
+      done.textContent = credChannel === 'whatsapp'
+        ? '✓ WhatsApp opened with the message — logged to the customer\'s history.'
+        : (resp?.message || 'Credentials sent and logged.');
+      done.classList.remove('hidden');
+    }
+    toast(credChannel === 'whatsapp' ? 'WhatsApp opened — message logged.' : 'Credentials sent and logged.');
+  } catch (e) {
+    toast(e?.message || 'Could not send the credentials — please try again.', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = orig; }
+  }
+}
+
+async function closeInstallation(force) {
   const btn = document.getElementById('s8-close-btn');
-  btn.disabled = true; btn.textContent = 'Closing…';
-  await patchTicket({ status: 'Completed', stage: 10 });
+  const body = { status: 'Completed', stage: 10 };
+  if (force) {
+    const reason = (window.prompt('Force-complete this job past the unmet requirement(s)? Enter a reason — it will be logged:') || '').trim();
+    if (!reason) { btn.disabled = false; btn.textContent = '✓ Close Installation'; return; }
+    body.forceComplete = true; body.overrideReason = reason;
+  }
+  btn.disabled = true; btn.textContent = force ? 'Force-closing…' : 'Closing…';
+  // IMPORTANT: don't go through patchTicket() here — surface the real failure and
+  // keep the job open so it's never falsely shown as "Done" while still InProgress.
+  try {
+    await APP.apiFetch(`/installation-tickets/${realTicketId || jobId}/status`, {
+      method: 'PATCH', body,
+    });
+  } catch (e) {
+    btn.disabled = false; btn.textContent = '✓ Close Installation';
+    toast(e?.message || 'Could not complete the job — please try again.', 'error');
+    // When the server itemises what's blocking and this user is allowed to override,
+    // offer a logged force-complete — the guaranteed close path for a genuinely-done job.
+    if (!force && e?.code === 'COMPLETION_BLOCKED' && e?.details?.canForceComplete) {
+      const list = (e.details.blockers || []).map(b => '• ' + b.message).join('\n');
+      if (window.confirm(`This job can't be closed yet:\n\n${list}\n\nYou have permission to force-complete it anyway (recorded with your reason). Proceed?`)) {
+        return closeInstallation(true);
+      }
+    }
+    return; // stay on this stage; the job is NOT marked done
+  }
   ticket.status = 'Completed'; ticket.stage = 10;
   isLocked = true;
   goToStage(10);

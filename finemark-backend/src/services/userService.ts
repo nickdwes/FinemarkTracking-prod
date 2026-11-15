@@ -113,6 +113,15 @@ export const updateUser = async (id: string, patch: Record<string, any>) => {
   return getUserById(id);
 };
 
+// Clear a lockout: reset the failed-attempt counter and remove any active lock.
+export const unlockUser = async (id: string) => {
+  await pgRun(
+    "UPDATE users SET failed_login_attempts = 0, locked_until = NULL, updated_at = ? WHERE id = ?",
+    [new Date().toISOString(), id]
+  );
+  return getUserById(id);
+};
+
 export const adminResetPassword = async (id: string, tempPassword: string, forcePasswordReset: boolean) => {
   const passwordHash = await hashPassword(tempPassword);
   await pgRun(

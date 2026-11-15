@@ -79,6 +79,32 @@
   </div>
 </div>
 
+<!-- ── ENTRY (opened without ?s=, e.g. from the staff sidebar or by typing the URL) ── -->
+<div id="state-entry" class="hidden bg-grid min-h-screen flex flex-col">
+  <header class="flex items-center gap-3 px-6 py-4 border-b border-white/5 bg-black/30 backdrop-blur shrink-0">
+    <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-red-900/80 border border-red-700/50 shrink-0"><svg class="h-5 w-5 text-red-200" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg></div>
+    <div><p class="text-sm font-bold text-white leading-none">Fine Mark Tracking Limited</p><p class="text-xs text-red-400 mt-0.5 font-medium tracking-wide">CERTIFICATE VERIFICATION SYSTEM</p></div>
+  </header>
+  <div class="flex-1 flex items-center justify-center p-6">
+    <div class="w-full max-w-sm fade-up text-center space-y-6">
+      <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-900/30 border border-red-700/40">
+        <svg class="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>
+      </div>
+      <div>
+        <h1 class="text-lg font-bold text-white">Verify a Certificate</h1>
+        <p class="mt-2 text-sm text-slate-400 leading-relaxed">Scan the QR code printed on the certificate, or enter its serial number below.</p>
+      </div>
+      <form id="entry-form" class="space-y-3 text-left" novalidate>
+        <label for="entry-serial" class="block text-xs font-semibold tracking-wide text-slate-400 uppercase">Serial number</label>
+        <input id="entry-serial" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. SGX000123" class="mono w-full rounded-lg border border-white/10 bg-black/40 px-4 py-3 text-base text-white uppercase placeholder:normal-case placeholder:text-slate-500 focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/30" />
+        <p id="entry-error" class="hidden text-xs text-amber-400">Enter the serial number shown on the certificate.</p>
+        <button type="submit" class="w-full rounded-lg bg-red-700 px-4 py-3 text-sm font-semibold text-white hover:bg-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400">Verify</button>
+      </form>
+      <p class="text-xs text-slate-500">Fine Mark Tracking Limited &nbsp;·&nbsp; <a href="mailto:info@finemarktracking.co.ke" class="text-red-400 hover:text-red-300">info@finemarktracking.co.ke</a></p>
+    </div>
+  </div>
+</div>
+
 <!-- ── ERROR ── -->
 <div id="state-error" class="hidden bg-grid min-h-screen flex flex-col">
   <header class="flex items-center gap-3 px-6 py-4 border-b border-white/5 bg-black/30 backdrop-blur shrink-0">
@@ -292,22 +318,36 @@
     return protocol + "//" + hostname + "/api";
   })();
 
-  const STATES = ["state-loading","state-error","state-session-used","state-invalid","state-valid"];
+  const STATES = ["state-loading","state-entry","state-error","state-session-used","state-invalid","state-valid"];
   const show = (id) => STATES.forEach(s => document.getElementById(s).classList.toggle("hidden", s !== id));
 
   const SESSION_KEY = "fm_cert_session_serial";
   const params   = new URLSearchParams(window.location.search);
   const serialNo = (params.get("s") || "").trim().toUpperCase();
 
+  // Signed-in staff (e.g. CertAdmin checking several certificates) aren't held to the
+  // one-serial-per-tab lock meant for public QR scans.
+  const isStaff = (() => {
+    try { return !!JSON.parse(localStorage.getItem("finemark_session") || "null")?.accessToken; } catch { return false; }
+  })();
+
   if (!serialNo) {
-    document.getElementById("error-message").textContent =
-      "No certificate serial number provided. Please scan the QR code printed on the certificate.";
-    show("state-error");
+    show("state-entry");
+    const form  = document.getElementById("entry-form");
+    const input = document.getElementById("entry-serial");
+    const err   = document.getElementById("entry-error");
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const value = input.value.replace(/\s+/g, "").toUpperCase();
+      if (value.length < 3) { err.classList.remove("hidden"); input.focus(); return; }
+      location.search = "?s=" + encodeURIComponent(value);
+    });
+    input.focus();
     return;
   }
 
   const lockedSerial = sessionStorage.getItem(SESSION_KEY);
-  if (lockedSerial && lockedSerial !== serialNo) {
+  if (!isStaff && lockedSerial && lockedSerial !== serialNo) {
     show("state-session-used");
     return;
   }

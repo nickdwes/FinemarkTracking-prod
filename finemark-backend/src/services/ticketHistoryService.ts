@@ -37,6 +37,10 @@ export const HISTORY_EVENTS = {
   ACTIVATION_REJECTED:     "Device Activation Rejected",
   CUSTOMER_SIGNED_OFF:     "Customer Signed Off",
   TICKET_CLOSED:           "Ticket Closed",
+  COMPLETION_FORCED:       "Completion Forced (Supervisor Override)",
+  // Admin corrections
+  DEVICE_SWAPPED:          "Device Swapped (Admin)",
+  SERVICE_ONLY_CHANGED:    "Service Job (No Gadget) Setting Changed",
   // SLA events
   SLA_AT_RISK:             "SLA At Risk",
   SLA_BREACHED:            "SLA Breached",

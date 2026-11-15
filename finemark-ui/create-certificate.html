@@ -20,6 +20,13 @@
                 <p class="mt-1 text-sm text-slate-600">Search for a customer to auto-fill details, then generate a PDF certificate.</p>
               </div>
               <div class="flex items-center gap-2">
+                <!-- Print without signatures (blank lines for wet signing). The
+                     choice is remembered per browser and shown on the preview. -->
+                <label for="toggle-signatures" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+                  <input type="checkbox" id="toggle-signatures" checked
+                    class="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                  <span id="toggle-signatures-label">Append signatures</span>
+                </label>
                 <button type="button" id="btn-my-signature"
                   class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536M9 11l6.586-6.586a2 2 0 012.828 0l.172.172a2 2 0 010 2.828L11 14H9v-2z"/><path stroke-linecap="round" stroke-linejoin="round" d="M4 19h16"/></svg>
@@ -172,7 +179,7 @@
                 <p id="error-systemType" class="mt-1 text-xs text-rose-600 hidden"></p>
               </div>
               <div>
-                <label for="registration" class="text-sm font-medium text-slate-700">Car Registration number *</label>
+                <label for="registration" class="text-sm font-medium text-slate-700">Car Registration number <span id="registration-req" class="text-red-500">*</span></label>
                 <div class="mt-2 flex gap-2">
                   <input id="registration" type="text"
                     class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm uppercase placeholder:normal-case"
@@ -182,7 +189,9 @@
                     Search
                   </button>
                 </div>
+                <p class="mt-1 text-xs text-slate-400">Search by <strong>registration and/or chassis</strong> — certificates can only be generated for a vehicle already registered in the system.</p>
                 <div id="reg-lookup-result" class="mt-2 hidden"></div>
+                <div id="registry-direction" class="hidden mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs"></div>
                 <p id="error-registration" class="mt-1 text-xs text-rose-600 hidden"></p>
               </div>
               <div>
@@ -211,6 +220,7 @@
                 <input id="modelText" type="text" placeholder="Enter model as shown in logbook"
                   class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm hidden" />
                 <p id="error-model" class="mt-1 text-xs text-rose-600 hidden"></p>
+                <p id="model-years" class="hidden text-[11px] text-slate-500 mt-1"></p>
               </div>
               <div>
                 <label for="modelNumber" class="text-sm font-medium text-slate-700">Model Number</label>
@@ -476,6 +486,47 @@
       </div>
     </div>
 
+    <!-- Create Customer pop-up — when the customer isn't in the system. Creates the
+         customer (Customer 360 data), then redirects to the new 360 profile to
+         register the vehicle. ── -->
+    <div id="create-customer-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/70 p-4">
+      <div class="w-full max-w-md rounded-2xl bg-white shadow-xl border border-slate-200">
+        <div class="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <h2 class="text-base font-semibold text-slate-900">Create Customer</h2>
+          <button type="button" onclick="closeCreateCustomerModal()" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Close</button>
+        </div>
+        <div class="px-6 py-5 space-y-4">
+          <p class="text-xs text-slate-500">The customer will be created in Customer 360. After creating, you'll be taken to their profile to register the vehicle, then return here to generate the certificate.</p>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Customer Type</label>
+            <div class="flex gap-4">
+              <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="cc-type" value="individual" checked class="accent-blue-600" /><span class="text-sm text-slate-700">Individual</span></label>
+              <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="cc-type" value="corporate" class="accent-blue-600" /><span class="text-sm text-slate-700">Corporate</span></label>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Full Name / Company <span class="text-red-500">*</span></label>
+            <input id="cc-name" type="text" placeholder="Full legal name or company name" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Phone</label>
+              <input id="cc-phone" type="tel" placeholder="+254 7XX XXX XXX" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Email</label>
+              <input id="cc-email" type="email" placeholder="customer@example.com" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+          <p id="cc-error" class="hidden text-xs text-rose-600"></p>
+        </div>
+        <div class="flex items-center justify-end gap-2 border-t border-slate-100 px-6 py-4">
+          <button type="button" onclick="closeCreateCustomerModal()" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
+          <button type="button" id="cc-submit" onclick="submitCreateCustomer()" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Create customer</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Certificate Preview modal — renders the exact PDF that will be saved,
          so the cert admin can verify it before it's actually submitted. ── -->
     <div id="preview-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/70 p-4">
@@ -619,10 +670,20 @@
         }
 
         function findBankConfigByText(bankText) {
-          const t = (bankText || "").trim().toUpperCase();
+          // Normalise away spaces/punctuation so a registered partner name like
+          // "THE CO-OPERATIVE BANK OF KENYA" matches the "COOPERATIVE" config
+          // (the hyphen previously broke the plain includes() match). Prefer the
+          // longest matching bank name so e.g. COOPERATIVE_LTD wins over COOPERATIVE.
+          const norm = s => String(s || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+          const t = norm(bankText);
           if (!t) return null;
-          const hit = CERT_BANK_CONFIGS.find(b => !b.isDefault && t.includes(b.bankName.toUpperCase()));
-          return hit || null;
+          let best = null, bestLen = 0;
+          for (const b of CERT_BANK_CONFIGS) {
+            if (b.isDefault || !b.bankName) continue;
+            const bn = norm(b.bankName);
+            if (bn.length >= 2 && t.includes(bn) && bn.length > bestLen) { best = b; bestLen = bn.length; }
+          }
+          return best;
         }
         function activeBankConfig() {
           return CERT_BANK_CONFIGS.find(b => b.id === certCategory) || null;
@@ -691,6 +752,13 @@
         let editCertificateId = null;
         let editSerialNo = null;
 
+        // ── Extension mode (opened from the CertAdmin queue with ?extensionRequestId=) ──
+        // When set, the page generates an EXTENSION certificate of an existing one:
+        // the serial is derived (SG… → SGX…), validity is full-coverage (root start →
+        // new end), a prior-validity note is stamped on the PDF, and Confirm POSTs to
+        // /certificate-extensions/:id/generate instead of creating a fresh certificate.
+        let _extensionMode = null; // { requestId, extensionSerial, extensionNo, priorStartDate, priorEndDate, originalSerialNo }
+
         // ── Installation photo / inspection data (loaded when installationId param present) ──
         let _instPhotos   = [];   // [{type, label, dataUrl, uploadedAt}]
         let _preInspItems = [];   // [{label, status}]
@@ -706,6 +774,13 @@
         // ── Printed By (Certificate Manager) / Authorised By (designated signatory) ──
         let _printedByUserId = null;
         let _printedByName = "";
+        // When off, the certificate prints with empty signature lines so it can
+        // be signed by hand. Remembered per browser; names/captions still print.
+        const APPEND_SIG_KEY = "fm_cert_append_signatures";
+        const appendSignatures = () => {
+          const el = document.getElementById("toggle-signatures");
+          return el ? el.checked : true;
+        };
         let _printedBySignatureUrl = null;
         let _printedBySignatureDataUrl = null;
         let _authorizedBy = null; // { roleTitle, fullName, signatureUrl } of the active signatory
@@ -1001,18 +1076,12 @@
             const vd = ticket.vehicleDetails || {};
             const vr = ticket.vehicleRecord  || {};  // CRM vehicle record (includes loan tenure)
 
-            if (vd.registration && !getValue("registration"))
-              setValue("registration", vd.registration);
-            if (vd.make || vd.model)
-              setCarModel(vd.make || "", vd.model || "", vd.modelNumber || "", vd.bodyType || "", vd.vehicleCategory || vr.vehicleCategory || "");
-            if (vd.colour && !getValue("color")) setValue("color", vd.colour);
-            if (ticket.vehicleRegistration && !getValue("registration"))
-              setValue("registration", ticket.vehicleRegistration);
-            if (ticket.customerName && !getValue("name")) setValue("name", ticket.customerName);
-            // Chassis/VIN and engine number: prefer the normalized CRM vehicle
-            // record, falling back to the raw job-card-entered values.
-            if (!getValue("chassisNumber")) setValue("chassisNumber", vr.chassisNumber || vd.vin || "");
-            if (!getValue("engineNumber")) setValue("engineNumber", vr.engineNumber || vd.engineNo || "");
+            // Vehicle identity (registration, make/model, colour, chassis, engine) and the
+            // customer name/phone are intentionally NOT taken from the job card — they must
+            // come from the verified registry. Capture the plate/chassis only, as a search
+            // key; the registry lookup below fills those fields from the registered record.
+            const _seedReg     = ticket.vehicleRegistration || vd.registration || "";
+            const _seedChassis = vr.chassisNumber || vd.vin || "";
             if (ticket.partnerName && !getValue("partnerBank")) {
               setValue("partnerBank", ticket.partnerName);
               trySyncFromPartnerBankText(ticket.partnerName);
@@ -1043,7 +1112,8 @@
             if (device) {
               if (device.imei      && !getValue("imei1"))    setValue("imei1",    device.imei);
               if (devSerial(device) && !getValue("tracker1")) setValue("tracker1", devSerial(device));
-              if (devSimPhone(device) && !getValue("phone"))  setValue("phone",    devSimPhone(device));
+              // NB: the customer's Phone is filled by the registry Search (customer.phone),
+              // not the device's SIM number — that lives in the job-card panel for reference.
             }
             const device2 = devices[1];
             if (device2) {
@@ -1076,19 +1146,29 @@
             }
 
             applyDefaults();
+
+            // ── Registry Search (one-click Generate only): seed the plate (or chassis for
+            // an unregistered vehicle) as the lookup key and run the same Search the button
+            // uses, so the vehicle + customer come from the verified registered record — not
+            // the job card. A manual open stays blank until the operator clicks Search. If
+            // the vehicle isn't registered, the gate blocks here and nothing auto-generates.
+            if (_autoGenerate) {
+              if (_seedReg)          setValue("registration", _seedReg);
+              else if (_seedChassis) setValue("chassisNumber", _seedChassis);
+              if (getValue("registration") || getValue("chassisNumber")) {
+                await lookupRegistration();
+              }
+            }
             const { isValid: _formValid } = validateForm();
 
-            // ── Auto-generate from job card data if requested ─────────────────
-            if (_autoGenerate && _formValid) {
-              if (statusEl) statusEl.textContent = "Auto-generating certificate from job card data…";
-              // checkDuplicate() otherwise only runs on manual blur/change of
-              // the Registration/System Type inputs — auto-generate fills
-              // them programmatically, so those events never fire and this
-              // path had no duplicate protection at all. Await it here so a
-              // real duplicate's warning modal isn't immediately covered by
-              // the auto-opened preview modal — the preview is skipped when
-              // one is found; the admin resolves the warning first (Cancel,
-              // or Edit Existing) and can generate manually from there.
+            // ── Auto-generate only when the registry confirmed the vehicle ────
+            if (_autoGenerate && _formValid && _registryVehicle) {
+              if (statusEl) statusEl.textContent = "Auto-generating certificate…";
+              // checkDuplicate() otherwise only runs on manual blur/change of the
+              // Registration/System Type inputs — the auto path fills them
+              // programmatically, so those events never fire. Await it here so a real
+              // duplicate's warning modal isn't immediately covered by the auto-opened
+              // preview (preview is skipped on a duplicate; admin resolves it first).
               checkDuplicate().then((isDuplicate) => {
                 if (isDuplicate) return;
                 if (templateAvailable) {
@@ -1148,20 +1228,11 @@
             // Pull in the assigned technician (no ISO officer field on this legacy record type)
             selectPersonnelIfPresent("technicianId", vi.assignedTechnicianId);
 
-            // Vehicle fields
-            if (vehicle.registration) {
-              setValue("registration", vehicle.registration);
-              setCarModel(vehicle.make || "", vehicle.model || "", vehicle.modelNumber || "", vehicle.bodyType || "", vehicle.vehicleCategory || "");
-              if (vehicle.color) setValue("color", vehicle.color);
-            }
-            if (vehicle.vin && !getValue("chassisNumber")) setValue("chassisNumber", vehicle.vin);
-            if (vehicle.engineNumber && !getValue("engineNumber")) setValue("engineNumber", vehicle.engineNumber);
-
-            // Customer fields (only fill if still empty)
-            if (cust.name && cust.name !== "—" && !getValue("name"))
-              setValue("name", cust.name);
-            if (cust.phone && cust.phone !== "—" && !getValue("phone"))
-              setValue("phone", cust.phone);
+            // Vehicle identity + customer name/phone come from the verified registry (via
+            // the Search below), never from the installation record. Capture the plate /
+            // chassis only, as the lookup key.
+            const _seedReg     = vehicle.registration || "";
+            const _seedChassis = vehicle.vin || "";
 
             // Date: use installation completion date
             if (vi.completedAt && !getValue("date"))
@@ -1207,18 +1278,25 @@
                 setValue("systemType", "GPS/GSM/GPRS Tracking system");
             }
 
-            // Apply date defaults for any fields still empty, then validate
+            // Apply date defaults for any fields still empty
             applyDefaults();
+
+            // ── Registry Search (one-click Generate only): seed the plate (or chassis for
+            // an unregistered vehicle) as the lookup key and run the Search, so vehicle +
+            // customer come from the verified registered record. Manual opens stay blank
+            // until the operator searches. An unregistered vehicle is blocked by the gate.
+            if (_autoGenerate) {
+              if (_seedReg)          setValue("registration", _seedReg);
+              else if (_seedChassis) setValue("chassisNumber", _seedChassis);
+              if (getValue("registration") || getValue("chassisNumber")) {
+                await lookupRegistration();
+              }
+            }
             const { isValid: _formValid } = validateForm();
 
-            // ── Auto-generate from installation data if requested ──────────────
-            if (_autoGenerate && _formValid) {
-              if (_instBanner) _instBanner.textContent = "Auto-generating certificate from installation data…";
-              // Same duplicate-check gap as the job-card auto-generate path —
-              // this fills Registration/System Type programmatically, so the
-              // blur/change listeners that normally trigger checkDuplicate()
-              // never fire. Preview is skipped on a real duplicate so its
-              // warning modal isn't immediately covered by the preview modal.
+            // ── Auto-generate only when the registry confirmed the vehicle ────
+            if (_autoGenerate && _formValid && _registryVehicle) {
+              if (_instBanner) _instBanner.textContent = "Auto-generating certificate…";
               checkDuplicate().then((isDuplicate) => {
                 if (isDuplicate) return;
                 if (templateAvailable) {
@@ -1306,6 +1384,11 @@
           if (id === "modelNumber") modelNumberTextEl.value = value || "";
           const el = document.getElementById(id);
           if (el) el.value = value || "";
+          // Keep the registration "*" in sync when the chassis is (auto-)filled: an
+          // unregistered vehicle keyed on its chassis no longer needs a plate.
+          if (id === "chassisNumber") {
+            document.getElementById("registration-req")?.classList.toggle("hidden", !!(value && String(value).trim()));
+          }
         };
 
         // ── Additional devices (3rd+ device on the same certificate) ───────────
@@ -1412,6 +1495,16 @@
             await refreshMakeSelect(categoryVal);
           }
           makeEl.value = makeVal || "";
+          // The make dropdown only lists catalogue makes; a CRM/logbook make that
+          // isn't in the catalogue (e.g. "MITSUBISHI FUSO", "SINOTRUK", odd casing)
+          // otherwise fails to select and the field silently keeps its previous value
+          // — the cause of certs showing the wrong/old make. Inject it as an option
+          // so the searched/loaded vehicle's make always applies.
+          if (makeVal && makeEl.value !== makeVal) {
+            const o = document.createElement("option"); o.value = makeVal; o.textContent = makeVal;
+            makeEl.appendChild(o);
+            makeEl.value = makeVal;
+          }
           await refreshModelSelect(makeVal || "");
           if (modelVal) {
             if (![...modelEl.options].some(o => o.value === modelVal)) {
@@ -1426,6 +1519,7 @@
           bodyTypeEl.value = bodyTypeVal || await vehicleCatalogBodyType(makeVal || "", modelVal || "", categoryEl.value);
           modelTextEl.value = modelVal || "";
           modelNumberTextEl.value = modelNumVal || "";
+          refreshModelYearsHint();
         }
 
         makeEl.addEventListener("change", async () => {
@@ -1435,8 +1529,18 @@
         modelEl.addEventListener("change", async () => {
           await refreshModelNumberSelect(makeEl.value, modelEl.value);
           bodyTypeEl.value = await vehicleCatalogBodyType(makeEl.value, modelEl.value, categoryEl.value);
+          refreshModelYearsHint();
           validateForm();
         });
+        // Show the selected model line's production years (free-source enrichment).
+        async function refreshModelYearsHint() {
+          const el = document.getElementById("model-years");
+          if (!el) return;
+          const make = makeEl.value, model = modelEl.value, cat = categoryEl.value;
+          const yrs = (make && model && typeof vehicleCatalogYears === "function") ? await vehicleCatalogYears(make, model, cat) : null;
+          if (yrs) { el.textContent = "🛈 Model line produced: " + yrs.label; el.classList.remove("hidden"); }
+          else { el.textContent = ""; el.classList.add("hidden"); }
+        }
 
         // ── Model / Model Number override (logbook differs from CRSP list) ────
         async function applyModelOverrideUI() {
@@ -1482,34 +1586,73 @@
           regLookupRes.classList.remove("hidden");
         }
 
+        // Clear the vehicle + customer fields a registry Search fills, so editing the plate
+        // (or an empty result) never leaves the PREVIOUS vehicle showing. Crucially this
+        // clears the chassis — which is ALSO a lookup key, so a stale chassis from an
+        // earlier search would otherwise keep matching that old vehicle and silently
+        // re-populate it when a different plate is searched. keepChassis preserves a chassis
+        // the operator typed themselves as the search key (unregistered-vehicle lookup).
+        function clearFoundVehicleFields({ keepChassis = false } = {}) {
+          makeEl.value = ""; modelEl.value = ""; modelNumEl.value = ""; bodyTypeEl.value = "";
+          if (modelTextEl)       modelTextEl.value = "";
+          if (modelNumberTextEl) modelNumberTextEl.value = "";
+          setValue("color", "");
+          setValue("engineNumber", "");
+          setValue("name", "");
+          setValue("phone", "");
+          if (!keepChassis) setValue("chassisNumber", "");
+        }
+
         async function lookupRegistration() {
-          const plate = regInput.value.trim();
-          if (!plate) return;
+          const plate   = regInput.value.trim();
+          const chassis = (getValue("chassisNumber") || "").trim();
+          if (!plate && !chassis) { showToast("Enter a registration and/or chassis to search.", "error"); return; }
           regLookupBtn.textContent = "Searching…";
           regLookupBtn.disabled = true;
           regLookupRes.classList.add("hidden");
+          _registryVehicle = null;
           try {
+            const qs = [];
+            if (plate)   qs.push("registration=" + encodeURIComponent(plate));
+            if (chassis) qs.push("chassis="      + encodeURIComponent(chassis));
             const data = await window.FINEMARK_APP.apiFetch(
-              `/crm/customers/vehicles/lookup?registration=${encodeURIComponent(plate)}`
+              `/crm/customers/vehicles/lookup?${qs.join("&")}`
             );
             if (!data.found) {
+              // Wipe details from any PREVIOUS successful search so an unregistered plate
+              // never shows the last vehicle. Keep a chassis the operator typed as their key.
+              clearFoundVehicleFields({ keepChassis: !!chassis });
               showLookupBadge(
-                `<strong>Not found in CRM database.</strong> Fill in vehicle details manually.`,
+                `<strong>Not registered.</strong> Certificates can only be generated for registered vehicles.`,
                 "notfound"
               );
+              showToast("Vehicle not available in the system.", "error");
+              showRegistryDirection(_csSelectedCustomer, _csSelectedCustomer ? "vehicle" : "customer");
               return;
             }
             const { vehicle, customer } = data;
-            // Pre-fill vehicle fields
-            setCarModel(vehicle.make, vehicle.model, vehicle.modelNumber, vehicle.bodyType, vehicle.vehicleCategory);
-            if (vehicle.color) setValue("color", vehicle.color);
-            // Pre-fill customer fields (only if empty to avoid overwriting)
-            if (!getValue("name") && customer.name && customer.name !== "—")
-              setValue("name", customer.name);
-            if (!getValue("phone") && customer.phone && customer.phone !== "—")
-              setValue("phone", customer.phone);
+            _registryVehicle = { id: vehicle.id, customerId: customer.id, registration: vehicle.registration };
+            showRegistryDirection(null, null);
+            // A deliberate Search fully REPLACES the vehicle + customer details with the
+            // found record. Every field is set unconditionally (empty overwrites), so a
+            // vehicle that lacks e.g. an engine number can never keep the PREVIOUS search's
+            // value — the reported "retains previously filled / another vehicle" bug.
+            await setCarModel(vehicle.make || "", vehicle.model || "", vehicle.modelNumber || "", vehicle.bodyType || "", vehicle.vehicleCategory || "");
+            setValue("color", vehicle.color || "");
+            setValue("chassisNumber", vehicle.chassisNumber || "");
+            setValue("engineNumber",  vehicle.engineNumber  || "");
+            setValue("name",  (customer.name  && customer.name  !== "—") ? customer.name  : "");
+            setValue("phone", (customer.phone && customer.phone !== "—") ? customer.phone : "");
             // Ensure plate is set (normalised from DB)
             setValue("registration", vehicle.registration);
+            // Partner / Bank comes from the REGISTERED vehicle's financing partner — the
+            // authoritative source. Without this the certificate kept a stale/default bank
+            // (e.g. showing NCBA for a Co-operative-financed vehicle). trySync switches the
+            // category/template to that bank; setValue keeps the printed name if no config matches.
+            if (vehicle.partnerName) {
+              setValue("partnerBank", vehicle.partnerName);
+              trySyncFromPartnerBankText(vehicle.partnerName);
+            }
             showLookupBadge(
               `<strong>✓ Vehicle found</strong> &mdash; 
                ${vehicle.make} ${vehicle.model} &bull; ${vehicle.color || ""} &bull; ${vehicle.yearOfManufacture || ""}<br/>
@@ -1530,7 +1673,24 @@
           if (e.key === "Enter") { e.preventDefault(); lookupRegistration(); }
         });
         // Clear badge when user edits the plate after a search
-        regInput.addEventListener("input", () => regLookupRes.classList.add("hidden"));
+        regInput.addEventListener("input", () => {
+          regLookupRes.classList.add("hidden");
+          // A changed plate invalidates the last match. Clear the fields a Search fills —
+          // especially the chassis, which is also a lookup key and would otherwise keep
+          // matching the PREVIOUS vehicle and re-populate it on the next search.
+          _registryVehicle = null;
+          clearFoundVehicleFields();
+        });
+
+        // Registration is required only for a registered vehicle; once a Chassis / VIN is
+        // entered (unregistered vehicle) it becomes the identifier, so drop the reg "*".
+        const _chassisEl = document.getElementById("chassisNumber");
+        const updateRegRequiredMark = () => {
+          const hasChassis = !!(_chassisEl && _chassisEl.value.trim());
+          document.getElementById("registration-req")?.classList.toggle("hidden", hasChassis);
+        };
+        if (_chassisEl) _chassisEl.addEventListener("input", updateRegRequiredMark);
+        updateRegRequiredMark();
 
         const showToast = (message, type = "success") => {
           if (window.FINEMARK_APP?.showToast) {
@@ -1614,13 +1774,20 @@
           // that are no longer required.
           const activeCfg = activeBankConfig();
           const ALL_VALIDATABLE_FIELDS = ["systemType", "registration", "vehicleMake", "model", "date", "name", "phone", "startDate", "endDate", "loanDuration", "chassisNumber", "engineNumber"];
+          // A vehicle must carry at least one identifier: a number plate OR a chassis/VIN.
+          // Unregistered vehicles (awaiting plates) are certified on their chassis, so
+          // registration is required only when no chassis has been entered.
+          const hasChassis = !!(values.chassisNumber && String(values.chassisNumber).trim());
           const requiredFields = selectedTemplate === "unique"
-            ? ["registration"]
-            : ["systemType", "registration", "date", "name", "phone", "startDate", "endDate", "loanDuration",
+            ? (hasChassis ? [] : ["registration"])
+            : ["systemType", "date", "name", "phone", "startDate", "endDate", "loanDuration",
+               ...(hasChassis ? [] : ["registration"]),
                ...(activeCfg?.showChassis ? ["chassisNumber", "engineNumber"] : [])];
           ALL_VALIDATABLE_FIELDS.forEach((key) => {
             if (requiredFields.includes(key) && !values[key]) {
-              setError(key, "This field is required.");
+              setError(key, key === "registration"
+                ? "Enter a registration, or a Chassis / VIN for an unregistered vehicle."
+                : "This field is required.");
               isValid = false;
             } else {
               setError(key, "");
@@ -1641,12 +1808,27 @@
             isValid = false;
           }
 
+          // IMEIs are optional, but when provided must be a full 15-digit number —
+          // this blocks the partial / last-digits entries that left past
+          // certificates with truncated IMEIs. Checked before the slow PDF render.
+          ["imei1", "imei2"].forEach((key) => {
+            const v = (values[key] || "").trim();
+            if (v && !/^\d{15}$/.test(v)) {
+              setError(key, "IMEI must be a full 15-digit number.");
+              isValid = false;
+            } else {
+              setError(key, "");
+            }
+          });
+
           btnGenerate.disabled = !isValid;
           return { isValid, values };
         };
 
         const saveDraft = (silent = false) => {
           const { values } = validateForm();
+          // Never persist vehicle/customer identity — it must come from the registry Search.
+          DRAFT_EXCLUDE.forEach((k) => { delete values[k]; });
           localStorage.setItem(draftKey, JSON.stringify(values));
           const stamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
           statusEl.textContent = silent ? `Auto-saved at ${stamp}` : "Draft saved locally.";
@@ -1663,24 +1845,26 @@
           _autoSaveTimer = setTimeout(() => saveDraft(true), 1200);
         };
 
+        // Vehicle + customer identity is taken ONLY from the verified registry (via the
+        // Search) — never from a restored draft. Excluding these from the draft stops a
+        // previous certificate's vehicle/customer from leaking into a new one (the shared
+        // draft key is global), which is the "page still autofills data" symptom.
+        const DRAFT_EXCLUDE = ["registration","vehicleCategory","vehicleMake","model","modelNumber","bodyType","chassisNumber","engineNumber","name","color","phone"];
         const loadDraft = () => {
           const raw = localStorage.getItem(draftKey);
           if (!raw) return;
           try {
             const data = JSON.parse(raw);
             Object.keys(fields).forEach((key) => {
-              if (["vehicleCategory","vehicleMake","model","modelNumber","bodyType"].includes(key)) return;
+              if (DRAFT_EXCLUDE.includes(key)) return;
               setValue(fields[key], data[key]);
             });
-            setCarModel(data.vehicleMake || "", data.model || "", data.modelNumber || "", data.bodyType || "", data.vehicleCategory || "");
             // setValue() above doesn't fire partnerBank's "input" listener (it's
             // programmatic, not user typing), so the category auto-detect has to
             // be re-run explicitly here.
             const draftCfg = findBankConfigByText(data.partnerBank);
             if (draftCfg) {
               applyBankConfigById(draftCfg.id);
-              setValue("chassisNumber", data.chassisNumber || "");
-              setValue("engineNumber", data.engineNumber || "");
               setValue("imei1", data.imei1 || "");
               setValue("imei2", data.imei2 || "");
               setValue("tracker1", data.tracker1 || "");
@@ -1709,6 +1893,15 @@
             + String(d.getDate()).padStart(2,"0");
           const digits = String(1000 + Math.floor(Math.random() * 9000));
           return `SG${ymd}-${digits}`; // e.g. SG20260307-6053
+        };
+
+        // Derive an extension serial by inserting `extensionNo` "X"s after the
+        // leading letter prefix of the ROOT serial (mirrors the backend helper):
+        // SG20260307-6053 + 1 → SGX20260307-6053; + 2 → SGXX20260307-6053.
+        const deriveExtensionSerial = (rootSerial, extensionNo) => {
+          const m = /^([A-Za-z]+)(.*)$/.exec(String(rootSerial || ""));
+          if (!m) return rootSerial;
+          return m[1] + "X".repeat(Math.max(0, extensionNo)) + m[2];
         };
 
         const monthsBetween = (start, end) => {
@@ -1750,10 +1943,23 @@
 
           const parts = [];
           parts.push(`The validity of this certificate is for the duration of ${durationText} from ${formatDisplayDate(values.startDate)} to ${formatDisplayDate(values.endDate)}.`);
-          const imeis = [values.imei1, values.imei2, ...(_extraDevices.map(d => d.imei))].filter(Boolean).join(", ");
+          // Privacy: the full IMEI / tracker number is kept on the record, but the
+          // printed certificate only reveals the last few digits (IMEI: last 6,
+          // tracker: last 5) with the rest masked.
+          const redactTail = (val, keep) => {
+            const s = String(val || "").trim();
+            return s.length <= keep ? s : "*".repeat(s.length - keep) + s.slice(-keep);
+          };
+          const imeis = [values.imei1, values.imei2, ...(_extraDevices.map(d => d.imei))].filter(Boolean).map(v => redactTail(v, 6)).join(", ");
           if (imeis) parts.push(`IMEI - ${imeis}.`);
-          const trackers = [values.tracker1, values.tracker2, ...(_extraDevices.map(d => d.tracker))].filter(Boolean).join(", ");
+          const trackers = [values.tracker1, values.tracker2, ...(_extraDevices.map(d => d.tracker))].filter(Boolean).map(v => redactTail(v, 5)).join(", ");
           if (trackers) parts.push(`Tracker number ${trackers}.`);
+          // Extension certificate: stamp the extension status + the original
+          // certificate's validity period, so both the original and the new
+          // (extended) validity are shown on the certificate itself.
+          if (_extensionMode) {
+            parts.push(`This certificate is an EXTENSION of Certificate No. ${_extensionMode.originalSerialNo} (originally valid ${formatDisplayDate(_extensionMode.priorStartDate)} to ${formatDisplayDate(_extensionMode.priorEndDate)}).`);
+          }
           return parts.join(" ");
         };
 
@@ -1914,6 +2120,30 @@
         };
 
         document.getElementById("btn-my-signature").addEventListener("click", openSignatureModal);
+
+        // ── "Append signatures" toggle ──────────────────────────────────────
+        (() => {
+          const box = document.getElementById("toggle-signatures");
+          const label = document.getElementById("toggle-signatures-label");
+          if (!box) return;
+          const paint = () => {
+            const on = box.checked;
+            if (label) label.textContent = on ? "Append signatures" : "No signatures (sign by hand)";
+            const wrap = box.closest("label");
+            if (wrap) wrap.className = on
+              ? "inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 cursor-pointer select-none"
+              : "inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 cursor-pointer select-none";
+          };
+          try {
+            const saved = localStorage.getItem(APPEND_SIG_KEY);
+            if (saved !== null) box.checked = saved === "1";
+          } catch (_) {}
+          box.addEventListener("change", () => {
+            try { localStorage.setItem(APPEND_SIG_KEY, box.checked ? "1" : "0"); } catch (_) {}
+            paint();
+          });
+          paint();
+        })();
         document.getElementById("sig-modal-close").addEventListener("click", closeSignatureModal);
         document.getElementById("sig-cancel-btn").addEventListener("click", closeSignatureModal);
 
@@ -2100,8 +2330,31 @@
             new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms)),
           ]);
 
+        // Pre-rendered JPEG of each template (see assets/templates/generate-template-images.sh).
+        // certificate-template.pdf has ~12k vector objects and takes 10-20s+ to render in
+        // PDF.js — the cause of the render timeouts above. The JPEG is the same 1490x2106
+        // q92 raster the PDF.js path produced, but loads in milliseconds and is
+        // browser-cacheable. The PDF.js path below remains as fallback if the .jpg is missing.
+        const templateImageUrl = () => templateUrl.replace(/\.pdf$/i, ".jpg");
+
+        const loadPrerenderedBackground = async () => {
+          const res = await fetch(templateImageUrl());
+          if (!res.ok) return null;
+          const blob = await res.blob();
+          return await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error("Failed to read template image."));
+            reader.readAsDataURL(blob);
+          });
+        };
+
         const loadTemplateBackground = async () => {
           if (cachedBackground) return cachedBackground;
+          try {
+            const pre = await loadPrerenderedBackground();
+            if (pre) { cachedBackground = pre; return cachedBackground; }
+          } catch (_) { /* fall through to rendering the source PDF */ }
           if (!window.pdfjsLib) {
             throw new Error("PDF.js failed to load.");
           }
@@ -2300,8 +2553,15 @@
 
         const checkTemplate = async () => {
           try {
-            const res = await fetch(templateUrl, { cache: "no-store" });
-            templateAvailable = res.ok;
+            // Prefer the pre-rendered JPEG; fall back to the source PDF — either one
+            // can supply the background. HEAD avoids downloading multi-MB files just
+            // to show the availability badge.
+            const img = await fetch(templateImageUrl(), { method: "HEAD", cache: "no-store" });
+            templateAvailable = img.ok;
+            if (!templateAvailable) {
+              const res = await fetch(templateUrl, { method: "HEAD", cache: "no-store" });
+              templateAvailable = res.ok;
+            }
           } catch (error) {
             templateAvailable = false;
           }
@@ -2504,6 +2764,9 @@
               doc.text("The validity of this certificate is for the loan duration", pos.x, y);
               doc.text(`${buildDurationShort(values)} as from`, pos.x2, y);
               doc.text(`${formatDisplayDate(values.startDate)} to ${formatDisplayDate(values.endDate)}.`, pos.x, y + pos.lineGap);
+              if (_extensionMode) {
+                doc.text(`EXTENSION of Cert ${_extensionMode.originalSerialNo} (orig. valid to ${formatDisplayDate(_extensionMode.priorEndDate)}).`, pos.x, y + pos.lineGap * 2);
+              }
             }
           } else {
             // Same overlap guard as the Unique branch above: a long Name/
@@ -2552,7 +2815,7 @@
 
           // ── Printed By (Certificate Manager) / Authorised By (designated signatory) ──
           const sigLayout = layout.signatures;
-          if (sigLayout) {
+          if (sigLayout && appendSignatures()) {
             const pb = sigLayout.printedBy;
             if (_printedBySignatureDataUrl) {
               try { doc.addImage(_printedBySignatureDataUrl, "PNG", pb.imgX, pb.imgY, pb.imgW, pb.imgH); } catch (_) {}
@@ -2823,6 +3086,176 @@
         // reaches the backend until that explicit second step.
         let _pendingCert = null; // { mode, serial, values, bgData, doc, blobUrl }
 
+        // ── Registry-only gate + create-customer pop-up ───────────────────────
+        let _registryVehicle = null;
+
+        // Verify the form's registration/chassis resolves to a vehicle registered in
+        // the system + linked to a customer. Returns the lookup data or null (after an
+        // actionable toast + on-page direction).
+        async function ensureRegisteredVehicle() {
+          const reg     = (getValue("registration") || "").trim();
+          const chassis = (getValue("chassisNumber") || "").trim();
+          if (!reg && !chassis) {
+            showToast("Search and select a registered vehicle first.", "error");
+            showRegistryDirection(_csSelectedCustomer, "vehicle");
+            return null;
+          }
+          const qs = [];
+          if (reg)     qs.push("registration=" + encodeURIComponent(reg));
+          if (chassis) qs.push("chassis="      + encodeURIComponent(chassis));
+          let data;
+          try {
+            data = await window.FINEMARK_APP.apiFetch("/crm/customers/vehicles/lookup?" + qs.join("&"));
+          } catch (e) {
+            showToast("Could not verify the vehicle: " + (e?.message || "error"), "error");
+            return null;
+          }
+          if (!data || !data.found) {
+            if (_csSelectedCustomer && _csSelectedCustomer.id) {
+              showToast(`Vehicle not available under ${_csSelectedCustomer.displayName || _csSelectedCustomer.name || "this customer"} — register it under the customer first.`, "error");
+              showRegistryDirection(_csSelectedCustomer, "vehicle");
+            } else {
+              showToast("This customer/vehicle is not in the system. Create the customer, then register the vehicle.", "error");
+              showRegistryDirection(null, "customer");
+            }
+            return null;
+          }
+          _registryVehicle = { id: data.vehicle.id, customerId: data.customer.id, registration: data.vehicle.registration };
+          showRegistryDirection(null, null); // clear
+          return data;
+        }
+
+        // ── Sync corrected vehicle details back to the vehicle record ─────────
+        // Whatever the certificate form ends up with for make/model/model
+        // number/body type/color/chassis/engine is what the operator has just
+        // confirmed is correct for this vehicle — push any of it that differs
+        // from crm_customer_vehicles onto the vehicle record itself, not just
+        // the certificate. Reuses PATCH /vehicles/:id unchanged (installed-
+        // vehicle approval gate + audit log both already there); this is a
+        // best-effort background sync — it never blocks or fails the already-
+        // saved certificate, it just may quietly skip if no vehicle can be
+        // resolved.
+        async function syncVehicleFieldsFromCertificate(values) {
+          try {
+            const reg = (values.registration || "").trim();
+            const chassis = (values.chassisNumber || "").trim();
+            let vehicleId = _registryVehicle?.id || null;
+            // _registryVehicle may be stale (e.g. left over from a previous
+            // customer/vehicle search) or unset (edit/extension modes don't
+            // always re-run the registry gate) — re-resolve whenever the form's
+            // current registration doesn't match what we cached.
+            if (!vehicleId || (reg && _registryVehicle?.registration &&
+                reg.replace(/\s+/g, "").toUpperCase() !== String(_registryVehicle.registration).replace(/\s+/g, "").toUpperCase())) {
+              if (!reg && !chassis) return;
+              const qs = [];
+              if (reg) qs.push("registration=" + encodeURIComponent(reg));
+              if (chassis) qs.push("chassis=" + encodeURIComponent(chassis));
+              const lookup = await window.FINEMARK_APP.apiFetch("/crm/customers/vehicles/lookup?" + qs.join("&")).catch(() => null);
+              if (!lookup?.found) return;
+              vehicleId = lookup.vehicle.id;
+            }
+            if (!vehicleId) return;
+
+            const current = await window.FINEMARK_APP.apiFetch(`/vehicles/${encodeURIComponent(vehicleId)}`).catch(() => null);
+            const v = current?.vehicle || current?.data?.vehicle;
+            if (!v) return;
+
+            // Map: certificate form field → vehicle column, only fields this
+            // form actually captures as vehicle-identifying data.
+            const candidates = {
+              make: values.vehicleMake, model: values.model, model_number: values.modelNumber,
+              body_type: values.bodyType, color: values.color,
+              chassis_number: values.chassisNumber, engine_number: values.engineNumber,
+            };
+            const body = { source: "certificate_generation" };
+            let hasChange = false;
+            for (const [col, newVal] of Object.entries(candidates)) {
+              const trimmed = (newVal || "").toString().trim();
+              if (!trimmed) continue; // never blank out a vehicle field from the cert form
+              if (trimmed !== String(v[col] || "").trim()) { body[col] = trimmed; hasChange = true; }
+            }
+            if (!hasChange) return;
+
+            const result = await window.FINEMARK_APP.apiFetch(`/vehicles/${encodeURIComponent(vehicleId)}`, { method: "PATCH", body });
+            if (result?.data?.pendingApproval) {
+              showToast("Vehicle details differ from the record — the update was submitted for admin approval.", "info");
+            } else if (!result?.data?.noChange) {
+              showToast("Vehicle record updated to match this certificate.", "success");
+            }
+          } catch (e) {
+            console.warn("Vehicle detail sync skipped:", e?.message || e);
+          }
+        }
+
+        function showRegistryDirection(customer, type) {
+          const box = document.getElementById("registry-direction");
+          if (!box) return;
+          if (!type) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+          const hasCust = !!(customer && customer.id);
+          const action = hasCust
+            ? `<a href="crm-customer-360.html?id=${encodeURIComponent(customer.id)}" target="_blank" class="shrink-0 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">Register vehicle in Customer 360 &rarr;</a>`
+            : `<button type="button" id="rd-create-customer" class="shrink-0 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">+ Create customer</button>`;
+          const msg = hasCust
+            ? `This vehicle is not registered under <strong>${customer.displayName || customer.name || "this customer"}</strong>. Register it there, then search again.`
+            : `The customer isn't in the system yet. Create the customer, then register the vehicle under them.`;
+          box.innerHTML = `<div class="flex items-center justify-between gap-3 flex-wrap"><span class="text-amber-800">${msg}</span>${action}</div>`;
+          box.classList.remove("hidden");
+          const cc = document.getElementById("rd-create-customer");
+          if (cc) cc.addEventListener("click", openCreateCustomerModal);
+        }
+
+        function openCreateCustomerModal() {
+          const m = document.getElementById("create-customer-modal");
+          if (!m) return;
+          document.getElementById("cc-name").value  = getValue("name")  || "";
+          document.getElementById("cc-phone").value = getValue("phone") || "";
+          document.getElementById("cc-email").value = "";
+          document.getElementById("cc-error").classList.add("hidden");
+          m.classList.remove("hidden"); m.classList.add("flex");
+        }
+        function closeCreateCustomerModal() {
+          const m = document.getElementById("create-customer-modal");
+          if (m) { m.classList.add("hidden"); m.classList.remove("flex"); }
+        }
+        async function submitCreateCustomer() {
+          const err = document.getElementById("cc-error");
+          err.classList.add("hidden");
+          const type  = document.querySelector("input[name=cc-type]:checked")?.value || "individual";
+          const name  = (document.getElementById("cc-name").value  || "").trim();
+          const phone = (document.getElementById("cc-phone").value || "").trim();
+          const email = (document.getElementById("cc-email").value || "").trim();
+          if (!name) { err.textContent = "Customer name is required."; err.classList.remove("hidden"); return; }
+          const payload = {
+            type,
+            individual: type === "individual" ? { fullName: name, phone: phone || null, email: email || null } : undefined,
+            corporate:  type === "corporate"  ? { companyName: name, phone: phone || null, email: email || null } : undefined,
+          };
+          const btn = document.getElementById("cc-submit");
+          btn.disabled = true; btn.textContent = "Creating…";
+          try {
+            const res  = await window.FINEMARK_APP.apiFetch("/crm/customers/register", { method: "POST", body: payload });
+            const cust = res?.data?.customer || res?.customer || res?.data || res;
+            const newId = cust?.id;
+            showToast("Customer created — opening Customer 360 to register the vehicle…", "success");
+            if (newId) { window.location.href = `crm-customer-360.html?id=${encodeURIComponent(newId)}`; return; }
+            closeCreateCustomerModal();
+          } catch (e) {
+            const dup = e?.details?.matches?.[0] || e?.body?.error?.details?.matches?.[0];
+            if (dup && dup.customerId) {
+              err.innerHTML = `A matching customer already exists — <a class="underline font-semibold" href="crm-customer-360.html?id=${encodeURIComponent(dup.customerId)}" target="_blank">open ${dup.displayName || dup.name || "it"} in Customer 360</a> and register the vehicle there.`;
+            } else {
+              err.textContent = e?.message || "Failed to create customer.";
+            }
+            err.classList.remove("hidden");
+            btn.disabled = false; btn.textContent = "Create customer";
+          } finally {
+            btn.disabled = false; btn.textContent = "Create customer";
+          }
+        }
+        window.openCreateCustomerModal  = openCreateCustomerModal;
+        window.closeCreateCustomerModal = closeCreateCustomerModal;
+        window.submitCreateCustomer     = submitCreateCustomer;
+
         const previewCertificate = async () => {
           const { isValid, values } = validateForm();
           if (!isValid) {
@@ -2835,13 +3268,26 @@
             return;
           }
 
+          const mode = _extensionMode ? "extension" : (editMode && editCertificateId) ? "edit" : "create";
+          // ── Registry-only gate ────────────────────────────────────────────────
+          // A NEW certificate may only be generated for a vehicle registered in the
+          // system and linked to a customer. Verify before rendering; if it isn't,
+          // ensureRegisteredVehicle() toasts + shows the create/register direction.
+          // Extension mode inherits the already-registered vehicle from the original
+          // certificate, so it skips this gate (enforced server-side on the tip cert).
+          if (mode === "create") {
+            const gate = await ensureRegisteredVehicle();
+            if (!gate) return;
+          }
+
           try {
             btnGenerate.disabled = true;
             statusEl.textContent = "Rendering template...";
             const bgData = await loadTemplateBackground();
 
-            const mode = (editMode && editCertificateId) ? "edit" : "create";
-            const serial = mode === "edit" ? editSerialNo : serialNo(values.tracker1, false, selectedTemplate);
+            const serial = mode === "edit" ? editSerialNo
+              : mode === "extension" ? _extensionMode.extensionSerial
+              : serialNo(values.tracker1, false, selectedTemplate);
             const doc = await buildCertificateDoc(serial, values, bgData);
 
             if (_pendingCert?.blobUrl) URL.revokeObjectURL(_pendingCert.blobUrl);
@@ -2851,6 +3297,8 @@
             document.getElementById("preview-modal-frame").src = blobUrl;
             document.getElementById("preview-modal-status").textContent = mode === "edit"
               ? "Reviewing an update to an existing certificate — nothing is saved yet."
+              : mode === "extension"
+              ? `Reviewing extension certificate ${serial} — nothing is saved yet.`
               : "Reviewing a new certificate — nothing is saved yet.";
             document.getElementById("preview-modal-confirm").disabled = false;
             document.getElementById("preview-modal").classList.remove("hidden");
@@ -2915,20 +3363,60 @@
                   partnerBank: values.partnerBank || undefined,
                   printedByUserId: _printedByUserId || undefined,
                   printedByName: _printedByName || undefined,
-                  printedBySignatureUrl: _printedBySignatureUrl || undefined,
+                  printedBySignatureUrl: (appendSignatures() && _printedBySignatureUrl) || undefined,
                   authorizedByName: _authorizedBy?.fullName || undefined,
                   authorizedByRole: _authorizedBy?.roleTitle || undefined,
-                  authorizedBySignatureUrl: _authorizedBy?.signatureUrl || undefined,
+                  authorizedBySignatureUrl: (appendSignatures() && _authorizedBy?.signatureUrl) || undefined,
                   pdfBase64,
                 },
               });
               showToast("Certificate updated successfully");
               doc.save(`Certificate_${values.registration || "vehicle"}.pdf`);
               statusEl.textContent = "Certificate updated and PDF saved.";
+              syncVehicleFieldsFromCertificate(values);
               clearEditMode();
               if (window.parent && window.parent !== window) {
                 window.parent.postMessage({ type: 'CERT_UPDATED' }, '*');
               }
+            } else if (mode === "extension") {
+              // ── EXTENSION MODE: generate the extension certificate against the request ──
+              const pdfBase64 = await blobToBase64(doc.output("blob"));
+              await window.FINEMARK_APP.apiFetch(`/certificate-extensions/${_extensionMode.requestId}/generate`, {
+                method: "POST",
+                body: {
+                  serialNo: serial,
+                  startDate: values.startDate || undefined,
+                  endDate: values.endDate || undefined,
+                  systemType: values.systemType || undefined,
+                  model: values.model || undefined,
+                  date: values.date || undefined,
+                  name: values.name || undefined,
+                  color: values.color || undefined,
+                  phone: values.phone || undefined,
+                  loanDurationYears: values.loanDuration ? Number(values.loanDuration) / 12 : undefined,
+                  imei1: values.imei1 || undefined,
+                  imei2: values.imei2 || undefined,
+                  trackerNo1: values.tracker1 || undefined,
+                  trackerNo2: values.tracker2 || undefined,
+                  additionalDevices: cleanExtraDevices().length ? cleanExtraDevices() : undefined,
+                  chassisNumber: values.chassisNumber || undefined,
+                  engineNumber: values.engineNumber || undefined,
+                  partnerBank: values.partnerBank || undefined,
+                  printedByUserId: _printedByUserId || undefined,
+                  printedByName: _printedByName || undefined,
+                  printedBySignatureUrl: (appendSignatures() && _printedBySignatureUrl) || undefined,
+                  authorizedByName: _authorizedBy?.fullName || undefined,
+                  authorizedByRole: _authorizedBy?.roleTitle || undefined,
+                  authorizedBySignatureUrl: (appendSignatures() && _authorizedBy?.signatureUrl) || undefined,
+                  pdfBase64,
+                },
+              });
+              showToast(`Extension certificate ${serial} generated`);
+              doc.save(`Certificate_${serial}.pdf`);
+              statusEl.textContent = "Extension certificate generated.";
+              syncVehicleFieldsFromCertificate(values);
+              _extensionMode = null;
+              setTimeout(() => { window.location.href = "cert-extension-requests.html"; }, 1200);
             } else {
               // ── CREATE MODE: POST the already-rendered doc ──
               const pdfBase64 = await blobToBase64(doc.output("blob"));
@@ -2958,10 +3446,10 @@
                 partnerBank: values.partnerBank || undefined,
                 printedByUserId: _printedByUserId || undefined,
                 printedByName: _printedByName || undefined,
-                printedBySignatureUrl: _printedBySignatureUrl || undefined,
+                printedBySignatureUrl: (appendSignatures() && _printedBySignatureUrl) || undefined,
                 authorizedByName: _authorizedBy?.fullName || undefined,
                 authorizedByRole: _authorizedBy?.roleTitle || undefined,
-                authorizedBySignatureUrl: _authorizedBy?.signatureUrl || undefined,
+                authorizedBySignatureUrl: (appendSignatures() && _authorizedBy?.signatureUrl) || undefined,
                 pdfBase64: b64,
               });
 
@@ -2989,6 +3477,7 @@
               showToast("Certificate saved to inventory");
               doc.save(`Certificate_${values.registration || "vehicle"}.pdf`);
               statusEl.textContent = "PDF generated and saved.";
+              syncVehicleFieldsFromCertificate(values);
               if (window.parent && window.parent !== window) {
                 window.parent.postMessage({ type: 'CERT_SAVED' }, '*');
               }
@@ -3058,6 +3547,23 @@
           });
         };
 
+        // Fill the certificate form from a vehicle picked in the customer-search flow —
+        // the same authoritative fields the plate Search fills, INCLUDING the registered
+        // Partner/Bank (so it auto-picks here too, not just on a plate search).
+        const fillFromPickedVehicle = (v) => {
+          if (!v) return;
+          setValue("registration", v.registration || "");
+          setCarModel(v.make || "", v.model || "", v.modelNumber || "", v.bodyType || "", v.vehicleCategory || "");
+          setValue("color", v.color || "");
+          setValue("chassisNumber", v.chassisNumber || "");
+          setValue("engineNumber", v.engineNumber || "");
+          if (v.partnerName) {
+            setValue("partnerBank", v.partnerName);
+            trySyncFromPartnerBankText(v.partnerName);
+          }
+          validateForm();
+        };
+
         const renderVehiclePicker = (vehicles) => {
           csVehiclesLoading.classList.add("hidden");
           csVehiclesNone.classList.add("hidden");
@@ -3066,6 +3572,8 @@
           if (!vehicles.length) {
             csVehiclesNone.classList.remove("hidden");
             csVehiclesPanel.classList.remove("hidden");
+            _registryVehicle = null;
+            showRegistryDirection(_csSelectedCustomer, "vehicle");
             return;
           }
 
@@ -3086,13 +3594,12 @@
               </div>`;
             card.addEventListener("click", () => {
               _csSelectedVehicle = v;
+              _registryVehicle = { id: v.id, customerId: _csSelectedCustomer?.id || null, registration: v.registration };
+              showRegistryDirection(null, null);
               setSelectedVehicleCard(v.id);
               card.querySelector(".cs-veh-check").classList.remove("hidden");
-              // Auto-populate vehicle form fields immediately on click
-              setValue("registration", v.registration || "");
-              setCarModel(v.make || "", v.model || "", v.modelNumber || "", v.bodyType || "", v.vehicleCategory || "");
-              if (v.color) setValue("color", v.color);
-              validateForm();
+              // Auto-populate vehicle form fields (incl. registered Partner/Bank) on click
+              fillFromPickedVehicle(v);
             });
             csVehiclesList.appendChild(card);
           });
@@ -3102,16 +3609,15 @@
           // Auto-select if only one vehicle
           if (vehicles.length === 1) {
             _csSelectedVehicle = vehicles[0];
+            _registryVehicle = { id: vehicles[0].id, customerId: _csSelectedCustomer?.id || null, registration: vehicles[0].registration };
+            showRegistryDirection(null, null);
             const onlyCard = csVehiclesList.querySelector(".cs-veh-card");
             if (onlyCard) {
               onlyCard.classList.add("border-blue-500", "bg-blue-50");
               onlyCard.classList.remove("border-slate-200", "bg-white");
               onlyCard.querySelector(".cs-veh-check").classList.remove("hidden");
-              // Auto-fill
-              setValue("registration", vehicles[0].registration || "");
-              setCarModel(vehicles[0].make || "", vehicles[0].model || "", vehicles[0].modelNumber || "", vehicles[0].bodyType || "", vehicles[0].vehicleCategory || "");
-              if (vehicles[0].color) setValue("color", vehicles[0].color);
-              validateForm();
+              // Auto-fill (incl. registered Partner/Bank)
+              fillFromPickedVehicle(vehicles[0]);
             }
           }
         };
@@ -3137,13 +3643,8 @@
           if (c.name  && c.name  !== '—') setValue("name",  c.displayName || c.name);
           if (c.phone && c.phone !== '—') setValue("phone", c.phone);
           if (c.email && c.email !== '—') setValue("email", c.email);
-          // Also populate selected vehicle if one is picked
-          if (_csSelectedVehicle) {
-            const v = _csSelectedVehicle;
-            setValue("registration", v.registration || "");
-            setCarModel(v.make || "", v.model || "", v.modelNumber || "", v.bodyType || "", v.vehicleCategory || "");
-            if (v.color) setValue("color", v.color);
-          }
+          // Also populate selected vehicle if one is picked (incl. registered Partner/Bank)
+          if (_csSelectedVehicle) fillFromPickedVehicle(_csSelectedVehicle);
           validateForm();
           // Flash badge to confirm
           csSelected.classList.add("ring-2", "ring-emerald-400");
@@ -3172,8 +3673,11 @@
 
         const renderResults = (items) => {
           if (!items.length) {
-            csResults.innerHTML = `<p class="px-4 py-3 text-xs text-slate-500">No customers found.</p>`;
+            csResults.innerHTML = `<div class="px-4 py-3 text-xs text-slate-600 flex items-center justify-between gap-2">
+              <span>No customer found.</span>
+              <button type="button" onclick="openCreateCustomerModal()" class="shrink-0 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">+ Create customer</button></div>`;
             csResults.classList.remove("hidden");
+            showToast("Customer not available — create the customer to proceed.", "info");
             return;
           }
           csResults.innerHTML = items.map(c => `
@@ -3216,17 +3720,21 @@
             csSpinner.classList.remove("hidden"); csSpinner.classList.add("flex");
             try {
               const data = await window.FINEMARK_APP.apiFetch(
-                `/crm/customers/vehicles/lookup?registration=${encodeURIComponent(q)}`
+                `/crm/customers/vehicles/lookup?registration=${encodeURIComponent(q)}&chassis=${encodeURIComponent(q)}`
               );
               if (!data.found) {
                 _csCache.set(cacheKey, { ts: Date.now(), data: null });
-                csResults.innerHTML = `<p class="px-4 py-3 text-xs text-amber-700">No vehicle found for "${q}".</p>`;
+                csResults.innerHTML = `<p class="px-4 py-3 text-xs text-amber-700">No registered vehicle found for "${q}".</p>`;
                 csResults.classList.remove("hidden");
+                showRegistryDirection(null, "customer");
               } else {
                 const { vehicle, customer } = data;
-                setCarModel(vehicle.make, vehicle.model, vehicle.modelNumber, vehicle.bodyType, vehicle.vehicleCategory);
+                await setCarModel(vehicle.make, vehicle.model, vehicle.modelNumber, vehicle.bodyType, vehicle.vehicleCategory);
                 if (vehicle.color) setValue("color", vehicle.color);
+                if (vehicle.chassisNumber) setValue("chassisNumber", vehicle.chassisNumber);
                 setValue("registration", vehicle.registration);
+                _registryVehicle = { id: vehicle.id, customerId: customer.id, registration: vehicle.registration };
+                showRegistryDirection(null, null);
                 const label = `${vehicle.make} ${vehicle.model} (${vehicle.registration}) · ${customer.name}`;
                 _csCache.set(cacheKey, { ts: Date.now(), data: { customer, label } });
                 applyCustomer(customer, label);
@@ -3624,6 +4132,90 @@
               console.warn("[cert] Could not load certificate for regenerate:", e);
               const toast = window.FINEMARK_APP?.showToast || (() => {});
               toast("Failed to load certificate data.", "error");
+            }
+          })();
+        }
+
+        // ── Extension mode: extensionRequestId loads the approved request + its
+        //    original certificate, pre-fills the form with the original's identity,
+        //    sets full-coverage validity (root start → approved new end) and the
+        //    derived SGX serial, then Confirm generates the extension certificate. ──
+        const _extensionRequestId = new URLSearchParams(window.location.search).get("extensionRequestId") || null;
+        if (_extensionRequestId) {
+          (async () => {
+            try {
+              const res = await window.FINEMARK_APP.apiFetch(`/certificate-extensions/${_extensionRequestId}`);
+              const request = res?.request;
+              const oc = res?.originalCertificate;
+              await _signatureAssetsPromise;
+              await _certBankConfigsPromise;
+              if (!request || !oc) throw new Error("Extension request or original certificate not found.");
+              if (request.status !== "Approved") {
+                window.FINEMARK_APP?.showToast?.(`This request is ${request.status} — only an Approved request can be generated.`, "error");
+                return;
+              }
+              const today = new Date().toISOString().slice(0, 10);
+              const rootStart = oc.rootStartDate || oc.startDate;
+              const newEnd = request.requestedNewEndDate;
+
+              selectTemplate(oc.template === "unique" ? "unique" : "finemark");
+              setValue("systemType", oc.systemType || "");
+              setValue("registration", oc.carRegistration || "");
+              setValue("date", today);
+              setValue("name", oc.name || "");
+              setValue("color", oc.color || "");
+              setValue("phone", oc.phone || "");
+              setValue("chassisNumber", oc.chassisNumber || "");
+              setValue("engineNumber", oc.engineNumber || "");
+              setValue("partnerBank", oc.partnerBank || "");
+              setValue("imei1", oc.imei1 || "");
+              setValue("imei2", oc.imei2 || "");
+              setValue("tracker1", oc.trackerNo1 || "");
+              setValue("tracker2", oc.trackerNo2 || "");
+              applyBankConfigById(deriveCertCategoryFromCert(oc));
+              // applyBankConfigById only clears hidden fields — restore the ones that stay visible.
+              setValue("chassisNumber", oc.chassisNumber || "");
+              setValue("engineNumber", oc.engineNumber || "");
+              setValue("imei1", oc.imei1 || "");
+              setValue("imei2", oc.imei2 || "");
+              setValue("tracker1", oc.trackerNo1 || "");
+              setValue("tracker2", oc.trackerNo2 || "");
+              // Full-coverage validity: original root start → the approved new end.
+              setValue("startDate", rootStart || "");
+              setValue("endDate", newEnd || "");
+              setValue("loanDuration", (rootStart && newEnd) ? String(monthsBetween(rootStart, newEnd)) : "");
+              // Vehicle Make isn't stored on the certificate — look it up by registration.
+              let _vehFound = false;
+              if (oc.carRegistration) {
+                try {
+                  const lookup = await window.FINEMARK_APP.apiFetch(`/crm/customers/vehicles/lookup?registration=${encodeURIComponent(oc.carRegistration)}`);
+                  if (lookup?.found && lookup.vehicle) {
+                    setCarModel(lookup.vehicle.make, lookup.vehicle.model || oc.model, lookup.vehicle.modelNumber, lookup.vehicle.bodyType, lookup.vehicle.vehicleCategory);
+                    _vehFound = true;
+                  }
+                } catch (e) { console.warn("[cert-ext] vehicle lookup failed", e); }
+              }
+              if (!_vehFound && oc.model) setValue("model", oc.model);
+              _extraDevices = [];
+              (oc.additionalDevices || []).forEach(d => addExtraDeviceRow(d.imei || "", d.trackerNo || ""));
+
+              const nextExtNo = Number(oc.extensionNo || 0) + 1;
+              _extensionMode = {
+                requestId: _extensionRequestId,
+                extensionNo: nextExtNo,
+                extensionSerial: deriveExtensionSerial(oc.rootSerialNo || oc.serialNo, nextExtNo),
+                priorStartDate: oc.startDate,
+                priorEndDate: oc.endDate,
+                originalSerialNo: oc.serialNo,
+              };
+              validateForm();
+              const h1 = document.querySelector("main h1");
+              if (h1) h1.textContent = "Generate Extension Certificate";
+              if (btnGenerate) btnGenerate.textContent = "Preview Extension Certificate";
+              window.FINEMARK_APP?.showToast?.(`Extension of ${oc.serialNo} → ${_extensionMode.extensionSerial}. Review, then Preview.`, "info");
+            } catch (e) {
+              console.warn("[cert-ext] Could not load extension request:", e);
+              window.FINEMARK_APP?.showToast?.(e?.message || "Failed to load extension request.", "error");
             }
           })();
         }

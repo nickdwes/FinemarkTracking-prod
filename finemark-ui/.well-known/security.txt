@@ -1,0 +1,4 @@
+Contact: mailto:security@finemarktracking.co.ke
+Expires: 2027-08-07T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://portal.finemarktracking.co.ke/.well-known/security.txt

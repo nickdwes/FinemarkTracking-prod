@@ -20,6 +20,8 @@
     .tab-btn:hover{background:#fff;color:#0f172a;}
     .tab-btn.active{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);color:#0f172a;font-weight:700;}
     .pipeline-row:hover td{background:#fffbeb;}
+    .cert-incomplete td{background:#fffdf5;}
+    .cert-incomplete td:first-child{box-shadow:inset 3px 0 0 #f59e0b;}
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
@@ -40,6 +42,16 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
           Generate Certificate
         </a>
+        <a href="certificate-metrics.html"
+           class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          Analytics
+        </a>
+        <a href="certificate-recyclebin.html"
+           class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          Recycle Bin<span id="binCountBadge" class="hidden ml-1 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-amber-100 text-amber-700 text-[0.68rem] font-bold"></span>
+        </a>
         <button onclick="loadDashboard()"
            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -49,7 +61,7 @@
     </div>
 
     <!-- Stat Cards -->
-    <div id="stats-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div id="stats-grid" class="grid grid-cols-2 lg:grid-cols-3 gap-4">
       <div class="stat-card animate-pulse bg-slate-100 h-24 rounded-lg"></div>
       <div class="stat-card animate-pulse bg-slate-100 h-24 rounded-lg"></div>
       <div class="stat-card animate-pulse bg-slate-100 h-24 rounded-lg"></div>
@@ -62,7 +74,17 @@
         <span class="inline-flex items-center gap-1.5">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1M4.22 4.22l.7.7m14.14 14.14l.7.7M3 12h1m16 0h1M4.22 19.78l.7-.7M18.36 5.64l.7-.7"/></svg>
           Awaiting Certificate
-          <span id="tab-pipeline-badge" class="hidden ml-1 rounded-full bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5"></span>
+          <span id="tab-pipeline-badge" class="hidden ml-1 rounded-full bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5"></span>
+        </span>
+      </button>
+      <button class="tab-btn" data-tab="pipeline" onclick="switchPipelineView('awaiting-logbook',this)">
+        <span class="inline-flex items-center gap-1.5">Awaiting Log Book
+          <span id="tab-logbook-badge" class="hidden ml-1 rounded-full bg-orange-400 text-white text-[10px] font-bold px-1.5 py-0.5"></span>
+        </span>
+      </button>
+      <button class="tab-btn" data-tab="pipeline" onclick="switchPipelineView('awaiting-details',this)">
+        <span class="inline-flex items-center gap-1.5">Awaiting Details
+          <span id="tab-details-badge" class="hidden ml-1 rounded-full bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5"></span>
         </span>
       </button>
       <button class="tab-btn" data-tab="all" onclick="switchTab('all',this)">All Certificates</button>
@@ -74,15 +96,49 @@
         </span>
       </button>
       <button class="tab-btn" data-tab="expired" onclick="switchTab('expired',this)">Expired</button>
+      <button class="tab-btn" data-tab="extensions" onclick="switchTab('extensions',this)">Extensions
+        <span id="tab-ext-badge" class="hidden ml-1 rounded-full bg-indigo-500 text-white text-[10px] font-bold px-1.5 py-0.5"></span>
+      </button>
     </div>
 
     <!-- Pipeline Tab -->
     <div id="tab-pipeline" class="tab-pane fade-in">
       <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
-          <div>
-            <h2 class="font-semibold text-slate-900 text-sm">Installations Awaiting Certificate</h2>
-            <p class="text-xs text-slate-400 mt-0.5">Completed installations that have no certificate generated yet</p>
+        <div class="px-5 py-4 border-b border-slate-100 space-y-3">
+          <div class="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 class="font-semibold text-slate-900 text-sm">Installations Awaiting Certificate</h2>
+              <p class="text-xs text-slate-400 mt-0.5">Completed installations that have no certificate generated yet</p>
+            </div>
+            <div class="text-xs text-slate-500">Showing <span id="pl-count" class="font-semibold text-slate-700">0</span><span id="pl-warncount" class="ml-2 text-amber-600 font-semibold"></span></div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="relative flex-1 min-w-[220px]">
+              <svg class="w-4 h-4 absolute left-3 top-2.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <input id="pl-search" type="text" oninput="applyPipelineFilters()"
+                placeholder="Search reg, chassis, customer, ticket, quote, invoice, technician, ISO, sales…"
+                class="pl-9 pr-3 py-2 w-full rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40" />
+            </div>
+            <select id="pl-tech" data-all="All Technicians" onchange="applyPipelineFilters()" class="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40"><option value="">All Technicians</option></select>
+            <select id="pl-iso" data-all="All ISOs" onchange="applyPipelineFilters()" class="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40"><option value="">All ISOs</option></select>
+            <select id="pl-sales" data-all="All Sales Reps" onchange="applyPipelineFilters()" class="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40"><option value="">All Sales Reps</option></select>
+            <select id="pl-partner" data-all="All Partner Banks" onchange="applyPipelineFilters()" class="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40"><option value="">All Partner Banks</option></select>
+            <select id="pl-vehicle" onchange="applyPipelineFilters()" class="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40">
+              <option value="">All Vehicles</option>
+              <option value="registered">Registered (plate)</option>
+              <option value="chassis">Chassis-only</option>
+            </select>
+            <select id="pl-ready" onchange="applyPipelineFilters()" class="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40">
+              <option value="">All readiness</option>
+              <option value="incomplete">⚠ Needs info</option>
+              <option value="ready">Ready to generate</option>
+            </select>
+            <label class="flex items-center gap-1 text-xs text-slate-500">From
+              <input id="pl-from" type="date" onchange="applyPipelineFilters()" class="rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40" /></label>
+            <label class="flex items-center gap-1 text-xs text-slate-500">To
+              <input id="pl-to" type="date" onchange="applyPipelineFilters()" class="rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40" /></label>
+            <button onclick="clearPipelineFilters()" class="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50">Clear</button>
+            <button onclick="exportPipelineCsv()" class="px-3 py-2 rounded-lg border border-emerald-300 bg-emerald-50 text-sm font-semibold text-emerald-800 hover:bg-emerald-100">Export CSV</button>
           </div>
         </div>
         <div id="pipeline-wrap" class="overflow-x-auto">
@@ -93,12 +149,18 @@
                 <th>Make / Model</th>
                 <th>Customer</th>
                 <th>Ticket No.</th>
+                <th>Quotation</th>
+                <th>Invoice</th>
+                <th>Partner Bank</th>
+                <th>Technician</th>
+                <th>ISO</th>
+                <th>Sales Person</th>
                 <th>Completed At</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody id="pipeline-tbody">
-              <tr><td colspan="6" class="text-center py-10 text-slate-400">Loading…</td></tr>
+              <tr><td colspan="12" class="text-center py-10 text-slate-400">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -202,6 +264,25 @@
         <div class="overflow-x-auto"><table><thead><tr>
           <th>Serial No.</th><th>Vehicle Reg.</th><th>System Type</th><th>Owner</th><th>Phone</th><th>End Date</th><th>Expired</th><th>Actions</th>
         </tr></thead><tbody id="expired-tbody"><tr><td colspan="8" class="text-center py-10 text-slate-400">Loading…</td></tr></tbody></table></div>
+      </div>
+    </div>
+
+    <div id="tab-extensions" class="tab-pane hidden fade-in">
+      <div id="ext-stats" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4"></div>
+      <div class="bg-white rounded-xl border border-indigo-200 overflow-hidden">
+        <div class="px-5 py-4 border-b border-indigo-100 bg-indigo-50/50 flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-indigo-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+            <div>
+              <h2 class="font-semibold text-slate-900 text-sm">Extension Certificates</h2>
+              <p class="text-xs text-slate-500">Certificates generated by extending an existing certificate's validity</p>
+            </div>
+          </div>
+          <a href="cert-extension-requests.html" class="text-xs font-semibold text-indigo-700 hover:underline">Review Extension Requests →</a>
+        </div>
+        <div class="overflow-x-auto"><table><thead><tr>
+          <th>Extension Cert</th><th>Original</th><th>Vehicle Reg.</th><th>Owner</th><th>Original Validity</th><th>Extended Validity</th><th>#</th><th>Status</th><th>Actions</th>
+        </tr></thead><tbody id="ext-tbody"><tr><td colspan="9" class="text-center py-10 text-slate-400">Loading…</td></tr></tbody></table></div>
       </div>
     </div>
 
@@ -366,29 +447,37 @@
       const res = await APP.apiFetch('/certificates/dashboard');
       if (!res) throw new Error('No response');
       _data = res;
-      renderStats(res.stats);
+      renderStats(res.stats, res.pipeline);
       populateTypeFilter(res.certificates);
       renderPipeline(res.pipeline);
       renderCertTable();
       renderActiveTable();
       renderExpiringTable();
       renderExpiredTable();
+      renderExtensions();
       updateTabBadges(res.stats, res.pipeline.length);
     } catch (e) {
       document.getElementById('stats-grid').innerHTML =
-        `<div class="col-span-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Failed to load dashboard data. <button onclick="loadDashboard()" class="underline ml-1">Retry</button></div>`;
+        `<div class="col-span-2 lg:col-span-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Failed to load dashboard data. <button onclick="loadDashboard()" class="underline ml-1">Retry</button></div>`;
     }
   }
 
   function renderStatsLoading() {
-    document.getElementById('stats-grid').innerHTML = [1,2,3,4].map(()=>
+    document.getElementById('stats-grid').innerHTML = [1,2,3,4,5,6].map(()=>
       `<div class="stat-card animate-pulse bg-slate-100 h-24 rounded-lg"></div>`
     ).join('');
   }
 
-  function renderStats(s) {
+  function renderStats(s, pipeline) {
+    // Pipeline breakdown mirrors the tab partition (Awaiting Certificate / Log Book / Details).
+    const _pl = Array.isArray(pipeline) ? pipeline : _pipelineAll;
+    const _ready   = _pl.filter(r => r.readyToPrint).length;
+    const _logbook = _pl.filter(r => !r.hasLogBook).length;
+    const _details = _pl.filter(r => r.hasLogBook && r.certReadiness && !r.certReadiness.ready).length;
     const cards = [
-      { label:'Awaiting Generation', value:s.awaitingGeneration, color:'amber', icon:`<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/><path stroke-linecap="round" stroke-linejoin="round" d="M13 3v6h6"/></svg>`, tab:'pipeline', desc:'Installations done, cert pending' },
+      { label:'Ready to Generate', value:_ready, color:'emerald', icon:`<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>`, tab:'pipeline', desc:'Log book + partner details complete' },
+      { label:'Awaiting Log Book', value:_logbook, color:'orange', icon:`<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>`, tab:'pipeline', view:'awaiting-logbook', desc:'Log Book / NTSA not attached' },
+      { label:'Awaiting Details', value:_details, color:'amber', icon:`<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>`, tab:'pipeline', view:'awaiting-details', desc:'Log book in, partner fields missing' },
       { label:'Active Certificates', value:s.active, color:'emerald', icon:`<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`, tab:'active', desc:'Valid and in force' },
       { label:'Nearing Expiry', value:s.nearingExpiry, color:'orange', icon:`<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>`, tab:'expiring', desc:'Expiring within 60 days' },
       { label:'Expired', value:s.expired, color:'red', icon:`<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 9l-6 6M9 9l6 6"/></svg>`, tab:'expired', desc:'Past end date' },
@@ -396,7 +485,7 @@
     const colMap = { amber:'text-amber-600 bg-amber-50', emerald:'text-emerald-600 bg-emerald-50', orange:'text-orange-600 bg-orange-50', red:'text-red-600 bg-red-50' };
     const valColMap = { amber:'text-amber-700', emerald:'text-emerald-700', orange:'text-orange-700', red:'text-red-700' };
     document.getElementById('stats-grid').innerHTML = cards.map(c => `
-      <div class="stat-card cursor-pointer" onclick="switchTab('${c.tab}',null)">
+      <div class="stat-card cursor-pointer" onclick="${c.view ? `switchPipelineView('${c.view}',null)` : `switchTab('${c.tab}',null)`}">
         <div class="flex items-start justify-between gap-3">
           <div>
             <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">${c.label}</p>
@@ -409,36 +498,225 @@
   }
 
   function updateTabBadges(stats, pipelineLen) {
-    const pb = document.getElementById('tab-pipeline-badge');
-    if (pipelineLen > 0) { pb.textContent = pipelineLen; pb.classList.remove('hidden'); }
+    // tab-pipeline-badge (Awaiting Certificate) is owned by updatePipelineViewBadges,
+    // which sets it to the fully-ready count — not the total backlog.
     const eb = document.getElementById('tab-expiry-badge');
     if (stats.nearingExpiry > 0) { eb.textContent = stats.nearingExpiry; eb.classList.remove('hidden'); }
   }
 
   // ── Pipeline table ─────────────────────────────────────────────────────────
+  let _pipelineAll = [];
+  // Clean 3-way partition of the awaiting backlog (every row lands in exactly one):
+  //   'ready'            → Awaiting Certificate (fully ready: job card + log book + partner details)
+  //   'awaiting-logbook' → Awaiting Log Book (no Log Book / NTSA attached)
+  //   'awaiting-details' → Awaiting Details (log book attached, partner cert fields still missing)
+  let _pipelineView = 'ready';
+  const _escAttr = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+
+  // Warning mark for rows whose data can't satisfy the partner's certificate requirement.
+  function certWarn(r) {
+    const cr = r.certReadiness;
+    if (!cr || cr.ready) return '';
+    const title = `Not ready for the ${cr.bank || 'certificate'} — missing: ${(cr.missing || []).join(', ')}`;
+    return `<span class="inline-flex items-center align-middle mr-1 text-amber-500 cursor-help" title="${_escAttr(title)}">
+      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+    </span>`;
+  }
+
   function renderPipeline(pipeline) {
+    _pipelineAll = Array.isArray(pipeline) ? pipeline : [];
+    updatePipelineViewBadges();
+    populatePipelineFilters(_pipelineAll);
+    applyPipelineFilters();
+  }
+
+  function updatePipelineViewBadges() {
+    const ready           = _pipelineAll.filter(r => r.readyToPrint).length;
+    const awaitingLB      = _pipelineAll.filter(r => !r.hasLogBook).length;
+    const awaitingDetails = _pipelineAll.filter(r => r.hasLogBook && r.certReadiness && !r.certReadiness.ready).length;
+    const set = (id, n) => { const el = document.getElementById(id); if (!el) return; if (n > 0) { el.textContent = n; el.classList.remove('hidden'); } else { el.classList.add('hidden'); } };
+    set('tab-pipeline-badge', ready);        // Awaiting Certificate = fully ready
+    set('tab-logbook-badge', awaitingLB);    // Awaiting Log Book
+    set('tab-details-badge', awaitingDetails); // Awaiting Details
+  }
+
+  function populatePipelineFilters(list) {
+    const fill = (id, values) => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      const cur = sel.value;
+      const opts = [...new Set(values.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
+      sel.innerHTML = `<option value="">${sel.dataset.all || 'All'}</option>` +
+        opts.map(v => `<option value="${_escAttr(v)}"${v === cur ? ' selected' : ''}>${_escAttr(v)}</option>`).join('');
+    };
+    fill('pl-tech',    list.map(r => r.technician));
+    fill('pl-iso',     list.map(r => r.iso));
+    fill('pl-sales',   list.map(r => r.salesPerson));
+    const ps = document.getElementById('pl-partner');
+    const psCur = ps ? ps.value : '';
+    fill('pl-partner', list.map(r => r.partnerBank));
+    if (ps && list.some(r => !r.partnerBank)) {
+      ps.insertAdjacentHTML('beforeend', '<option value="__direct__">Direct (no partner)</option>');
+      ps.value = psCur;
+    }
+
+    // Readiness filter — fixed options + a drill-down per missing requirement, with counts
+    const rs = document.getElementById('pl-ready');
+    if (rs) {
+      const rCur = rs.value;
+      const incomplete = list.filter(r => r.certReadiness && !r.certReadiness.ready);
+      const readyN = list.length - incomplete.length;
+      const fieldCounts = {};
+      incomplete.forEach(r => (r.certReadiness.missing || []).forEach(f => { fieldCounts[f] = (fieldCounts[f] || 0) + 1; }));
+      let html = '<option value="">All readiness</option>'
+        + `<option value="incomplete">⚠ Needs info (${incomplete.length})</option>`
+        + `<option value="ready">✓ Ready to generate (${readyN})</option>`;
+      Object.keys(fieldCounts).sort((a, b) => fieldCounts[b] - fieldCounts[a]).forEach(f => {
+        html += `<option value="miss:${_escAttr(f)}">— missing ${_escAttr(f)} (${fieldCounts[f]})</option>`;
+      });
+      rs.innerHTML = html;
+      rs.value = rCur;
+    }
+  }
+
+  let _pipelineFiltered = [];
+  function applyPipelineFilters() {
+    const q = (document.getElementById('pl-search')?.value || '').toLowerCase().trim();
+    const nq = q.replace(/\s+/g, '');
+    const tech  = document.getElementById('pl-tech')?.value || '';
+    const iso   = document.getElementById('pl-iso')?.value || '';
+    const sales = document.getElementById('pl-sales')?.value || '';
+    const partner = document.getElementById('pl-partner')?.value || '';
+    const veh   = document.getElementById('pl-vehicle')?.value || '';
+    const ready = document.getElementById('pl-ready')?.value || '';
+    const from  = document.getElementById('pl-from')?.value || '';
+    const to    = document.getElementById('pl-to')?.value || '';
+    const filtered = _pipelineAll.filter(r => {
+      if (tech  && r.technician  !== tech)  return false;
+      if (iso   && r.iso         !== iso)   return false;
+      if (sales && r.salesPerson !== sales) return false;
+      if (partner === '__direct__' && r.partnerBank) return false;
+      if (partner && partner !== '__direct__' && r.partnerBank !== partner) return false;
+      if (veh === 'registered' && !r.registration) return false;
+      if (veh === 'chassis'    &&  r.registration) return false;
+      if (ready === 'incomplete' && (!r.certReadiness || r.certReadiness.ready)) return false;
+      if (ready === 'ready'      && !(r.certReadiness && r.certReadiness.ready)) return false;
+      if (ready.startsWith('miss:')) {
+        const f = ready.slice(5);
+        if (!(r.certReadiness && !r.certReadiness.ready && (r.certReadiness.missing || []).includes(f))) return false;
+      }
+      // Sub-view partition (every awaiting row lands in exactly one):
+      //   'ready'            = Awaiting Certificate (fully ready to generate)
+      //   'awaiting-logbook' = no Log Book / NTSA attached
+      //   'awaiting-details' = log book attached but partner cert fields still missing
+      if (_pipelineView === 'ready' && !r.readyToPrint) return false;
+      if (_pipelineView === 'awaiting-logbook' && r.hasLogBook) return false;
+      if (_pipelineView === 'awaiting-details' && !(r.hasLogBook && r.certReadiness && !r.certReadiness.ready)) return false;
+      if (from || to) {
+        const d = r.completedAt ? String(r.completedAt).slice(0, 10) : '';
+        if (from && (!d || d < from)) return false;
+        if (to   && (!d || d > to))   return false;
+      }
+      if (q) {
+        const hay = [r.registration, r.chassisNumber, r.makeModel, r.customerName, r.ticketNo, r.quoteNo, r.invoiceNo, r.technician, r.iso, r.salesPerson, r.partnerBank].join(' ').toLowerCase();
+        if (!hay.includes(q) && !hay.replace(/\s+/g, '').includes(nq)) return false;
+      }
+      return true;
+    });
+    _pipelineFiltered = filtered;
+    renderPipelineRows(filtered);
+    const cnt = document.getElementById('pl-count');
+    if (cnt) cnt.textContent = filtered.length === _pipelineAll.length ? String(_pipelineAll.length) : `${filtered.length} of ${_pipelineAll.length}`;
+    const incompleteN = filtered.filter(r => r.certReadiness && !r.certReadiness.ready).length;
+    const wc = document.getElementById('pl-warncount');
+    if (wc) wc.textContent = incompleteN ? `⚠ ${incompleteN} need info` : '';
+  }
+
+  // Export the currently-filtered awaiting-certificate list to CSV (self-service
+  // so the cert team can work the backlog offline).
+  function exportPipelineCsv() {
+    const rows = (_pipelineFiltered && _pipelineFiltered.length ? _pipelineFiltered : _pipelineAll) || [];
+    if (!rows.length) { alert('Nothing to export.'); return; }
+    const cols = [
+      ['registration','Vehicle Reg.'], ['chassisNumber','Chassis'], ['makeModel','Make / Model'],
+      ['customerName','Customer'], ['ticketNo','Ticket No.'], ['quoteNo','Quotation'],
+      ['invoiceNo','Invoice'], ['partnerBank','Partner Bank'], ['technician','Technician'],
+      ['iso','ISO'], ['salesPerson','Sales Person'], ['completedAt','Completed At'],
+    ];
+    const esc = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
+    const lines = [cols.map(([,l]) => esc(l)).join(',')];
+    rows.forEach(r => lines.push(cols.map(([k]) =>
+      esc(k === 'completedAt' && r[k] ? String(r[k]).slice(0,10) : r[k])).join(',')));
+    const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `awaiting-certificates-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function clearPipelineFilters() {
+    ['pl-search','pl-from','pl-to'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    ['pl-tech','pl-iso','pl-sales','pl-partner','pl-vehicle','pl-ready'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    applyPipelineFilters();
+  }
+
+  // Row action: only fully-ready rows get one-click Generate. Missing a Log Book →
+  // link to the customer's Vehicles tab to attach it. Missing partner cert fields → hint.
+  function pipelineActionHtml(r) {
+    if (r.readyToPrint) {
+      const href = r.ticketId
+        ? `create-certificate.html?ticketId=${encodeURIComponent(r.ticketId)}&autoGenerate=1`
+        : `create-certificate.html?installationId=${encodeURIComponent(r.viId||'')}&autoGenerate=1`;
+      return `<a href="${href}" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition" title="Generate & save the certificate — it goes to the certificate inventory and shows on Customer 360">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+        Generate Certificate</a>`;
+    }
+    if (!r.hasLogBook) {
+      const href = r.customerId ? `crm-customer-360.html?id=${encodeURIComponent(r.customerId)}` : '#';
+      return `<a href="${href}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-orange-300 bg-orange-50 text-orange-700 text-xs font-medium hover:bg-orange-100 transition" title="Attach a Log Book or NTSA Form to this vehicle (Customer 360 → Vehicles) before generating">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+        Attach Log Book</a>`;
+    }
+    const miss = _escAttr((r.certReadiness?.missing || []).join(', '));
+    return `<span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-700 text-xs font-medium cursor-help" title="Missing for the ${_escAttr(r.certReadiness?.bank||'certificate')}: ${miss}">Needs details</span>`;
+  }
+
+  function renderPipelineRows(pipeline) {
     const tbody = document.getElementById('pipeline-tbody');
     if (!pipeline.length) {
-      tbody.innerHTML = `<tr><td colspan="6" class="text-center py-12 text-slate-400">
+      let msg;
+      if (!_pipelineAll.length)                         msg = 'No installations awaiting certificate — all caught up!';
+      else if (_pipelineView === 'ready')               msg = 'No vehicles are fully ready yet — check Awaiting Log Book / Awaiting Details.';
+      else if (_pipelineView === 'awaiting-logbook')    msg = 'No vehicles are waiting on a Log Book.';
+      else if (_pipelineView === 'awaiting-details')    msg = 'No vehicles are missing partner details.';
+      else                                              msg = 'No installations match your search / filters.';
+      tbody.innerHTML = `<tr><td colspan="12" class="text-center py-12 text-slate-400">
         <svg class="w-8 h-8 mx-auto mb-2 text-slate-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        No installations awaiting certificate — all caught up!
+        ${msg}
       </td></tr>`;
       return;
     }
     tbody.innerHTML = pipeline.map(r => `
-      <tr class="pipeline-row">
-        <td><span class="font-mono font-semibold text-slate-800">${r.registration || '—'}</span></td>
+      <tr class="pipeline-row${r.certReadiness && !r.certReadiness.ready ? ' cert-incomplete' : ''}">
+        <td>${certWarn(r)}${r.registration
+              ? `<span class="font-mono font-semibold text-slate-800">${r.registration}</span>`
+              : (r.chassisNumber
+                  ? `<span class="font-mono text-xs text-slate-500" title="Chassis / VIN — vehicle not yet registered">Chassis: ${r.chassisNumber}</span>`
+                  : '—')}</td>
         <td class="text-slate-600">${r.makeModel || '—'}</td>
         <td class="text-slate-600">${r.customerName || '—'}</td>
         <td>${r.ticketNo ? `<span class="font-mono text-xs bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">${r.ticketNo}</span>` : '—'}</td>
+        <td>${r.quoteId ? `<a href="crm-quote-detail.html?id=${encodeURIComponent(r.quoteId)}" class="font-mono text-xs text-blue-700 hover:underline">${r.quoteNo || 'View'}</a>` : '—'}</td>
+        <td>${r.invoiceId ? `<a href="invoice-print.html?id=${encodeURIComponent(r.invoiceId)}" target="_blank" rel="noopener" class="font-mono text-xs text-blue-700 hover:underline">${r.invoiceNo || 'View'}</a>` : '—'}</td>
+        <td>${r.partnerBank
+              ? `<span class="text-xs bg-indigo-50 border border-indigo-200 text-indigo-700 px-2 py-0.5 rounded whitespace-nowrap">${r.partnerBank}</span>`
+              : '<span class="text-slate-400 text-xs">Direct</span>'}</td>
+        <td class="text-slate-600 text-xs">${r.technician || '—'}</td>
+        <td class="text-slate-600 text-xs">${r.iso || '—'}</td>
+        <td class="text-slate-600 text-xs">${r.salesPerson || '—'}</td>
         <td class="text-slate-500 text-xs">${fmtDate(r.completedAt)}</td>
-        <td>
-          <a href="${r.ticketId ? `create-certificate.html?ticketId=${encodeURIComponent(r.ticketId)}&autoGenerate=1` : `create-certificate.html?installationId=${encodeURIComponent(r.viId||'')}&autoGenerate=1`}"
-             class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-            Generate
-          </a>
-        </td>
+        <td>${pipelineActionHtml(r)}</td>
       </tr>`).join('');
   }
 
@@ -447,7 +725,8 @@
     const types = [...new Set(certs.map(c => c.systemType).filter(Boolean))].sort();
     const sel = document.getElementById('cert-type-filter');
     const cur = sel.value;
-    sel.innerHTML = `<option value="">All Types</option>` + types.map(t => `<option value="${t}"${t===cur?' selected':''}>${t}</option>`).join('');
+    const extOpt = `<option value="__ext__"${cur==='__ext__'?' selected':''}>Extensions only</option>`;
+    sel.innerHTML = `<option value="">All Types</option>` + extOpt + types.map(t => `<option value="${t}"${t===cur?' selected':''}>${t}</option>`).join('');
   }
 
   function getCertFilter() {
@@ -459,7 +738,8 @@
   function filterCerts(certs, { search, typeFilter }, statusFilter) {
     return certs.filter(c => {
       if (statusFilter && c.status !== statusFilter) return false;
-      if (typeFilter && c.systemType !== typeFilter) return false;
+      if (typeFilter === '__ext__') { if (!c.isExtension) return false; }
+      else if (typeFilter && c.systemType !== typeFilter) return false;
       if (search) {
         const hay = [c.serialNo, c.carRegistration, c.name, c.phone, c.model, c.systemType].join(' ').toLowerCase();
         if (!hay.includes(search)) return false;
@@ -468,10 +748,14 @@
     });
   }
 
+  const extBadge = (c) => c.isExtension
+    ? `<span class="ml-1 inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold px-1.5 py-0.5" title="Extension ${c.extensionNo}">EXT ${c.extensionNo}</span>`
+    : '';
+
   function certRow(c) {
     const days = daysLeft(c.endDate);
     return `<tr>
-      <td><span class="font-mono text-xs font-semibold text-slate-700">${c.serialNo||'—'}</span></td>
+      <td><span class="font-mono text-xs font-semibold text-slate-700">${c.serialNo||'—'}</span>${extBadge(c)}</td>
       <td><span class="font-mono font-semibold text-slate-800">${c.carRegistration||'—'}</span></td>
       <td class="text-slate-600">${c.systemType||'—'}</td>
       <td class="text-slate-700">${c.name||'—'}</td>
@@ -575,6 +859,49 @@
   }
 
   // ── Tab switching ──────────────────────────────────────────────────────────
+  // ── Extension Certificates tab ─────────────────────────────────────────────
+  async function renderExtensions() {
+    try {
+      const st = await APP.apiFetch('/certificate-extensions/stats');
+      const cards = [
+        ['Total', st.total, 'text-slate-700'],
+        ['Pending', st.pending, 'text-amber-700'],
+        ['Approved', st.approved, 'text-blue-700'],
+        ['Rejected', st.rejected, 'text-red-700'],
+        ['Generated', st.generated, 'text-emerald-700'],
+        ['Recently Extended', st.recentlyExtended, 'text-indigo-700'],
+      ];
+      document.getElementById('ext-stats').innerHTML = cards.map(([label,val,cls]) => `
+        <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
+          <p class="text-[11px] font-medium text-slate-500 uppercase tracking-wide">${label}</p>
+          <p class="text-2xl font-bold mt-0.5 ${cls}">${Number(val||0).toLocaleString()}</p>
+        </div>`).join('');
+      const badge = document.getElementById('tab-ext-badge');
+      if (badge) { if (st.pending > 0) { badge.textContent = st.pending; badge.classList.remove('hidden'); } else { badge.classList.add('hidden'); } }
+    } catch (e) {
+      document.getElementById('ext-stats').innerHTML = `<div class="col-span-full text-xs text-slate-400">Extension summary unavailable.</div>`;
+    }
+    const exts = (_data.certificates || []).filter(c => c.isExtension)
+      .sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''));
+    const tbody = document.getElementById('ext-tbody');
+    tbody.innerHTML = exts.length ? exts.map(extRow).join('') :
+      `<tr><td colspan="9" class="text-center py-10 text-slate-400">No extension certificates yet</td></tr>`;
+  }
+
+  function extRow(c) {
+    return `<tr>
+      <td><span class="font-mono text-xs font-semibold text-indigo-700">${c.serialNo||'—'}</span></td>
+      <td class="text-xs text-slate-500">${c.extendedFromCertId ? `<a class="text-blue-600 hover:underline" href="create-certificate.html?certId=${c.extendedFromCertId}">view</a>` : '—'}</td>
+      <td><span class="font-mono font-semibold text-slate-800">${c.carRegistration||'—'}</span></td>
+      <td class="text-slate-700">${c.name||'—'}</td>
+      <td class="text-xs text-slate-500">${fmtDate(c.priorStartDate)} → ${fmtDate(c.priorEndDate)}</td>
+      <td class="text-xs font-semibold text-emerald-700">${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}</td>
+      <td class="text-center">${c.extensionNo||1}</td>
+      <td>${statusBadge(c.status)}</td>
+      <td>${certActions(c)}</td>
+    </tr>`;
+  }
+
   function switchTab(tabId, btn) {
     _activeTab = tabId;
     document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
@@ -583,10 +910,27 @@
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     if (btn) { btn.classList.add('active'); }
     else {
-      document.querySelectorAll('.tab-btn').forEach(b => {
-        if (b.dataset.tab === tabId) b.classList.add('active');
-      });
+      // Highlight the first matching button — the "Awaiting Certificate" (all) button,
+      // not the sub-view buttons which also carry data-tab="pipeline".
+      const match = [...document.querySelectorAll('.tab-btn')].find(b => b.dataset.tab === tabId && !b.getAttribute('onclick')?.includes('switchPipelineView'));
+      if (match) match.classList.add('active');
     }
+    if (tabId === 'pipeline') { _pipelineView = 'ready'; if (typeof applyPipelineFilters === 'function') applyPipelineFilters(); }
+  }
+
+  // The pipeline sub-views (Awaiting Certificate / Awaiting Log Book / Awaiting Details)
+  // share the pipeline pane but filter it. They set _pipelineView and highlight their own button.
+  function switchPipelineView(view, btn) {
+    _pipelineView = view;
+    _activeTab = 'pipeline';
+    document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
+    const pane = document.getElementById('tab-pipeline');
+    if (pane) { pane.classList.remove('hidden'); pane.classList.add('fade-in'); }
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    // From a stat card btn is null — highlight the tab button that drives this same view.
+    const _tgt = btn || [...document.querySelectorAll('.tab-btn')].find(b => (b.getAttribute('onclick') || '').includes("switchPipelineView('" + view + "'"));
+    if (_tgt) _tgt.classList.add('active');
+    applyPipelineFilters();
   }
 
   // ── Active Tab: Preview / Download / Print / Email handlers ────────────────
@@ -710,6 +1054,16 @@
 
   // ── Init ──────────────────────────────────────────────────────────────────
   loadDashboard();
+
+  // Recycle-bin count badge on the header link
+  (function refreshBinBadge(){
+    if (!APP || !APP.apiFetch) { return setTimeout(refreshBinBadge, 300); }
+    APP.apiFetch('/certificates/recycle-bin').then(function(r){
+      var n = (r && r.meta && r.meta.total) || (r && r.data && r.data.length) || 0;
+      var b = document.getElementById('binCountBadge');
+      if (b && n > 0) { b.textContent = n; b.classList.remove('hidden'); }
+    }).catch(function(){});
+  })();
 </script>
 </body>
 </html>

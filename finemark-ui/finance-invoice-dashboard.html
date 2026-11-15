@@ -52,16 +52,20 @@
             <div class="grid gap-3 md:grid-cols-6">
               <div class="md:col-span-2">
                 <label class="text-xs font-semibold text-slate-600">Search</label>
-                <input id="filter-search" type="text" placeholder="Invoice no, customer, rep..." class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
+                <input id="filter-search" type="text" placeholder="Invoice no, customer, rep, vehicle reg, chassis..." class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
               </div>
               <div>
                 <label class="text-xs font-semibold text-slate-600">Status</label>
                 <select id="filter-status" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
+                  <!-- Values must match the backend invoiceStatus enum exactly
+                       (financeValidators.ts); "Partial" was not a valid value. -->
                   <option value="">All</option>
-                  <option value="Paid">Paid</option>
+                  <option value="Draft">Draft</option>
                   <option value="Unpaid">Unpaid</option>
-                  <option value="Partial">Partial</option>
+                  <option value="PartiallyPaid">Partially Paid</option>
+                  <option value="Paid">Paid</option>
                   <option value="Overdue">Overdue</option>
+                  <option value="Cancelled">Cancelled</option>
                 </select>
               </div>
               <div>

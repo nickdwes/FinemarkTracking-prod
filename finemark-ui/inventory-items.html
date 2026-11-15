@@ -50,10 +50,11 @@
           <button class="status-tab whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-slate-600" data-status="Installed">Installed</button>
           <button class="status-tab whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-slate-600" data-status="Returned">Returned</button>
           <button class="status-tab whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-slate-600" data-status="Defective">Defective</button>
+          <button class="status-tab whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-rose-600" data-status="__retrieved__">Retrieved Devices</button>
         </div>
 
         <!-- Filters -->
-        <div class="p-4 space-y-3 border-b border-slate-100">
+        <div id="normal-filters" class="p-4 space-y-3 border-b border-slate-100">
           <div class="grid gap-3 md:grid-cols-5">
             <div class="md:col-span-2">
               <label class="block text-xs font-semibold text-slate-600 mb-1">Search IMEI / Serial / Model</label>
@@ -95,7 +96,7 @@
         </div>
 
         <!-- Table -->
-        <div class="overflow-x-auto">
+        <div id="normal-table-wrap" class="overflow-x-auto">
           <table class="w-full min-w-[1050px] text-sm">
             <thead class="bg-slate-50 border-b border-slate-100">
               <tr>
@@ -120,17 +121,81 @@
             </tbody>
           </table>
         </div>
-        <div class="flex items-center justify-between px-4 py-3 border-t border-slate-100">
+        <div id="normal-pagination" class="flex items-center justify-between px-4 py-3 border-t border-slate-100">
           <span id="pagination-info" class="text-xs text-slate-400"></span>
           <div class="flex gap-2">
             <button id="btn-prev" class="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium hover:bg-slate-50 disabled:opacity-40">Prev</button>
             <button id="btn-next" class="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium hover:bg-slate-50 disabled:opacity-40">Next</button>
           </div>
         </div>
+
+        <!-- Retrieved Devices view (rendered from /device-retrievals) -->
+        <div id="retrieved-view" class="hidden">
+          <div class="p-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
+            <input id="ret-search" type="text" placeholder="Search serial, IMEI, reg, ticket, technician…" class="flex-1 min-w-[220px] rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+            <select id="ret-type" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+              <option value="">All types</option><option value="Uninstallation">Uninstallation</option><option value="Swap">Swap</option><option value="GadgetIssue">Gadget Issue</option><option value="Other">Other</option>
+            </select>
+            <select id="ret-status" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+              <option value="">All statuses</option><option value="In Custody">In Custody</option><option value="Restocked">Restocked</option><option value="Repair">Repair</option><option value="Disposed">Disposed</option>
+            </select>
+            <span id="ret-count" class="text-xs text-slate-500 ml-auto"></span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full min-w-[1150px] text-sm">
+              <thead class="bg-slate-50 border-b border-slate-100">
+                <tr>
+                  <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">Retrieval</th>
+                  <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">Device</th>
+                  <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">Serial / IMEI</th>
+                  <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">Prev. Vehicle</th>
+                  <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">Mount Position</th>
+                  <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">Job Card</th>
+                  <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">Ticket</th>
+                  <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">Type</th>
+                  <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">Custodian</th>
+                  <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">Retrieved</th>
+                  <th class="text-left px-4 py-3 font-medium text-slate-500 whitespace-nowrap">Status</th>
+                  <th class="px-4 py-3"></th>
+                </tr>
+              </thead>
+              <tbody id="retrieved-body" class="divide-y divide-slate-100">
+                <tr><td colspan="12" class="text-center py-8 text-slate-400">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
     </div>
   </main>
+</div>
+
+<!-- Retrieved: assign custody modal -->
+<div id="modal-ret-assign" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+    <h2 class="font-semibold text-slate-900">Assign Custody</h2>
+    <p class="text-xs text-slate-500 -mt-1">Assign this retrieved device to a technician's custody.</p>
+    <select id="ret-assign-tech" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"><option value="">Loading…</option></select>
+    <p id="ret-assign-error" class="hidden text-xs text-red-600"></p>
+    <div class="flex justify-end gap-2"><button id="ret-assign-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button><button id="ret-assign-submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Assign</button></div>
+  </div>
+</div>
+
+<!-- Retrieved: return to inventory modal -->
+<div id="modal-ret-return" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+    <h2 class="font-semibold text-slate-900">Return to Inventory</h2>
+    <p class="text-xs text-slate-500 -mt-1">Choose the outcome for this retrieved device.</p>
+    <select id="ret-return-outcome" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+      <option value="Restock">Restock — back to In Stock</option>
+      <option value="Repair">Repair — mark Defective for warranty</option>
+      <option value="Dispose">Dispose — write off</option>
+    </select>
+    <textarea id="ret-return-notes" rows="2" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Optional notes"></textarea>
+    <p id="ret-return-error" class="hidden text-xs text-red-600"></p>
+    <div class="flex justify-end gap-2"><button id="ret-return-cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button><button id="ret-return-submit" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">Return</button></div>
+  </div>
 </div>
 
 <!-- Issue to Technician Modal -->
@@ -444,6 +509,10 @@
   let selectedIds = new Set();
   let currentItems = [];
   const PAGE_SIZE = 50;
+  // Statuses a device may be (re-)issued from. "Returned" is a good-condition
+  // check-in (defective units get status "Defective" instead), so returned
+  // devices are fine to re-issue to another technician.
+  const ISSUABLE_STATUSES = ["In Stock","Reserved","Returned"];
 
   const STATUS_COLORS = {
     "In Stock": "bg-green-100 text-green-700",
@@ -491,7 +560,7 @@
       (n > 0 && isAdmin) ? delBtn.classList.remove("hidden") : delBtn.classList.add("hidden");
     }
 
-    const issuable = currentItems.filter(i => ["In Stock","Reserved"].includes(i.status));
+    const issuable = currentItems.filter(i => ISSUABLE_STATUSES.includes(i.status));
     const chkAll = document.getElementById("chk-all");
     if (issuable.length === 0) { chkAll.checked = false; chkAll.indeterminate = false; return; }
     const allChecked = issuable.every(i => selectedIds.has(i.id));
@@ -499,6 +568,116 @@
     chkAll.checked = allChecked;
     chkAll.indeterminate = !allChecked && someChecked;
   }
+
+  // ── Retrieved Devices view ────────────────────────────────────────────────
+  let _retrievals = [];
+  const RET_TYPE_LABEL = { Uninstallation: "Uninstallation", Swap: "Swap", GadgetIssue: "Gadget Issue", Other: "Other" };
+  const RET_STATUS_BADGE = {
+    "In Custody": "bg-amber-50 text-amber-700 border border-amber-200",
+    "Restocked": "bg-emerald-50 text-emerald-700 border border-emerald-200",
+    "Repair": "bg-orange-50 text-orange-700 border border-orange-200",
+    "Disposed": "bg-slate-100 text-slate-500 border border-slate-200",
+  };
+
+  async function loadRetrieved() {
+    const tbody = document.getElementById("retrieved-body");
+    tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400">Loading…</td></tr>`;
+    const search = document.getElementById("ret-search").value.trim();
+    const type = document.getElementById("ret-type").value;
+    const status = document.getElementById("ret-status").value;
+    const url = `/device-retrievals?pageSize=500` +
+      (search ? `&search=${encodeURIComponent(search)}` : "") +
+      (type ? `&retrievalType=${encodeURIComponent(type)}` : "") +
+      (status ? `&currentStatus=${encodeURIComponent(status)}` : "");
+    try {
+      const r = await apiFetch(url);
+      _retrievals = r.data ?? [];
+      const cEl = document.getElementById("ret-count");
+      if (cEl) cEl.textContent = _retrievals.length ? `${_retrievals.length} device${_retrievals.length !== 1 ? "s" : ""}` : "";
+      renderRetrieved(_retrievals);
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-red-500">Failed to load retrieved devices.</td></tr>`;
+    }
+  }
+
+  function renderRetrieved(rows) {
+    const tbody = document.getElementById("retrieved-body");
+    if (!rows.length) { tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400">No retrieved devices.</td></tr>`; return; }
+    tbody.innerHTML = rows.map((r) => {
+      const inCustody = r.currentStatus === "In Custody";
+      const badge = RET_STATUS_BADGE[r.currentStatus] || "bg-slate-100 text-slate-500 border border-slate-200";
+      const actions = inCustody
+        ? `<div class="flex gap-1 justify-end">
+             <button onclick="retAssign('${r.id}')" class="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100">Assign</button>
+             <button onclick="retReturn('${r.id}')" class="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">Return</button>
+           </div>`
+        : `<span class="text-xs text-slate-400">—</span>`;
+      return `<tr>
+        <td class="px-4 py-3 font-mono text-xs whitespace-nowrap">${escHtml(r.retrievalNo || "—")}</td>
+        <td class="px-4 py-3 whitespace-nowrap"><p class="font-medium text-slate-800">${escHtml(r.productName || "—")}</p><p class="text-xs text-slate-400">${escHtml(r.deviceModel || "")}</p></td>
+        <td class="px-4 py-3 font-mono text-xs whitespace-nowrap">${escHtml(r.deviceSerial || r.deviceImei || "—")}</td>
+        <td class="px-4 py-3 whitespace-nowrap">${escHtml(r.vehicleRegistration || "—")}</td>
+        <td class="px-4 py-3 whitespace-nowrap">${escHtml(r.mountPosition || r.installationLocation || "—")}</td>
+        <td class="px-4 py-3 font-mono text-xs whitespace-nowrap">${escHtml(r.jobCardRef || "—")}</td>
+        <td class="px-4 py-3 font-mono text-xs whitespace-nowrap">${r.supportTicketId ? `<a href="crm-ticket-detail.html?id=${r.supportTicketId}" class="text-blue-600 hover:underline">${escHtml(r.ticketNo || "—")}</a>` : escHtml(r.ticketNo || "—")}</td>
+        <td class="px-4 py-3 whitespace-nowrap"><span class="badge bg-slate-100 text-slate-600 border border-slate-200">${escHtml(RET_TYPE_LABEL[r.retrievalType] || r.retrievalType)}</span></td>
+        <td class="px-4 py-3 whitespace-nowrap">${escHtml(r.technicianName || r.deviceIssuedToName || "—")}</td>
+        <td class="px-4 py-3 whitespace-nowrap text-slate-500 text-xs">${r.retrievedAt ? fmtDate(r.retrievedAt) : "—"}</td>
+        <td class="px-4 py-3 whitespace-nowrap"><span class="badge ${badge}">${escHtml(r.currentStatus)}</span></td>
+        <td class="px-4 py-3 text-right whitespace-nowrap">${actions}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  // Retrieved filters
+  let _retTimer;
+  document.getElementById("ret-search").addEventListener("input", () => { clearTimeout(_retTimer); _retTimer = setTimeout(loadRetrieved, 300); });
+  document.getElementById("ret-type").addEventListener("change", loadRetrieved);
+  document.getElementById("ret-status").addEventListener("change", loadRetrieved);
+
+  // Assign custody modal
+  let _retActiveId = null;
+  window.retAssign = async (id) => {
+    _retActiveId = id;
+    document.getElementById("ret-assign-error").classList.add("hidden");
+    const sel = document.getElementById("ret-assign-tech");
+    document.getElementById("modal-ret-assign").classList.remove("hidden");
+    if (!technicians.length) { await loadTechnicians().catch(() => {}); }
+    sel.innerHTML = technicians.length
+      ? technicians.map((t) => `<option value="${t.id}" data-name="${escHtml(t.fullName || t.email || "Technician")}">${escHtml(t.fullName || t.email || "Technician")}</option>`).join("")
+      : `<option value="">No technicians found</option>`;
+  };
+  document.getElementById("ret-assign-cancel").addEventListener("click", () => document.getElementById("modal-ret-assign").classList.add("hidden"));
+  document.getElementById("ret-assign-submit").addEventListener("click", async () => {
+    const sel = document.getElementById("ret-assign-tech");
+    const technicianUserId = sel.value;
+    const technicianName = sel.options[sel.selectedIndex]?.getAttribute("data-name") || "";
+    if (!technicianUserId) { document.getElementById("ret-assign-error").textContent = "Select a technician."; document.getElementById("ret-assign-error").classList.remove("hidden"); return; }
+    try {
+      await apiFetch(`/device-retrievals/${_retActiveId}/assign-custody`, { method: "POST", body: { technicianUserId, technicianName } });
+      document.getElementById("modal-ret-assign").classList.add("hidden");
+      loadRetrieved();
+    } catch (e) { document.getElementById("ret-assign-error").textContent = e?.message || "Failed to assign."; document.getElementById("ret-assign-error").classList.remove("hidden"); }
+  });
+
+  // Return-to-inventory modal
+  window.retReturn = (id) => {
+    _retActiveId = id;
+    document.getElementById("ret-return-error").classList.add("hidden");
+    document.getElementById("ret-return-notes").value = "";
+    document.getElementById("ret-return-outcome").value = "Restock";
+    document.getElementById("modal-ret-return").classList.remove("hidden");
+  };
+  document.getElementById("ret-return-cancel").addEventListener("click", () => document.getElementById("modal-ret-return").classList.add("hidden"));
+  document.getElementById("ret-return-submit").addEventListener("click", async () => {
+    const outcome = document.getElementById("ret-return-outcome").value;
+    const notes = document.getElementById("ret-return-notes").value.trim();
+    try {
+      await apiFetch(`/device-retrievals/${_retActiveId}/return`, { method: "POST", body: { outcome, notes: notes || undefined } });
+      document.getElementById("modal-ret-return").classList.add("hidden");
+      loadRetrieved();
+    } catch (e) { document.getElementById("ret-return-error").textContent = e?.message || "Failed to return."; document.getElementById("ret-return-error").classList.remove("hidden"); }
+  });
 
   // ── Data loading ──────────────────────────────────────────────────────────
   async function loadCatalog() {
@@ -540,7 +719,17 @@
       cats.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
   }
 
+  function setInventoryView(mode) {
+    const retrieved = mode === "retrieved";
+    document.getElementById("retrieved-view").classList.toggle("hidden", !retrieved);
+    ["normal-filters", "normal-table-wrap", "normal-pagination"].forEach((id) => {
+      document.getElementById(id)?.classList.toggle("hidden", retrieved);
+    });
+  }
+
   async function loadItems() {
+    if (activeStatus === "__retrieved__") { setInventoryView("retrieved"); return loadRetrieved(); }
+    setInventoryView("normal");
     const q          = document.getElementById("search-input").value.trim();
     const catId      = document.getElementById("filter-cat").value;
     const productId  = document.getElementById("filter-product").value;
@@ -575,13 +764,13 @@
         const wStatus  = !wExp ? "—"
           : wExp > new Date() ? `<span class="text-green-600 text-xs">Valid</span>`
                               : `<span class="text-red-500 text-xs">Expired</span>`;
-        const issuable = ["In Stock","Reserved"].includes(i.status);
+        const issuable = ISSUABLE_STATUSES.includes(i.status);
         const checked  = selectedIds.has(i.id) ? "checked" : "";
         const rowBg    = selectedIds.has(i.id) ? " bg-teal-50" : "";
         return `<tr class="hover:bg-slate-50 cursor-pointer item-row${rowBg}" data-id="${i.id}">
           <td class="px-4 py-3 w-8" onclick="event.stopPropagation()">
             <input type="checkbox" class="row-chk rounded border-slate-300 accent-teal-600" data-id="${i.id}" ${checked}
-              ${issuable ? "" : "disabled title='Only In Stock / Reserved devices can be issued'"} />
+              ${issuable ? "" : "disabled title='Only In Stock / Reserved / Returned devices can be issued'"} />
           </td>
           <td class="px-4 py-3">
             <p class="font-medium text-slate-800">${i.product_name ?? ""}</p>
@@ -623,7 +812,7 @@
 
     // Show hint when there are issuable items
     const hint = document.getElementById("select-hint");
-    const hasIssuable = items.some(i => ["In Stock","Reserved"].includes(i.status));
+    const hasIssuable = items.some(i => ISSUABLE_STATUSES.includes(i.status));
     hasIssuable ? hint.classList.remove("hidden") : hint.classList.add("hidden");
   }
 
@@ -713,7 +902,7 @@
     const role = session?.user?.role ?? "";
     const canOperate = ["Admin","InventoryManager","WarehouseOfficer"].includes(role);
     if (!canOperate) return;
-    if (["In Stock","Reserved"].includes(d.status)) {
+    if (ISSUABLE_STATUSES.includes(d.status)) {
       el.innerHTML += actionBtn("issue-single", d.id, "Issue to Technician", "bg-teal-600 text-white");
       el.innerHTML += actionBtn("checkout", d.id, "Checkout for Install", "bg-blue-600 text-white");
     }
@@ -831,7 +1020,7 @@
         _setScanFeedback(`Not found in ledger: ${code}`, "err");
         return;
       }
-      if (!["In Stock","Reserved"].includes(match.status)) {
+      if (!ISSUABLE_STATUSES.includes(match.status)) {
         _setScanFeedback(`Cannot issue ${code} — status is "${match.status}".`, "err");
         return;
       }
@@ -857,7 +1046,7 @@
     if (selectedIds.size) {
       [...selectedIds].forEach(id => {
         const it = currentItems.find(i => i.id === id);
-        if (it && ["In Stock","Reserved"].includes(it.status)) {
+        if (it && ISSUABLE_STATUSES.includes(it.status)) {
           _scannedItems.push({
             id: it.id, imei: it.imei,
             serial_number: it.serial_number,
@@ -1027,7 +1216,7 @@
 
   // ── Select All checkbox ───────────────────────────────────────────────────
   document.getElementById("chk-all").addEventListener("change", e => {
-    const issuable = currentItems.filter(i => ["In Stock","Reserved"].includes(i.status));
+    const issuable = currentItems.filter(i => ISSUABLE_STATUSES.includes(i.status));
     issuable.forEach(i => e.target.checked ? selectedIds.add(i.id) : selectedIds.delete(i.id));
     renderTable(currentItems);
     updateSelectionUI();

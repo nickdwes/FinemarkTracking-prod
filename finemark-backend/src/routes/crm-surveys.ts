@@ -46,7 +46,7 @@ function mapSurvey(r: any) {
 }
 
 // ── GET / ─────────────────────────────────────────────────────────────────────
-router.get("/", requireAuth, requireRole(["Admin","Sales","Technical","Technician"]), async (req: AuthRequest, res) => {
+router.get("/", requireAuth, requireRole(["Admin","CertAdmin","Sales","Technical","Technician"]), async (req: AuthRequest, res) => {
   const { customerId, installationId, submitted, page = "1", pageSize = "50" } = req.query as any;
   const pageNum = Math.max(parseInt(page, 10) || 1, 1);
   const sizeNum = Math.min(parseInt(pageSize, 10) || 50, 200);

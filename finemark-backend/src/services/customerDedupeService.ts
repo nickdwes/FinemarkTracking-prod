@@ -1,5 +1,7 @@
 import { getByPhoneRows, CachedRow } from "./customerCacheService.js";
 import { normalizeKePhoneStrict } from "../utils/validators.js";
+import { pgAll, pgGet } from "../db.js";
+import { decryptField } from "./cryptoService.js";
 
 // Duplicate-customer detection — matches on (name + phone) OR (name + email),
 // never phone-alone or email-alone (a shared line/inbox with a different name
@@ -38,7 +40,7 @@ export function normalizeEmailForMatch(v: unknown): string {
   return v.trim().toLowerCase();
 }
 
-export type MatchField = "name+phone" | "name+email";
+export type MatchField = "name+phone" | "name+email" | "name";
 
 export interface DuplicateMatch {
   customerId: string;
@@ -56,12 +58,17 @@ export interface DuplicateMatch {
 // entry points in retail-leads.ts, crm-leads.ts, crm-customers.ts).
 export async function findDuplicateCustomers(
   input: { name?: string | null; phone?: string | null; email?: string | null },
-  excludeCustomerId?: string
+  excludeCustomerId?: string,
+  opts: { nameOnly?: boolean } = {},
 ): Promise<DuplicateMatch[]> {
   const name = normalizeName(input.name);
   const phone = normalizePhoneForMatch(input.phone);
   const email = normalizeEmailForMatch(input.email);
-  if (!name || (!phone && !email)) return [];
+  // With opts.nameOnly (used by the unattended corporate retail-lead auto-link), a
+  // normalised-name match alone is enough — corporate company names are specific, and
+  // every repeat lead for the same company otherwise created a fresh customer because
+  // its contact phone/email differed. Individuals stay strict (name + phone/email).
+  if (!name || (!opts.nameOnly && !phone && !email)) return [];
 
   const rows = await getByPhoneRows();
   const matches: DuplicateMatch[] = [];
@@ -73,10 +80,73 @@ export async function findDuplicateCustomers(
     const matchedOn: MatchField[] = [];
     if (phone && rowPhone && rowPhone === phone) matchedOn.push("name+phone");
     if (email && rowEmail && rowEmail === email) matchedOn.push("name+email");
+    if (!matchedOn.length && opts.nameOnly) matchedOn.push("name");
     if (matchedOn.length) {
       matches.push({
         customerId: row.id, accountNo: row.accountNo, type: row.type,
         displayName: row.displayName, phone: row.phone, email: row.email, matchedOn,
+      });
+    }
+  }
+  return matches;
+}
+
+// Live (uncached) duplicate check for the human-facing CREATE path.
+// getByPhoneRows() is a 5-min cache — a customer created moments ago (within
+// the same cache window) can slip past findDuplicateCustomers and a duplicate
+// gets created. Display name is PLAINTEXT (crm_individual_profiles.full_name
+// / crm_corporate_profiles.company_name), so we filter to the handful of same-name
+// candidates in SQL, then decrypt only those to confirm phone/email — accurate and
+// cheap, with no cache lag. Same match rules as findDuplicateCustomers.
+export async function findDuplicateCustomersLive(
+  input: { name?: string | null; phone?: string | null; email?: string | null },
+  opts: { nameOnly?: boolean } = {},
+): Promise<DuplicateMatch[]> {
+  const name = normalizeName(input.name);
+  const phone = normalizePhoneForMatch(input.phone);
+  const email = normalizeEmailForMatch(input.email);
+  if (!name || (!opts.nameOnly && !phone && !email)) return [];
+
+  // Name-scoped: normalise the stored display name the same way normalizeName does
+  // (trim → lowercase → collapse internal whitespace) and compare to the input name.
+  const rows = await pgAll(
+    `SELECT c.id, c.account_no, c.type,
+            COALESCE(ind.full_name, corp.company_name) AS display_name,
+            ind.phone_enc AS ind_phone_enc, ind.email_enc AS ind_email_enc
+       FROM crm_customers c
+       LEFT JOIN crm_individual_profiles ind ON ind.customer_id = c.id
+       LEFT JOIN crm_corporate_profiles  corp ON corp.customer_id = c.id
+      WHERE c.deleted_at IS NULL
+        AND TRIM(LOWER(REGEXP_REPLACE(COALESCE(ind.full_name, corp.company_name), '\\s+', ' ', 'g'))) = ?`,
+    [name],
+  );
+
+  const matches: DuplicateMatch[] = [];
+  for (const row of rows as any[]) {
+    let rowPhone = normalizePhoneForMatch(decryptField(row.ind_phone_enc));
+    let rowEmail = normalizeEmailForMatch(decryptField(row.ind_email_enc));
+    // Fall back to the primary contact person when the profile has no phone/email.
+    if ((!rowPhone && phone) || (!rowEmail && email)) {
+      const cp = await pgGet(
+        `SELECT phone_enc, email_enc FROM crm_contact_persons WHERE customer_id = ? ORDER BY is_primary DESC, created_at LIMIT 1`,
+        [row.id],
+      ).catch(() => null);
+      if (cp) {
+        rowPhone = rowPhone || normalizePhoneForMatch(decryptField(cp.phone_enc));
+        rowEmail = rowEmail || normalizeEmailForMatch(decryptField(cp.email_enc));
+      }
+    }
+    const matchedOn: MatchField[] = [];
+    if (phone && rowPhone && rowPhone === phone) matchedOn.push("name+phone");
+    if (email && rowEmail && rowEmail === email) matchedOn.push("name+email");
+    if (!matchedOn.length && opts.nameOnly) matchedOn.push("name");
+    if (matchedOn.length) {
+      matches.push({
+        customerId: row.id, accountNo: row.account_no, type: row.type,
+        displayName: row.display_name || "—",
+        phone: decryptField(row.ind_phone_enc) || "—",
+        email: decryptField(row.ind_email_enc) || "—",
+        matchedOn,
       });
     }
   }

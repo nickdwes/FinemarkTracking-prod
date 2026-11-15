@@ -410,7 +410,7 @@ async function loadCustomerVehicles(customerId) {
     const resp = await api(`/crm/customers/${customerId}/vehicles`);
     const vArr = Array.isArray(resp) ? resp : (Array.isArray(resp?.data) ? resp.data : []);
     sel.innerHTML = '<option value="">— No specific vehicle —</option>' + vArr.map(v => {
-      const label = [v.registration, v.make && v.model ? `${v.make} ${v.model}` : (v.make || ""), v.yearOfManufacture ? `(${v.yearOfManufacture})` : ""].filter(Boolean).join(" — ");
+      const label = window.FINEMARK_APP.vehicleLabel(v);
       return `<option value="${v.id}" data-reg="${v.registration || ""}">${label}</option>`;
     }).join("");
     noneEl.classList.toggle("hidden", vArr.length > 0);
@@ -526,6 +526,7 @@ async function loadQmProducts() {
       salePrice:         Number(p.salePrice         ?? p.sale_price         ?? 0),
       installationPrice: Number(p.installationPrice ?? p.installation_price ?? 0),
       subscriptionPrice: Number(p.subscriptionPrice ?? p.subscription_price ?? 0),
+      isService:         (p.tracksInventory ?? p.tracks_inventory) === false,
     }));
   } catch { _qmProductCache = []; }
   return _qmProductCache;
@@ -567,8 +568,22 @@ function updateQmItemPrice(id, field, val) {
   recalcQmTotals();
 }
 
+/* Service (no-inventory) lines carry a typed quantity; device lines count the picked devices. */
+function qmItemQty(item) {
+  return item.isService ? Math.max(1, parseInt(item.quantity) || 1) : Math.max(item.selectedDevices.length, 1);
+}
+function updateQmQty(id, val) {
+  const item = _qmItems.find(i => i.id === id);
+  if (!item) return;
+  item.quantity = Math.max(1, parseInt(val) || 1);
+  _refreshRowTotal(item);
+  const lbl = $('qm-qty-note-' + id);
+  if (lbl) lbl.textContent = item.quantity;
+  recalcQmTotals();
+}
+
 function _refreshRowTotal(item) {
-  const qty = Math.max(item.selectedDevices.length, 1);
+  const qty = qmItemQty(item);
   const el = $('qm-row-total-' + item.id);
   if (el) el.textContent = 'KES ' + fmtN((item.unitPrice + item.installationPrice + item.subscriptionPrice) * qty);
 }
@@ -580,7 +595,7 @@ async function onProductChange(id, productId) {
   if (!productId) {
     item.productId = ''; item.productName = ''; item.productCode = '';
     item.deviceModel = ''; item.description = ''; item.descriptionMode = 'quotation'; item.unitPrice = 0;
-    item.installationPrice = 0; item.subscriptionPrice = 0;
+    item.installationPrice = 0; item.subscriptionPrice = 0; item.isService = false; item.quantity = 1;
     renderQmItems(); return;
   }
   const products = await loadQmProducts();
@@ -596,6 +611,8 @@ async function onProductChange(id, productId) {
     item.unitPrice         = prod.salePrice || 0;
     item.installationPrice = prod.installationPrice || 0;
     item.subscriptionPrice = prod.subscriptionPrice || 0;
+    item.isService         = !!prod.isService;
+    item.quantity          = 1;
   }
   delete _qmDeviceCache[productId];
   renderQmItems();
@@ -650,7 +667,7 @@ function renderQmItems() {
   const container = $('qm-items');
   const products = _qmProductCache || [];
   container.innerHTML = _qmItems.map(item => {
-    const qty = Math.max(item.selectedDevices.length, 1);
+    const qty = qmItemQty(item);
     const rowTotal = (item.unitPrice + item.installationPrice + item.subscriptionPrice) * qty;
     const chips = item.selectedDevices.map(d => `
       <span class="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-xs font-medium whitespace-nowrap">
@@ -660,7 +677,7 @@ function renderQmItems() {
         <button type="button" onmousedown="event.preventDefault();removeDevice(${item.id},'${d.id}')"
           class="ml-0.5 rounded-full hover:bg-indigo-200 w-4 h-4 flex items-center justify-center text-indigo-600 leading-none text-sm">&times;</button>
       </span>`).join('');
-    const addDevBtn = item.productId ? `
+    const addDevBtn = item.productId && !item.isService ? `
       <div class="relative inline-block">
         <button type="button" onclick="toggleDeviceDropdown(${item.id})"
           class="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium border border-blue-200 rounded-full px-2 py-0.5 hover:bg-blue-50">
@@ -682,12 +699,16 @@ function renderQmItems() {
             ${prodOpts}
           </select>
         </div>
-        <div class="shrink-0 text-xs text-slate-500 font-semibold w-16 text-center">Qty: <span class="text-slate-800">${qty}</span></div>
+        ${item.isService
+          ? `<label class="shrink-0 text-xs text-slate-500 font-semibold flex items-center gap-1">Qty:
+               <input type="number" min="1" step="1" value="${qty}" oninput="updateQmQty(${item.id}, this.value)"
+                 class="w-16 border border-slate-200 rounded-lg px-2 py-1 text-sm text-right focus:outline-none focus:border-emerald-400 bg-white" /></label>`
+          : `<div class="shrink-0 text-xs text-slate-500 font-semibold w-16 text-center">Qty: <span class="text-slate-800">${qty}</span></div>`}
         <button type="button" onclick="removeQuoteItem(${item.id})" class="shrink-0 text-red-400 hover:text-red-600 text-xl leading-none">&times;</button>
       </div>
       <div class="grid grid-cols-3 gap-2">
         <div>
-          <label class="block text-xs text-slate-500 mb-0.5">Device Price (KES)</label>
+          <label class="block text-xs text-slate-500 mb-0.5">${item.isService ? 'Service Price' : 'Device Price'} (KES)</label>
           <input type="number" min="0" step="0.01" placeholder="0.00" value="${item.unitPrice || ''}"
             oninput="updateQmItemPrice(${item.id},'unitPrice',this.value)"
             class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:border-emerald-400 bg-white" />
@@ -707,10 +728,10 @@ function renderQmItems() {
       </div>
       <div class="flex items-center justify-between">
         <div id="qm-row-total-${item.id}" class="text-sm font-semibold text-emerald-700">KES ${fmtN(rowTotal)}</div>
-        <div class="text-xs text-slate-400">(device + install + subscription) × ${qty}</div>
+        <div class="text-xs text-slate-400">(${item.isService ? 'service' : 'device'} + install + subscription) × <span id="qm-qty-note-${item.id}">${qty}</span></div>
       </div>
       <div class="flex flex-wrap items-center gap-1.5 min-h-[1.75rem] pt-0.5 border-t border-slate-200">
-        ${chips}
+        ${item.isService ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 font-semibold">SERVICE</span><span class="text-xs text-slate-400 italic">No inventory, so no device is needed</span>' : chips}
         ${addDevBtn}
         ${!item.productId ? '<span class="text-xs text-slate-400 italic">Select a product above to pick devices</span>' : ''}
       </div>
@@ -778,7 +799,7 @@ function addQmFeatureToDescription(id, featureIdx) {
 
 function recalcQmTotals() {
   const subtotal = _qmItems.reduce((s, i) => {
-    const qty = Math.max(i.selectedDevices.length, 1);
+    const qty = qmItemQty(i);
     return s + (i.unitPrice + i.installationPrice + i.subscriptionPrice) * qty;
   }, 0);
   const taxRate  = parseFloat($('qm-tax').value)      || 0;
@@ -826,13 +847,13 @@ $("btn-submit-quote").addEventListener("click", async () => {
     deviceModel:       i.productName || i.deviceModel,
     description:       i.description || i.productName,
     deviceType:        i.categoryName || null,
-    quantity:          Math.max(i.selectedDevices.length, 1),
+    quantity:          qmItemQty(i),
     unitPrice:         i.unitPrice + i.installationPrice + i.subscriptionPrice,
     devicePrice:       i.unitPrice,
     installationPrice: i.installationPrice,
     subscriptionPrice: i.subscriptionPrice,
-    stockItemIds:      i.selectedDevices.map(d => d.id),
-    stockItemId:       i.selectedDevices[0]?.id || null,
+    stockItemIds:      i.isService ? [] : i.selectedDevices.map(d => d.id),
+    stockItemId:       i.isService ? null : (i.selectedDevices[0]?.id || null),
   }));
 
   const body = {
@@ -964,6 +985,26 @@ $("btn-reset").addEventListener("click", () => {
   loadQuotes();
 });
 loadQuotes();
+
+// Deep-link: crm-quotes.html?leadId=<id> opens the New Quote modal pre-selected to
+// that lead (used by the Quotation column on the Corporate Leads list). The lead
+// must already have a linked customer (i.e. converted) to be quotable.
+(() => {
+  const _urlLeadId = new URLSearchParams(location.search).get("leadId");
+  if (!_urlLeadId) return;
+  (async () => {
+    try {
+      const r = await api(`/crm/leads/${encodeURIComponent(_urlLeadId)}`);
+      const lead = r?.data;
+      if (!lead) { window.FINEMARK_APP?.showToast?.("Lead not found.", "error"); return; }
+      if (!lead.customerId) { window.FINEMARK_APP?.showToast?.("This lead has no linked customer yet — convert it to a customer first.", "error"); return; }
+      openModal();
+      await selectLead(lead);
+    } catch (e) {
+      window.FINEMARK_APP?.showToast?.("Couldn't open the quote form for this lead.", "error");
+    }
+  })();
+})();
 </script>
 </body>
 </html>

@@ -853,16 +853,23 @@ router.get("/my-history", requireAuth, requireRole([...TECH_ROLES, "Admin"]), as
   const ids = [...(await resolveTechnicianIdSet(techId))];
   const ph1 = ids.map((_, i) => `$${i + 1}`).join(", ");
   const ph2 = ids.map((_, i) => `$${ids.length + i + 1}`).join(", ");
+  const ph3 = ids.map((_, i) => `$${ids.length * 2 + i + 1}`).join(", ");
 
-  // Collect all item IDs ever issued to this technician via issuance batches
+  // Collect every item ever in this technician's custody: issued via one of their
+  // issuance batches, currently issued to them, OR ever checked out to them. The
+  // checkout-record link is durable — it survives a device being installed (which
+  // clears issued_to_id), so an installed device still shows in the tech's History.
   const issuedItems = await pgAll(
     `SELECT DISTINCT i.id
      FROM inv_items i
      WHERE i.issuance_batch_id IN (
        SELECT id FROM inv_issuance_batches WHERE technician_id IN (${ph1})
      )
-     OR i.issued_to_id IN (${ph2})`,
-    [...ids, ...ids]
+     OR i.issued_to_id IN (${ph2})
+     OR i.id IN (
+       SELECT item_id FROM inv_checkout_records WHERE technician_id IN (${ph3})
+     )`,
+    [...ids, ...ids, ...ids]
   ).catch(() => [] as any[]);
 
   if (issuedItems.length === 0) {
@@ -1115,9 +1122,31 @@ router.post("/assign-to-job", requireAuth, requireRole([...TECH_ROLES, "Admin", 
     `SELECT * FROM inv_items WHERE id = ? AND deleted_at IS NULL`, [deviceId]
   );
   if (invItem) {
+    // Idempotent: already linked to THIS job (assigned or installed) → success,
+    // so re-running stage 0 on a job whose device is already on it doesn't error.
+    // Still apply any newly-supplied SIM/MSISDN — this is the only path that lets
+    // a SIM be paired onto a device after the initial attach (e.g. resolving a
+    // MISSING_SIM completion blocker), since the SIM-patch endpoint is admin-only.
+    if (invItem.installation_id && invItem.installation_id === jobId) {
+      if (simIccid || msisdn) {
+        await pgRun(
+          `UPDATE inv_items SET updated_at = ?, sim_serial = COALESCE(?, sim_serial), sim_phone = COALESCE(?, sim_phone) WHERE id = ?`,
+          [new Date().toISOString(), simIccid || null, msisdn || null, deviceId]
+        );
+        auditLog(req, "DI_DEVICE_ASSIGNED_TO_JOB", `inv_items:${deviceId}`, "Info",
+          { deviceId, jobId, simIccid: simIccid || null, note: "sim update on already-linked device" }).catch(console.error);
+      }
+      return ok(res, { deviceId, jobId, status: "AssignedToJob" }, "Device already on this job");
+    }
+    if (invItem.status === "Installed") {
+      return errorResponse(res, 409, "DEVICE_NOT_AVAILABLE",
+        "This device has already been installed on another job and can't be re-assigned. Remove it from the selection and pick a device that is still in custody.");
+    }
     if (invItem.status !== "Issued for Installation" || !invItem.acknowledged_at) {
       return errorResponse(res, 409, "DEVICE_NOT_AVAILABLE",
-        "Device must be acknowledged in custody before assigning to a job");
+        !invItem.acknowledged_at
+          ? "Device must be acknowledged in custody before assigning to a job."
+          : `Device is no longer in a technician's custody (status: ${invItem.status}). Remove it and pick an in-custody device.`);
     }
     const now = new Date().toISOString();
     // Record the SIM the technician paired with this device (if any) so the
@@ -1266,6 +1295,72 @@ router.post("/return-defective", requireAuth, requireRole([...TECH_ROLES, "Admin
   }
 
   return ok(res, { deviceId, deviceSerial: device.serial_number }, "Device returned to inventory successfully");
+});
+
+// POST /return-recovered — Technician hands a device recovered from an
+// uninstallation ticket back to inventory: 'Awaiting Return' -> 'Returned'
+// (re-issuable). This is stage 2 of the uninstall flow — the gadget was first
+// retrieved from the vehicle into the technician's custody by
+// crm-tickets /complete-uninstallation, and this releases it back to stock.
+router.post("/return-recovered", requireAuth, requireRole([...TECH_ROLES, ...CLERK_ROLES]), async (req: AuthRequest, res) => {
+  const { deviceId, notes } = req.body;
+  if (!deviceId?.trim()) return errorResponse(res, 400, "VALIDATION_ERROR", "deviceId is required");
+
+  const device = await pgGet(
+    `SELECT i.*, p.device_model, p.product_name
+     FROM inv_items i JOIN inv_product_catalog p ON p.id = i.product_id
+     WHERE i.id = ? AND i.deleted_at IS NULL`,
+    [deviceId]
+  );
+  if (!device) return errorResponse(res, 404, "NOT_FOUND", "Device not found");
+  if (device.status !== "Awaiting Return") {
+    return errorResponse(res, 400, "INVALID_STATUS", `Device is not awaiting return (current: ${device.status})`);
+  }
+
+  // Technicians may only return devices held in their own custody; clerks/admin any.
+  if ([...TECH_ROLES].includes(req.user!.role as any)) {
+    const validIds = await resolveTechnicianIdSet(req.user!.id);
+    if (!device.issued_to_id || !validIds.has(device.issued_to_id)) {
+      return errorResponse(res, 403, "FORBIDDEN", "You can only return devices held in your custody");
+    }
+  }
+
+  const now = new Date().toISOString();
+  const returnNote = `Returned to inventory by ${req.user!.email} on ${now}${notes ? ': ' + notes : ''}`;
+
+  // Release custody, back to re-issuable stock. issued_to_name/issued_at are kept
+  // for historical display (mirrors return-defective).
+  await pgRun(
+    `UPDATE inv_items
+       SET status = 'Returned', issued_to_id = NULL, acknowledged_at = NULL, issuance_batch_id = NULL,
+           notes = COALESCE(NULLIF(notes,''),'') || CASE WHEN notes IS NOT NULL AND notes <> '' THEN ' | ' ELSE '' END || ?,
+           updated_at = ?
+     WHERE id = ?`,
+    [returnNote, now, deviceId]
+  );
+
+  await pgRun(
+    `INSERT INTO inv_movements
+       (id, item_id, product_id, action, from_status, to_status,
+        performed_by_user_id, performed_by_email, notes, created_at)
+     VALUES (?, ?, ?, 'RETURNED_FROM_UNINSTALL', 'Awaiting Return', 'Returned', ?, ?, ?, ?)`,
+    [uuidv4(), device.id, device.product_id, req.user!.id, req.user!.email, returnNote, now]
+  );
+
+  auditLog(req, "DI_RECOVERED_RETURNED", `inv_items:${deviceId}`, "Info",
+    { deviceSerial: device.serial_number, notes }).catch(console.error);
+
+  for (const role of ["InventoryManager", "Admin"] as const) {
+    createNotification({
+      targetRole: role,
+      type: "info",
+      title: `Recovered Device Returned — ${device.serial_number}`,
+      body: `${req.user!.email} returned recovered device ${device.serial_number} (${device.device_model || device.product_name}) to inventory. It is now available for re-issuance.${notes ? ' Notes: ' + notes : ''}`,
+      link: "/inventory-items.html",
+    }).catch(console.error);
+  }
+
+  return ok(res, { deviceId, deviceSerial: device.serial_number, status: "Returned" }, "Device returned to inventory successfully");
 });
 
 // POST /mark-installed — Mark device installed (called on installation completion)

@@ -84,6 +84,14 @@
                 <input id="f-dob" type="date" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
               </div>
               <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Gender</label>
+                <select id="f-gender" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                  <option value="">Select…</option>
+                  <option value="M">Male</option>
+                  <option value="F">Female</option>
+                </select>
+              </div>
+              <div>
                 <label class="block text-xs font-medium text-slate-600 mb-1">Phone Number *</label>
                 <input id="f-phone" type="tel" placeholder="+254712345678 or 0712345678" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
                 <p id="err-phone" class="hidden text-xs text-rose-500 mt-1">Enter a valid Kenyan phone number.</p>
@@ -325,6 +333,7 @@
           nationalId: document.getElementById("f-nationalId").value.trim() || undefined,
           kraPin: kraPin || undefined,
           dateOfBirth: document.getElementById("f-dob").value || undefined,
+          gender: document.getElementById("f-gender").value || undefined,
           phone,
           email: document.getElementById("f-email").value.trim(),
           workEmail: document.getElementById("f-workEmail").value.trim() || undefined,
@@ -401,6 +410,7 @@
           document.getElementById("f-nationalId").value = data.nationalId || "";
           document.getElementById("f-kraPin").value = data.kraPin || "";
           document.getElementById("f-dob").value = data.dateOfBirth || "";
+          document.getElementById("f-gender").value = data.gender || "";
           document.getElementById("f-phone").value = data.phone || "";
           document.getElementById("f-email").value = data.email || "";
           document.getElementById("f-workEmail").value = data.workEmail || "";

@@ -1,3 +1,25 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── App-wide layout standard ────────────────────────────────────────────────
+   Content pages wrap their body in a `max-w-{5,6,7}xl mx-auto` div, which capped the
+   content and centered it — leaving large empty margins on wide screens. The sidebar
+   + `main.flex-1` already flex to fit the viewport, so let those wide content wrappers
+   fill the available width instead of being boxed in.
+
+   Scoped to the direct content wrapper of a page's main column and to the WIDE sizes
+   only (5xl/6xl/7xl = dashboards, tables, lists, detail views). Narrow wrappers
+   (max-w-sm … max-w-4xl) — login boxes, modals and forms — keep their comfortable
+   reading width so inputs don't stretch across the whole screen. */
+main.flex-1 > .mx-auto.max-w-5xl,
+main.flex-1 > .mx-auto.max-w-6xl,
+main.flex-1 > .mx-auto.max-w-7xl {
+  max-width: 100%;
+}
+
+/* Some pages put the cap directly on the <main> column itself (e.g.
+   `flex-1 max-w-[1400px] mx-auto`) rather than on an inner wrapper — fill those too. */
+main.flex-1.mx-auto {
+  max-width: 100%;
+}

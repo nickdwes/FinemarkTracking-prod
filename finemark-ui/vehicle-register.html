@@ -190,26 +190,38 @@
                   <select id="f-category" class="field-input w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"></select>
                 </div>
 
-                <div>
-                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-make">Make</label>
-                  <input id="f-make" type="text" list="makes-list" placeholder="e.g. TOYOTA"
-                    class="field-input w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
-                  <datalist id="makes-list"></datalist>
-                  <p class="mt-1 text-xs text-slate-400">Suggestions from the Vehicle Master catalog — you can still type any make.</p>
+                <div id="make-model-fields" class="contents">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-make">Make</label>
+                    <input id="f-make" type="text" list="makes-list" placeholder="e.g. TOYOTA"
+                      class="field-input w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                    <datalist id="makes-list"></datalist>
+                    <p class="mt-1 text-xs text-slate-400">Suggestions from the Vehicle Master catalog — you can still type any make.</p>
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-model">Model</label>
+                    <input id="f-model" type="text" list="models-list" placeholder="e.g. Hilux"
+                      class="field-input w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                    <datalist id="models-list"></datalist>
+                    <p id="f-model-years" class="hidden text-[11px] text-slate-500 mt-1"></p>
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-model-number">Model Number / Trim</label>
+                    <input id="f-model-number" type="text" list="model-numbers-list" placeholder="e.g. GD6 4x4 AT"
+                      class="field-input w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
+                    <datalist id="model-numbers-list"></datalist>
+                  </div>
                 </div>
 
-                <div>
-                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-model">Model</label>
-                  <input id="f-model" type="text" list="models-list" placeholder="e.g. Hilux"
-                    class="field-input w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
-                  <datalist id="models-list"></datalist>
-                </div>
-
-                <div>
-                  <label class="block text-sm font-medium text-slate-700 mb-1.5" for="f-model-number">Model Number / Trim</label>
-                  <input id="f-model-number" type="text" list="model-numbers-list" placeholder="e.g. GD6 4x4 AT"
-                    class="field-input w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40" />
-                  <datalist id="model-numbers-list"></datalist>
+                <!-- Shown instead of Make/Model/Model Number when Category is Fabricated
+                     Body, Trailers, or Special Cargo — a single searchable + user-creatable
+                     "Type" (backed by assets/vehicleAttributes.js), since those categories
+                     have no make/model/engine spec, just a flat configurable type name. -->
+                <div id="attr-type-field" class="hidden md:col-span-2">
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5" id="attr-type-label">Type</label>
+                  <div id="attr-type-dropdown"></div>
                 </div>
 
                 <div>
@@ -335,6 +347,7 @@
     <div id="fm-footer"></div>
 
     <script src="assets/vehicleCatalog.js"></script>
+    <script src="assets/vehicleAttributes.js"></script>
     <script src="assets/validation.js"></script>
     <script type="module" src="assets/app.js?v=202607011016"></script>
     <script type="module" src="assets/layout.js?v=202607011016"></script>
@@ -604,9 +617,35 @@
         $('makes-list').innerHTML = makes.map(m => `<option value="${m}">`).join('');
       }
 
+      // Fabricated Body / Trailers / Special Cargo have no make/model/engine
+      // spec — swap the Make/Model/Model Number block for a single searchable
+      // + inline-creatable "Type" dropdown (assets/vehicleAttributes.js).
+      let _attrDropdown = null;
+      function isAttributeCategory(code) { return (window.VEHICLE_ATTRIBUTE_CATEGORY_CODES || []).includes(code); }
+
+      function updateCategoryFieldVisibility() {
+        const code = $('f-category').value;
+        const useAttr = isAttributeCategory(code);
+        $('make-model-fields').classList.toggle('hidden', useAttr);
+        $('attr-type-field').classList.toggle('hidden', !useAttr);
+        if (useAttr) {
+          const cat = window.VEHICLE_CATEGORIES.find(c => c.value === code);
+          $('attr-type-label').textContent = `${cat ? cat.label : 'Type'} — Type`;
+          _attrDropdown = window.mountAttributeDropdown({
+            container: $('attr-type-dropdown'),
+            categoryCode: code,
+            categoryLabel: cat ? cat.label : code,
+            value: '',
+          });
+        } else {
+          _attrDropdown = null;
+        }
+      }
+
       async function loadMeta() {
         $('f-category').innerHTML = window.VEHICLE_CATEGORIES.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
         try { await refreshMakesList(); } catch {}
+        updateCategoryFieldVisibility();
 
         try {
           const data = await APP.apiFetch?.('/partners?pageSize=100');
@@ -627,6 +666,7 @@
       $('f-category').addEventListener('change', async () => {
         $('f-make').value = ''; $('f-model').value = ''; $('f-model-number').value = '';
         $('models-list').innerHTML = ''; $('model-numbers-list').innerHTML = '';
+        updateCategoryFieldVisibility();
         try { await refreshMakesList(); } catch {}
       });
 
@@ -645,9 +685,13 @@
         const model = $('f-model').value.trim();
         const category = $('f-category').value || undefined;
         $('model-numbers-list').innerHTML = '';
+        const yrEl = $('f-model-years');
+        if (yrEl) { yrEl.textContent = ''; yrEl.classList.add('hidden'); }
         if (!make || !model) return;
         const nums = await vehicleCatalogModelNumbers(make, model, category);
         $('model-numbers-list').innerHTML = nums.map(({ modelNumber }) => `<option value="${modelNumber}">`).join('');
+        const yrs = (typeof vehicleCatalogYears === 'function') ? await vehicleCatalogYears(make, model, category) : null;
+        if (yrEl && yrs) { yrEl.textContent = '🛈 Model line produced: ' + yrs.label; yrEl.classList.remove('hidden'); }
       });
 
       // ── Notification helper ────────────────────────────────────────────────
@@ -722,15 +766,23 @@
           <label class="block text-xs font-semibold text-slate-600 mb-1">Category</label>
           <select id="bv-category-${key}" class="bv-category w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" data-key="${key}"></select>
         </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Make</label>
-          <input id="bv-make-${key}" list="makes-list-${key}" class="bv-make w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" placeholder="e.g. Toyota" data-key="${key}" />
-          <datalist id="makes-list-${key}"></datalist>
+        <div id="bv-make-model-${key}" class="contents">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Make</label>
+            <input id="bv-make-${key}" list="makes-list-${key}" class="bv-make w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" placeholder="e.g. Toyota" data-key="${key}" />
+            <datalist id="makes-list-${key}"></datalist>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Model</label>
+            <input id="bv-model-${key}" type="text" list="models-list-${key}" class="bv-model w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" placeholder="e.g. Hiace" />
+            <datalist id="models-list-${key}"></datalist>
+          </div>
         </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Model</label>
-          <input id="bv-model-${key}" type="text" list="models-list-${key}" class="bv-model w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40" placeholder="e.g. Hiace" />
-          <datalist id="models-list-${key}"></datalist>
+        <!-- Shown instead of Make/Model when Category is Fabricated Body,
+             Trailers, or Special Cargo (see assets/vehicleAttributes.js). -->
+        <div id="bv-attr-type-${key}" class="hidden sm:col-span-2">
+          <label class="block text-xs font-semibold text-slate-600 mb-1" id="bv-attr-type-label-${key}">Type</label>
+          <div id="bv-attr-dropdown-${key}"></div>
         </div>
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1">Year</label>
@@ -756,13 +808,37 @@
         dl.innerHTML = makes.map(m => `<option value="${m}">`).join('');
       }
 
+      // One mounted attribute-dropdown widget per batch row, keyed by row key
+      // (rows are re-created wholesale on add/remove, so this is rebuilt too).
+      let _bvAttrDropdowns = {};
+      function updateBatchRowCategoryFieldVisibility(key) {
+        const code = $(`bv-category-${key}`)?.value;
+        const useAttr = isAttributeCategory(code);
+        $(`bv-make-model-${key}`)?.classList.toggle('hidden', useAttr);
+        $(`bv-attr-type-${key}`)?.classList.toggle('hidden', !useAttr);
+        if (useAttr) {
+          const cat = window.VEHICLE_CATEGORIES.find(c => c.value === code);
+          $(`bv-attr-type-label-${key}`).textContent = `${cat ? cat.label : 'Type'} — Type`;
+          _bvAttrDropdowns[key] = window.mountAttributeDropdown({
+            container: $(`bv-attr-dropdown-${key}`),
+            categoryCode: code,
+            categoryLabel: cat ? cat.label : code,
+            value: '',
+          });
+        } else {
+          delete _bvAttrDropdowns[key];
+        }
+      }
+
       function renderBatchRows() {
         const list = $('batch-vehicle-list');
         list.innerHTML = batchRowKeys.map((key, idx) => batchRowTemplate(key, idx)).join('');
+        _bvAttrDropdowns = {};
         batchRowKeys.forEach(key => {
           const catEl = $(`bv-category-${key}`);
           if (catEl) catEl.innerHTML = window.VEHICLE_CATEGORIES.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
           refreshBatchRowMakes(key);
+          updateBatchRowCategoryFieldVisibility(key);
         });
       }
       function addBatchRow() { batchRowKeys.push(newBatchRowKey()); renderBatchRows(); }
@@ -786,6 +862,7 @@
           $(`bv-make-${key}`).value = ''; $(`bv-model-${key}`).value = '';
           const modelsDl = document.getElementById(`models-list-${key}`);
           if (modelsDl) modelsDl.innerHTML = '';
+          updateBatchRowCategoryFieldVisibility(key);
           await refreshBatchRowMakes(key);
         }
         // Make → Model suggestion cascade, per row (each row can be a
@@ -921,14 +998,23 @@
           }
           if (!reg && !chassis) { continue; } // blank optional row — skip silently
 
+          const bvCategory = $(`bv-category-${key}`)?.value || 'motor_vehicle';
+          const bvUsingAttrType = isAttributeCategory(bvCategory);
+          if (bvUsingAttrType && !(_bvAttrDropdowns[key] && _bvAttrDropdowns[key].getValue().trim())) {
+            if (errEl) { errEl.textContent = 'Please select or enter a Type for this vehicle before submitting.'; errEl.classList.remove('hidden'); }
+            rowErrors.push(key); continue;
+          }
+
           try {
             const payload = {
               registration: isRegistered ? (reg || null) : null,
               registrationKnown: isRegistered,
               chassis_number: chassis || null,
-              vehicle_category: $(`bv-category-${key}`)?.value || 'motor_vehicle',
-              make: $(`bv-make-${key}`).value.trim().toUpperCase() || null,
-              model: $(`bv-model-${key}`).value.trim() || null,
+              vehicle_category: bvCategory,
+              make: bvUsingAttrType
+                ? (window.VEHICLE_CATEGORIES.find(c => c.value === bvCategory)?.label || bvCategory)
+                : ($(`bv-make-${key}`).value.trim().toUpperCase() || null),
+              model: bvUsingAttrType ? _bvAttrDropdowns[key].getValue().trim() : ($(`bv-model-${key}`).value.trim() || null),
               year_of_manufacture: $(`bv-year-${key}`).value ? Number($(`bv-year-${key}`).value) : null,
               color: $(`bv-color-${key}`).value.trim() || null,
               engine_number: $(`bv-engine-${key}`).value.trim().toUpperCase() || null,
@@ -1005,9 +1091,32 @@
           return;
         }
 
+        // Bank financing: a partner/financier and a loan tenure always go together —
+        // capturing one without the other is what leaves installs with no partner bank.
+        const partnerChosen = !!$('f-partner').value;
+        const loanTenure = $('f-loan-tenure').value ? Number($('f-loan-tenure').value) : 0;
+        if (partnerChosen && !(loanTenure > 0)) {
+          notify('Loan tenure (months) is required when a partner / financier is selected.'); $('f-loan-tenure').focus(); return;
+        }
+        if (loanTenure > 0 && !partnerChosen) {
+          notify('A partner / financier is required when a loan tenure is entered.'); $('f-partner').focus(); return;
+        }
+
         const btn = $('submit-btn');
         btn.disabled = true;
         btn.innerHTML = `<svg viewBox="0 0 24 24" class="h-4 w-4 animate-spin" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Registering…`;
+
+        // Fabricated Body / Trailers / Special Cargo: no separate model
+        // number, and "make" is the category itself so listings still show
+        // something sensible in that column — the actual configurable value
+        // (e.g. "Flatbed Trailer") goes in `model`, same field car makes use.
+        const categoryCode = $('f-category').value || 'motor_vehicle';
+        const usingAttrType = isAttributeCategory(categoryCode);
+        if (usingAttrType && !(_attrDropdown && _attrDropdown.getValue().trim())) {
+          notify('Please select or enter a Type before submitting.');
+          $('attr-type-dropdown').querySelector('.va-input')?.focus();
+          return;
+        }
 
         try {
           const payload = {
@@ -1015,10 +1124,12 @@
             registrationKnown: isRegistered,
             chassis_number: vin,
             engine_number:  engine,
-            vehicle_category: $('f-category').value || 'motor_vehicle',
-            make:        $('f-make').value.trim().toUpperCase() || null,
-            model:       $('f-model').value.trim() || null,
-            model_number:$('f-model-number').value.trim() || null,
+            vehicle_category: categoryCode,
+            make:        usingAttrType
+              ? (window.VEHICLE_CATEGORIES.find(c => c.value === categoryCode)?.label || categoryCode)
+              : ($('f-make').value.trim().toUpperCase() || null),
+            model:       usingAttrType ? _attrDropdown.getValue().trim() : ($('f-model').value.trim() || null),
+            model_number: usingAttrType ? null : ($('f-model-number').value.trim() || null),
             body_type:   $('f-body-type').value || null,
             color:       $('f-color').value.trim() || null,
             year_of_manufacture: $('f-year').value ? Number($('f-year').value) : null,

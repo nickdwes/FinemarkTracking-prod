@@ -12,13 +12,11 @@ import { requireAuth } from "../middleware/auth.js";
 import { requireRole, ROLE_GROUPS } from "../middleware/rbac.js";
 import { pgAll, pgGet, pgRun } from "../db.js";
 import { v4 as uuidv4 } from "uuid";
-import { exec } from "child_process";
-import { promisify } from "util";
+import { spawn } from "child_process";
 import { createGzip } from "zlib";
 import cron, { ScheduledTask } from "node-cron";
 
 const router = Router();
-const execAsync = promisify(exec);
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const TENANT_ID       = process.env.GRAPH_TENANT_ID    || "";
@@ -40,6 +38,7 @@ const DB_PASSWORD   = process.env.PG_PASSWORD   || "finemark_secret";
 
 // ── Scheduled job handle ─────────────────────────────────────────────────────
 let scheduledTask: ScheduledTask | null = null;
+let backupRunning = false;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -70,6 +69,60 @@ async function getDriveId(token: string): Promise<string> {
   return data.id as string;
 }
 
+const UPLOAD_CHUNK_SIZE = 10 * 1024 * 1024; // 10MiB — must be a multiple of 320KiB per Graph API
+
+/**
+ * Upload a file to SharePoint via a Graph upload session, chunked.
+ * The simple `PUT .../content` endpoint is only reliable up to ~250MB and
+ * starts failing with opaque "IO error during request payload read" errors
+ * as dumps grow — an upload session has no such ceiling.
+ */
+async function uploadToSharePoint(
+  driveId: string,
+  folder: string,
+  filename: string,
+  token: string,
+  data: Buffer
+): Promise<void> {
+  const sessionResp = await fetch(
+    `https://graph.microsoft.com/v1.0/drives/${driveId}/root:/${folder}/${filename}:/createUploadSession`,
+    {
+      method:  "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body:    JSON.stringify({ item: { "@microsoft.graph.conflictBehavior": "replace" } }),
+    }
+  );
+  const session: any = await sessionResp.json();
+  if (!session.uploadUrl) throw new Error(`Failed to create upload session: ${JSON.stringify(session.error)}`);
+
+  const total = data.length;
+  let finalItem: any = null;
+
+  for (let start = 0; start < total; start += UPLOAD_CHUNK_SIZE) {
+    const end = Math.min(start + UPLOAD_CHUNK_SIZE, total);
+    const chunk = data.subarray(start, end);
+
+    // No Authorization header here — the upload session URL is pre-authenticated per Graph docs.
+    const resp = await fetch(session.uploadUrl, {
+      method:  "PUT",
+      headers: {
+        "Content-Length": String(chunk.length),
+        "Content-Range":  `bytes ${start}-${end - 1}/${total}`,
+      },
+      body: new Uint8Array(chunk),
+    });
+
+    if (resp.status === 202) continue; // more chunks expected
+    if (!resp.ok) {
+      const errBody = await resp.text();
+      throw new Error(`Chunk upload failed [${start}-${end - 1}]: ${resp.status} ${errBody}`);
+    }
+    finalItem = await resp.json(); // 200/201 on the chunk that completes the file
+  }
+
+  if (!finalItem?.id) throw new Error("Upload session completed but no file item was returned");
+}
+
 /** Stream a pg_dump (gzipped) directly into SharePoint via the Graph upload API */
 async function dumpAndUpload(
   pgHost: string,
@@ -79,40 +132,44 @@ async function dumpAndUpload(
   token: string,
   driveId: string
 ): Promise<string> {
-  // 1. pg_dump directly over the network — no docker exec needed
-  const { stdout } = await execAsync(
-    `pg_dump -h ${pgHost} -p ${pgPort} -U ${DB_USER} -d ${DB_NAME}`,
-    {
-      maxBuffer: 512 * 1024 * 1024,
-      env: { ...process.env, PGPASSWORD: DB_PASSWORD },
-    }
-  );
-
-  // 2. Gzip in-process
-  const raw = Buffer.from(stdout, "utf8");
+  // 1. pg_dump directly over the network, streamed through gzip as it's produced —
+  //    avoids buffering the whole (unbounded) dump in memory, unlike exec()'s maxBuffer.
   const gzipped = await new Promise<Buffer>((resolve, reject) => {
-    const chunks: Buffer[] = [];
+    const dump = spawn(
+      "pg_dump",
+      ["-h", pgHost, "-p", pgPort, "-U", DB_USER, "-d", DB_NAME],
+      { env: { ...process.env, PGPASSWORD: DB_PASSWORD } }
+    );
+
+    let stderr = "";
+    let settled = false;
+    let gzDone: Buffer | null = null;
+    let exitCode: number | null = null;
+
+    const fail = (err: Error) => { if (!settled) { settled = true; reject(err); } };
+    const finish = () => {
+      if (settled || exitCode === null || gzDone === null) return;
+      settled = true;
+      if (exitCode !== 0) reject(new Error(`pg_dump exited with code ${exitCode}: ${stderr.trim()}`));
+      else resolve(gzDone);
+    };
+
+    dump.stderr.on("data", (c: Buffer) => { stderr += c.toString(); });
+    dump.on("error", fail);
+
     const gz = createGzip({ level: 6 });
+    const chunks: Buffer[] = [];
     gz.on("data", (c: Buffer) => chunks.push(c));
-    gz.on("end", () => resolve(Buffer.concat(chunks)));
-    gz.on("error", reject);
-    gz.end(raw);
+    gz.on("error", fail);
+    gz.on("end", () => { gzDone = Buffer.concat(chunks); finish(); });
+
+    dump.stdout.pipe(gz);
+
+    dump.on("close", (code) => { exitCode = code; finish(); });
   });
 
-  // 3. Upload to SharePoint (simple upload — works up to 250MB)
-  const uploadUrl =
-    `https://graph.microsoft.com/v1.0/drives/${driveId}/root:/${folder}/${filename}:/content`;
-
-  const upResp = await fetch(uploadUrl, {
-    method:  "PUT",
-    headers: {
-      Authorization:  `Bearer ${token}`,
-      "Content-Type": "application/octet-stream",
-    },
-    body: new Uint8Array(gzipped),
-  });
-  const upData: any = await upResp.json();
-  if (!upData.id) throw new Error(`Upload failed: ${JSON.stringify(upData.error)}`);
+  // 3. Upload to SharePoint via a chunked upload session (handles files of any size)
+  await uploadToSharePoint(driveId, folder, filename, token, gzipped);
 
   // Return a direct SharePoint web URL for the folder
   return `${SP_SITE_URL}/Shared%20Documents/${folder}`;
@@ -126,19 +183,21 @@ export async function runBackup(triggeredBy: string = "system"): Promise<{
   const date  = new Date().toISOString().slice(0, 10);
   const token = await getGraphToken();
   const driveId = await getDriveId(token);
-
-  const results = await Promise.allSettled([
-    dumpAndUpload(DB_PROD_HOST, DB_PROD_PORT, SP_FOLDER_PROD, `finemark_prod_${date}.sql.gz`, token, driveId),
-    dumpAndUpload(DB_DEV_HOST,  DB_DEV_PORT,  SP_FOLDER_DEV,  `finemark_dev_${date}.sql.gz`,  token, driveId),
-  ]);
-
   const now = new Date().toISOString();
+  // The dev database was decommissioned — exclude it unless explicitly re-enabled.
+  const includeDev = process.env.BACKUP_INCLUDE_DEV === "true";
 
-  // Prod log
+  // ── Prod ──────────────────────────────────────────────────────────────────
   const prodId = uuidv4();
-  const prodOk = results[0].status === "fulfilled";
-  const prodUrl = prodOk ? (results[0] as PromiseFulfilledResult<string>).value : null;
-  const prodErr = prodOk ? null : (results[0] as PromiseRejectedResult).reason?.message ?? "Unknown error";
+  let prodOk = false;
+  let prodUrl: string | null = null;
+  let prodErr: string | null = null;
+  try {
+    prodUrl = await dumpAndUpload(DB_PROD_HOST, DB_PROD_PORT, SP_FOLDER_PROD, `finemark_prod_${date}.sql.gz`, token, driveId);
+    prodOk = true;
+  } catch (e: any) {
+    prodErr = e?.message ?? "Unknown error";
+  }
   await pgRun(
     `INSERT INTO db_backup_logs (id, env, status, filename, sharepoint_url, error_message, triggered_by, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -146,17 +205,31 @@ export async function runBackup(triggeredBy: string = "system"): Promise<{
      `finemark_prod_${date}.sql.gz`, prodUrl, prodErr, triggeredBy, now]
   );
 
-  // Dev log
+  // ── Dev (skipped unless BACKUP_INCLUDE_DEV=true) ────────────────────────────
   const devId = uuidv4();
-  const devOk = results[1].status === "fulfilled";
-  const devUrl  = devOk ? (results[1] as PromiseFulfilledResult<string>).value : null;
-  const devErr  = devOk ? null : (results[1] as PromiseRejectedResult).reason?.message ?? "Unknown error";
-  await pgRun(
-    `INSERT INTO db_backup_logs (id, env, status, filename, sharepoint_url, error_message, triggered_by, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [devId, "dev", devOk ? "success" : "failed",
-     `finemark_dev_${date}.sql.gz`, devUrl, devErr, triggeredBy, now]
-  );
+  if (includeDev) {
+    let devOk = false;
+    let devUrl: string | null = null;
+    let devErr: string | null = null;
+    try {
+      devUrl = await dumpAndUpload(DB_DEV_HOST, DB_DEV_PORT, SP_FOLDER_DEV, `finemark_dev_${date}.sql.gz`, token, driveId);
+      devOk = true;
+    } catch (e: any) {
+      devErr = e?.message ?? "Unknown error";
+    }
+    await pgRun(
+      `INSERT INTO db_backup_logs (id, env, status, filename, sharepoint_url, error_message, triggered_by, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [devId, "dev", devOk ? "success" : "failed",
+       `finemark_dev_${date}.sql.gz`, devUrl, devErr, triggeredBy, now]
+    );
+  } else {
+    await pgRun(
+      `INSERT INTO db_backup_logs (id, env, status, filename, sharepoint_url, error_message, triggered_by, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [devId, "dev", "skipped", null, null, "Dev database decommissioned — excluded from backups.", triggeredBy, now]
+    );
+  }
 
   const prodLog = await pgGet("SELECT * FROM db_backup_logs WHERE id = ?", [prodId]);
   const devLog  = await pgGet("SELECT * FROM db_backup_logs WHERE id = ?", [devId]);
@@ -196,17 +269,28 @@ router.post(
   requireRole(ROLE_GROUPS.ADMIN_ONLY),
   async (req: any, res) => {
     const triggeredBy: string = req.user?.email ?? "admin";
-    try {
-      const { prodLog, devLog } = await runBackup(triggeredBy);
-      const allOk = prodLog?.status === "success" && devLog?.status === "success";
-      return res.status(allOk ? 200 : 207).json({
-        ok:      allOk,
-        message: allOk ? "Both databases backed up successfully." : "One or more backups failed.",
-        results: { prod: prodLog, dev: devLog },
-      });
-    } catch (err: any) {
-      return res.status(500).json({ ok: false, message: err.message });
+    if (backupRunning) {
+      return res.status(409).json({ ok: false, running: true, message: "A backup is already running." });
     }
+    backupRunning = true;
+    // Run in the background and respond immediately — a full multi-GB dump + SharePoint
+    // upload far exceeds the reverse-proxy's response window, so holding the request open
+    // returned a 504 HTML page (the "Unexpected token '<'" error). The page polls
+    // GET /status + GET /logs for the outcome instead.
+    runBackup(triggeredBy)
+      .catch((e) => console.error("[backup] on-demand backup error:", e))
+      .finally(() => { backupRunning = false; });
+    return res.status(202).json({ ok: true, started: true, message: "Backup started — running in the background. Refresh the history in a minute or two." });
+  }
+);
+
+/** GET /api/admin/backup/status — is a backup currently running? */
+router.get(
+  "/status",
+  requireAuth,
+  requireRole(ROLE_GROUPS.ADMIN_ONLY),
+  async (_req, res) => {
+    return res.json({ ok: true, running: backupRunning });
   }
 );
 

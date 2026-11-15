@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-const invoiceStatus = z.enum(["Draft", "Issued", "PartiallyPaid", "Paid", "Overdue", "Cancelled"]);
+// "Unpaid" is the status the system itself assigns on invoice creation
+// (crm-proforma.ts, partnerQuoteFulfilment.ts) and is by far the most common
+// value in the data — it was missing here, so filtering or updating an invoice
+// by its own default status was rejected as an invalid enum value.
+const invoiceStatus = z.enum(["Draft", "Issued", "Unpaid", "PartiallyPaid", "Paid", "Overdue", "Cancelled"]);
 const paymentStatus = z.enum(["Completed", "Pending", "Failed"]);
 const paymentMethod = z.enum(["Bank Transfer", "Cash", "Card", "Mobile Money"]);
 
@@ -91,6 +95,18 @@ export const createPaymentSchema = z.object({
   status: z.enum(["Completed", "Pending"]).optional().default("Completed"),
   paidAt: z.string().optional(),
   paymentRef: z.string().optional(),
+  // Optional referrer commissions paid out of this receipt (Process Payment flow).
+  referrerCommissions: z.array(z.object({
+    name: z.string().min(1),
+    phone: z.string().optional(),
+    amount: z.number().positive(),
+    proposedCommission: z.number().nonnegative().optional(),
+    transactionCode: z.string().optional(),
+    paidDate: z.string().optional(),
+    commissionMode: z.string().optional(),
+    beneficiaryType: z.string().optional(),
+    advanceReason: z.string().optional(),
+  })).optional(),
 });
 
 export const salesByBankQuerySchema = z.object({

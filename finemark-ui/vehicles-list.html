@@ -379,28 +379,82 @@
     });
     document.getElementById('bulk-clear').addEventListener('click', () => { state.selected.clear(); renderTable(state.data); updateBulkBar(); document.getElementById('chk-all').checked=false; });
 
-    // Export CSV
-    function exportCsv(rows) {
-      const headers = ['ID','Registration','Make','Model','Year','Customer','Partner','Device Status','Ticket Count','Latest Ticket','Status','Registered'];
-      const csvRows = [headers.join(',')];
-      rows.forEach(v => {
-        csvRows.push([
-          v.id, v.registration, v.make, v.model, v.year_of_manufacture,
-          v.customer_name||v.customer_account_no||'', v.partner_name||'Direct',
-          v.completed_ticket_count>0?'Installed':v.open_ticket_count>0?'In Progress':'Pending',
-          v.ticket_count, v.latest_ticket_no||'', v.latest_ticket_status||'',
-          v.created_at?.slice(0,10)
-        ].map(f=>`"${(f||'').toString().replace(/"/g,'""')}"`).join(','));
-      });
-      const blob = new Blob([csvRows.join('\n')], {type:'text/csv'});
-      const a = document.createElement('a');
+    // ── Export CSV — the columns exported are exactly the ones currently
+    //    checked in the Columns menu (COLS[].visible), same as what's on
+    //    screen; "actions" is never a real data column so it's always
+    //    excluded. The main Export button walks every page matching the
+    //    current filters (not just the page in view); the bulk-export button
+    //    only ever needed the rows already in memory (checkboxes only exist
+    //    for currently-rendered rows).
+    const VEHICLE_CSV_MAP = {
+      registration:          [["Reg. No", v => v.registration || ""]],
+      make:                  [["Make", v => v.make || ""], ["Model", v => v.model || ""]],
+      year_of_manufacture:   [["Year", v => v.year_of_manufacture || ""]],
+      customer:              [["Customer", v => v.customer_name || v.customer_account_no || ""]],
+      partner:               [["Partner", v => v.partner_name || "Direct"]],
+      device_status:         [["Device Status", v => v.completed_ticket_count > 0 ? "Installed" : v.open_ticket_count > 0 ? "In Progress" : "Pending"]],
+      tickets:               [["Ticket Count", v => v.ticket_count ?? 0], ["Open Tickets", v => v.open_ticket_count ?? 0], ["Latest Ticket No", v => v.latest_ticket_no || ""]],
+      latest_ticket_status:  [["Latest Ticket Status", v => v.latest_ticket_status || ""]],
+      technician:            [["Technician", v => v.latest_technician_email || ""]],
+      created_at:            [["Registered", v => v.created_at ? v.created_at.slice(0, 10) : ""]],
+    };
+    function csvColumnsFromCols() {
+      return COLS.filter(c => c.visible && VEHICLE_CSV_MAP[c.key]).flatMap(c => VEHICLE_CSV_MAP[c.key]);
+    }
+    function rowsToCsv(rows, cols) {
+      const esc = (f) => `"${(f == null ? "" : f).toString().replace(/"/g, '""')}"`;
+      const lines = [cols.map(([h]) => esc(h)).join(",")];
+      rows.forEach((v) => lines.push(cols.map(([, get]) => esc(get(v))).join(",")));
+      return lines.join("\n");
+    }
+    function downloadCsvFile(csv, filename) {
+      const blob = new Blob([csv], { type: "text/csv" });
+      const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `vehicles_${new Date().toISOString().slice(0,10)}.csv`;
-      a.click();
+      a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
     }
 
-    document.getElementById('btn-export').addEventListener('click', () => exportCsv(state.data));
-    document.getElementById('bulk-export').addEventListener('click', () => exportCsv(state.data.filter(v=>state.selected.has(v.id))));
+    async function exportAllFilteredCsv() {
+      const btn = document.getElementById("btn-export");
+      const orig = btn.textContent;
+      btn.disabled = true; btn.textContent = "Exporting…";
+      try {
+        const cols = csvColumnsFromCols();
+        if (!cols.length) { showToast?.("Pick at least one column to export (Columns button).", "error"); return; }
+        const all = [];
+        // Server clamps pageSize to 200 (routes/vehicles.ts) regardless of what's
+        // requested — request exactly that and terminate on total, not on
+        // "got fewer than requested" (which the clamp would make true on every
+        // page, cutting the export off after page 1 for any filter matching
+        // more than 200 vehicles).
+        const big = 200;
+        for (let p = 1; p <= 50; p++) {
+          const q = new URLSearchParams({ page: p, pageSize: big, ...Object.fromEntries(Object.entries(state.filters).filter(([, v]) => v)) });
+          const resp = await apiFetch(`/vehicles?${q}`);
+          const batch = resp?.data ?? [];
+          all.push(...batch);
+          const total = resp?.pagination?.total ?? 0;
+          if (!batch.length || all.length >= total) break;
+        }
+        if (!all.length) { showToast?.("No vehicles to export for the current filter.", "error"); return; }
+        downloadCsvFile(rowsToCsv(all, cols), `vehicles_${new Date().toISOString().slice(0, 10)}.csv`);
+      } catch (e) {
+        showToast?.(e?.message || "Export failed.", "error");
+      } finally {
+        btn.disabled = false; btn.textContent = orig;
+      }
+    }
+    function exportSelectedCsv(rows) {
+      const cols = csvColumnsFromCols();
+      if (!cols.length) { showToast?.("Pick at least one column to export (Columns button).", "error"); return; }
+      if (!rows.length) { showToast?.("No vehicles selected.", "error"); return; }
+      downloadCsvFile(rowsToCsv(rows, cols), `vehicles_selected_${new Date().toISOString().slice(0, 10)}.csv`);
+    }
+
+    document.getElementById('btn-export').addEventListener('click', exportAllFilteredCsv);
+    document.getElementById('bulk-export').addEventListener('click', () => exportSelectedCsv(state.data.filter(v=>state.selected.has(v.id))));
 
     buildColVisMenu();
     collectFilters();

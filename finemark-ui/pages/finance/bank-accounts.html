@@ -100,18 +100,46 @@
             <input id="f-account-name" type="text" placeholder="e.g. Equity Bank – Operations" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
           </div>
           <div>
-            <label class="block text-xs font-medium text-slate-600 mb-1">Bank Name <span class="text-red-500">*</span></label>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Payment Method</label>
+            <select id="f-payment-method" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500">
+              <option value="bank">Bank Account</option>
+              <option value="mpesa">M-Pesa (Paybill / Till)</option>
+            </select>
+          </div>
+          <div id="wrap-partner">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Partner Bank <span class="text-slate-400 font-normal normal-case">(auto-fills this partner's documents)</span></label>
+            <select id="f-partner" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500">
+              <option value="">— None (general / M-Pesa) —</option>
+            </select>
+          </div>
+          <div id="wrap-mpesa-type" class="hidden">
+            <label class="block text-xs font-medium text-slate-600 mb-1">M-Pesa Type</label>
+            <select id="f-mpesa-type" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500">
+              <option value="Paybill">Paybill</option>
+              <option value="Till">Till Number</option>
+            </select>
+          </div>
+          <div id="wrap-bank-name">
+            <label id="lbl-bank-name" class="block text-xs font-medium text-slate-600 mb-1">Bank Name <span class="text-red-500">*</span></label>
             <input id="f-bank-name" type="text" placeholder="e.g. Equity Bank" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
           </div>
           <div>
-            <label class="block text-xs font-medium text-slate-600 mb-1">Account Number <span class="text-red-500">*</span></label>
+            <label id="lbl-account-number" class="block text-xs font-medium text-slate-600 mb-1">Account Number <span class="text-red-500">*</span></label>
             <input id="f-account-number" type="text" placeholder="e.g. 0110117244001" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
           </div>
-          <div>
+          <div id="wrap-branch">
             <label class="block text-xs font-medium text-slate-600 mb-1">Branch</label>
             <input id="f-branch" type="text" placeholder="e.g. Westlands" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
           </div>
-          <div>
+          <div id="wrap-payee">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Payee Name</label>
+            <input id="f-payee" type="text" placeholder="e.g. FINE MARK TRACKING LIMITED" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+          <div id="wrap-branch-code">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Branch Code <span class="text-slate-400 font-normal normal-case">(if applicable)</span></label>
+            <input id="f-branch-code" type="text" placeholder="e.g. 07" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+          <div id="wrap-account-type">
             <label class="block text-xs font-medium text-slate-600 mb-1">Account Type</label>
             <select id="f-account-type" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500">
               <option value="Current">Current</option>
@@ -132,6 +160,10 @@
           <div>
             <label class="block text-xs font-medium text-slate-600 mb-1">Opening Balance</label>
             <input id="f-opening-balance" type="number" min="0" step="0.01" value="0" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+          <div class="col-span-2">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Additional Payment Instructions</label>
+            <textarea id="f-instructions" rows="2" placeholder="e.g. Use vehicle registration as the account reference" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500"></textarea>
           </div>
           <div class="col-span-2">
             <label class="block text-xs font-medium text-slate-600 mb-1">Notes</label>
@@ -249,16 +281,65 @@
           document.getElementById("f-currency").value       = a.currency;
           document.getElementById("f-opening-balance").value = a.openingBalance;
           document.getElementById("f-notes").value          = a.notes || "";
+          document.getElementById("f-partner").value         = a.partnerId || "";
+          document.getElementById("f-payee").value           = a.payeeName || "";
+          document.getElementById("f-branch-code").value     = a.branchCode || "";
+          document.getElementById("f-instructions").value    = a.paymentInstructions || "";
+          document.getElementById("f-payment-method").value  = a.paymentMethod || "bank";
+          document.getElementById("f-mpesa-type").value      = (a.accountType === "Till" ? "Till" : "Paybill");
+          applyPaymentMethodUI();
           document.getElementById("modal-error").classList.add("hidden");
           document.getElementById("account-modal").classList.remove("hidden");
         }
 
         function clearForm() {
-          ["f-account-name","f-bank-name","f-account-number","f-branch","f-notes"].forEach(id => document.getElementById(id).value = "");
+          ["f-account-name","f-bank-name","f-account-number","f-branch","f-notes","f-payee","f-branch-code","f-instructions"].forEach(id => document.getElementById(id).value = "");
           document.getElementById("f-account-type").value = "Current";
           document.getElementById("f-currency").value = "KES";
           document.getElementById("f-opening-balance").value = "0";
+          document.getElementById("f-partner").value = "";
+          document.getElementById("f-payment-method").value = "bank";
+          document.getElementById("f-mpesa-type").value = "Paybill";
+          applyPaymentMethodUI();
         }
+
+        async function loadPartners() {
+          try {
+            const res = await window.FINEMARK_APP.apiFetch("/partners?pageSize=200");
+            const partners = res?.data || [];
+            const sel = document.getElementById("f-partner");
+            sel.innerHTML = '<option value="">— None (general / M-Pesa) —</option>' +
+              partners.map(p => `<option value="${p.id}">${(p.name || "").replace(/</g,"&lt;")}</option>`).join("");
+          } catch (e) { /* non-fatal — dropdown just stays with the None option */ }
+        }
+
+        // Switch the form between Bank and M-Pesa (Paybill/Till) layouts.
+        function applyPaymentMethodUI() {
+          const mpesa = document.getElementById("f-payment-method").value === "mpesa";
+          const mtype = document.getElementById("f-mpesa-type").value; // Paybill | Till
+          const show = (id, on) => document.getElementById(id).classList.toggle("hidden", !on);
+          show("wrap-partner", !mpesa);
+          show("wrap-mpesa-type", mpesa);
+          show("wrap-bank-name", !mpesa);
+          show("wrap-branch", !mpesa);
+          show("wrap-branch-code", !mpesa);
+          show("wrap-payee", !mpesa);
+          show("wrap-account-type", !mpesa);
+          if (mpesa) {
+            const isTill = mtype === "Till";
+            document.getElementById("lbl-account-number").innerHTML = (isTill ? "Till Number" : "Paybill Number") + ' <span class="text-red-500">*</span>';
+            document.getElementById("f-account-number").placeholder = isTill ? "e.g. 5620852" : "e.g. 4048569";
+            document.getElementById("f-account-name").placeholder = isTill ? "e.g. M-Pesa Till" : "e.g. M-Pesa Paybill";
+            document.getElementById("f-instructions").placeholder = isTill ? "Optional notes for the payment line…" : "e.g. Use the vehicle registration as the account reference";
+          } else {
+            document.getElementById("lbl-account-number").innerHTML = 'Account Number <span class="text-red-500">*</span>';
+            document.getElementById("f-account-number").placeholder = "e.g. 0110117244001";
+            document.getElementById("f-account-name").placeholder = "e.g. Equity Bank – Operations";
+            document.getElementById("f-instructions").placeholder = "e.g. Use vehicle registration as the account reference";
+          }
+        }
+        document.getElementById("f-payment-method").addEventListener("change", applyPaymentMethodUI);
+        document.getElementById("f-mpesa-type").addEventListener("change", applyPaymentMethodUI);
 
         document.getElementById("btn-add").addEventListener("click", openAdd);
 
@@ -282,9 +363,26 @@
           const currency      = document.getElementById("f-currency").value;
           const openingBalance = parseFloat(document.getElementById("f-opening-balance").value) || 0;
           const notes         = document.getElementById("f-notes").value.trim();
+          const partnerId            = document.getElementById("f-partner").value || null;
+          const payeeName            = document.getElementById("f-payee").value.trim() || null;
+          const branchCode           = document.getElementById("f-branch-code").value.trim() || null;
+          const paymentInstructions  = document.getElementById("f-instructions").value.trim() || null;
+          const paymentMethod        = document.getElementById("f-payment-method").value || "bank";
 
-          if (!accountName || !bankName || !accountNumber) {
-            errorEl.textContent = "Account Name, Bank Name, and Account Number are required.";
+          const isMpesa = paymentMethod === "mpesa";
+          // M-Pesa: type (Paybill/Till) drives account_type; bank/branch/payee/partner are N/A.
+          const mpesaType = document.getElementById("f-mpesa-type").value;
+          const effAccountType = isMpesa ? mpesaType : accountType;
+          const effBankName    = isMpesa ? (bankName || accountName) : bankName;
+          const effBranch      = isMpesa ? null : (branch || null);
+          const effBranchCode  = isMpesa ? null : branchCode;
+          const effPayee       = isMpesa ? null : payeeName;
+          const effPartnerId   = isMpesa ? null : partnerId;
+
+          if (!accountName || !accountNumber || (!isMpesa && !bankName)) {
+            errorEl.textContent = isMpesa
+              ? "Account Name and the Paybill/Till number are required."
+              : "Account Name, Bank Name, and Account Number are required.";
             errorEl.classList.remove("hidden");
             return;
           }
@@ -292,7 +390,7 @@
           btn.disabled = true;
           btn.textContent = "Saving…";
 
-          const body = { accountName, bankName, accountNumber, branch: branch || null, accountType, currency, openingBalance, notes: notes || null };
+          const body = { accountName, bankName: effBankName, accountNumber, branch: effBranch, accountType: effAccountType, currency, openingBalance, notes: notes || null, partnerId: effPartnerId, payeeName: effPayee, branchCode: effBranchCode, paymentInstructions, paymentMethod };
 
           try {
             if (state.editId) {
@@ -338,6 +436,7 @@
         document.getElementById("toggle-inactive").addEventListener("change", renderTable);
 
         loadAccounts();
+        loadPartners();
       });
     </script>
   </body>

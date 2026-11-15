@@ -32,9 +32,9 @@ router.get(
       pgGet(`SELECT COUNT(*) AS n FROM crm_customers WHERE deleted_at IS NULL AND status = 'Active'`, []),
       pgGet(`SELECT COUNT(*) AS n FROM crm_customers WHERE deleted_at IS NULL`, []),
       // Certificates
-      pgGet(`SELECT COUNT(*) AS n FROM certificates`, []),
-      pgGet(`SELECT COUNT(*) AS n FROM certificates WHERE created_at::timestamptz >= date_trunc('month', CURRENT_DATE)`, []),
-      pgGet(`SELECT COUNT(*) AS n FROM certificates WHERE end_date::date <= CURRENT_DATE + 30 AND end_date::date >= CURRENT_DATE`, []),
+      pgGet(`SELECT COUNT(*) AS n FROM certificates WHERE deleted_at IS NULL`, []),
+      pgGet(`SELECT COUNT(*) AS n FROM certificates WHERE created_at::timestamptz >= date_trunc('month', CURRENT_DATE) AND deleted_at IS NULL`, []),
+      pgGet(`SELECT COUNT(*) AS n FROM certificates WHERE end_date::date <= CURRENT_DATE + 30 AND end_date::date >= CURRENT_DATE AND deleted_at IS NULL`, []),
       // Finance / CRM / Audit
       pgGet(`SELECT COUNT(*) AS n FROM invoices WHERE status = 'Unpaid'`, []),
       pgGet(`SELECT COUNT(*) AS n FROM crm_leads WHERE deleted_at IS NULL AND status NOT IN ('Converted','Lost','Closed','Cancelled')`, []),

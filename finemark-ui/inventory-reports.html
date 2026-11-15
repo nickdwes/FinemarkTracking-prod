@@ -164,24 +164,39 @@ const REPORTS = {
   "installed-gadgets": {
     label: "Installed Gadgets",
     mode: "client",
-    // Only devices actually installed on a customer's vehicle. Small set
-    // (~hundreds), so load all installed items once and search/filter/export
-    // client-side across every column (customer, vehicle, rep, technician…).
+    // Only devices actually installed on a customer's vehicle (~3.7k and
+    // growing), loaded once so search/filter/export work client-side across
+    // every column (customer, vehicle, rep, technician…). Pages are pulled
+    // sequentially; the endpoint returns a page in well under a second since
+    // the join indexes were added (see schema.ts) — before those it took ~22s
+    // a page and every request hit apiFetch's 15s abort, so this tab just
+    // showed "Request failed".
     load: async () => {
       const rows = [];
-      for (let p = 1; p <= 10; p++) {
+      const MAX_PAGES = 40; // 20k rows — a guard against runaway paging, not an expected limit
+      let truncated = false;
+      for (let p = 1; p <= MAX_PAGES; p++) {
         const r = await APP.apiFetch(`/inventory/items?status=Installed&page=${p}&pageSize=500`);
         const batch = r?.data || [];
         rows.push(...batch);
         if (batch.length < 500) break;
+        // Say so rather than silently reporting on a subset.
+        if (p === MAX_PAGES) truncated = true;
       }
+      if (truncated) {
+        APP.showToast?.(`Showing the first ${rows.length.toLocaleString()} installed devices — refine the filters to narrow the set.`, "warning");
+      }
+      // Vehicle column shows the plate; when a ticket has no registration,
+      // fall back to the VIN / chassis (from the linked certificate).
+      for (const r of rows) r.vehicle_display = r.job_vehicle_reg || r.vehicle_chassis || null;
       return rows;
     },
-    searchPlaceholder: "Customer, vehicle, IMEI, rep, technician…",
+    searchPlaceholder: "Customer, vehicle, VIN, IMEI, rep, technician…",
     filters: [
       { id: "instFrom", type: "date", label: "Installed From" },
       { id: "instTo", type: "date", label: "Installed To" },
       { id: "unlinkedOnly", type: "checkbox", label: "Only missing customer/vehicle" },
+      { id: "financedNoBank", type: "checkbox", label: "Financed but no bank" },
     ],
     clientFilter: (rows, vals) => {
       // installation_date is an ISO timestamp; the date inputs give yyyy-mm-dd,
@@ -189,19 +204,25 @@ const REPORTS = {
       if (vals.instFrom) rows = rows.filter((r) => r.installation_date && r.installation_date.slice(0, 10) >= vals.instFrom);
       if (vals.instTo)   rows = rows.filter((r) => r.installation_date && r.installation_date.slice(0, 10) <= vals.instTo);
       if (vals.unlinkedOnly) rows = rows.filter((r) => !r.job_customer_name && !r.job_vehicle_reg);
+      // Data-gap finder: a loan term > 0 implies bank financing, yet no partner bank
+      // resolved on the deal — surfaces installs that need a bank back-filled (or a
+      // spurious loan term cleared). See the 12-month cluster noted during triage.
+      // Non-bank installs now read "Private" (never blank), so "financed but no bank" =
+      // a Private-labelled row that still carries a loan term.
+      if (vals.financedNoBank) rows = rows.filter((r) => String(r.partner_bank || "").trim() === "Private" && Number(r.loan_term_months) > 0);
       return rows;
     },
     columns: [
-      ["product_code", "Code"], ["product_name", "Product"], ["device_model", "Model"],
+      ["product_code", "Code"], ["product_name", "Product"], ["category_name", "Product Category"], ["device_model", "Model"],
       ["imei", "IMEI"], ["serial_number", "Serial"],
-      ["job_customer_name", "Customer"], ["job_vehicle_reg", "Vehicle"],
+      ["job_customer_name", "Customer"], ["vehicle_display", "Vehicle"], ["vehicle_chassis", "VIN / Chassis"],
       ["sales_rep_name", "Sales Rep"], ["technician_name", "Technician"], ["iso_name", "ISO"],
       ["installation_date", "Installation Date"], ["ticket_no", "Ticket"],
       ["partner_bank", "Partner Bank"], ["loan_term_months", "Loan Term (Months)"], ["quote_amount", "Quotation Price (KES)"],
       ["invoice_no", "Invoice"], ["invoice_status", "Invoice Status"],
       ["paired_sim_iccid", "Paired SIM"], ["warehouse_location", "Location"],
     ],
-    defaultCols: ["product_name", "device_model", "imei", "job_customer_name", "job_vehicle_reg", "sales_rep_name", "technician_name", "iso_name", "installation_date", "partner_bank", "loan_term_months", "quote_amount", "invoice_no", "invoice_status"],
+    defaultCols: ["product_name", "category_name", "device_model", "imei", "job_customer_name", "vehicle_display", "vehicle_chassis", "sales_rep_name", "technician_name", "iso_name", "installation_date", "partner_bank", "loan_term_months", "quote_amount", "invoice_no", "invoice_status"],
     numberCols: ["loan_term_months", "quote_amount"],
   },
   "movements": {
@@ -413,13 +434,52 @@ async function exportCsv() {
   } else {
     rows = [];
     const vals = currentFilterValues();
-    const big = 1000;
-    for (let p = 1; p <= 20; p++) {
-      const params = new URLSearchParams({ ...vals, page: p, pageSize: big });
-      const res = await APP.apiFetch(`${cfg.endpoint}?${params.toString()}`).catch(() => null);
-      const batch = res ? cfg.rowsOf(res) : [];
-      rows.push(...batch);
-      if (batch.length < big) break;
+    // Every endpoint clamps pageSize to its own cap regardless of what is
+    // requested (items 500, sims 200, movements 1000), and computes its offset
+    // from that clamped size. So terminate on the reported TOTAL — never on
+    // "got fewer rows than requested". That old test was true on page 1
+    // whenever the cap was below the request, so every export silently stopped
+    // at the cap: Device Ledger at 500 of 1,105, SIM Cards at 200. Same fix
+    // vehicles-list.html got in Aug 2026.
+    const PAGE = 1000;
+    const MAX_PAGES = 200; // runaway guard only — far above any real dataset
+    let total = Infinity;
+    const seen = new Set();
+    const btn = $("btn-export");
+    const orig = btn.textContent;
+    btn.disabled = true;
+    try {
+      for (let p = 1; p <= MAX_PAGES && rows.length < total; p++) {
+        btn.textContent = `Exporting… ${rows.length.toLocaleString()}`;
+        const params = new URLSearchParams({ ...vals, page: p, pageSize: PAGE });
+        // No .catch(() => null): a failed page used to be swallowed and the
+        // file downloaded anyway, missing rows with no warning. Let it throw.
+        const res = await APP.apiFetch(`${cfg.endpoint}?${params.toString()}`);
+        const batch = cfg.rowsOf(res);
+        total = Number(cfg.totalOf(res)) || 0;
+        // De-duplicate by id. Pages are offset-based and sorted newest-first,
+        // so stock received WHILE the export runs pushes every later page down
+        // and re-serves rows already fetched (seen live: 40 devices received
+        // mid-export produced 40 duplicate lines). Keying on id makes the file
+        // a clean point-in-time snapshot of what existed when export began.
+        for (const r of batch) {
+          const k = r?.id;
+          if (k == null) { rows.push(r); continue; }
+          if (seen.has(k)) continue;
+          seen.add(k);
+          rows.push(r);
+        }
+        if (!batch.length) break;
+      }
+    } catch (e) {
+      APP.showToast?.(`Export failed after ${rows.length.toLocaleString()} rows — ${e?.message || "request error"}. No file was downloaded.`, "error");
+      return;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = orig;
+    }
+    if (total !== Infinity && rows.length < total) {
+      APP.showToast?.(`Exported ${rows.length.toLocaleString()} of ${total.toLocaleString()} rows.`, "warning");
     }
   }
   const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;

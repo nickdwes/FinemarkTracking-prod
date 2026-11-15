@@ -14,6 +14,8 @@ const mapPayment = (row: any) => ({
   bank: row.bank,
   status: row.status,
   paidAt: row.paid_at,
+  referrerCommissionTotal: row.referrer_commission_total != null ? Number(row.referrer_commission_total) : 0,
+  netAmount: row.net_amount != null ? Number(row.net_amount) : null,
   createdAt: row.created_at,
 });
 
@@ -37,7 +39,9 @@ export const listPayments = async (filters: {
   }
   if (filters.status) { clauses.push("p.status = ?"); params.push(filters.status); }
   if (filters.from) { clauses.push("p.paid_at >= ?"); params.push(filters.from); }
-  if (filters.to) { clauses.push("p.paid_at <= ?"); params.push(filters.to); }
+  // paid_at is a TEXT ISO timestamp ("...T...Z"); a bare "YYYY-MM-DD" upper bound sorts before
+  // any same-day "T" value and silently drops the whole end day, so use a T-separated end-of-day.
+  if (filters.to) { clauses.push("p.paid_at <= ?"); params.push(`${filters.to}T23:59:59.999Z`); }
   if (filters.method) { clauses.push("p.method = ?"); params.push(filters.method); }
   if (filters.bank) { clauses.push("p.bank = ?"); params.push(filters.bank); }
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
@@ -61,6 +65,16 @@ export const createPayment = async (data: {
   const id = crypto.randomUUID();
   const invoice = await pgGet("SELECT * FROM invoices WHERE id = ?", [data.invoiceId]);
   if (!invoice) throw new Error("INVOICE_NOT_FOUND");
+  // Reject only a genuine duplicate — same invoice, same reference AND same amount
+  // (a re-submitted receipt). A generic bank label may legitimately repeat across
+  // different invoices, or across differently-sized instalments on one invoice.
+  if (data.paymentRef) {
+    const dup = await pgGet(
+      "SELECT id FROM payments WHERE invoice_id = ? AND payment_ref = ? AND amount = ?",
+      [data.invoiceId, paymentRef, data.amount]
+    );
+    if (dup) throw new Error("DUPLICATE_PAYMENT");
+  }
   await pgRun(
     `INSERT INTO payments (id, payment_ref, invoice_id, customer, amount, currency, method, bank, status, paid_at, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,

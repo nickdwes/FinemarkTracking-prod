@@ -25,7 +25,7 @@ router.use(requireAuth, requireRole(SALES_INTEL_ROLES));
 // Scope-clause helpers — turn a SalesScope into a parameterized SQL fragment.
 // scope.userIds === null means unrestricted (Admin/Executive): no clause added.
 // ─────────────────────────────────────────────────────────────────────────────
-function idClause(cols: string[], scope: SalesScope): { sql: string; params: any[] } {
+export function idClause(cols: string[], scope: SalesScope): { sql: string; params: any[] } {
   if (scope.userIds === null) return { sql: "", params: [] };
   const per = cols.map((c) => `${c} = ANY(?::text[])`).join(" OR ");
   return { sql: ` AND (${per})`, params: cols.map(() => scope.userIds!) };
@@ -34,7 +34,7 @@ function emailClause(col: string, scope: SalesScope): { sql: string; params: any
   if (scope.emails === null) return { sql: "", params: [] };
   return { sql: ` AND ${col} = ANY(?::text[])`, params: [scope.emails] };
 }
-function scopeLabel(role: string, scope: SalesScope): string {
+export function scopeLabel(role: string, scope: SalesScope): string {
   if (scope.userIds === null) return "all";
   if (role === "BDM" || role === "BDMCorporate") return "team";
   return "own";
@@ -69,7 +69,10 @@ router.get("/summary", async (req: AuthRequest, res) => {
   const parsed = summaryQuerySchema.safeParse(req.query);
   if (!parsed.success) return errorResponse(res, 400, "VALIDATION_ERROR", "Invalid query", parsed.error.flatten());
   const { from, to } = defaultDateRange(parsed.data.from, parsed.data.to);
-  const toEnd = `${to} 23:59:59`;
+  // created_at/issued_on/etc. are TEXT ISO timestamps ("2026-08-10T08:04:...Z"). Use a
+  // T-separated, millisecond end-of-day so the To day is included — a space separator
+  // ("... 23:59:59") sorts BEFORE any "...T..." value and silently drops the whole last day.
+  const toEnd = `${to}T23:59:59.999Z`;
 
   const role = req.user!.role;
   const scope = await resolveSalesScope(role, req.user!.id);
@@ -91,15 +94,15 @@ router.get("/summary", async (req: AuthRequest, res) => {
   ] = await Promise.all([
     pgGet<{ total: string }>(
       `SELECT COUNT(*) AS total FROM crm_leads WHERE deleted_at IS NULL AND lead_date BETWEEN ? AND ? ${leadIds.sql}`,
-      [from, to, ...leadIds.params]
+      [from, toEnd, ...leadIds.params]
     ),
     pgAll<{ status: string; n: string }>(
       `SELECT status, COUNT(*) AS n FROM crm_leads WHERE deleted_at IS NULL AND lead_date BETWEEN ? AND ? ${leadIds.sql} GROUP BY status ORDER BY n DESC`,
-      [from, to, ...leadIds.params]
+      [from, toEnd, ...leadIds.params]
     ),
     pgAll<{ lead_source: string; n: string }>(
       `SELECT lead_source, COUNT(*) AS n FROM crm_leads WHERE deleted_at IS NULL AND lead_date BETWEEN ? AND ? ${leadIds.sql} GROUP BY lead_source ORDER BY n DESC LIMIT 10`,
-      [from, to, ...leadIds.params]
+      [from, toEnd, ...leadIds.params]
     ),
     pgGet<{ total: string }>(
       `SELECT COUNT(*) AS total FROM retail_leads WHERE deleted_at IS NULL AND created_at BETWEEN ? AND ? ${retailLeadIds.sql}`,
@@ -232,10 +235,11 @@ const reportQuerySchema = z.object({
 // columns are currently visible (see sales-reports.html's renderFilterFields).
 // `exact: true` columns (closed enums like status) get an `=` match; the rest
 // get an ILIKE partial match, since free-text fields (source, region, segment)
-// rarely match a stored value exactly.
-interface FilterColDef { col: string; exact?: boolean }
+// rarely match a stored value exactly. `ci: true` is a case-insensitive exact
+// match — for values picked from a dropdown built off the data itself.
+export interface FilterColDef { col: string; exact?: boolean; ci?: boolean }
 
-async function runReport(
+export async function runReport(
   req: AuthRequest,
   res: any,
   opts: {
@@ -250,6 +254,15 @@ async function runReport(
     mapRow: (r: any) => Record<string, unknown>;
     orderBy: string;
     csv?: { filename: string; headers: string[] };
+    /** Audit action label — defaults to the sales-report ones. */
+    auditAction?: { view: string; export: string };
+    /**
+     * Post-mapping async hook, for data that cannot be joined in SQL — e.g.
+     * the legacy tracking logins, which live in the physically separate
+     * finemark_archive database. Runs once per response over the whole page
+     * (not per row), so enrichment stays a single extra query.
+     */
+    enrich?: (rows: Record<string, unknown>[]) => Promise<void>;
   }
 ) {
   const parsed = reportQuerySchema.safeParse(req.query);
@@ -266,11 +279,13 @@ async function runReport(
   for (const [key, def] of Object.entries(opts.filterCols || {})) {
     const val = f[key];
     if (!val?.trim()) continue;
-    if (def.exact) { clauses.push(`${def.col} = ?`); params.push(val.trim()); }
+    if (def.ci) { clauses.push(`LOWER(${def.col}) = LOWER(?)`); params.push(val.trim()); }
+    else if (def.exact) { clauses.push(`${def.col} = ?`); params.push(val.trim()); }
     else { clauses.push(`${def.col} ILIKE ?`); params.push(`%${val.trim()}%`); }
   }
   if (f.from) { clauses.push(`${opts.dateCol} >= ?`); params.push(f.from); }
-  if (f.to) { clauses.push(`${opts.dateCol} <= ?`); params.push(`${f.to} 23:59:59`); }
+  // T-separated end-of-day so the To day is included on TEXT ISO timestamp columns (see toEnd note above).
+  if (f.to) { clauses.push(`${opts.dateCol} <= ?`); params.push(`${f.to}T23:59:59.999Z`); }
 
   const userWhere = clauses.length ? `AND ${clauses.join(" AND ")}` : "";
   const isCsv = !!opts.csv && req.path.endsWith(".csv");
@@ -287,8 +302,9 @@ async function runReport(
       [...opts.scopeParams, ...params]
     );
     const mapped = rows.map(opts.mapRow);
+    if (opts.enrich) await opts.enrich(mapped);
     const csv = buildCsv(opts.csv!.headers, mapped);
-    auditLog(req, "SALES_REPORT_EXPORTED", opts.table, "Info", { filters: f }).catch(console.error);
+    auditLog(req, opts.auditAction?.export || "SALES_REPORT_EXPORTED", opts.table, "Info", { filters: f }).catch(console.error);
     return sendCsv(res, opts.csv!.filename, csv);
   }
 
@@ -306,8 +322,10 @@ async function runReport(
     ),
   ]);
 
-  auditLog(req, "SALES_REPORT_VIEWED", opts.table, "Info", { filters: f }).catch(console.error);
-  return ok(res, { data: rows.map(opts.mapRow), meta: { total: Number(totalRow?.total || 0), page: parsedPage, pageSize: parsedPageSize }, scope: opts.scopeLabelStr });
+  const mapped = rows.map(opts.mapRow);
+  if (opts.enrich) await opts.enrich(mapped);
+  auditLog(req, opts.auditAction?.view || "SALES_REPORT_VIEWED", opts.table, "Info", { filters: f }).catch(console.error);
+  return ok(res, { data: mapped, meta: { total: Number(totalRow?.total || 0), page: parsedPage, pageSize: parsedPageSize }, scope: opts.scopeLabelStr });
 }
 
 // ── Corporate leads ─────────────────────────────────────────────────────────
@@ -353,23 +371,28 @@ async function corporateLeadsHandler(req: AuthRequest, res: any) {
       isoAssigned: { col: "it.iso_email" },
     },
     selectSql: `
-      SELECT l.lead_no, l.customer_name, l.company_name, l.phone, l.email, l.id_number,
+      SELECT l.id AS lead_id, l.customer_id,
+             l.lead_no, l.customer_name, l.company_name, l.phone, l.email, l.id_number,
              l.status, l.lead_source, l.customer_type, l.customer_segment,
              l.installation_county, l.address, l.fleet_size, l.product_category_name, l.partner_name,
              l.lead_date, l.expected_close_date, l.created_at, l.converted_at,
              u.name AS rep_name, u.email AS rep_email,
              au.name AS assigned_name, au.email AS assigned_email,
-             q.quote_no, q.status AS quote_status, q.total_amount AS quote_amount, q.loan_term_months,
+             q.id AS quote_id, q.quote_no, q.status AS quote_status, q.total_amount AS quote_amount, q.loan_term_months,
              pf.proforma_no, pf.status AS proforma_status,
-             i.invoice_number, i.status AS invoice_status, i.amount AS invoice_amount,
-             it.ticket_no, it.status AS ticket_status, it.vehicle_registration,
+             i.id AS invoice_id, i.invoice_number, i.status AS invoice_status, i.amount AS invoice_amount,
+             it.id AS ticket_id, it.ticket_no, it.status AS ticket_status,
+             cvc.id AS vehicle_id,
+             COALESCE(NULLIF(TRIM(cvc.registration),''), it.vehicle_registration) AS vehicle_registration,
+             cvc.chassis_number AS vehicle_chassis,
              -- Installation date = when the job card was closed (engineer's
              -- final sign-off, the last step before status flips to Completed;
              -- populated on all completed tickets). Falls back to the
              -- technician sign-off if an engineer one is somehow missing.
              COALESCE(it.engineer_signed_off_at, it.technician_signed_off_at) AS installation_date,
              COALESCE(te.full_name, tu.name, it.assigned_to_email) AS technician_name,
-             COALESCE(ise.full_name, isu.name, it.iso_name) AS iso_resolved_name
+             COALESCE(ise.full_name, isu.name, it.iso_name) AS iso_resolved_name,
+             cert.id AS certificate_id, cert.serial_no AS certificate_serial
       FROM crm_leads l
       LEFT JOIN users u  ON u.id = l.sales_rep_id
       LEFT JOIN users au ON au.id = l.assigned_to_id
@@ -390,10 +413,30 @@ async function corporateLeadsHandler(req: AuthRequest, res: any) {
         WHERE it2.deleted_at IS NULL AND (it2.invoice_id = i.id OR it2.proforma_id = pf.id)
         ORDER BY it2.created_at DESC LIMIT 1
       ) it ON true
+      LEFT JOIN crm_customer_vehicles cvc ON cvc.id = it.vehicle_id AND cvc.deleted_at IS NULL
       LEFT JOIN users tu ON tu.id = it.assigned_to_user_id
       LEFT JOIN hr_employees te ON te.user_account_id = it.assigned_to_user_id
       LEFT JOIN users isu ON isu.id = it.iso_user_id
-      LEFT JOIN hr_employees ise ON ise.user_account_id = it.iso_user_id`,
+      LEFT JOIN hr_employees ise ON ise.user_account_id = it.iso_user_id
+      -- Certificate has no FK; match the most recent live cert by the vehicle's
+      -- registration or chassis, space-and-case-insensitively (NULLIF guards stop
+      -- two blank plates/chassis from matching each other).
+      -- UNION of two indexed lookups, not an OR — see the retail-leads note.
+      LEFT JOIN LATERAL (
+        SELECT x.id, x.serial_no FROM (
+          SELECT c.id, c.serial_no, c.created_at FROM certificates c
+           WHERE c.deleted_at IS NULL
+             AND NULLIF(REPLACE(UPPER(TRIM(c.car_registration)), ' ', ''), '')
+               = NULLIF(REPLACE(UPPER(TRIM(COALESCE(NULLIF(TRIM(cvc.registration), ''), it.vehicle_registration))), ' ', ''), '')
+          UNION ALL
+          SELECT c.id, c.serial_no, c.created_at FROM certificates c
+           WHERE c.deleted_at IS NULL
+             AND NULLIF(REPLACE(UPPER(TRIM(c.chassis_number)), ' ', ''), '')
+               = NULLIF(REPLACE(UPPER(TRIM(cvc.chassis_number)), ' ', ''), '')
+        ) x
+        ORDER BY x.created_at DESC
+        LIMIT 1
+      ) cert ON true`,
     mapRow: (r: any) => ({
       leadNo: r.lead_no, customerName: r.customer_name, companyName: r.company_name,
       phone: r.phone, email: r.email, idNumber: r.id_number,
@@ -403,14 +446,19 @@ async function corporateLeadsHandler(req: AuthRequest, res: any) {
       leadDate: r.lead_date, expectedCloseDate: r.expected_close_date, createdAt: r.created_at, convertedAt: r.converted_at,
       salesRep: r.rep_name || r.rep_email || "—",
       assignedTo: r.assigned_name || r.assigned_email || "—",
+      quoteId: r.quote_id || null,
       quoteNo: r.quote_no || "—", quoteStatus: r.quote_status || "—", quoteAmount: r.quote_amount,
       loanTermMonths: r.loan_term_months ?? null,
       proformaNo: r.proforma_no || "—", proformaStatus: r.proforma_status || "—",
       invoiceNo: r.invoice_number || "—", invoiceStatus: r.invoice_status || "—", invoiceAmount: r.invoice_amount,
       invoicePaid: r.invoice_status === "Paid" ? "Yes" : (r.invoice_status ? "No" : "—"),
-      ticketNo: r.ticket_no || "—", installationStatus: r.ticket_status || "—", vehicleRegistration: r.vehicle_registration || "—",
+      ticketNo: r.ticket_no || "—", installationStatus: r.ticket_status || "—", vehicleRegistration: r.vehicle_registration || "—", vehicleChassis: r.vehicle_chassis || "—",
       installationDate: r.installation_date || null,
       technician: r.technician_name || "—", isoAssigned: r.iso_resolved_name || "—",
+      certificateSerial: r.certificate_serial || "—",
+      // Raw IDs power the row hyperlinks in the frontend (not shown as columns).
+      leadId: r.lead_id || null, customerId: r.customer_id || null, vehicleId: r.vehicle_id || null,
+      invoiceId: r.invoice_id || null, ticketId: r.ticket_id || null, certificateId: r.certificate_id || null,
     }),
     orderBy: "l.created_at DESC",
     csv: {
@@ -424,7 +472,7 @@ async function corporateLeadsHandler(req: AuthRequest, res: any) {
         "quoteNo", "quoteStatus", "quoteAmount", "loanTermMonths",
         "proformaNo", "proformaStatus",
         "invoiceNo", "invoiceStatus", "invoiceAmount", "invoicePaid",
-        "ticketNo", "installationStatus", "installationDate", "vehicleRegistration", "technician", "isoAssigned",
+        "ticketNo", "installationStatus", "installationDate", "vehicleRegistration", "vehicleChassis", "certificateSerial", "technician", "isoAssigned",
       ],
     },
   });
@@ -459,6 +507,7 @@ async function retailLeadsHandler(req: AuthRequest, res: any) {
       partnerName: { col: "l.partner_name" },
       bankPartnerName: { col: "l.bank_partner_name" },
       productName: { col: "l.product_name" },
+      productCategory: { col: "l.product_category_name" },
       installationFinancer: { col: "l.installation_financer" },
       vehicleCategory: { col: "v.vehicle_category", exact: true },
       quoteStatus: { col: "q.status" },
@@ -469,28 +518,62 @@ async function retailLeadsHandler(req: AuthRequest, res: any) {
       isoAssigned: { col: "it.iso_email" },
     },
     selectSql: `
-      SELECT l.lead_no, l.customer_name, l.customer_type, l.customer_entity_type,
+      SELECT l.id AS lead_id, l.customer_id, l.installation_ticket_id AS ticket_id,
+             l.lead_no, l.customer_name, l.customer_type, l.customer_entity_type,
              l.customer_phone, l.customer_email, l.customer_location,
              l.status, l.lead_source, l.installation_county,
              l.partner_name, l.secondary_partner_name, l.bank_partner_name,
              l.referrer_name, l.referrer_phone,
-             l.product_name, l.installation_financer,
+             l.product_name, l.product_category_name, l.installation_financer,
              l.installation_contact_name, l.installation_contact_phone, l.location_description,
              l.installation_ticket_no, l.submitted_at, l.created_at,
              u.name AS rep_name, u.email AS rep_email, b.name AS bdm_name_resolved, l.bdm_name,
-             v.loan_term_months, v.registration AS vehicle_registration, v.make AS vehicle_make,
-             v.model AS vehicle_model, v.vehicle_category,
-             q.quote_no, q.status AS quote_status, q.total_amount AS quote_amount,
+             v.loan_term_months,
+             -- Central vehicle registry (cvv = crm_customer_vehicles via v.vehicle_id) is the
+             -- source of truth; fall back to the lead's own snapshot only when the registry
+             -- value is blank — so make/model/reg/category corrected in Customer 360 show live.
+             COALESCE(NULLIF(TRIM(cvv.registration),''), NULLIF(TRIM(cvf.registration),''), v.registration) AS vehicle_registration,
+             COALESCE(NULLIF(TRIM(cvv.make),''), NULLIF(TRIM(cvf.make),''), v.make)                 AS vehicle_make,
+             COALESCE(NULLIF(TRIM(cvv.model),''), NULLIF(TRIM(cvf.model),''), v.model)               AS vehicle_model,
+             COALESCE(NULLIF(TRIM(cvv.vehicle_category),''), NULLIF(TRIM(cvf.vehicle_category),''), v.vehicle_category) AS vehicle_category,
+             COALESCE(cvv.chassis_number, cvf.chassis_number) AS vehicle_chassis, cvv.body_type AS vehicle_body_type,
+             -- Hyperlink target: the snapshot's FK (v.vehicle_id) when set, else the
+             -- central registry row matched live by registration (cvf) — so a lead whose
+             -- vehicle was registered without back-linking the snapshot still hyperlinks.
+             COALESCE(v.vehicle_id, cvf.id) AS vehicle_id,
+             COALESCE(cvv.registration, cvf.registration) AS cv_registration,
+             COALESCE(cvv.loan_tenure_months, cvf.loan_tenure_months) AS cv_loan_tenure,
+             COALESCE(pvv.name, pvf.name) AS vehicle_partner_name,
+             q.id AS quote_id, q.quote_no, q.status AS quote_status, q.total_amount AS quote_amount,
              pf.proforma_no, pf.status AS proforma_status,
-             i.invoice_number, i.status AS invoice_status, i.amount AS invoice_amount,
+             i.id AS invoice_id, i.invoice_number, i.status AS invoice_status, i.amount AS invoice_amount,
              it.status AS ticket_status,
              COALESCE(it.engineer_signed_off_at, it.technician_signed_off_at) AS installation_date,
              COALESCE(te.full_name, tu.name, it.assigned_to_email) AS technician_name,
-             COALESCE(ise.full_name, isu.name, it.iso_name) AS iso_resolved_name
+             COALESCE(ise.full_name, isu.name, it.iso_name) AS iso_resolved_name,
+             cert.id AS certificate_id, cert.serial_no AS certificate_serial
       FROM retail_leads l
       LEFT JOIN users u ON u.id = l.sales_rep_id
       LEFT JOIN users b ON b.id = l.bdm_id
       LEFT JOIN retail_lead_vehicles v ON v.lead_id = l.id
+      LEFT JOIN crm_customer_vehicles cvv ON cvv.id = v.vehicle_id AND cvv.deleted_at IS NULL
+      LEFT JOIN partners pvv ON pvv.id::text = cvv.partner_id::text
+      -- Fallback link when the lead snapshot has no vehicle_id FK: the most recent
+      -- live central-registry vehicle for this customer whose plate matches the
+      -- snapshot's, compared case-and-space-insensitively (NULLIF guards stop two
+      -- blank plates from matching). Only evaluated when v.vehicle_id IS NULL.
+      LEFT JOIN LATERAL (
+        SELECT cvf0.*
+        FROM crm_customer_vehicles cvf0
+        WHERE cvf0.deleted_at IS NULL
+          AND v.vehicle_id IS NULL
+          AND cvf0.customer_id = l.customer_id
+          AND NULLIF(REPLACE(UPPER(TRIM(cvf0.registration)), ' ', ''), '')
+            = NULLIF(REPLACE(UPPER(TRIM(v.registration)), ' ', ''), '')
+        ORDER BY cvf0.created_at DESC
+        LIMIT 1
+      ) cvf ON true
+      LEFT JOIN partners pvf ON pvf.id::text = cvf.partner_id::text
       LEFT JOIN crm_quotes q ON q.id = l.quote_id AND q.deleted_at IS NULL
       LEFT JOIN LATERAL (
         SELECT * FROM crm_proforma_invoices pf2
@@ -502,7 +585,30 @@ async function retailLeadsHandler(req: AuthRequest, res: any) {
       LEFT JOIN users tu ON tu.id = it.assigned_to_user_id
       LEFT JOIN hr_employees te ON te.user_account_id = it.assigned_to_user_id
       LEFT JOIN users isu ON isu.id = it.iso_user_id
-      LEFT JOIN hr_employees ise ON ise.user_account_id = it.iso_user_id`,
+      LEFT JOIN hr_employees ise ON ise.user_account_id = it.iso_user_id
+      -- Certificate has no FK to the lead/vehicle; match the most recent live cert by
+      -- the vehicle's registration or chassis, space-and-case-insensitively (NULLIF guards
+      -- stop two blank plates/chassis from matching each other).
+      -- Two indexed lookups UNIONed rather than one OR: an OR across the two
+      -- normalised columns can use NEITHER functional index (idx_cert_reg_norm /
+      -- idx_cert_chassis_norm), so every lead cost a full certificates scan —
+      -- ~7ms x 3,633 leads = 28s, past the client's 15s timeout ("Request
+      -- failed"). Same rows, verified across every lead: 1.3s.
+      LEFT JOIN LATERAL (
+        SELECT x.id, x.serial_no FROM (
+          SELECT c.id, c.serial_no, c.created_at FROM certificates c
+           WHERE c.deleted_at IS NULL
+             AND NULLIF(REPLACE(UPPER(TRIM(c.car_registration)), ' ', ''), '')
+               = NULLIF(REPLACE(UPPER(TRIM(COALESCE(NULLIF(TRIM(cvv.registration), ''), v.registration))), ' ', ''), '')
+          UNION ALL
+          SELECT c.id, c.serial_no, c.created_at FROM certificates c
+           WHERE c.deleted_at IS NULL
+             AND NULLIF(REPLACE(UPPER(TRIM(c.chassis_number)), ' ', ''), '')
+               = NULLIF(REPLACE(UPPER(TRIM(cvv.chassis_number)), ' ', ''), '')
+        ) x
+        ORDER BY x.created_at DESC
+        LIMIT 1
+      ) cert ON true`,
     mapRow: (r: any) => ({
       leadNo: r.lead_no, customerName: r.customer_name, customerType: r.customer_type,
       customerEntityType: r.customer_entity_type || "—",
@@ -511,13 +617,24 @@ async function retailLeadsHandler(req: AuthRequest, res: any) {
       partnerName: r.partner_name || "—", secondaryPartnerName: r.secondary_partner_name || "—",
       bankPartnerName: r.bank_partner_name || "—",
       referrerName: r.referrer_name || "—", referrerPhone: r.referrer_phone || "—",
-      productName: r.product_name || "—", installationFinancer: r.installation_financer || "—",
+      productName: r.product_name || "—",
+      productCategory: r.product_category_name || "—",
+      // A lead is "Private" (self-funded) unless it's actually bank-financed — i.e. it
+      // has a financing partner (vehicle/bank/lead) or is explicitly marked Bank Financed.
+      // This replaces the old blank/"—" so non-bank leads read as Private on the report.
+      installationFinancer: (() => {
+        const financer = String(r.installation_financer || "").trim();
+        const partner = String(r.vehicle_partner_name || r.bank_partner_name || r.partner_name || "").trim();
+        return financer === "Private" || (!partner && financer !== "Bank Financed") ? "Private" : "Bank Financed";
+      })(),
       installationContactName: r.installation_contact_name || "—",
       installationContactPhone: r.installation_contact_phone || "—",
       locationDescription: r.location_description || "—",
-      loanTermMonths: r.loan_term_months ?? null,
-      vehicleRegistration: r.vehicle_registration || "—", vehicleMake: r.vehicle_make || "—",
+      loanTermMonths: r.loan_term_months ?? (r.cv_loan_tenure ?? null),
+      vehiclePartnerName: r.vehicle_partner_name || "—",
+      vehicleRegistration: r.vehicle_registration || r.cv_registration || "—", vehicleChassis: r.vehicle_chassis || "—", vehicleMake: r.vehicle_make || "—",
       vehicleModel: r.vehicle_model || "—", vehicleCategory: r.vehicle_category || "—",
+      quoteId: r.quote_id || null,
       quoteNo: r.quote_no || "—", quoteStatus: r.quote_status || "—", quoteAmount: r.quote_amount,
       proformaNo: r.proforma_no || "—", proformaStatus: r.proforma_status || "—",
       invoiceNo: r.invoice_number || "—", invoiceStatus: r.invoice_status || "—", invoiceAmount: r.invoice_amount,
@@ -527,6 +644,10 @@ async function retailLeadsHandler(req: AuthRequest, res: any) {
       salesRep: r.rep_name || r.rep_email || "—", bdmName: r.bdm_name_resolved || r.bdm_name || "—",
       submittedAt: r.submitted_at || "—", createdAt: r.created_at,
       technician: r.technician_name || "—", isoAssigned: r.iso_resolved_name || "—",
+      certificateSerial: r.certificate_serial || "—",
+      // Raw IDs power the row hyperlinks in the frontend (not shown as columns).
+      leadId: r.lead_id || null, customerId: r.customer_id || null, vehicleId: r.vehicle_id || null,
+      invoiceId: r.invoice_id || null, ticketId: r.ticket_id || null, certificateId: r.certificate_id || null,
     }),
     orderBy: "l.created_at DESC",
     csv: {
@@ -537,13 +658,14 @@ async function retailLeadsHandler(req: AuthRequest, res: any) {
         "status", "leadSource",
         "partnerName", "secondaryPartnerName", "bankPartnerName",
         "referrerName", "referrerPhone",
-        "productName", "installationFinancer",
+        "productName", "productCategory", "installationFinancer",
         "installationContactName", "installationContactPhone", "locationDescription",
-        "loanTermMonths", "vehicleRegistration", "vehicleMake", "vehicleModel", "vehicleCategory",
+        "loanTermMonths", "vehiclePartnerName", "vehicleRegistration", "vehicleChassis", "vehicleMake", "vehicleModel", "vehicleCategory",
         "quoteNo", "quoteStatus", "quoteAmount",
         "proformaNo", "proformaStatus",
         "invoiceNo", "invoiceStatus", "invoiceAmount", "invoicePaid",
         "ticketNo", "installationStatus", "installationDate", "technician", "isoAssigned",
+        "certificateSerial",
         "salesRep", "bdmName", "submittedAt", "createdAt",
       ],
     },
@@ -660,5 +782,58 @@ async function communicationsHandler(req: AuthRequest, res: any) {
 }
 router.get("/communications", communicationsHandler);
 router.get("/communications.csv", communicationsHandler);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /team-performance — per-rep breakdown for a manager's team (ABAC-scoped:
+// BDM = direct reports, BDMCorporate = corporate reps, Admin = everyone, a plain
+// rep = just themselves). Powers the BDM "Team performance" view on mobile.
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/team-performance", async (req: AuthRequest, res) => {
+  const scope = await resolveSalesScope(req.user!.role, req.user!.id);
+  const repFilter = scope.userIds === null ? "" : "AND sales_rep_id = ANY(?::text[])";
+  const repParams: any[] = scope.userIds === null ? [] : [scope.userIds];
+
+  const [leadRows, quoteRows, nameRows] = await Promise.all([
+    pgAll<{ rep_id: string; rep_name: string; leads: string; completed: string }>(
+      `SELECT l.sales_rep_id AS rep_id, MAX(l.sales_rep_name) AS rep_name,
+              COUNT(*) AS leads,
+              COUNT(*) FILTER (WHERE EXISTS (
+                SELECT 1 FROM installation_tickets t
+                WHERE t.id = l.installation_ticket_id AND t.status IN ('Completed','Closed'))) AS completed
+       FROM retail_leads l
+       WHERE l.deleted_at IS NULL AND l.sales_rep_id IS NOT NULL ${repFilter.replace("sales_rep_id", "l.sales_rep_id")}
+       GROUP BY l.sales_rep_id`,
+      repParams
+    ),
+    pgAll<{ rep_id: string; pipeline: string; accepted: string }>(
+      `SELECT sales_rep_id AS rep_id, COALESCE(SUM(total_amount),0) AS pipeline,
+              COUNT(*) FILTER (WHERE status = 'Accepted') AS accepted
+       FROM crm_quotes
+       WHERE deleted_at IS NULL AND status NOT IN ('Rejected','Cancelled') AND sales_rep_id IS NOT NULL ${repFilter}
+       GROUP BY sales_rep_id`,
+      repParams
+    ),
+    scope.userIds === null
+      ? pgAll<{ id: string; name: string }>(`SELECT id, name FROM users`, [])
+      : pgAll<{ id: string; name: string }>(`SELECT id, name FROM users WHERE id = ANY(?::text[])`, [scope.userIds]),
+  ]);
+
+  const nameById = new Map(nameRows.map((u) => [u.id, u.name]));
+  const byRep = new Map<string, any>();
+  const ensure = (id: string, fallbackName?: string) => {
+    if (!byRep.has(id)) byRep.set(id, { repId: id, repName: nameById.get(id) || fallbackName || "—", leads: 0, completed: 0, pipeline: 0, accepted: 0 });
+    return byRep.get(id);
+  };
+  for (const r of leadRows) { const row = ensure(r.rep_id, r.rep_name); row.leads = Number(r.leads || 0); row.completed = Number(r.completed || 0); }
+  for (const q of quoteRows) { const row = ensure(q.rep_id); row.pipeline = Number(q.pipeline || 0); row.accepted = Number(q.accepted || 0); }
+
+  const reps = [...byRep.values()].filter((r) => r.leads || r.pipeline).sort((a, b) => b.pipeline - a.pipeline);
+  const totals = reps.reduce(
+    (t, r) => ({ reps: t.reps + 1, leads: t.leads + r.leads, completed: t.completed + r.completed, pipeline: t.pipeline + r.pipeline, accepted: t.accepted + r.accepted }),
+    { reps: 0, leads: 0, completed: 0, pipeline: 0, accepted: 0 }
+  );
+
+  return res.status(200).json({ data: reps, totals, currency: "KES", scope: scopeLabel(req.user!.role, scope) });
+});
 
 export default router;

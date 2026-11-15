@@ -128,6 +128,8 @@
       <p class="text-xs text-emerald-700">Temp Password: <code id="reset-success-password" class="font-mono bg-emerald-100 px-1 rounded"></code></p>
     </div>
 
+    <div id="fm-footer"></div>
+    <script src="assets/app.js?v=202607011016"></script>
     <script src="assets/layout.js?v=202607011016"></script>
     <script>
       const generatePassword = () => {
@@ -345,8 +347,11 @@
       // Init
       (async () => {
         await window.FINEMARK_APP.requirePageAccess();
+        // Admin only — managing ERP logins and resetting passwords sits with
+        // Admins. RBAC_ROUTES already enforces this; the HR branch that used to
+        // be here was dead code, since HR never gets past requirePageAccess().
         const role = window.FINEMARK_APP.getSession()?.user?.role;
-        if (role !== "Admin" && role !== "HR") {
+        if (role !== "Admin") {
           window.location.href = "unauthorized.html";
           return;
         }

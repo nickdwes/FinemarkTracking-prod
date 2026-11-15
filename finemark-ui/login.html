@@ -6,102 +6,148 @@
     <title>Finemark | Login</title>
     <link rel="icon" href="assets/finemark-logo.svg" />
     <link rel="stylesheet" href="assets/tailwind.css" />
+    <style>
+      /* setFieldError() adds border-red-500, but Tailwind emits it before border-slate-300, so it would lose */
+      #login-form input.border-red-500, #otp.border-red-500 { border-color: #ef4444; }
+    </style>
   </head>
-  <body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
-<main class="min-h-screen flex items-center justify-center px-6 py-12">
-      <div class="w-full max-w-3xl">
-        <div class="grid gap-6">
-          <div class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 border border-slate-200/80 p-8 md:p-10">
-            <div class="flex items-center gap-4 mb-8">
-              <img src="assets/finemark-logo.svg" alt="Finemark logo" class="h-12 w-12" />
-              <div>
-                <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Finemark</h1>
-                <p class="text-sm text-slate-600">Welcome back. Please sign in to continue.</p>
-              </div>
-            </div>
-
-            <form id="login-form" class="space-y-5" novalidate>
-              <div>
-                <label class="block text-sm font-medium mb-1.5 text-slate-700" for="email">Email</label>
-                <input id="email" type="email" placeholder="you@company.com" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
-                <p class="fm-error hidden" data-error-for="email"></p>
-              </div>
-              <div>
-                <label class="block text-sm font-medium mb-1.5 text-slate-700" for="password">Password</label>
-                <input id="password" type="password" placeholder="••••••••" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
-                <p class="fm-error hidden" data-error-for="password"></p>
-              </div>
-              <div class="flex items-center justify-between text-sm">
-                <label class="flex items-center gap-2 text-slate-600">
-                  <input id="remember" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/40" />
-                  Remember me
-                </label>
-                <a href="forgot-password.html" class="text-blue-600 hover:underline">Forgot password?</a>
-              </div>
-              <button id="sign-in" type="button" class="w-full rounded-lg bg-blue-600 text-white py-2.5 font-medium shadow-sm shadow-blue-600/20 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
-                Sign In
-              </button>
-              <div class="text-center">
-                <button id="otp-login-btn" type="button" class="text-sm text-blue-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 rounded">
-                  Sign in with Email OTP instead
-                </button>
-              </div>
-              <div id="login-inline-error" class="hidden"></div>
-
-              <div class="relative flex items-center">
-                <div class="flex-grow border-t border-slate-200"></div>
-                <span class="mx-3 text-xs text-slate-400 shrink-0">or</span>
-                <div class="flex-grow border-t border-slate-200"></div>
-              </div>
-
-              <button id="azure-sso-btn" type="button"
-                class="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 21" class="h-5 w-5 shrink-0" aria-hidden="true">
-                  <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
-                  <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
-                  <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
-                  <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
-                </svg>
-                Sign in with Microsoft
-              </button>
-            </form>
-
+  <body class="bg-[#f4f6fb] text-[#141a3f] min-h-screen antialiased">
+    <main class="min-h-screen flex">
+      <!-- Left: sign-in -->
+      <section class="flex-1 min-w-0 flex flex-col gap-10 px-6 py-10 sm:px-12 lg:px-20 xl:px-24">
+        <div class="flex items-center gap-3.5">
+          <div class="h-[52px] w-[52px] rounded-[14px] bg-white border border-[#e3e7f1] shadow-sm flex items-center justify-center">
+            <img src="assets/finemark-logo.svg" alt="Finemark logo" class="h-10 w-10" />
           </div>
+          <span class="text-2xl font-bold tracking-tight">Finemark</span>
         </div>
 
-        
-      </div>
+        <div class="w-full max-w-[480px] bg-white border border-[#e3e7f1] rounded-[18px] shadow-[0_12px_32px_rgba(27,34,96,0.06)] p-6 sm:p-10">
+          <div class="mb-6">
+            <h1 class="text-[28px] leading-tight font-bold tracking-tight">Sign in to your account</h1>
+            <p class="mt-2 text-[15px] text-[#565e7c]">Welcome back. Choose how you'd like to sign in.</p>
+          </div>
+
+          <form id="login-form" class="space-y-6" novalidate>
+            <button id="azure-sso-btn" type="button"
+              class="flex w-full h-[52px] items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white px-4 text-base font-semibold text-[#141a3f] hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2fa9df]/60 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 21" class="h-5 w-5 shrink-0" aria-hidden="true">
+                <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+              </svg>
+              Sign in with Microsoft
+            </button>
+
+            <div class="flex items-center gap-4 text-[13px] font-semibold tracking-[0.08em] text-[#6b7391]">
+              <div class="flex-1 h-px bg-[#e3e7f1]"></div>OR<div class="flex-1 h-px bg-[#e3e7f1]"></div>
+            </div>
+
+            <div role="tablist" aria-label="Sign-in method" class="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#eef1f8]">
+              <button id="tab-password" type="button" role="tab" aria-selected="true" aria-controls="panel-password"
+                class="login-tab h-11 rounded-[9px] text-[15px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2fa9df]/60 bg-white text-[#141a3f] shadow-sm">Password</button>
+              <button id="tab-code" type="button" role="tab" aria-selected="false" aria-controls="panel-code"
+                class="login-tab h-11 rounded-[9px] text-[15px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2fa9df]/60 text-[#565e7c]">Email code</button>
+            </div>
+
+            <div id="login-inline-error" class="hidden"></div>
+
+            <div>
+              <label class="block text-[15px] font-semibold mb-2" for="email">Email address</label>
+              <input id="email" type="email" autocomplete="username" placeholder="you@company.com" class="w-full h-[52px] rounded-xl border border-slate-300 bg-white px-4 text-base text-[#141a3f] placeholder:text-[#8a91ab] focus:outline-none focus:border-[#2fa9df] focus-visible:ring-[3px] focus-visible:ring-[#2fa9df]/25" />
+              <p class="fm-error hidden" data-error-for="email"></p>
+            </div>
+
+            <div id="panel-password" role="tabpanel" aria-labelledby="tab-password" class="space-y-6">
+              <div>
+                <div class="flex items-baseline justify-between gap-3 mb-2">
+                  <label class="text-[15px] font-semibold" for="password">Password</label>
+                  <a href="forgot-password.html" class="text-[15px] font-semibold text-[#2f3c93] hover:underline">Forgot password?</a>
+                </div>
+                <div class="relative">
+                  <input id="password" type="password" autocomplete="current-password" placeholder="Enter your password" class="w-full h-[52px] rounded-xl border border-slate-300 bg-white pl-4 pr-14 text-base text-[#141a3f] placeholder:text-[#8a91ab] focus:outline-none focus:border-[#2fa9df] focus-visible:ring-[3px] focus-visible:ring-[#2fa9df]/25" />
+                  <button id="toggle-password" type="button" aria-label="Show password" aria-pressed="false"
+                    class="absolute top-1 right-1 h-11 w-11 flex items-center justify-center rounded-[10px] text-[#6b7391] hover:text-[#141a3f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2fa9df]/60">
+                    <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
+                </div>
+                <p class="fm-error hidden" data-error-for="password"></p>
+              </div>
+              <label class="flex items-center gap-2.5 text-[15px] text-[#3c4462] cursor-pointer">
+                <input id="remember" type="checkbox" class="h-[18px] w-[18px] rounded border-slate-300 accent-[#2f3c93]" />
+                Remember me
+              </label>
+              <button id="sign-in" type="button" class="w-full h-[54px] rounded-xl bg-[#2f3c93] text-white text-[17px] font-bold shadow-[0_6px_16px_rgba(47,60,147,0.28)] hover:bg-[#28337f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#2fa9df]">
+                Sign in
+              </button>
+            </div>
+
+            <div id="panel-code" role="tabpanel" aria-labelledby="tab-code" class="space-y-6 hidden">
+              <p class="text-[15px] text-[#565e7c]">We'll email you a 6-digit code. Enter it on the next step to finish signing in.</p>
+              <button id="otp-login-btn" type="button" class="w-full h-[54px] rounded-xl bg-[#2f3c93] text-white text-[17px] font-bold shadow-[0_6px_16px_rgba(47,60,147,0.28)] hover:bg-[#28337f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#2fa9df]">
+                Send code
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <p class="text-sm text-[#565e7c]">Need access? Contact your administrator.</p>
+      </section>
+
+      <!-- Right: brand panel (hidden on small screens so the form comes first) -->
+      <aside class="hidden lg:flex flex-1 min-w-0 relative overflow-hidden bg-[#1b2260] items-end p-12 2xl:p-[88px]" aria-hidden="true">
+        <svg viewBox="0 0 700 700" preserveAspectRatio="xMaxYMin slice" class="absolute top-0 right-0 w-full h-[62%]">
+          <g fill="none" stroke="#2fa9df">
+            <circle cx="700" cy="0" r="110" stroke-width="2" stroke-opacity=".35"/>
+            <circle cx="700" cy="0" r="200" stroke-width="2" stroke-opacity=".26"/>
+            <circle cx="700" cy="0" r="290" stroke-width="2" stroke-opacity=".19"/>
+            <circle cx="700" cy="0" r="380" stroke-width="2" stroke-opacity=".14"/>
+            <circle cx="700" cy="0" r="470" stroke-width="2" stroke-opacity=".10"/>
+            <circle cx="700" cy="0" r="560" stroke-width="2" stroke-opacity=".07"/>
+          </g>
+          <path d="M120 430 C 210 410, 240 360, 360 330 S 520 250, 600 140" fill="none" stroke="#5b6bd6" stroke-width="3" stroke-dasharray="2 12" stroke-linecap="round"/>
+          <circle cx="120" cy="430" r="18" fill="#2fa9df" fill-opacity=".18"/>
+          <circle cx="120" cy="430" r="6" fill="#2fa9df"/>
+          <circle cx="360" cy="330" r="18" fill="#2fa9df" fill-opacity=".18"/>
+          <circle cx="360" cy="330" r="6" fill="#2fa9df"/>
+          <circle cx="600" cy="140" r="22" fill="#2fa9df" fill-opacity=".22"/>
+          <circle cx="600" cy="140" r="8" fill="#ffffff"/>
+        </svg>
+        <div class="relative max-w-[520px] space-y-6">
+          <p class="text-[44px] xl:text-[52px] 2xl:text-[64px] leading-[1.02] font-extrabold tracking-[-0.035em] text-white">Every vehicle.<br />Every device.<br /><span class="text-[#2fa9df]">One console.</span></p>
+          <p class="text-lg leading-relaxed text-[#c9cfee]">Tracking, installations, speed governors, certificates and inventory — managed by your whole team in one place.</p>
+        </div>
+      </aside>
     </main>
 
     <div id="otp-modal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/40 px-4">
       <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-slate-200">
         <div class="flex items-center justify-between">
-          <h2 class="text-lg font-semibold text-slate-900">Verify your email</h2>
-          <button id="otp-close" type="button" class="text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 rounded">
+          <h2 class="text-lg font-semibold text-[#141a3f]">Verify your email</h2>
+          <button id="otp-close" type="button" aria-label="Close" class="text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2fa9df]/60 rounded">
             ✕
           </button>
         </div>
-        <p class="mt-2 text-sm text-slate-500">
-          We sent a 6-digit code to <strong id="otp-target-email-display" class="text-slate-700">your email</strong>. Enter it below to complete sign-in.
+        <p class="mt-2 text-sm text-[#565e7c]">
+          We sent a 6-digit code to <strong id="otp-target-email-display" class="text-[#141a3f]">your email</strong>. Enter it below to complete sign-in.
         </p>
         <div class="mt-4">
-          <label class="block text-sm font-medium mb-1.5 text-slate-700" for="otp">Email OTP</label>
-          <input id="otp" type="text" inputmode="numeric" maxlength="6" placeholder="123456" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus:border-blue-500" />
+          <label class="block text-sm font-semibold mb-1.5" for="otp">Email code</label>
+          <input id="otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" class="w-full h-12 rounded-xl border border-slate-300 bg-white px-4 text-[#141a3f] placeholder:text-[#8a91ab] focus:outline-none focus:border-[#2fa9df] focus-visible:ring-[3px] focus-visible:ring-[#2fa9df]/25" />
           <p id="otp-error" class="mt-1 text-xs text-red-600 hidden">OTP is required.</p>
         </div>
         <div class="mt-5 flex items-center justify-end gap-3">
-          <button id="otp-cancel" type="button" class="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+          <button id="otp-cancel" type="button" class="h-11 rounded-xl border border-slate-300 px-4 text-sm text-[#3c4462] hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2fa9df]/60">
             Cancel
           </button>
-          <button id="otp-verify" type="button" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+          <button id="otp-verify" type="button" class="h-11 rounded-xl bg-[#2f3c93] px-5 text-sm font-semibold text-white hover:bg-[#28337f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#2fa9df]">
             Verify
           </button>
         </div>
       </div>
     </div>
 
-    
-  
 <script src="assets/contracts.js"></script>
 <script src="assets/app.js?v=202607011748"></script>
 <script src="assets/layout.js?v=202607011016"></script>
@@ -203,7 +249,8 @@
             });
             if (!resp.ok) {
               const err = await resp.json().catch(() => ({}));
-              throw new Error(err.error || "Exchange failed");
+              // Backend errors come as either { error: "msg" } or { error: { code, message } }
+              throw new Error(err.error?.message || (typeof err.error === "string" ? err.error : "") || "Microsoft sign-in failed. Please try again.");
             }
             const response = await resp.json();
             window.FINEMARK_APP.setSession(response);
@@ -370,6 +417,43 @@
 
       otpCancel.addEventListener("click", hideOtpModal);
       otpClose.addEventListener("click", hideOtpModal);
+
+      // ── Password / Email code tabs ───────────────────────────────────────
+      const loginTabs = [
+        { tab: document.getElementById("tab-password"), panel: document.getElementById("panel-password") },
+        { tab: document.getElementById("tab-code"), panel: document.getElementById("panel-code") },
+      ];
+      const TAB_ON = ["bg-white", "text-[#141a3f]", "shadow-sm"];
+      const TAB_OFF = ["text-[#565e7c]"];
+      let activeLoginTab = "tab-password";
+      const selectLoginTab = (id) => {
+        activeLoginTab = id;
+        window.FINEMARK_APP?.clearFormErrors?.(formEl);
+        loginTabs.forEach(({ tab, panel }) => {
+          const on = tab.id === id;
+          tab.setAttribute("aria-selected", String(on));
+          tab.classList.remove(...(on ? TAB_OFF : TAB_ON));
+          tab.classList.add(...(on ? TAB_ON : TAB_OFF));
+          panel.classList.toggle("hidden", !on);
+        });
+      };
+      loginTabs.forEach(({ tab }) => tab.addEventListener("click", () => selectLoginTab(tab.id)));
+
+      // Enter submits whichever method is showing
+      formEl.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter" || e.target.tagName !== "INPUT" || e.target.type === "checkbox") return;
+        e.preventDefault();
+        (activeLoginTab === "tab-code" ? otpLoginBtn : signInButton).click();
+      });
+
+      // Show / hide password
+      const togglePasswordBtn = document.getElementById("toggle-password");
+      togglePasswordBtn.addEventListener("click", () => {
+        const show = passwordInput.type === "password";
+        passwordInput.type = show ? "text" : "password";
+        togglePasswordBtn.setAttribute("aria-pressed", String(show));
+        togglePasswordBtn.setAttribute("aria-label", show ? "Hide password" : "Show password");
+      });
     </script>
 </body>
 </html>

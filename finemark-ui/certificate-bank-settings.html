@@ -56,6 +56,7 @@
                   <tr class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-200">
                     <th class="px-4 py-2.5 min-w-[120px]">Bank</th>
                     <th class="px-4 py-2.5 min-w-[200px]">Full Name</th>
+                    <th class="px-4 py-2.5 min-w-[170px]">Linked Partner</th>
                     <th class="px-4 py-2.5 min-w-[150px]">Template</th>
                     <th class="px-3 py-2.5 text-center">Show<br/>Chassis</th>
                     <th class="px-3 py-2.5 text-center">Show<br/>Engine</th>
@@ -67,7 +68,7 @@
                   </tr>
                 </thead>
                 <tbody id="bank-config-tbody">
-                  <tr><td colspan="10" class="px-4 py-8 text-center text-slate-400">Loading…</td></tr>
+                  <tr><td colspan="11" class="px-4 py-8 text-center text-slate-400">Loading…</td></tr>
                 </tbody>
               </table>
             </div>
@@ -82,6 +83,8 @@
     <script src="assets/layout.js"></script>
     <script>
       let banks = [];
+      let partners = [];  // partner master list — powers the Linked Partner dropdown
+      const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
       // Rows the user has started editing but not yet saved — keyed by row id
       // (real id, or a synthetic "new-N" id for not-yet-created rows) — so a
       // re-render (e.g. after another row saves) never clobbers in-progress edits.
@@ -99,13 +102,22 @@
         setTimeout(() => banner.classList.add("hidden"), 4000);
       }
 
+      async function loadPartners() {
+        try {
+          const d = await window.FINEMARK_APP.apiFetch("/partners?pageSize=500");
+          partners = (d?.data ?? []).slice().sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        } catch {
+          partners = []; // dropdown falls back to the current link only
+        }
+      }
+
       async function loadBanks() {
         try {
           const r = await window.FINEMARK_APP.apiFetch("/certificates/bank-configs");
           banks = r?.data ?? [];
           render();
         } catch (err) {
-          tbody.innerHTML = `<tr><td colspan="10" class="px-4 py-8 text-center text-rose-600">${err.message || "Failed to load."}</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="11" class="px-4 py-8 text-center text-rose-600">${err.message || "Failed to load."}</td></tr>`;
         }
       }
 
@@ -115,7 +127,7 @@
 
       function render() {
         if (!banks.length) {
-          tbody.innerHTML = `<tr><td colspan="10" class="px-4 py-8 text-center text-slate-400">No banks configured yet.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="11" class="px-4 py-8 text-center text-slate-400">No banks configured yet.</td></tr>`;
           return;
         }
         tbody.innerHTML = banks.map((bank) => {
@@ -134,6 +146,20 @@
                 oninput="setField('${bank.id}','fullName',this.value)"
                 placeholder="e.g. NCBA Bank Kenya PLC"
                 class="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm" />
+            </td>
+            <td class="px-4 py-2 text-xs">
+              ${bank.isDefault
+                ? `<span class="text-slate-400 italic">—</span>`
+                : (() => {
+                    const cur = b.partnerId != null ? String(b.partnerId) : "";
+                    const known = partners.some((p) => String(p.id) === cur);
+                    return `<select onchange="setField('${bank.id}','partnerId',this.value||null)"
+                        class="w-full max-w-[260px] rounded-lg border ${cur ? "border-emerald-300 bg-emerald-50/40" : "border-amber-300 bg-amber-50/40"} px-2.5 py-1.5 text-sm">
+                        <option value="" ${cur ? "" : "selected"}>— Not linked —</option>
+                        ${partners.map((p) => `<option value="${esc(p.id)}" ${String(p.id) === cur ? "selected" : ""}>${esc(p.name)}${p.tier ? " · " + esc(p.tier) : ""}</option>`).join("")}
+                        ${cur && !known ? `<option value="${esc(cur)}" selected>${esc(b.partnerName || "Linked (current)")}</option>` : ""}
+                      </select>`;
+                  })()}
             </td>
             <td class="px-4 py-2">
               <select onchange="setField('${bank.id}','template',this.value)" class="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm bg-white">
@@ -199,6 +225,8 @@
           showTracker: !!state.showTracker,
           maxImei: Number(state.maxImei) || 0,
           maxTracker: Number(state.maxTracker) || 0,
+          // Explicit partner link chosen from the dropdown (null = not linked).
+          partnerId: state.partnerId || null,
         };
         try {
           if (isNew) {
@@ -266,8 +294,9 @@
         }
       });
 
-      document.addEventListener("DOMContentLoaded", () => {
+      document.addEventListener("DOMContentLoaded", async () => {
         window.FINEMARK_APP?.requirePageAccess?.();
+        await loadPartners();
         loadBanks();
       });
     </script>

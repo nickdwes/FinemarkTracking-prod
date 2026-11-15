@@ -188,7 +188,7 @@
       async function apiFetch(path, opts = {}) {
         const { method = "GET", body } = opts;
         try {
-          const data = await window.APP.apiFetch(path, { method, body });
+          const data = await window.FINEMARK_APP.apiFetch(path, { method, body });
           return { ok: true, status: 200, json: async () => data };
         } catch(err) {
           return { ok: false, status: err.status || 500, json: async () => ({ error: { message: err.message || "Request failed" } }) };
@@ -399,14 +399,29 @@
         el("inst-tbody").innerHTML = "";
 
         try {
-          // Fetch up to 1000 to get pipeline stats + local filter
-          const r = await apiFetch("/vehicle-installations?pageSize=1000&page=1");
-          if (!r.ok) {
+          // Stats, pipeline and filters all run on the full set, but the API caps a page at
+          // 200 rows — so read page 1 for the total, then fetch the remaining pages.
+          const PAGE = 200;
+          const fetchPage = async (page) => {
+            const r = await apiFetch(`/vehicle-installations?pageSize=${PAGE}&page=${page}`);
             const j = await r.json();
-            throw new Error(j.error?.message || "Failed to load installations.");
+            if (!r.ok) throw new Error(j.error?.message || "Failed to load installations.");
+            return j;
+          };
+          const first = await fetchPage(1);
+          const rows = [...(first.data?.data || first.data || [])];
+          const total = Number(first.meta?.total ?? first.data?.meta?.total ?? rows.length);
+          const pages = Math.ceil(total / PAGE);
+          for (let p = 2; p <= pages; p += 4) {
+            if (pages > 1) el("table-skeleton").textContent = `Loading installations… ${rows.length.toLocaleString()} of ${total.toLocaleString()}`;
+            const batch = await Promise.all(
+              Array.from({ length: Math.min(4, pages - p + 1) }, (_, k) => fetchPage(p + k))
+            );
+            batch.forEach(j => rows.push(...(j.data?.data || j.data || [])));
           }
-          const json = await r.json();
-          allData = (json.data?.data || json.data || []);
+          // Drop any row repeated across page boundaries (e.g. inserted mid-load)
+          const seen = new Set();
+          allData = rows.filter(r => !seen.has(r.id) && seen.add(r.id));
 
           renderStats(allData);
           renderPipeline(allData);

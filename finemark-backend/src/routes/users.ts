@@ -4,7 +4,7 @@ import { requireRole, LEGACY_ROLE_MAP, ROLE_GROUPS } from "../middleware/rbac.js
 import { errorResponse } from "../utils/responses.js";
 import { auditLog } from "../services/auditService.js";
 import { createUserSchema, updateUserSchema, resetPasswordSchema, listUsersQuerySchema } from "../utils/validators.js";
-import { listUsers, createUser, updateUser, adminResetPassword, invalidateUserRefreshTokens, getUserById } from "../services/userService.js";
+import { listUsers, createUser, updateUser, adminResetPassword, invalidateUserRefreshTokens, getUserById, unlockUser } from "../services/userService.js";
 import { pgGet, pgRun } from "../db.js";
 import { validatePassword } from "../utils/passwordPolicy.js";
 import { cacheDeleteByPrefix, cacheGetOrSet } from "../utils/cache.js";
@@ -34,6 +34,9 @@ const mapUser = (row: any) => ({
   id: row.id, name: row.name, email: row.email, role: row.role, status: row.status,
   lastLoginAt: row.last_login_at, createdAt: row.created_at, updatedAt: row.updated_at,
   forcePasswordReset: Boolean(row.force_password_reset),
+  failedLoginAttempts: Number(row.failed_login_attempts || 0),
+  lockedUntil: row.locked_until || null,
+  isLocked: !!(row.locked_until && new Date(row.locked_until).getTime() > Date.now()),
 });
 
 router.get("/", requireAuth, async (req, res) => {
@@ -174,6 +177,17 @@ router.post("/:id/reset-password", requireAuth, requireRole(ROLE_GROUPS.ADMIN_ON
   const updated = await adminResetPassword(req.params.id, parsed.data.tempPassword, parsed.data.forcePasswordReset);
   auditLog(req, "ADMIN_PASSWORD_RESET", `user:${req.params.id}`, "Warning", { email: updated.email }).catch(console.error);
   return res.status(200).json({ data: mapUser(updated), message: "Password reset issued" });
+});
+
+// ── Unlock a locked-out account (admin) ─────────────────────────────────────
+router.post("/:id/unlock", requireAuth, requireRole(ROLE_GROUPS.ADMIN_ONLY), async (req, res) => {
+  const user = await getUserById(req.params.id);
+  if (!user) return errorResponse(res, 404, "NOT_FOUND", "User not found.");
+  const wasLocked = !!(user.locked_until && new Date(user.locked_until).getTime() > Date.now());
+  const updated = await unlockUser(req.params.id);
+  invalidateUsersCache();
+  auditLog(req, "USER_UNLOCKED", `user:${req.params.id}`, "Warning", { email: updated.email, wasLocked }).catch(console.error);
+  return res.status(200).json({ data: mapUser(updated), message: "Account unlocked" });
 });
 
 export default router;

@@ -281,6 +281,8 @@ async function init() {
         customName:        isCustom ? (it.deviceModel || it.description || "") : "",
         customDescription: isCustom ? (it.description || "") : "",
         customPrice:       isCustom ? (it.unitPrice || 0) : 0,
+        isService:         !!prod?.isService,
+        quantity:          Math.max(1, parseInt(it.quantity) || 1),
         selectedDevices: (it.stockItemIds || []).map((sid, j) => ({
           id:     sid,
           serial: (it.serialNumbers || [])[j] || "—",
@@ -320,6 +322,7 @@ async function loadProducts() {
       salePrice:         Number(p.salePrice         ?? p.sale_price         ?? 0),
       installationPrice: Number(p.installationPrice ?? p.installation_price ?? 0),
       subscriptionPrice: Number(p.subscriptionPrice ?? p.subscription_price ?? 0),
+      isService:         (p.tracksInventory ?? p.tracks_inventory) === false,
     }));
   } catch { _productCache = []; }
   return _productCache;
@@ -359,7 +362,7 @@ async function loadVehicles(customerId) {
       vehs.forEach(v => {
         const o = document.createElement("option");
         o.value = v.id;
-        o.textContent = `${v.registration || v.make || "Vehicle"} ${v.model ? "— " + v.model : ""}`.trim();
+        o.textContent = window.FINEMARK_APP.vehicleLabel(v);
         sel.appendChild(o);
       });
     } else if (!_quote.vehicleId) {
@@ -420,8 +423,22 @@ function updatePrice(id, field, val) {
   recalcTotals();
 }
 
+/* Service (no-inventory) lines carry a typed quantity; device lines count the picked devices. */
+function itemQty(item) {
+  return item.isService ? Math.max(1, parseInt(item.quantity) || 1) : Math.max(item.selectedDevices.length, 1);
+}
+function updateQty(id, val) {
+  const item = _items.find(i => i.id === id);
+  if (!item) return;
+  item.quantity = Math.max(1, parseInt(val) || 1);
+  refreshRowTotal(item);
+  const lbl = $("eq-qty-note-" + id);
+  if (lbl) lbl.textContent = item.quantity;
+  recalcTotals();
+}
+
 function refreshRowTotal(item) {
-  const qty = Math.max(item.selectedDevices.length, 1);
+  const qty = itemQty(item);
   const el = $("eq-row-total-" + item.id);
   if (el) el.textContent = "KES " + fmtN((item.unitPrice + item.installationPrice + item.subscriptionPrice) * qty);
 }
@@ -449,6 +466,8 @@ async function onProductChange(id, productId) {
     item.unitPrice         = prod.salePrice || 0;
     item.installationPrice = prod.installationPrice || 0;
     item.subscriptionPrice = prod.subscriptionPrice || 0;
+    item.isService         = !!prod.isService;
+    item.quantity          = 1;
   }
   delete _deviceCache[productId];
   renderItems(); recalcTotals();
@@ -545,7 +564,7 @@ function renderItems() {
     }
 
     // ── Product mode ──────────────────────────────────────────────────────────
-    const qty = Math.max(item.selectedDevices.length, 1);
+    const qty = itemQty(item);
     const rowTotal = (item.unitPrice + item.installationPrice + item.subscriptionPrice) * qty;
     const chips = item.selectedDevices.map(d => `
       <span class="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-xs font-medium whitespace-nowrap">
@@ -555,7 +574,7 @@ function renderItems() {
         <button type="button" onmousedown="event.preventDefault();removeDevice(${item.id},'${d.id}')"
           class="ml-0.5 rounded-full hover:bg-indigo-200 w-4 h-4 flex items-center justify-center text-indigo-600 leading-none text-sm">&times;</button>
       </span>`).join("");
-    const addDevBtn = item.productId ? `
+    const addDevBtn = item.productId && !item.isService ? `
       <div class="relative inline-block">
         <button type="button" onclick="toggleDeviceDropdown(${item.id})"
           class="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium border border-blue-200 rounded-full px-2 py-0.5 hover:bg-blue-50">
@@ -578,12 +597,16 @@ function renderItems() {
             ${prodOpts}
           </select>
         </div>
-        <div class="shrink-0 text-xs text-slate-500 font-semibold w-14 text-center">Qty: <span class="text-slate-800">${qty}</span></div>
+        ${item.isService
+          ? `<label class="shrink-0 text-xs text-slate-500 font-semibold flex items-center gap-1">Qty:
+               <input type="number" min="1" step="1" value="${qty}" oninput="updateQty(${item.id}, this.value)"
+                 class="w-16 border border-slate-200 rounded-lg px-2 py-1 text-sm text-right focus:outline-none focus:border-emerald-400 bg-white" /></label>`
+          : `<div class="shrink-0 text-xs text-slate-500 font-semibold w-14 text-center">Qty: <span class="text-slate-800">${qty}</span></div>`}
         <button type="button" onclick="removeItem(${item.id})" class="shrink-0 text-red-400 hover:text-red-600 text-xl leading-none">&times;</button>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <div>
-          <label class="block text-xs text-slate-500 mb-0.5">Device Price (KES)</label>
+          <label class="block text-xs text-slate-500 mb-0.5">${item.isService ? "Service Price" : "Device Price"} (KES)</label>
           <input type="number" min="0" step="0.01" placeholder="0.00" value="${item.unitPrice || ""}"
             oninput="updatePrice(${item.id},'unitPrice',this.value)"
             class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:border-emerald-400 bg-white" />
@@ -603,10 +626,10 @@ function renderItems() {
       </div>
       <div class="flex items-center justify-between">
         <div id="eq-row-total-${item.id}" class="text-sm font-semibold text-emerald-700">KES ${fmtN(rowTotal)}</div>
-        <div class="text-xs text-slate-400">(device + install + sub) &times; ${qty}</div>
+        <div class="text-xs text-slate-400">(${item.isService ? "service" : "device"} + install + sub) &times; <span id="eq-qty-note-${item.id}">${qty}</span></div>
       </div>
       <div class="flex flex-wrap items-center gap-1.5 min-h-[1.75rem] pt-0.5 border-t border-slate-200">
-        ${chips}
+        ${item.isService ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 font-semibold">SERVICE</span><span class="text-xs text-slate-400 italic">No inventory, so no device is needed</span>' : chips}
         ${addDevBtn}
         ${!item.productId ? '<span class="text-xs text-slate-400 italic">Select a product above to pick devices</span>' : ""}
       </div>
@@ -675,7 +698,7 @@ function addEqFeatureToDescription(id, featureIdx) {
 function recalcTotals() {
   const subtotal = _items.reduce((s, i) => {
     if (i.type === "custom") return s + (i.customPrice || 0);
-    const qty = Math.max(i.selectedDevices.length, 1);
+    const qty = itemQty(i);
     return s + (i.unitPrice + i.installationPrice + i.subscriptionPrice) * qty;
   }, 0);
   const taxRate  = parseFloat($("eq-tax").value)      || 0;
@@ -727,8 +750,8 @@ async function saveEdit() {
           stockItemId:  null,
         };
       }
-      const devs = it.selectedDevices || [];
-      const qty  = Math.max(devs.length, 1);
+      const devs = it.isService ? [] : (it.selectedDevices || []);
+      const qty  = itemQty(it);
       const combined = it.unitPrice + it.installationPrice + it.subscriptionPrice;
       return {
         productId:    it.productId   || null,

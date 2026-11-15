@@ -39,6 +39,8 @@ export const CAPABILITY_DEFS: Record<string, { label: string; pages: string[] }>
   crm_leads_manage:     { label: "Manage Leads", pages: ["crm-leads.html", "crm-lead-detail.html"] },
   crm_leads_convert:    { label: "Convert Leads", pages: ["crm-leads.html"] },
   crm_retail_leads:     { label: "Retail Leads (Booking & Demand Requests)", pages: ["retail-leads.html", "retail-lead-detail.html", "retail-lead-new.html"] },
+  crm_customer_service_reports: { label: "Customer Service Reports", pages: ["customer-service-reports.html"] },
+  crm_customer_vehicle_report:  { label: "Customer Vehicle Report", pages: ["customer-vehicle-report.html"] },
   crm_quotes_view:      { label: "View Quotes", pages: ["crm-quotes.html", "crm-quote-detail.html"] },
   crm_quotes_manage:    { label: "Manage Quotes", pages: ["crm-quotes.html", "crm-quote-detail.html"] },
   crm_proforma_view:    { label: "View Proforma Invoices", pages: ["crm-proforma.html"] },
@@ -57,6 +59,7 @@ export const CAPABILITY_DEFS: Record<string, { label: string; pages: string[] }>
   finance_dashboard:       { label: "Finance Dashboard", pages: ["finance-dashboard.html"] },
   finance_invoice_dashboard: { label: "Invoice Dashboard", pages: ["finance-invoice-dashboard.html"] },
   finance_reports:         { label: "Finance Reports", pages: ["financial-reports.html", "invoice-follow-up.html", "invoice-followup.html", "sales-report-by-bank.html", "sales-performance.html"] },
+  finance_doc_config:      { label: "Document Configuration (branding, VAT & bill-to)", pages: ["doc-bank-settings.html"] },
   // Installation
   install_tickets_raise:       { label: "Raise Installation Tickets", pages: ["create-request.html"] },
   install_tickets_view:        { label: "View Installation Pipeline", pages: ["technical.html", "installation-ticket.html", "crm-tickets.html", "vehicle-installation.html", "installation-complete.html", "vehicle-details-check.html"] },
@@ -65,6 +68,7 @@ export const CAPABILITY_DEFS: Record<string, { label: string; pages: string[] }>
   install_job_close:           { label: "Close Jobs", pages: ["installation-ticket.html", "installation-complete.html"] },
   install_technical_dashboard: { label: "Technical Dashboard", pages: ["technical-dashboard.html", "report-technical.html"] },
   install_technician:          { label: "Technician Workspace", pages: ["technician-jobs.html", "technician.html"] },
+  install_uninstall_queue:     { label: "GPS Uninstall Queue", pages: ["gps-uninstall-queue.html"] },
   // Inventory
   inv_view:           { label: "View Inventory", pages: ["inventory-dashboard.html", "inventory-catalog.html"] },
   inv_manage:         { label: "Manage Inventory Items", pages: ["inventory-items.html"] },
@@ -133,13 +137,14 @@ export const CAPABILITY_DEFS: Record<string, { label: string; pages: string[] }>
   admin_reports:      { label: "System Reports", pages: ["report-sales.html", "report-sim-cards.html"] },
   admin_verification: { label: "Admin Verification", pages: ["admin-verification.html"] },
   admin_maker_checker:{ label: "Maker-Checker Approvals", pages: ["maker-checker.html"] },
+  admin_device_swap:  { label: "Swap Job Devices", pages: ["admin-device-swap.html"] },
 };
 
 // Module groupings for UI display
 export const CAPABILITY_MODULES: Record<string, { label: string; capabilities: string[] }> = {
-  crm:     { label: "CRM & Sales", capabilities: ["crm_customers_view","crm_customers_manage","crm_leads_view","crm_leads_manage","crm_leads_convert","crm_retail_leads","crm_quotes_view","crm_quotes_manage","crm_proforma_view","crm_proforma_manage","crm_proforma_approve","crm_campaigns","crm_partners","crm_sales_catalogue","crm_inventory_allocate"] },
-  finance: { label: "Finance", capabilities: ["finance_invoices_view","finance_invoices_create","finance_invoices_amend","finance_invoices_etims","finance_payments","finance_dashboard","finance_invoice_dashboard","finance_reports"] },
-  install: { label: "Installation", capabilities: ["install_tickets_raise","install_tickets_view","install_tickets_assign","install_job_card","install_job_close","install_technical_dashboard","install_technician"] },
+  crm:     { label: "CRM & Sales", capabilities: ["crm_customers_view","crm_customers_manage","crm_leads_view","crm_leads_manage","crm_leads_convert","crm_retail_leads","crm_quotes_view","crm_quotes_manage","crm_proforma_view","crm_proforma_manage","crm_proforma_approve","crm_campaigns","crm_partners","crm_sales_catalogue","crm_inventory_allocate","crm_customer_service_reports","crm_customer_vehicle_report"] },
+  finance: { label: "Finance", capabilities: ["finance_invoices_view","finance_invoices_create","finance_invoices_amend","finance_invoices_etims","finance_payments","finance_dashboard","finance_invoice_dashboard","finance_reports","finance_doc_config"] },
+  install: { label: "Installation", capabilities: ["install_tickets_raise","install_tickets_view","install_tickets_assign","install_job_card","install_job_close","install_technical_dashboard","install_technician","install_uninstall_queue"] },
   inv:     { label: "Inventory", capabilities: ["inv_view","inv_manage","inv_sim_manage","inv_sim_issue","inv_custody_report","inv_procurement","inv_warranty","inv_device_custody","inv_partner_pricing","inv_recycle_bin","inv_gadgets","inv_speed_governor","veh_data_manage"] },
   vehicle: { label: "Vehicle Registry", capabilities: ["veh_registry_view"] },
   archive: { label: "Archive", capabilities: [
@@ -151,7 +156,7 @@ export const CAPABILITY_MODULES: Record<string, { label: string; capabilities: s
   cert:    { label: "Certificates", capabilities: ["cert_generate","cert_deliver","cert_view_pdf"] },
   exec:    { label: "Executive", capabilities: ["exec_dashboard"] },
   hr:      { label: "HR", capabilities: ["hr_dashboard","hr_self_service","hr_leave_approve","hr_leave_config","hr_employees","hr_benefits","hr_performance","hr_emp_config","hr_reports"] },
-  admin:   { label: "Administration", capabilities: ["admin_users","admin_audit","admin_settings","admin_access","admin_reports","admin_verification","admin_maker_checker"] },
+  admin:   { label: "Administration", capabilities: ["admin_users","admin_audit","admin_settings","admin_access","admin_reports","admin_verification","admin_maker_checker","admin_device_swap"] },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -228,13 +233,13 @@ const SYSTEM_ROLE_CAPABILITIES: Record<string, string[]> = {
   ],
   Technician: [
     "crm_customers_view","crm_leads_view",
-    "install_tickets_view","install_job_card","install_technician","veh_registry_view",
+    "install_tickets_view","install_job_card","install_technician","install_uninstall_queue","veh_registry_view",
     "inv_view","inv_device_custody",
     "archive_certificates_view",
     "hr_self_service",
   ],
   Technical: [
-    "install_tickets_view","install_tickets_assign","install_job_card","install_job_close","install_technical_dashboard",
+    "install_tickets_view","install_tickets_assign","install_job_card","install_job_close","install_technical_dashboard","install_uninstall_queue",
     "crm_inventory_allocate","veh_registry_view",
     "inv_view","inv_custody_report",
     "cert_view_pdf","archive_certificates_view",
@@ -242,7 +247,7 @@ const SYSTEM_ROLE_CAPABILITIES: Record<string, string[]> = {
   ],
   InstallOffice: [
     "crm_customers_view",
-    "install_tickets_view","install_tickets_assign","install_job_close","install_technical_dashboard",
+    "install_tickets_view","install_tickets_assign","install_job_close","install_technical_dashboard","install_uninstall_queue",
     "crm_inventory_allocate","veh_registry_view",
     "inv_view","inv_custody_report",
     "hr_self_service",
@@ -250,14 +255,15 @@ const SYSTEM_ROLE_CAPABILITIES: Record<string, string[]> = {
   CertAdmin: [
     "crm_customers_view",
     "install_tickets_view","veh_registry_view",
+    "finance_doc_config",
     "cert_generate","cert_deliver","cert_view_pdf","archive_installations_view","archive_bank_report_view","archive_technician_report_view","archive_tickets_view","archive_audit_log_view","archive_removals_log_view","archive_fuel_records_view","archive_speed_governors_view","archive_gadget_batch_report_view","archive_gadgets_in_store_view","archive_gadgets_at_hand_view","archive_sim_inventory_view","archive_retired_inventory_view","archive_retired_sims_view","archive_certificates_view",
     "hr_self_service",
   ],
   Finance: [
     "crm_customers_view","crm_quotes_view","crm_proforma_view","crm_proforma_approve",
     "finance_invoices_view","finance_invoices_create","finance_invoices_amend","finance_invoices_etims",
-    "finance_payments","finance_dashboard","finance_invoice_dashboard","finance_reports",
-    "install_tickets_view","veh_registry_view",
+    "finance_payments","finance_dashboard","finance_invoice_dashboard","finance_reports","finance_doc_config",
+    "install_tickets_view","install_uninstall_queue","veh_registry_view",
     "inv_view","inv_procurement",
     "archive_installations_view","archive_bank_report_view","archive_technician_report_view","archive_tickets_view","archive_audit_log_view","archive_removals_log_view","archive_fuel_records_view","archive_speed_governors_view","archive_gadget_batch_report_view","archive_gadgets_in_store_view","archive_gadgets_at_hand_view","archive_sim_inventory_view","archive_retired_inventory_view","archive_retired_sims_view","archive_certificates_view",
     "admin_maker_checker",
@@ -334,7 +340,7 @@ export async function initRoleConfigsSchema(): Promise<void> {
 // default (SYSTEM_ROLE_CAPABILITIES) includes it and the stored row doesn't
 // have it yet. Never removes a key — an admin may have deliberately revoked
 // a default capability, and this must not silently re-grant it.
-const CAPABILITY_BACKFILL_KEYS = ["veh_registry_view", "archive_installations_view","archive_sales_by_bank_view","archive_bank_report_view","archive_technician_report_view","archive_tickets_view","archive_audit_log_view","archive_removals_log_view","archive_fuel_records_view","archive_speed_governors_view","archive_gadget_batch_report_view","archive_gadgets_in_store_view","archive_gadgets_at_hand_view","archive_sim_inventory_view","archive_retired_inventory_view","archive_retired_sims_view", "archive_certificates_view"];
+const CAPABILITY_BACKFILL_KEYS = ["veh_registry_view", "archive_installations_view","archive_sales_by_bank_view","archive_bank_report_view","archive_technician_report_view","archive_tickets_view","archive_audit_log_view","archive_removals_log_view","archive_fuel_records_view","archive_speed_governors_view","archive_gadget_batch_report_view","archive_gadgets_in_store_view","archive_gadgets_at_hand_view","archive_sim_inventory_view","archive_retired_inventory_view","archive_retired_sims_view", "archive_certificates_view", "finance_doc_config", "install_uninstall_queue", "admin_device_swap"];
 
 export async function backfillNewRoleCapabilities(): Promise<void> {
   const rows = await pgAll(`SELECT role_key, capabilities_json FROM role_configs WHERE is_system = 1`, []);

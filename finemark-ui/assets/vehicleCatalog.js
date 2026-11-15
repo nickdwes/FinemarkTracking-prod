@@ -57,10 +57,23 @@
     return match?.bodyStyle || "";
   }
 
+  // Model-line production years for a make+model, derived from the models list.
+  // Returns { from, to, label } or null. NOTE: these are model-LINE ranges (when the
+  // model line was produced — free-source enrichment: DBpedia/NHTSA), NOT the specific
+  // grade/vehicle year (a long-running line like Land Cruiser shows 1951).
+  async function vehicleCatalogYears(make, model, category) {
+    if (!make || !model) return null;
+    const models = await vehicleCatalogModels(make, category);
+    const m = models.find((x) => x.model === model);
+    if (!m || !m.prodStart) return null;
+    return { from: m.prodStart, to: m.prodEnd || null, label: m.prodStart + "–" + (m.prodEnd || "present") };
+  }
+
   window.vehicleCatalogMakes = vehicleCatalogMakes;
   window.vehicleCatalogModels = vehicleCatalogModels;
   window.vehicleCatalogModelNumbers = vehicleCatalogModelNumbers;
   window.vehicleCatalogBodyType = vehicleCatalogBodyType;
+  window.vehicleCatalogYears = vehicleCatalogYears;
 
   // Shared category list for pages that render a Category <select> — value
   // matches vehicle_specs.vehicle_category exactly.
@@ -70,5 +83,14 @@
     { value: "tractor", label: "Tractor" },
     { value: "tuktuk", label: "Tuktuk" },
     { value: "special_equipment", label: "Special Equipment" },
+    // These three have no make/model/engine spec — see assets/vehicleAttributes.js.
+    // Codes must match vehicle_attribute_categories.code exactly.
+    { value: "fabricated_body", label: "Fabricated Body" },
+    { value: "trailers", label: "Trailers" },
+    { value: "special_cargo", label: "Special Cargo" },
   ];
+
+  // Categories backed by the configurable vehicle-attributes module (a single
+  // searchable + creatable "Type" instead of Make/Model/Model Number).
+  window.VEHICLE_ATTRIBUTE_CATEGORY_CODES = ["fabricated_body", "trailers", "special_cargo"];
 })();

@@ -9,6 +9,10 @@ import { auditLog } from "../services/auditService.js";
 
 const router = Router();
 
+// Postal / P.O. Box address for the partner (bank). Used as the billing address on
+// quotes, proformas and invoices whenever a document is billed to the partner bank.
+pgRun(`ALTER TABLE partners ADD COLUMN IF NOT EXISTS postal_address TEXT`, []).catch(() => {});
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function mapPartner(r: any) {
@@ -27,6 +31,7 @@ function mapPartner(r: any) {
     contractScope: r.contract_scope,
     contractStart: r.contract_start,
     contractExpiry: r.contract_expiry,
+    postalAddress: r.postal_address || null,
     notes: r.notes,
     status: r.status,
     createdAt: r.created_at,
@@ -57,7 +62,14 @@ async function partnerAudit(req: AuthRequest, action: string, target: string, de
 router.get(
   "/",
   requireAuth,
-  requireRole(["Admin", "Sales", "BDM", "BDMCorporate", "Finance", "Support", "Operations", "CertAdmin"]),
+  // Readable by all sales roles that can raise leads (the lead forms need the
+  // partner picker) plus finance/support/ops. CorporateSales/KAM/Telesales/
+  // FieldSales were previously omitted, so their retail-lead partner dropdown
+  // came back empty (403) on both web and mobile.
+  requireRole([
+    "Admin", "Sales", "CorporateSales", "KAM", "Telesales", "FieldSales",
+    "BDM", "BDMCorporate", "Finance", "Support", "Operations", "CertAdmin",
+  ]),
   async (req: AuthRequest, res) => {
     const { search = "", status = "", tier = "", page = "1", pageSize = "25" } = req.query as Record<string, string>;
     const offset = (parseInt(page) - 1) * parseInt(pageSize);
@@ -105,7 +117,7 @@ router.post(
     const {
       name, businessRegNo, regions, primaryContactName, contactEmail,
       contactPhone, tier, keyAccountManagerId, contractRef, contractScope,
-      contractStart, contractExpiry, notes,
+      contractStart, contractExpiry, notes, postalAddress,
     } = req.body;
 
     if (!name?.trim()) return errorResponse(res, 400, "VALIDATION_ERROR", "Partner name is required");
@@ -117,8 +129,8 @@ router.post(
       `INSERT INTO partners
          (id, name, business_reg_no, regions, primary_contact_name, contact_email,
           contact_phone, tier, key_account_manager_id, contract_ref, contract_scope,
-          contract_start, contract_expiry, notes, status, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active', ?, ?, ?)`,
+          contract_start, contract_expiry, postal_address, notes, status, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active', ?, ?, ?)`,
       [
         id, name.trim(), businessRegNo || null,
         JSON.stringify(regions || ["All"]),
@@ -126,7 +138,7 @@ router.post(
         tier || "Standard", keyAccountManagerId || null,
         contractRef || null, contractScope || null,
         contractStart || null, contractExpiry || null,
-        notes || null, req.user!.id, now, now,
+        postalAddress || null, notes || null, req.user!.id, now, now,
       ]
     );
 
@@ -175,7 +187,7 @@ router.patch(
     const {
       name, businessRegNo, regions, primaryContactName, contactEmail,
       contactPhone, tier, keyAccountManagerId, contractRef, contractScope,
-      contractStart, contractExpiry, notes, status,
+      contractStart, contractExpiry, notes, status, postalAddress,
     } = req.body;
 
     const now = new Date().toISOString();
@@ -194,6 +206,7 @@ router.patch(
          contract_scope = COALESCE(?, contract_scope),
          contract_start = COALESCE(?, contract_start),
          contract_expiry = COALESCE(?, contract_expiry),
+         postal_address = COALESCE(?, postal_address),
          notes = COALESCE(?, notes),
          status = COALESCE(?, status),
          updated_at = ?
@@ -204,7 +217,7 @@ router.patch(
         primaryContactName || null, contactEmail || null, contactPhone || null,
         tier || null, keyAccountManagerId || null, contractRef || null,
         contractScope || null, contractStart || null, contractExpiry || null,
-        notes || null, status || null, now, req.params.id,
+        postalAddress || null, notes || null, status || null, now, req.params.id,
       ]
     );
 
@@ -296,7 +309,7 @@ router.get(
          LEFT JOIN LATERAL (
            SELECT id, serial_no, end_date
            FROM certificates
-           WHERE UPPER(car_registration) = UPPER(v.registration)
+           WHERE UPPER(car_registration) = UPPER(v.registration) AND deleted_at IS NULL
            ORDER BY created_at DESC
            LIMIT 1
          ) cert ON TRUE

@@ -58,17 +58,19 @@
                 <p>No users found for the selected filters.</p>
                 <button id="reset-filters" type="button" class="mt-3 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">Reset filters</button>
               </div>
+              <div id="user-stats" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4"></div>
+              <div id="lock-banner" class="hidden mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 flex items-center gap-2"></div>
               <div class="overflow-x-auto">
-                <table class="w-full text-sm min-w-[760px]">
-                  <thead class="text-left text-slate-500">
+                <table class="w-full text-sm min-w-[820px]">
+                  <thead class="text-left text-[11px] uppercase tracking-wide text-slate-500 border-b border-slate-200">
                     <tr>
-                      <th scope="col" class="py-2">Name</th>
-                      <th scope="col" class="py-2">Email</th>
-                      <th scope="col" class="py-2">Role</th>
-                      <th scope="col" class="py-2">Status</th>
-                      <th scope="col" class="py-2">Last Login</th>
-                      <th scope="col" class="py-2">Created At</th>
-                      <th scope="col" class="py-2">Actions</th>
+                      <th scope="col" class="py-2.5 font-semibold">Name</th>
+                      <th scope="col" class="py-2.5 font-semibold">Email</th>
+                      <th scope="col" class="py-2.5 font-semibold">Role</th>
+                      <th scope="col" class="py-2.5 font-semibold">Status</th>
+                      <th scope="col" class="py-2.5 font-semibold">Last Login</th>
+                      <th scope="col" class="py-2.5 font-semibold">Created At</th>
+                      <th scope="col" class="py-2.5 font-semibold">Actions</th>
                     </tr>
                   </thead>
                   <tbody id="users-body" class="divide-y divide-slate-200"></tbody>
@@ -390,6 +392,42 @@
         return `<span class="ml-2 inline-flex rounded-full border border-amber-100 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Reset Required</span>`;
       };
 
+      const lockBadge = (user) => {
+        if (user.isLocked) {
+          const until = user.lockedUntil ? new Date(user.lockedUntil).toLocaleString() : "";
+          return `<span class="ml-1 inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700" title="Locked${until ? " until " + until : ""}">🔒 Locked</span>`;
+        }
+        if ((user.failedLoginAttempts || 0) >= 3) {
+          return `<span class="ml-1 inline-flex rounded-full border border-amber-100 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700" title="${user.failedLoginAttempts} failed sign-in attempts">⚠ ${user.failedLoginAttempts} fails</span>`;
+        }
+        return "";
+      };
+
+      const updateSummary = (list) => {
+        const total = list.length;
+        const active = list.filter((u) => u.status === "Active").length;
+        const disabled = list.filter((u) => u.status === "Disabled").length;
+        const locked = list.filter((u) => u.isLocked).length;
+        const statsEl = document.getElementById("user-stats");
+        if (statsEl) {
+          const card = (label, val, cls) => `<div class="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm"><div class="text-2xl font-bold ${cls}">${val}</div><div class="text-xs text-slate-500 mt-0.5">${label}</div></div>`;
+          statsEl.innerHTML =
+            card("Total users", total, "text-slate-900") +
+            card("Active", active, "text-emerald-600") +
+            card("Disabled", disabled, "text-slate-500") +
+            card("Locked out", locked, locked ? "text-rose-600" : "text-slate-400");
+        }
+        const banner = document.getElementById("lock-banner");
+        if (banner) {
+          if (locked > 0) {
+            banner.innerHTML = `<span class="text-lg leading-none">🔒</span><span><strong>${locked} account${locked === 1 ? "" : "s"} locked out</strong> after too many failed sign-in attempts. Use the <strong>Unlock</strong> button on a row to restore access.</span>`;
+            banner.classList.remove("hidden");
+          } else {
+            banner.classList.add("hidden");
+          }
+        }
+      };
+
       const fetchUsers = async (filters = {}) => {
         const response = await window.FINEMARK_APP.UserService.list(filters);
         users = response.data || [];
@@ -411,10 +449,11 @@
             <td class="py-2 font-medium">${user.name}</td>
             <td class="py-2">${user.email}</td>
             <td class="py-2">${roleBadge(user.role)}</td>
-            <td class="py-2">${statusBadge(user.status)}</td>
+            <td class="py-2">${statusBadge(user.status)}${lockBadge(user)}</td>
             <td class="py-2">${formatDate(user.lastLoginAt)}</td>
             <td class="py-2">${formatDate(user.createdAt)}${resetBadge(user.forcePasswordReset)}</td>
-            <td class="py-2 space-x-2">
+            <td class="py-2 space-x-2 whitespace-nowrap">
+              ${user.isLocked ? `<button type="button" aria-label="Unlock account" class="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300" data-action="unlock" data-id="${user.id}">🔓 Unlock</button>` : ""}
               <button type="button" aria-label="View user" class="text-blue-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 rounded" data-action="view" data-id="${user.id}">View</button>
               <button type="button" aria-label="Toggle user status" class="inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-xs font-semibold ${toggleClasses} ${isLoading ? "opacity-70 cursor-not-allowed" : ""}" data-action="toggle-status" data-id="${user.id}" ${isLoading ? "disabled" : ""}>
                 ${spinner}
@@ -434,6 +473,7 @@
 
       const renderUsersTable = (list) => {
         usersBody.innerHTML = list.map(renderUserRow).join("");
+        updateSummary(list);
         rowErrors.forEach((message, id) => {
           const container = document.getElementById(`error-cell-${id}`);
           const row = document.getElementById(`error-row-${id}`);
@@ -536,6 +576,10 @@
 
         if (action === "change-role") {
           openChangeRoleModal(user);
+        }
+
+        if (action === "unlock") {
+          handleUnlock(String(user.id));
         }
       });
 
@@ -688,6 +732,27 @@
         } catch (error) {
           rowErrors.set(String(userId), error.message || "Failed to update status");
           window.FINEMARK_APP.showToast(error.message || "Failed to update status", "error");
+        } finally {
+          rowLoading.delete(String(userId));
+          renderUsersTable(users);
+        }
+      };
+
+      const handleUnlock = async (userId) => {
+        const user = users.find((item) => String(item.id) === String(userId));
+        if (!user) return;
+        if (!window.confirm(`Unlock ${user.email}? They'll be able to sign in again right away.`)) return;
+        rowErrors.delete(String(userId));
+        rowLoading.add(String(userId));
+        renderUsersTable(users);
+        try {
+          const response = await window.FINEMARK_APP.apiFetch(`/users/${userId}/unlock`, { method: "POST" });
+          const updated = response?.data;
+          const idx = users.findIndex((item) => String(item.id) === String(userId));
+          if (idx >= 0 && updated) users[idx] = { ...users[idx], ...updated };
+          window.FINEMARK_APP.showToast("Account unlocked", "success");
+        } catch (error) {
+          window.FINEMARK_APP.showToast(error.message || "Failed to unlock account", "error");
         } finally {
           rowLoading.delete(String(userId));
           renderUsersTable(users);
